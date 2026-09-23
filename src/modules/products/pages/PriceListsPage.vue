@@ -168,7 +168,7 @@ async function removeList() {
           <li v-for="pl in catalog.priceLists" :key="pl.id">
             <button
               type="button"
-              class="flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-start text-[13px]"
+              class="flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-start text-body"
               :class="pl.id === selectedId ? 'bg-background font-medium shadow-[inset_0_0_0_1px_var(--color-border)]' : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary'"
               @click="selectedId = pl.id"
               @dblclick="canWrite && openList(pl)"
@@ -194,7 +194,7 @@ async function removeList() {
           </div>
         </div>
         <div class="max-h-[60vh] overflow-y-auto">
-          <table class="w-full text-[13px]">
+          <table class="w-full text-body">
             <thead class="sticky top-0 bg-surface text-xs text-text-secondary">
               <tr class="border-b border-border">
                 <th class="px-4 py-2 text-start font-medium">المنتج</th>
@@ -207,7 +207,7 @@ async function removeList() {
               <tr v-for="p in rows" :key="p.id" class="border-b border-border last:border-0" :class="values[p.id] !== original[p.id] && 'bg-primary/5'">
                 <td class="px-4 py-1.5">
                   <span class="block">{{ p.name }}</span>
-                  <span class="num text-[11px] text-text-secondary">{{ p.sku }}</span>
+                  <span class="num text-tiny text-text-secondary">{{ p.sku }}</span>
                 </td>
                 <td class="px-2 py-1.5"><MoneyText :value="p.price" plain class="text-text-secondary" /></td>
                 <td class="px-2 py-1.5">

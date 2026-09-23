@@ -54,7 +54,7 @@ const table = computed<ExportTable | undefined>(() => {
 
     <template v-if="data">
       <div class="overflow-hidden rounded-xl border border-border">
-        <table class="w-full text-[13px]">
+        <table class="w-full text-body">
           <thead class="bg-surface text-xs text-text-secondary">
             <tr class="border-b border-border">
               <th class="px-4 py-2.5 text-start font-medium">البند</th>
@@ -65,7 +65,7 @@ const table = computed<ExportTable | undefined>(() => {
           </thead>
           <tbody>
             <tr v-for="r in rows" :key="r.label" class="border-b border-border">
-              <td class="px-4 py-2.5">{{ r.label }}<span class="block text-[11px] text-text-secondary">{{ r.sub }}</span></td>
+              <td class="px-4 py-2.5">{{ r.label }}<span class="block text-tiny text-text-secondary">{{ r.sub }}</span></td>
               <td class="px-3 py-2.5"><span class="num">{{ formatNumber(r.count) }}</span></td>
               <td class="px-3 py-2.5"><MoneyText :value="r.sign * r.taxable" plain /></td>
               <td class="px-4 py-2.5"><MoneyText :value="r.sign * r.vat" plain /></td>

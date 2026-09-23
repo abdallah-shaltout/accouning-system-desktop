@@ -167,7 +167,7 @@ async function save() {
 
       <AppCard :title="`صلاحيات ${ROLE_LABEL[form.role]}`" padding="none">
         <ul class="divide-y divide-border">
-          <li v-for="r in accessRows" :key="r.area" class="flex items-center justify-between px-4 py-2 text-[13px]">
+          <li v-for="r in accessRows" :key="r.area" class="flex items-center justify-between px-4 py-2 text-body">
             <span :class="r.access === 'none' && 'text-text-secondary'">{{ r.label }}</span>
             <span
               class="inline-flex items-center gap-1 text-xs"

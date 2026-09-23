@@ -158,11 +158,11 @@ const methodOptions = [
               <label class="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-surface-hover" :class="refId === d.id && 'bg-background'">
                 <input v-model="refId" type="radio" :value="d.id" class="size-4 accent-[var(--color-primary)]" />
                 <span class="flex-1">
-                  <span class="num block text-[13px] font-medium">{{ d.number }}</span>
+                  <span class="num block text-body font-medium">{{ d.number }}</span>
                   <span class="num text-xs text-text-secondary">{{ formatDate(d.date) }} · الإجمالي <MoneyText :value="d.total" plain /></span>
                 </span>
                 <span class="text-end">
-                  <span class="block text-[11px] text-text-secondary">المتبقي</span>
+                  <span class="block text-tiny text-text-secondary">المتبقي</span>
                   <MoneyText :value="d.outstanding" class="font-medium text-warning" />
                 </span>
               </label>
@@ -184,7 +184,7 @@ const methodOptions = [
             <li v-for="p in problems" :key="p">{{ p }}</li>
           </ul>
           <AppButton variant="primary" block :icon="Save" :loading="saving" @click="save">حفظ السند</AppButton>
-          <p class="text-[11px] leading-5 text-text-secondary">
+          <p class="text-tiny leading-5 text-text-secondary">
             {{ isReceived ? 'القيد: من الصندوق/البنك إلى حساب العملاء.' : 'القيد: من حساب الموردين إلى الصندوق/البنك.' }}
           </p>
         </div>

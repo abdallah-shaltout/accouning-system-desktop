@@ -84,30 +84,30 @@ async function reverse() {
       <div class="mb-4 grid gap-4 sm:grid-cols-3">
         <AppCard padding="sm">
           <p class="text-xs text-text-secondary">التاريخ</p>
-          <p class="num mt-1 text-[13px] font-medium">{{ e ? formatDateTime(e.date) : '…' }}</p>
+          <p class="num mt-1 text-body font-medium">{{ e ? formatDateTime(e.date) : '…' }}</p>
         </AppCard>
         <AppCard padding="sm">
           <p class="text-xs text-text-secondary">أنشأه</p>
-          <p class="mt-1 text-[13px] font-medium">{{ e?.createdByName ?? '…' }}</p>
+          <p class="mt-1 text-body font-medium">{{ e?.createdByName ?? '…' }}</p>
         </AppCard>
         <AppCard padding="sm">
           <p class="text-xs text-text-secondary">حالة التوازن</p>
-          <p class="mt-1 text-[13px] font-medium text-success">متوازن ✓ — المدين = الدائن</p>
+          <p class="mt-1 text-body font-medium text-success">متوازن ✓ — المدين = الدائن</p>
         </AppCard>
       </div>
 
-      <p v-if="e?.reversalOfId" class="mb-3 text-[13px] text-text-secondary">
+      <p v-if="e?.reversalOfId" class="mb-3 text-body text-text-secondary">
         هذا القيد يعكس
         <RouterLink :to="`/accounting/journal/${e.reversalOfId}`" class="text-primary hover:underline">القيد الأصلي</RouterLink>.
       </p>
-      <p v-if="e?.reversedById" class="mb-3 text-[13px] text-text-secondary">
+      <p v-if="e?.reversedById" class="mb-3 text-body text-text-secondary">
         تم عكس هذا القيد بالقيد
         <RouterLink :to="`/accounting/journal/${e.reversedById}`" class="num text-primary hover:underline">{{ e.reversedByNumber }}</RouterLink>.
       </p>
 
       <div class="overflow-hidden rounded-xl border border-border">
         <div v-if="!e" class="p-4"><SkeletonBlock :lines="4" /></div>
-        <table v-else class="w-full text-[13px]">
+        <table v-else class="w-full text-body">
           <thead class="bg-surface text-xs text-text-secondary">
             <tr class="border-b border-border">
               <th class="px-4 py-2.5 text-start font-medium">الحساب</th>

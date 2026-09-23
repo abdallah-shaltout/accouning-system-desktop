@@ -30,7 +30,7 @@ defineExpose({ focus: () => input.value?.focus(), select: () => input.value?.sel
     </button>
     <kbd
       v-else-if="kbd"
-      class="num pointer-events-none absolute end-2 top-1/2 -translate-y-1/2 rounded border border-border px-1 text-[10px] text-text-secondary"
+      class="num pointer-events-none absolute end-2 top-1/2 -translate-y-1/2 rounded border border-border px-1 text-caption text-text-secondary"
     >{{ kbd }}</kbd>
   </div>
 </template>

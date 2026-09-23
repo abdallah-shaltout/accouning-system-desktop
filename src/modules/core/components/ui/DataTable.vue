@@ -88,7 +88,7 @@ function alignClass(col: Column<T>) {
 <template>
   <div class="overflow-hidden rounded-xl border border-border">
     <div class="overflow-x-auto">
-      <table class="w-full border-collapse text-[13px]">
+      <table class="w-full border-collapse text-body">
         <thead :class="sticky && 'sticky top-0 z-10'">
           <tr class="bg-surface">
             <th

@@ -38,21 +38,21 @@ function isActive(item: NavItem) {
         <Store class="size-4" />
       </div>
       <div v-if="!collapsed" class="min-w-0">
-        <p class="truncate text-[13px] font-semibold">{{ settings.settings?.storeName ?? '—' }}</p>
-        <p class="truncate text-[11px] text-text-secondary">المحاسبة ونقاط البيع</p>
+        <p class="truncate text-body font-semibold">{{ settings.settings?.storeName ?? '—' }}</p>
+        <p class="truncate text-tiny text-text-secondary">المحاسبة ونقاط البيع</p>
       </div>
     </div>
 
     <nav class="flex-1 overflow-y-auto overflow-x-hidden px-2 py-3" aria-label="القائمة الرئيسية">
       <div v-for="(group, gi) in groups" :key="gi" class="mb-3 last:mb-0">
-        <p v-if="group.label && !collapsed" class="mb-1 px-2.5 text-[11px] font-medium text-text-secondary/80">{{ group.label }}</p>
+        <p v-if="group.label && !collapsed" class="mb-1 px-2.5 text-tiny font-medium text-text-secondary/80">{{ group.label }}</p>
         <div v-else-if="group.label" class="mx-2.5 mb-2 border-t border-border" />
         <RouterLink
           v-for="item in group.items"
           :key="item.to"
           :to="item.to"
           :title="collapsed ? item.label : undefined"
-          class="relative mb-0.5 flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors"
+          class="relative mb-0.5 flex h-8 items-center gap-2.5 rounded-md px-2.5 text-body transition-colors"
           :class="
             isActive(item)
               ? 'bg-background font-medium text-primary shadow-[inset_0_0_0_1px_var(--color-border)]'

@@ -63,7 +63,7 @@ const table = computed<ExportTable | undefined>(() =>
       <DateRangeFilter v-model:from="from" v-model:to="to" :fiscal-start="fiscalStart" />
     </template>
 
-    <p class="mb-3 flex items-center gap-1.5 text-[13px]" :class="balanced ? 'text-success' : 'text-danger'">
+    <p class="mb-3 flex items-center gap-1.5 text-body" :class="balanced ? 'text-success' : 'text-danger'">
       <CircleCheck v-if="balanced" class="size-4" />
       <CircleAlert v-else class="size-4" />
       {{ balanced ? 'الميزان متوازن' : 'الميزان غير متوازن!' }}

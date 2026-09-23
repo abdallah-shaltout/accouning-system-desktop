@@ -42,7 +42,7 @@ const sampleDate = new Date().toISOString();
             >
               <span class="w-1/4" :class="t.value === 'dark' ? 'bg-[#17181c]' : t.value === 'light' ? 'bg-[#f4f4f5]' : 'bg-transparent'" />
             </span>
-            <span class="flex items-center gap-1.5 text-[13px]" :class="themeMode === t.value && 'font-medium text-primary'">
+            <span class="flex items-center gap-1.5 text-body" :class="themeMode === t.value && 'font-medium text-primary'">
               <component :is="t.icon" class="size-4" /> {{ t.label }}
             </span>
           </button>
@@ -59,7 +59,7 @@ const sampleDate = new Date().toISOString();
             :class="numeralSystem === n.value ? 'border-primary bg-primary/5' : 'border-border hover:bg-surface-hover'"
             @click="setNumerals(n.value)"
           >
-            <span class="block text-[13px]" :class="numeralSystem === n.value && 'font-medium text-primary'">{{ n.label }}</span>
+            <span class="block text-body" :class="numeralSystem === n.value && 'font-medium text-primary'">{{ n.label }}</span>
             <span class="num mt-1 block text-lg text-text-secondary">{{ n.value === 'latn' ? '1,234.50' : '١٬٢٣٤٫٥٠' }}</span>
           </button>
         </div>

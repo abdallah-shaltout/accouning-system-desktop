@@ -49,7 +49,7 @@ const canPay = computed(() => auth.can('payments', 'write') && !!inv.value?.cust
         <div class="space-y-5">
           <AppCard padding="none">
             <div v-if="!inv" class="p-4"><SkeletonBlock :lines="6" /></div>
-            <table v-else class="w-full text-[13px]">
+            <table v-else class="w-full text-body">
               <thead class="bg-surface text-xs text-text-secondary">
                 <tr class="border-b border-border">
                   <th class="px-4 py-2.5 text-start font-medium">الصنف</th>
@@ -77,7 +77,7 @@ const canPay = computed(() => auth.can('payments', 'write') && !!inv.value?.cust
           </AppCard>
 
           <AppCard v-if="inv?.refunds.length" title="المرتجعات" padding="none">
-            <ul class="divide-y divide-border text-[13px]">
+            <ul class="divide-y divide-border text-body">
               <li v-for="r in inv.refunds" :key="r.id" class="flex items-center justify-between gap-3 px-4 py-2.5">
                 <div>
                   <span class="num font-medium">{{ r.number }}</span>
@@ -86,7 +86,7 @@ const canPay = computed(() => auth.can('payments', 'write') && !!inv.value?.cust
                 </div>
                 <div class="text-end">
                   <MoneyText :value="r.grandTotal" class="text-danger" />
-                  <span class="block text-[11px] text-text-secondary">
+                  <span class="block text-tiny text-text-secondary">
                     <template v-if="r.cashBack">مسترد نقداً <MoneyText :value="r.cashBack" plain /></template>
                     <template v-if="r.cashBack && r.settledToReceivable"> · </template>
                     <template v-if="r.settledToReceivable">خصم من الحساب <MoneyText :value="r.settledToReceivable" plain /></template>
@@ -97,7 +97,7 @@ const canPay = computed(() => auth.can('payments', 'write') && !!inv.value?.cust
           </AppCard>
 
           <AppCard v-if="inv?.payments.length" title="الدفعات اللاحقة" padding="none">
-            <ul class="divide-y divide-border text-[13px]">
+            <ul class="divide-y divide-border text-body">
               <li v-for="p in inv.payments" :key="p.id" class="flex items-center justify-between px-4 py-2.5">
                 <div>
                   <span class="num font-medium">{{ p.number }}</span>
@@ -113,7 +113,7 @@ const canPay = computed(() => auth.can('payments', 'write') && !!inv.value?.cust
         <div class="space-y-4">
           <AppCard title="الملخص" padding="sm">
             <SkeletonBlock v-if="!inv" :lines="5" />
-            <dl v-else class="space-y-1.5 text-[13px]">
+            <dl v-else class="space-y-1.5 text-body">
               <div class="flex justify-between"><dt class="text-text-secondary">المجموع</dt><dd><MoneyText :value="inv.subTotal" /></dd></div>
               <div v-if="inv.discountAmount" class="flex justify-between">
                 <dt class="text-text-secondary">الخصم <span class="num">({{ formatNumber(inv.discountRate) }}%)</span></dt>
@@ -134,7 +134,7 @@ const canPay = computed(() => auth.can('payments', 'write') && !!inv.value?.cust
 
           <AppCard title="العميل والدفع" padding="sm">
             <SkeletonBlock v-if="!inv" :lines="3" />
-            <dl v-else class="space-y-1.5 text-[13px]">
+            <dl v-else class="space-y-1.5 text-body">
               <div class="flex justify-between gap-3">
                 <dt class="text-text-secondary">العميل</dt>
                 <dd>
@@ -149,7 +149,7 @@ const canPay = computed(() => auth.can('payments', 'write') && !!inv.value?.cust
           </AppCard>
 
           <AppCard v-if="inv && auth.can('accounting')" title="القيود المحاسبية" padding="none">
-            <ul class="divide-y divide-border text-[13px]">
+            <ul class="divide-y divide-border text-body">
               <li v-for="e in inv.journalEntries" :key="e.id">
                 <RouterLink :to="`/accounting/journal/${e.id}`" class="flex items-center gap-2 px-4 py-2 hover:bg-surface-hover">
                   <BookOpen class="size-3.5 shrink-0 text-text-secondary" />

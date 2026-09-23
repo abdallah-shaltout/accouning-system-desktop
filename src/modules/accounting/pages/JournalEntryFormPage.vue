@@ -120,7 +120,7 @@ useHotkeys({ 'ctrl+Enter': () => void save(), 'ctrl+s': () => void save() });
     </AppCard>
 
     <div class="overflow-hidden rounded-xl border border-border">
-      <table class="w-full text-[13px]">
+      <table class="w-full text-body">
         <thead class="bg-surface text-xs text-text-secondary">
           <tr class="border-b border-border">
             <th class="w-10 px-3 py-2.5 text-start font-medium">#</th>
@@ -181,7 +181,7 @@ useHotkeys({ 'ctrl+Enter': () => void save(), 'ctrl+s': () => void save() });
     </div>
 
     <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
-      <div class="text-[13px]">
+      <div class="text-body">
         <p v-if="difference === 0 && totalDebit > 0" class="flex items-center gap-1.5 text-success"><CircleCheck class="size-4" /> القيد متوازن</p>
         <p v-else-if="difference !== 0" class="flex items-center gap-1.5 text-danger">
           <CircleAlert class="size-4" /> الفرق: <MoneyText :value="Math.abs(difference)" /> {{ difference > 0 ? '(المدين أكبر)' : '(الدائن أكبر)' }}

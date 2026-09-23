@@ -44,7 +44,7 @@ const table = computed<ExportTable | undefined>(() => {
     </template>
 
     <template v-if="data">
-      <p class="mb-3 flex items-center gap-1.5 text-[13px]" :class="data.balanced ? 'text-success' : 'text-danger'">
+      <p class="mb-3 flex items-center gap-1.5 text-body" :class="data.balanced ? 'text-success' : 'text-danger'">
         <CircleCheck v-if="data.balanced" class="size-4" />
         <CircleAlert v-else class="size-4" />
         {{ data.balanced ? 'الأصول = الالتزامات + حقوق الملكية' : 'الميزانية غير متوازنة!' }}
@@ -59,7 +59,7 @@ const table = computed<ExportTable | undefined>(() => {
               <MoneyText :value="data.unclosedEarnings" plain :class="data.unclosedEarnings < 0 && 'text-danger'" />
             </li>
           </StatementSection>
-          <div class="flex items-center justify-between rounded-xl border-2 border-border px-4 py-3 text-[14px] font-semibold">
+          <div class="flex items-center justify-between rounded-xl border-2 border-border px-4 py-3 text-ui font-semibold">
             <span>الالتزامات + حقوق الملكية</span>
             <MoneyText :value="data.totalLiabilities + data.totalEquity" />
           </div>

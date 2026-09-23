@@ -97,7 +97,7 @@ const columns: Column<Movement>[] = [
 
       <div class="mt-5 grid items-start gap-5 xl:grid-cols-[1fr_300px]">
         <div>
-          <h2 class="mb-2 flex items-center gap-2 text-[13px] font-semibold"><ArrowLeftRight class="size-4 text-text-secondary" /> حركة المخزون</h2>
+          <h2 class="mb-2 flex items-center gap-2 text-body font-semibold"><ArrowLeftRight class="size-4 text-text-secondary" /> حركة المخزون</h2>
           <DataTable
             :columns="columns"
             :rows="p?.type === 'service' ? [] : movements.data.value"
@@ -122,7 +122,7 @@ const columns: Column<Movement>[] = [
         </div>
 
         <AppCard title="قوائم الأسعار" padding="none">
-          <ul class="divide-y divide-border text-[13px]">
+          <ul class="divide-y divide-border text-body">
             <li class="flex items-center justify-between px-4 py-2.5">
               <span>السعر الأساسي</span>
               <MoneyText :value="p?.price" />

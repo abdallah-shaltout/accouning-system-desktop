@@ -101,7 +101,7 @@ const table = computed<ExportTable | undefined>(() => {
 
     <EmptyState v-if="!targetId" :icon="BookText" title="اختر ما تريد عرض كشف حسابه" description="حساب من دليل الحسابات، أو عميل، أو مورد" />
     <div v-else-if="data" class="overflow-hidden rounded-xl border border-border" :class="loading && 'opacity-60'">
-      <table class="w-full text-[13px]">
+      <table class="w-full text-body">
         <thead class="bg-surface text-xs text-text-secondary">
           <tr class="border-b border-border">
             <th class="px-3 py-2.5 text-start font-medium">التاريخ</th>

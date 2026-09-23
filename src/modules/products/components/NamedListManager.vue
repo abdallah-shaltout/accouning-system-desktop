@@ -83,7 +83,7 @@ async function destroy(item: { id: string; name: string; productCount: number })
           <AppButton size="sm" variant="ghost" :icon="X" @click="editingId = null" />
         </template>
         <template v-else>
-          <span class="flex-1 truncate text-[13px]">{{ item.name }}</span>
+          <span class="flex-1 truncate text-body">{{ item.name }}</span>
           <span class="text-xs text-text-secondary"><span class="num">{{ formatNumber(item.productCount) }}</span> منتج</span>
           <div v-if="!readonly" class="flex opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
             <button type="button" class="rounded p-1.5 text-text-secondary hover:bg-surface-hover hover:text-text-primary" aria-label="تعديل" @click="startEdit(item.id, item.name)">

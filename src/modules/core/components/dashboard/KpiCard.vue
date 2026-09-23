@@ -15,14 +15,14 @@ defineProps<{ label: string; icon: Component; loading?: boolean; to?: RouteLocat
     :class="to && 'hover:border-text-secondary/40'"
   >
     <div class="mb-3 flex items-center justify-between text-text-secondary">
-      <span class="flex items-center gap-2 text-[13px]">
+      <span class="flex items-center gap-2 text-body">
         <component :is="icon" class="size-4" :stroke-width="1.75" />
         {{ label }}
       </span>
       <ChevronLeft v-if="to" class="size-4 opacity-0 transition-opacity group-hover:opacity-100" />
     </div>
     <div v-if="loading" class="h-8 w-2/3 animate-shimmer rounded-md bg-surface-hover" />
-    <div v-else class="text-[26px] font-semibold leading-tight tracking-tight" :class="tone === 'danger' ? 'text-danger' : tone === 'warning' ? 'text-warning' : ''">
+    <div v-else class="text-stat font-semibold leading-tight tracking-tight" :class="tone === 'danger' ? 'text-danger' : tone === 'warning' ? 'text-warning' : ''">
       <slot />
     </div>
     <div class="mt-1.5 min-h-4 text-xs text-text-secondary">

@@ -189,7 +189,7 @@ defineExpose({ open: show });
             ref="searchInput"
             v-model="query"
             :placeholder="searchPlaceholder"
-            class="h-9 w-full bg-transparent text-[13px] outline-none placeholder:text-text-secondary"
+            class="h-9 w-full bg-transparent text-body outline-none placeholder:text-text-secondary"
           />
         </div>
         <ul ref="list" role="listbox" class="max-h-64 overflow-y-auto p-1">
@@ -199,7 +199,7 @@ defineExpose({ open: show });
             role="option"
             :data-index="i"
             :aria-selected="o.value === model"
-            class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px]"
+            class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-body"
             :class="[i === active ? 'bg-surface-hover' : '', o.disabled && 'cursor-not-allowed opacity-50']"
             @mouseenter="active = i"
             @mousedown.prevent="choose(o)"

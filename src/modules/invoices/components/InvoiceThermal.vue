@@ -29,13 +29,13 @@ const change = computed(() => (inv.value.tenderedAmount ? changeDue(inv.value.gr
 <template>
   <article
     class="mx-auto bg-white text-black"
-    :class="narrow ? 'text-[10.5px] leading-snug' : 'text-[12px] leading-normal'"
+    :class="narrow ? 'text-[10.5px] leading-snug' : 'text-label leading-normal'"
     :style="{ width: `${width}mm`, padding: narrow ? '2mm 2.5mm' : '3mm 4mm' }"
     dir="rtl"
   >
     <header class="text-center">
       <img v-if="s.logo" :src="s.logo" alt="" class="mx-auto mb-1 h-12 object-contain grayscale" />
-      <p class="font-semibold" :class="narrow ? 'text-[13px]' : 'text-[15px]'">{{ s.storeName }}</p>
+      <p class="font-semibold" :class="narrow ? 'text-body' : 'text-lead'">{{ s.storeName }}</p>
       <p v-if="s.address">{{ s.address }}</p>
       <p v-if="s.phone" class="num text-center">{{ formatDigits(s.phone) }}</p>
       <p v-if="s.vatNumber">الرقم الضريبي: <span class="num">{{ formatDigits(s.vatNumber) }}</span></p>
@@ -70,7 +70,7 @@ const change = computed(() => (inv.value.tenderedAmount ? changeDue(inv.value.gr
       <div class="flex justify-between">
         <dt>ضريبة القيمة المضافة <span class="num">{{ formatNumber(inv.taxRate) }}%</span></dt><dd><MoneyText :value="inv.taxAmount" plain /></dd>
       </div>
-      <div class="flex justify-between border-t border-black pt-1 font-semibold" :class="narrow ? 'text-[13px]' : 'text-[15px]'">
+      <div class="flex justify-between border-t border-black pt-1 font-semibold" :class="narrow ? 'text-body' : 'text-lead'">
         <dt>الإجمالي</dt><dd><MoneyText :value="inv.grandTotal" /></dd>
       </div>
       <div class="flex justify-between pt-0.5"><dt>الدفع</dt><dd>{{ SALE_METHOD_LABEL[inv.paymentMethod] }}</dd></div>

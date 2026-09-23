@@ -15,14 +15,14 @@ const model = defineModel<V>();
       :aria-selected="model === o.value"
       class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md font-medium transition-colors"
       :class="[
-        size === 'sm' ? 'h-6 px-2 text-xs' : 'h-7 px-3 text-[13px]',
+        size === 'sm' ? 'h-6 px-2 text-xs' : 'h-7 px-3 text-body',
         model === o.value ? 'bg-background text-text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary',
       ]"
       @click="model = o.value"
     >
       <component :is="o.icon" v-if="o.icon" class="size-3.5" />
       {{ o.label }}
-      <span v-if="o.count !== undefined" class="num rounded-full bg-surface-hover px-1.5 text-[10px] leading-4 text-text-secondary">{{ o.count }}</span>
+      <span v-if="o.count !== undefined" class="num rounded-full bg-surface-hover px-1.5 text-caption leading-4 text-text-secondary">{{ o.count }}</span>
     </button>
   </div>
 </template>

@@ -96,7 +96,7 @@ async function doCancel() {
         <div class="space-y-5">
           <AppCard padding="none">
             <div v-if="!po" class="p-4"><SkeletonBlock :lines="5" /></div>
-            <table v-else class="w-full text-[13px]">
+            <table v-else class="w-full text-body">
               <thead class="bg-surface text-xs text-text-secondary">
                 <tr class="border-b border-border">
                   <th class="px-4 py-2.5 text-start font-medium">الصنف</th>
@@ -110,7 +110,7 @@ async function doCancel() {
                 <tr v-for="l in po.lines" :key="l.productId" class="border-b border-border last:border-0">
                   <td class="px-4 py-2.5">
                     <RouterLink :to="`/products/${l.productId}`" class="hover:text-primary">{{ po.products[l.productId]?.name }}</RouterLink>
-                    <span class="num block text-[11px] text-text-secondary">{{ po.products[l.productId]?.sku }}</span>
+                    <span class="num block text-tiny text-text-secondary">{{ po.products[l.productId]?.sku }}</span>
                   </td>
                   <td class="px-3 py-2.5"><span class="num">{{ formatNumber(l.qty) }}</span></td>
                   <td class="px-3 py-2.5">
@@ -125,7 +125,7 @@ async function doCancel() {
           </AppCard>
 
           <AppCard v-if="po?.returns.length" title="المرتجعات للمورد" padding="none">
-            <ul class="divide-y divide-border text-[13px]">
+            <ul class="divide-y divide-border text-body">
               <li v-for="r in po.returns" :key="r.id" class="flex items-center justify-between px-4 py-2.5">
                 <div>
                   <span class="num font-medium">{{ r.number }}</span>
@@ -138,7 +138,7 @@ async function doCancel() {
           </AppCard>
 
           <AppCard v-if="po?.payments.length" title="الدفعات" padding="none">
-            <ul class="divide-y divide-border text-[13px]">
+            <ul class="divide-y divide-border text-body">
               <li v-for="p in po.payments" :key="p.id" class="flex items-center justify-between px-4 py-2.5">
                 <div>
                   <span class="num font-medium">{{ p.number }}</span>
@@ -154,7 +154,7 @@ async function doCancel() {
         <div class="space-y-4">
           <AppCard title="الملخص" padding="sm">
             <SkeletonBlock v-if="!po" :lines="5" />
-            <dl v-else class="space-y-1.5 text-[13px]">
+            <dl v-else class="space-y-1.5 text-body">
               <div class="flex justify-between"><dt class="text-text-secondary">المجموع</dt><dd><MoneyText :value="po.subTotal" /></dd></div>
               <div class="flex justify-between"><dt class="text-text-secondary">الضريبة <span class="num">({{ formatNumber(po.taxRate) }}%)</span></dt><dd><MoneyText :value="po.taxAmount" /></dd></div>
               <div class="flex justify-between border-t border-border pt-1.5 font-semibold"><dt>الإجمالي</dt><dd><MoneyText :value="po.grandTotal" /></dd></div>
@@ -165,7 +165,7 @@ async function doCancel() {
             <p v-if="po?.note" class="mt-3 border-t border-border pt-2 text-xs text-text-secondary">{{ po.note }}</p>
           </AppCard>
           <AppCard v-if="po?.journalEntries.length && auth.can('accounting')" title="القيود المحاسبية" padding="none">
-            <ul class="divide-y divide-border text-[13px]">
+            <ul class="divide-y divide-border text-body">
               <li v-for="e in po.journalEntries" :key="e.id">
                 <RouterLink :to="`/accounting/journal/${e.id}`" class="flex items-center gap-2 px-4 py-2 hover:bg-surface-hover">
                   <BookOpen class="size-3.5 shrink-0 text-text-secondary" />

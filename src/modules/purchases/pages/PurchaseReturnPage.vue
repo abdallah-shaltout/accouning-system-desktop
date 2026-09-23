@@ -80,7 +80,7 @@ async function submit() {
     <div v-else class="grid items-start gap-5 xl:grid-cols-[1fr_320px]">
       <AppCard padding="none">
         <div v-if="!data" class="p-4"><SkeletonBlock :lines="5" height="h-8" /></div>
-        <table v-else class="w-full text-[13px]">
+        <table v-else class="w-full text-body">
           <thead class="bg-surface text-xs text-text-secondary">
             <tr class="border-b border-border">
               <th class="px-4 py-2.5 text-start font-medium">الصنف</th>
@@ -115,12 +115,12 @@ async function submit() {
       <div class="space-y-4">
         <AppCard padding="sm">
           <AppInput v-model="reason" label="سبب الإرجاع" />
-          <dl class="mt-4 space-y-1.5 text-[13px]">
+          <dl class="mt-4 space-y-1.5 text-body">
             <div class="flex justify-between"><dt class="text-text-secondary">قبل الضريبة</dt><dd><MoneyText :value="totals.sub" /></dd></div>
             <div class="flex justify-between"><dt class="text-text-secondary">الضريبة</dt><dd><MoneyText :value="totals.tax" /></dd></div>
             <div class="flex justify-between border-t border-border pt-1.5 font-semibold"><dt>قيمة المرتجع</dt><dd><MoneyText :value="totals.total" /></dd></div>
           </dl>
-          <p class="mt-3 text-[11px] leading-5 text-text-secondary">يُخفض رصيد المورد بقيمة المرتجع؛ وإن كان الأمر مسدداً بالكامل يُسجل الفرق كمبلغ مسترد نقداً.</p>
+          <p class="mt-3 text-tiny leading-5 text-text-secondary">يُخفض رصيد المورد بقيمة المرتجع؛ وإن كان الأمر مسدداً بالكامل يُسجل الفرق كمبلغ مسترد نقداً.</p>
         </AppCard>
         <p v-if="invalid" class="text-xs text-danger">كمية الإرجاع تتجاوز الحد المسموح لأحد الأصناف</p>
         <AppButton variant="primary" block :icon="Undo2" :disabled="!count || invalid" :loading="saving" @click="submit">تسجيل المرتجع</AppButton>

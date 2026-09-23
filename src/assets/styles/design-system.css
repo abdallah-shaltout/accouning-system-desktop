@@ -48,6 +48,51 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.45; }
   }
+
+  /*
+   * Text-size tokens (see docs/v2/14-platform.md §3). All scale together through
+   * --font-scale (defined at :root, default 1) so the appearance setting's text-size
+   * option can resize every label/body/heading in the app without touching layout
+   * spacing (which stays in rem/px, independent of this scale).
+   * Grouped by usage rather than one token per pixel found in the codebase:
+   */
+  --text-caption:     calc(10px * var(--font-scale));  /* smallest meta text: badges, tiny hints */
+  --text-tiny:        calc(11px * var(--font-scale));  /* secondary/muted labels, table meta rows */
+  --text-label:       calc(12px * var(--font-scale));  /* field labels, small captions */
+  --text-body:        calc(13px * var(--font-scale));  /* default body/paragraph/table-cell text */
+  --text-ui:          calc(14px * var(--font-scale));  /* base UI chrome text (body font-size default) */
+  --text-lead:        calc(15px * var(--font-scale));  /* lead paragraphs, emphasized rows */
+  --text-heading-sm:  calc(17px * var(--font-scale));  /* section sub-heading (e.g. invoice doc title) */
+  --text-heading:     calc(18px * var(--font-scale));  /* section heading (e.g. invoice store name) */
+  --text-stat:        calc(26px * var(--font-scale));  /* big stat/KPI numbers */
+}
+
+@utility text-caption {
+  font-size: var(--text-caption);
+}
+@utility text-tiny {
+  font-size: var(--text-tiny);
+}
+@utility text-label {
+  font-size: var(--text-label);
+}
+@utility text-body {
+  font-size: var(--text-body);
+}
+@utility text-ui {
+  font-size: var(--text-ui);
+}
+@utility text-lead {
+  font-size: var(--text-lead);
+}
+@utility text-heading-sm {
+  font-size: var(--text-heading-sm);
+}
+@utility text-heading {
+  font-size: var(--text-heading);
+}
+@utility text-stat {
+  font-size: var(--text-stat);
 }
 
 :root {
@@ -55,6 +100,9 @@
   background-color: var(--color-background);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
+  /* Text-size scale multiplier for the appearance setting (90%/100%/110%/120%/130%).
+     1 = unchanged from the previous hard-coded pixel sizes. */
+  --font-scale: 1;
 }
 
 :root.dark {
@@ -76,7 +124,7 @@
 @layer base {
   body {
     margin: 0;
-    font-size: 14px;
+    font-size: var(--text-ui);
     line-height: 1.55;
     background-color: var(--color-background);
     -webkit-font-smoothing: antialiased;

@@ -111,7 +111,7 @@ const columns: Column<InvoiceRow>[] = [
       <template #cell-status="{ row }">
         <StatusBadge v-if="row.status === 'REFUNDED'" :tone="INVOICE_STATUS.REFUNDED.tone" :label="INVOICE_STATUS.REFUNDED.label" />
         <StatusBadge v-else :tone="PAYMENT_STATUS[row.paymentStatus].tone" :label="PAYMENT_STATUS[row.paymentStatus].label" />
-        <span v-if="row.status !== 'REFUNDED' && row.refundedAmount > 0" class="ms-1.5 text-[11px] text-danger">مرتجع جزئي</span>
+        <span v-if="row.status !== 'REFUNDED' && row.refundedAmount > 0" class="ms-1.5 text-tiny text-danger">مرتجع جزئي</span>
       </template>
       <template #cell-grandTotal="{ row }"><MoneyText :value="row.grandTotal" /></template>
       <template #cell-outstanding="{ row }"><MoneyText :value="row.outstanding" dash-zero :class="row.outstanding > 0 && 'text-warning'" /></template>

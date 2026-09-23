@@ -9,7 +9,7 @@ defineProps<{ title: string; lines: StatementLine[]; total: number; totalLabel?:
 <template>
   <section class="overflow-hidden rounded-xl border border-border">
     <h3 class="border-b border-border bg-surface px-4 py-2 text-xs font-medium text-text-secondary">{{ title }}</h3>
-    <ul class="divide-y divide-border text-[13px]">
+    <ul class="divide-y divide-border text-body">
       <li v-for="l in lines" :key="l.accountId">
         <RouterLink :to="`/reports/ledger?account=${l.accountId}`" class="flex items-center justify-between px-4 py-2 hover:bg-surface-hover">
           <span class="flex items-center gap-2"><span class="num text-xs text-text-secondary">{{ l.code }}</span>{{ l.name }}</span>
@@ -19,7 +19,7 @@ defineProps<{ title: string; lines: StatementLine[]; total: number; totalLabel?:
       <slot />
       <li v-if="!lines.length" class="px-4 py-2 text-xs text-text-secondary">لا توجد حركات</li>
     </ul>
-    <div class="flex items-center justify-between border-t border-border bg-surface px-4 py-2.5 text-[13px] font-semibold" :class="emphasis && 'text-[14px]'">
+    <div class="flex items-center justify-between border-t border-border bg-surface px-4 py-2.5 text-body font-semibold" :class="emphasis && 'text-ui'">
       <span>{{ totalLabel ?? `إجمالي ${title}` }}</span>
       <MoneyText :value="total" />
     </div>

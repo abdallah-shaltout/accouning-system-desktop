@@ -51,7 +51,7 @@ const groups: { title: string; reports: ReportLink[] }[] = [
               <component :is="r.icon" class="size-4.5" :stroke-width="1.75" />
             </span>
             <span>
-              <span class="block text-[13px] font-semibold">{{ r.title }}</span>
+              <span class="block text-body font-semibold">{{ r.title }}</span>
               <span class="mt-1 block text-xs leading-5 text-text-secondary">{{ r.description }}</span>
             </span>
           </RouterLink>

@@ -150,7 +150,7 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
         </AppCard>
 
         <AppCard title="الضرائب" padding="none">
-          <table class="w-full text-[13px]">
+          <table class="w-full text-body">
             <thead class="text-xs text-text-secondary">
               <tr class="border-b border-border">
                 <th class="px-4 py-2 text-start font-medium">الضريبة</th>
@@ -163,7 +163,7 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
               <tr v-for="t in store.taxes" :key="t.id" class="border-b border-border last:border-0">
                 <td class="px-4 py-2">
                   {{ t.name }}
-                  <span v-if="t.isDefault" class="ms-1.5 rounded-full bg-primary/10 px-1.5 text-[11px] text-primary">افتراضية</span>
+                  <span v-if="t.isDefault" class="ms-1.5 rounded-full bg-primary/10 px-1.5 text-tiny text-primary">افتراضية</span>
                 </td>
                 <td class="px-2 py-2 text-text-secondary">{{ t.type === 'OUTPUT' ? 'مخرجات (مبيعات)' : 'مدخلات (مشتريات)' }}</td>
                 <td class="px-2 py-2">
@@ -197,7 +197,7 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
               <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onLogo" />
               <AppButton size="sm" :icon="ImagePlus" :disabled="!canWrite" @click="fileInput?.click()">{{ form.logo ? 'تغيير' : 'رفع شعار' }}</AppButton>
               <AppButton v-if="form.logo" size="sm" variant="ghost" :icon="Trash" :disabled="!canWrite" @click="form.logo = undefined">إزالة</AppButton>
-              <p class="text-[11px] text-text-secondary">PNG أو JPG، حتى 600 كيلوبايت. يُحفظ محلياً.</p>
+              <p class="text-tiny text-text-secondary">PNG أو JPG، حتى 600 كيلوبايت. يُحفظ محلياً.</p>
             </div>
           </div>
         </AppCard>

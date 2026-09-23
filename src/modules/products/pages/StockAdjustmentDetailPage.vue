@@ -90,7 +90,7 @@ async function remove() {
 
       <AppCard padding="none">
         <div v-if="!a" class="p-4"><SkeletonBlock :lines="6" /></div>
-        <table v-else class="w-full text-[13px]">
+        <table v-else class="w-full text-body">
           <thead class="bg-surface text-xs text-text-secondary">
             <tr class="border-b border-border">
               <th class="px-4 py-2.5 text-start font-medium">الصنف</th>
@@ -105,7 +105,7 @@ async function remove() {
             <tr v-for="l in a.lines" :key="l.productId" class="border-b border-border last:border-0">
               <td class="px-4 py-2.5">
                 <RouterLink :to="`/products/${l.productId}`" class="hover:text-primary">{{ products.get(l.productId)?.name ?? '…' }}</RouterLink>
-                <span class="num block text-[11px] text-text-secondary">{{ products.get(l.productId)?.sku }}</span>
+                <span class="num block text-tiny text-text-secondary">{{ products.get(l.productId)?.sku }}</span>
               </td>
               <td class="px-3 py-2.5"><span class="num text-text-secondary">{{ formatNumber(l.systemQty) }}</span></td>
               <td v-if="a.type === 'STOCKTAKE'" class="px-3 py-2.5"><span class="num">{{ formatNumber(l.countedQty) }}</span></td>

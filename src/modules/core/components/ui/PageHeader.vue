@@ -21,7 +21,7 @@ defineProps<{ title: string; subtitle?: string; back?: RouteLocationRaw }>();
           {{ title }}
           <slot name="badge" />
         </h1>
-        <p v-if="subtitle || $slots.subtitle" class="mt-0.5 text-[13px] text-text-secondary">
+        <p v-if="subtitle || $slots.subtitle" class="mt-0.5 text-body text-text-secondary">
           <slot name="subtitle">{{ subtitle }}</slot>
         </p>
       </div>

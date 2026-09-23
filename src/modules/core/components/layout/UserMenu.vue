@@ -60,8 +60,8 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onOutside));
     >
       <span class="flex size-7 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">{{ initials }}</span>
       <span class="hidden text-start leading-tight md:block">
-        <span class="block text-[13px]">{{ auth.user?.name }}</span>
-        <span class="block text-[11px] text-text-secondary">{{ auth.role ? ROLE_LABEL[auth.role] : '' }}</span>
+        <span class="block text-body">{{ auth.user?.name }}</span>
+        <span class="block text-tiny text-text-secondary">{{ auth.role ? ROLE_LABEL[auth.role] : '' }}</span>
       </span>
       <ChevronDown class="size-3.5 text-text-secondary" />
     </button>
@@ -72,13 +72,13 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onOutside));
       class="absolute end-0 top-full z-50 mt-1.5 w-64 overflow-hidden rounded-lg border border-border bg-background shadow-xl"
     >
       <div class="border-b border-border px-3 py-2.5">
-        <p class="text-[13px] font-medium">{{ auth.user?.name }}</p>
+        <p class="text-body font-medium">{{ auth.user?.name }}</p>
         <p class="text-xs text-text-secondary">
           <span class="num">@{{ auth.user?.username }}</span> · {{ auth.role ? ROLE_LABEL[auth.role] : '' }}
         </p>
       </div>
       <div v-if="isDev && demo.length" class="border-b border-border p-1">
-        <p class="flex items-center gap-1.5 px-2 py-1 text-[11px] text-text-secondary">
+        <p class="flex items-center gap-1.5 px-2 py-1 text-tiny text-text-secondary">
           <RefreshCw class="size-3" /> تبديل المستخدم (وضع التطوير)
         </p>
         <button
@@ -86,20 +86,20 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onOutside));
           :key="d.username"
           type="button"
           role="menuitem"
-          class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-[13px] hover:bg-surface-hover disabled:opacity-50"
+          class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-body hover:bg-surface-hover disabled:opacity-50"
           :disabled="d.username === auth.user?.username"
           @click="switchUser(d)"
         >
           <UserRound class="size-3.5 text-text-secondary" />
           <span class="flex-1 truncate">{{ d.name }}</span>
-          <span class="text-[11px] text-text-secondary">{{ ROLE_LABEL[d.role] }}</span>
+          <span class="text-tiny text-text-secondary">{{ ROLE_LABEL[d.role] }}</span>
         </button>
       </div>
       <div class="p-1">
         <RouterLink
           to="/settings/appearance"
           role="menuitem"
-          class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] hover:bg-surface-hover"
+          class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-body hover:bg-surface-hover"
           @click="open = false"
         >
           <Palette class="size-3.5 text-text-secondary" /> المظهر والأرقام
@@ -107,7 +107,7 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onOutside));
         <button
           type="button"
           role="menuitem"
-          class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-[13px] text-danger hover:bg-danger/10"
+          class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-body text-danger hover:bg-danger/10"
           @click="logout"
         >
           <LogOut class="size-3.5" /> تسجيل الخروج

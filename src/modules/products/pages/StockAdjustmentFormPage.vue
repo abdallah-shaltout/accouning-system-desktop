@@ -228,7 +228,7 @@ async function submit(asDraft: boolean) {
 
         <AppCard padding="none">
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-            <h2 class="text-[13px] font-semibold">الأصناف</h2>
+            <h2 class="text-body font-semibold">الأصناف</h2>
             <div class="relative w-64">
               <ScanBarcode class="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-text-secondary" />
               <input v-model="scan" class="control ps-8" placeholder="امسح الباركود أو اكتب SKU ثم Enter" @keydown.enter.prevent="onScan" />
@@ -238,7 +238,7 @@ async function submit(asDraft: boolean) {
           <div v-if="loading" class="p-4"><SkeletonBlock :lines="5" height="h-8" /></div>
           <EmptyState v-else-if="!lines.length" title="لا توجد أصناف في هذا النطاق" compact />
           <div v-else class="max-h-[58vh] overflow-y-auto">
-            <table class="w-full text-[13px]">
+            <table class="w-full text-body">
               <thead class="sticky top-0 z-[1] bg-surface text-xs text-text-secondary">
                 <tr class="border-b border-border">
                   <th class="px-4 py-2 text-start font-medium">الصنف</th>
@@ -263,7 +263,7 @@ async function submit(asDraft: boolean) {
                     />
                     <span v-else>
                       {{ byId.get(line.productId!)?.name }}
-                      <span class="num block text-[11px] text-text-secondary">{{ byId.get(line.productId!)?.sku }}</span>
+                      <span class="num block text-tiny text-text-secondary">{{ byId.get(line.productId!)?.sku }}</span>
                     </span>
                   </td>
                   <td class="px-2 py-1.5"><span class="num text-text-secondary">{{ line.productId ? formatNumber(byId.get(line.productId)?.stockQty) : '—' }}</span></td>
@@ -285,7 +285,7 @@ async function submit(asDraft: boolean) {
                       class="control h-8 w-24"
                       :aria-invalid="!!lineErrors[line.key] || undefined"
                     />
-                    <p v-if="lineErrors[line.key]" class="mt-0.5 text-[11px] text-danger">{{ lineErrors[line.key] }}</p>
+                    <p v-if="lineErrors[line.key]" class="mt-0.5 text-tiny text-danger">{{ lineErrors[line.key] }}</p>
                   </td>
                   <td v-if="type === 'STOCKTAKE'" class="px-2 py-1.5">
                     <span class="num font-medium" :class="change(line) > 0 ? 'text-success' : change(line) < 0 ? 'text-danger' : 'text-text-secondary'">
@@ -316,7 +316,7 @@ async function submit(asDraft: boolean) {
 
       <div class="space-y-4 xl:sticky xl:top-0">
         <AppCard title="الملخص" padding="sm">
-          <dl class="space-y-2 text-[13px]">
+          <dl class="space-y-2 text-body">
             <div v-if="type === 'STOCKTAKE'" class="flex justify-between">
               <dt class="text-text-secondary">أصناف بها فروقات</dt>
               <dd><span class="num">{{ formatNumber(diffCount) }}</span> من <span class="num">{{ formatNumber(lines.length) }}</span></dd>

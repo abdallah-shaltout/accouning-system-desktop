@@ -20,7 +20,7 @@ const model = defineModel<boolean>({ default: false });
       />
     </button>
     <span v-if="label || description" class="min-w-0">
-      <span class="block text-[13px] text-text-primary">{{ label }}</span>
+      <span class="block text-body text-text-primary">{{ label }}</span>
       <span v-if="description" class="block text-xs text-text-secondary">{{ description }}</span>
     </span>
   </label>

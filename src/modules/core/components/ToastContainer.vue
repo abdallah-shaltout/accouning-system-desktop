@@ -27,7 +27,7 @@ const tones = { success: 'text-success', error: 'text-danger', warning: 'text-wa
       >
         <component :is="icons[toast.type]" class="mt-0.5 size-4 shrink-0" :class="tones[toast.type]" />
         <div class="min-w-0 flex-1">
-          <p class="text-[13px] font-medium">{{ toast.title }}</p>
+          <p class="text-body font-medium">{{ toast.title }}</p>
           <p v-if="toast.message" class="mt-0.5 text-xs leading-5 text-text-secondary">{{ toast.message }}</p>
         </div>
         <button

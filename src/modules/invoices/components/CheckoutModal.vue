@@ -130,7 +130,7 @@ function confirm() {
             v-for="a in quickAmounts"
             :key="a"
             type="button"
-            class="num h-8 rounded-md border border-border px-3 text-[13px] hover:bg-surface-hover"
+            class="num h-8 rounded-md border border-border px-3 text-body hover:bg-surface-hover"
             :class="tendered === a && 'border-primary text-primary'"
             @click="tendered = a"
           >
@@ -138,19 +138,19 @@ function confirm() {
           </button>
         </div>
         <div class="flex items-center justify-between rounded-lg bg-success/10 px-4 py-2.5" :class="change === 0 && 'opacity-60'">
-          <span class="text-[13px]">الباقي للعميل</span>
+          <span class="text-body">الباقي للعميل</span>
           <span class="text-xl font-semibold text-success"><MoneyText :value="change" /></span>
         </div>
       </div>
 
-      <p v-else-if="method === 'credit'" class="rounded-md bg-warning/10 px-3 py-2 text-[13px] text-warning">
+      <p v-else-if="method === 'credit'" class="rounded-md bg-warning/10 px-3 py-2 text-body text-warning">
         سيُسجل كامل المبلغ على حساب العميل ويظهر في الفواتير غير المسددة.
       </p>
-      <p v-else class="rounded-md bg-surface px-3 py-2 text-[13px] text-text-secondary">
+      <p v-else class="rounded-md bg-surface px-3 py-2 text-body text-text-secondary">
         {{ method === 'card' ? 'مرر البطاقة على جهاز نقاط البيع ثم أكّد الدفع.' : 'تأكد من وصول التحويل قبل التأكيد.' }}
       </p>
 
-      <p v-if="onAccount > 0 && hasCustomer && method === 'cash'" class="rounded-md bg-warning/10 px-3 py-2 text-[13px] text-warning">
+      <p v-if="onAccount > 0 && hasCustomer && method === 'cash'" class="rounded-md bg-warning/10 px-3 py-2 text-body text-warning">
         دفع جزئي — سيُسجل المتبقي <MoneyText :value="onAccount" /> على حساب العميل.
       </p>
       <p v-if="problem" class="text-xs text-danger">{{ problem }}</p>

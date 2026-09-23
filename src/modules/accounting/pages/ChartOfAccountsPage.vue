@@ -161,7 +161,7 @@ async function remove(a: AccountWithBalance) {
           <span v-else class="w-5" />
           <component :is="row.kind === 'group' ? (collapsed.has(row.id) ? Folder : FolderOpen) : FileText" class="size-4 shrink-0 text-text-secondary" :stroke-width="1.5" />
           <span class="num shrink-0 text-text-secondary" :class="row.kind === 'account' && 'text-xs'">{{ row.code }}</span>
-          <span class="truncate text-[13px]" :class="row.account && !row.account.active && 'text-text-secondary line-through'">{{ row.name }}</span>
+          <span class="truncate text-body" :class="row.account && !row.account.active && 'text-text-secondary line-through'">{{ row.name }}</span>
           <Lock v-if="row.account && !row.account.canDelete" class="size-3 shrink-0 text-text-secondary/60" aria-label="حساب أساسي" />
           <StatusBadge v-if="row.account && !row.account.active" label="موقوف" class="ms-1" />
         </div>

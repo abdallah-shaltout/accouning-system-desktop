@@ -109,17 +109,17 @@ const payLink = (docId?: string) => ({
             <div class="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 text-xs">
               <div>
                 <p class="text-text-secondary">{{ isCustomer ? 'عدد الفواتير' : 'أوامر الشراء' }}</p>
-                <p class="num mt-0.5 text-[13px] font-medium">{{ formatNumber(totals.documents) }}</p>
+                <p class="num mt-0.5 text-body font-medium">{{ formatNumber(totals.documents) }}</p>
               </div>
               <div>
                 <p class="text-text-secondary">إجمالي التعامل</p>
-                <p class="mt-0.5 text-[13px] font-medium"><MoneyText :value="totals.volume" plain /></p>
+                <p class="mt-0.5 text-body font-medium"><MoneyText :value="totals.volume" plain /></p>
               </div>
             </div>
           </AppCard>
           <AppCard title="بيانات التواصل" padding="sm">
             <SkeletonBlock v-if="!p" :lines="3" />
-            <ul v-else class="space-y-2.5 text-[13px]">
+            <ul v-else class="space-y-2.5 text-body">
               <li class="flex items-center gap-2"><Phone class="size-3.5 text-text-secondary" /><span class="num">{{ p.phone ?? '—' }}</span></li>
               <li v-if="!isCustomer" class="flex items-center gap-2"><UserRound class="size-3.5 text-text-secondary" />{{ (p as Supplier).contactPerson ?? '—' }}</li>
               <li class="flex items-center gap-2"><MapPin class="size-3.5 text-text-secondary" />{{ p.address ?? '—' }}</li>

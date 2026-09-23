@@ -49,12 +49,12 @@ const table = computed<ExportTable | undefined>(() => {
       <div class="space-y-4">
         <StatementSection title="الإيرادات" :lines="data.revenue" :total="data.netRevenue" total-label="صافي الإيرادات" />
         <StatementSection title="تكلفة المبيعات" :lines="data.cogs" :total="data.totalCogs" />
-        <div class="flex items-center justify-between rounded-xl border border-border px-4 py-3 text-[14px] font-semibold">
+        <div class="flex items-center justify-between rounded-xl border border-border px-4 py-3 text-ui font-semibold">
           <span>مجمل الربح</span>
           <MoneyText :value="data.grossProfit" signed />
         </div>
         <StatementSection title="المصروفات" :lines="data.expenses" :total="data.totalExpenses" />
-        <div class="flex items-center justify-between rounded-xl border-2 px-4 py-3.5 text-[15px] font-semibold" :class="data.netIncome >= 0 ? 'border-success/50' : 'border-danger/50'">
+        <div class="flex items-center justify-between rounded-xl border-2 px-4 py-3.5 text-lead font-semibold" :class="data.netIncome >= 0 ? 'border-success/50' : 'border-danger/50'">
           <span>{{ data.netIncome >= 0 ? 'صافي الربح' : 'صافي الخسارة' }}</span>
           <MoneyText :value="data.netIncome" signed />
         </div>
@@ -68,7 +68,7 @@ const table = computed<ExportTable | undefined>(() => {
           <p class="text-xs text-text-secondary">هامش صافي الربح</p>
           <p class="num mt-1 text-xl font-semibold" :class="margin < 0 ? 'text-danger' : ''">{{ formatNumber(margin, 1) }}%</p>
         </div>
-        <p class="text-[11px] leading-5 text-text-secondary">اضغط على أي حساب لعرض كشف الحساب المفصل.</p>
+        <p class="text-tiny leading-5 text-text-secondary">اضغط على أي حساب لعرض كشف الحساب المفصل.</p>
       </div>
     </div>
   </ReportShell>

@@ -91,7 +91,7 @@ async function submit() {
       <AppCard padding="none">
         <template #actions><AppButton size="sm" variant="ghost" @click="returnAll">إرجاع الكل</AppButton></template>
         <div v-if="!data" class="p-4"><SkeletonBlock :lines="5" height="h-8" /></div>
-        <table v-else class="w-full text-[13px]">
+        <table v-else class="w-full text-body">
           <thead class="bg-surface text-xs text-text-secondary">
             <tr class="border-b border-border">
               <th class="px-4 py-2.5 text-start font-medium">الصنف</th>
@@ -131,14 +131,14 @@ async function submit() {
           <input v-if="reason === 'أخرى'" v-model="customReason" class="control mt-2" placeholder="اكتب السبب" />
         </AppCard>
         <AppCard title="المبلغ المسترد" padding="sm">
-          <dl class="space-y-1.5 text-[13px]">
+          <dl class="space-y-1.5 text-body">
             <div class="flex justify-between"><dt class="text-text-secondary">قبل الضريبة</dt><dd><MoneyText :value="estimate.net" /></dd></div>
             <div class="flex justify-between"><dt class="text-text-secondary">الضريبة</dt><dd><MoneyText :value="estimate.tax" /></dd></div>
             <div class="flex justify-between border-t border-border pt-1.5 font-semibold"><dt>الإجمالي</dt><dd><MoneyText :value="estimate.total" /></dd></div>
             <div v-if="estimate.toAccount" class="flex justify-between text-text-secondary"><dt>يُخصم من رصيد العميل</dt><dd><MoneyText :value="estimate.toAccount" /></dd></div>
             <div v-if="estimate.cash" class="flex justify-between text-success"><dt>يُرد للعميل</dt><dd><MoneyText :value="estimate.cash" /></dd></div>
           </dl>
-          <p class="mt-3 text-[11px] leading-5 text-text-secondary">تُعاد الكميات للمخزون ويُسجل قيد: مرتجعات المبيعات والضريبة مقابل الصندوق/البنك أو حساب العميل.</p>
+          <p class="mt-3 text-tiny leading-5 text-text-secondary">تُعاد الكميات للمخزون ويُسجل قيد: مرتجعات المبيعات والضريبة مقابل الصندوق/البنك أو حساب العميل.</p>
         </AppCard>
         <AppButton variant="primary" block :icon="Undo2" :disabled="!count" :loading="saving" @click="submit">تسجيل المرتجع</AppButton>
       </div>

@@ -234,10 +234,10 @@ const shortcuts = [
       <div class="flex items-center gap-3">
         <AppButton size="sm" variant="ghost" :icon="ArrowRight" to="/">لوحة التحكم</AppButton>
         <div class="h-5 w-px bg-border" />
-        <span class="text-[13px] font-semibold">نقطة البيع</span>
-        <span class="text-[13px] text-text-secondary">{{ settings.settings?.storeName }}</span>
+        <span class="text-body font-semibold">نقطة البيع</span>
+        <span class="text-body text-text-secondary">{{ settings.settings?.storeName }}</span>
       </div>
-      <div class="flex items-center gap-3 text-[13px] text-text-secondary">
+      <div class="flex items-center gap-3 text-body text-text-secondary">
         <span v-if="priceList" class="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{{ priceList.name }}</span>
         <span class="flex items-center gap-1.5"><UserRound class="size-3.5" />{{ auth.user?.name }}</span>
         <span class="num">{{ formatTime(now.toISOString()) }}</span>
@@ -260,19 +260,19 @@ const shortcuts = [
             <input
               ref="searchInput"
               v-model="search"
-              class="control h-11 ps-11 text-[15px]"
+              class="control h-11 ps-11 text-lead"
               placeholder="امسح الباركود أو ابحث باسم المنتج…"
               @keydown.enter.prevent="onSearchEnter"
               @keydown.esc="search = ''"
             />
-            <kbd class="num pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 rounded border border-border px-1.5 text-[11px] text-text-secondary">F2</kbd>
+            <kbd class="num pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 rounded border border-border px-1.5 text-tiny text-text-secondary">F2</kbd>
           </div>
           <div class="flex gap-1.5 overflow-x-auto pb-0.5">
             <button
               v-for="c in categories"
               :key="c.id"
               type="button"
-              class="h-8 shrink-0 rounded-full border px-3.5 text-[13px] transition-colors"
+              class="h-8 shrink-0 rounded-full border px-3.5 text-body transition-colors"
               :class="category === c.id ? 'border-primary bg-primary text-on-primary' : 'border-border text-text-secondary hover:bg-surface-hover hover:text-text-primary'"
               @click="category = c.id"
             >
@@ -296,11 +296,11 @@ const shortcuts = [
               :disabled="remaining(p) <= 0"
               @click="addProduct(p)"
             >
-              <span class="line-clamp-2 text-[13px] font-medium leading-snug">{{ p.name }}</span>
+              <span class="line-clamp-2 text-body font-medium leading-snug">{{ p.name }}</span>
               <span class="flex items-end justify-between gap-2">
-                <span class="text-[15px] font-semibold"><MoneyText :value="priceOf(p)" /></span>
+                <span class="text-lead font-semibold"><MoneyText :value="priceOf(p)" /></span>
                 <span
-                  class="num text-[11px]"
+                  class="num text-tiny"
                   :class="p.type === 'service' ? 'text-text-secondary' : remaining(p) <= 0 ? 'text-danger' : remaining(p) <= (p.minStock ?? 0) ? 'text-warning' : 'text-text-secondary'"
                 >
                   {{ p.type === 'service' ? 'خدمة' : remaining(p) <= 0 ? 'نفد' : formatNumber(remaining(p)) }}
@@ -324,7 +324,7 @@ const shortcuts = [
               search-placeholder="اسم أو جوال العميل"
               clearable
             />
-            <kbd class="num mb-2 rounded border border-border px-1.5 text-[11px] text-text-secondary">F4</kbd>
+            <kbd class="num mb-2 rounded border border-border px-1.5 text-tiny text-text-secondary">F4</kbd>
           </div>
           <p v-if="customer && customer.balance > 0" class="mt-1.5 text-xs text-warning">رصيد مستحق سابق: <MoneyText :value="customer.balance" /></p>
         </div>
@@ -341,11 +341,11 @@ const shortcuts = [
             >
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
-                  <p class="truncate text-[13px] font-medium">{{ l.name }}</p>
+                  <p class="truncate text-body font-medium">{{ l.name }}</p>
                   <p class="text-xs text-text-secondary"><MoneyText :value="l.price" plain /> × <span class="num">{{ formatNumber(l.qty) }}</span></p>
                 </div>
                 <div class="flex shrink-0 items-center gap-1">
-                  <span class="text-[13px] font-medium"><MoneyText :value="l.price * l.qty" plain /></span>
+                  <span class="text-body font-medium"><MoneyText :value="l.price * l.qty" plain /></span>
                   <button type="button" class="rounded p-1 text-text-secondary hover:bg-danger/10 hover:text-danger" aria-label="حذف" @click.stop="cart.remove(l.productId)">
                     <X class="size-3.5" />
                   </button>
@@ -373,8 +373,8 @@ const shortcuts = [
         </div>
 
         <div class="border-t border-border p-3">
-          <div class="mb-2.5 flex items-center justify-between gap-2 text-[13px]">
-            <label for="pos-discount" class="text-text-secondary">خصم % <span class="text-[11px]">(حد أقصى <span class="num">{{ maxDiscount }}</span>)</span></label>
+          <div class="mb-2.5 flex items-center justify-between gap-2 text-body">
+            <label for="pos-discount" class="text-text-secondary">خصم % <span class="text-tiny">(حد أقصى <span class="num">{{ maxDiscount }}</span>)</span></label>
             <input
               id="pos-discount"
               ref="discountInput"
@@ -388,7 +388,7 @@ const shortcuts = [
               @input="onDiscountInput"
             />
           </div>
-          <dl class="space-y-1 text-[13px]">
+          <dl class="space-y-1 text-body">
             <div class="flex justify-between"><dt class="text-text-secondary">المجموع (<span class="num">{{ formatNumber(cart.itemCount) }}</span> قطعة)</dt><dd><MoneyText :value="cart.totals.subTotal" plain /></dd></div>
             <div v-if="cart.totals.discountAmount > 0" class="flex justify-between"><dt class="text-text-secondary">الخصم</dt><dd class="text-danger">−<MoneyText :value="cart.totals.discountAmount" plain /></dd></div>
             <div class="flex justify-between"><dt class="text-text-secondary">ضريبة القيمة المضافة <span class="num">{{ settings.salesTaxRate }}%</span></dt><dd><MoneyText :value="cart.totals.taxAmount" plain /></dd></div>
@@ -418,7 +418,7 @@ const shortcuts = [
       <div v-if="completed" class="py-2 text-center">
         <CircleCheck class="mx-auto size-12 text-success" :stroke-width="1.5" />
         <p class="mt-3 text-lg font-semibold">تم البيع بنجاح</p>
-        <p class="num mt-0.5 text-[13px] text-text-secondary">{{ completed.invoice.number }}</p>
+        <p class="num mt-0.5 text-body text-text-secondary">{{ completed.invoice.number }}</p>
         <div class="mt-5 grid grid-cols-2 gap-3 text-start">
           <div class="rounded-lg border border-border bg-surface p-3">
             <p class="text-xs text-text-secondary">الإجمالي</p>
@@ -440,7 +440,7 @@ const shortcuts = [
     </AppModal>
 
     <AppModal v-model:open="shortcutsOpen" title="اختصارات لوحة المفاتيح" size="sm">
-      <ul class="divide-y divide-border text-[13px]">
+      <ul class="divide-y divide-border text-body">
         <li v-for="[key, label] in shortcuts" :key="key" class="flex items-center justify-between py-2">
           <span>{{ label }}</span>
           <kbd class="num rounded border border-border bg-surface px-2 py-0.5 text-xs">{{ key }}</kbd>

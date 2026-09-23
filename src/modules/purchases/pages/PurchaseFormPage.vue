@@ -169,7 +169,7 @@ async function save(confirm: boolean) {
           <template #actions>
             <AppButton size="sm" variant="ghost" :icon="PackageX" @click="addLowStock">إضافة الأصناف المنخفضة</AppButton>
           </template>
-          <table class="w-full text-[13px]">
+          <table class="w-full text-body">
             <thead class="bg-surface text-xs text-text-secondary">
               <tr class="border-b border-border">
                 <th class="px-4 py-2 text-start font-medium">الصنف</th>
@@ -220,7 +220,7 @@ async function save(confirm: boolean) {
 
       <div class="space-y-4 xl:sticky xl:top-0">
         <AppCard title="الإجمالي" padding="sm">
-          <dl class="space-y-1.5 text-[13px]">
+          <dl class="space-y-1.5 text-body">
             <div class="flex justify-between"><dt class="text-text-secondary">المجموع (<span class="num">{{ formatNumber(filled.length) }}</span> صنف)</dt><dd><MoneyText :value="subTotal" /></dd></div>
             <div class="flex justify-between"><dt class="text-text-secondary">ضريبة المشتريات <span class="num">{{ settings.purchaseTaxRate }}%</span></dt><dd><MoneyText :value="taxAmount" /></dd></div>
             <div class="flex justify-between border-t border-border pt-1.5 font-semibold"><dt>الإجمالي</dt><dd><MoneyText :value="grandTotal" /></dd></div>
@@ -232,7 +232,7 @@ async function save(confirm: boolean) {
         </ul>
         <AppButton variant="primary" block :icon="PackageCheck" :loading="saving === 'confirm'" :disabled="!!saving" @click="save(true)">تأكيد واستلام البضاعة</AppButton>
         <AppButton block :icon="Save" :loading="saving === 'draft'" :disabled="!!saving" @click="save(false)">حفظ كمسودة</AppButton>
-        <p class="text-[11px] leading-5 text-text-secondary">
+        <p class="text-tiny leading-5 text-text-secondary">
           التأكيد يُضيف الكميات للمخزون، ويحدّث متوسط التكلفة، ويُسجل قيد: المخزون وضريبة المدخلات مقابل حساب الموردين.
         </p>
       </div>

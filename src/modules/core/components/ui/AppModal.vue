@@ -62,7 +62,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
         >
           <header v-if="title" class="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
             <div>
-              <h2 class="text-[15px] font-semibold">{{ title }}</h2>
+              <h2 class="text-lead font-semibold">{{ title }}</h2>
               <p v-if="description" class="mt-0.5 text-xs text-text-secondary">{{ description }}</p>
             </div>
             <button

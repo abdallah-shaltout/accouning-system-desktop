@@ -67,7 +67,7 @@ function testPrint() {
             >
               <component :is="opt.icon" class="mt-0.5 size-5 shrink-0" :class="mode === opt.value ? 'text-primary' : 'text-text-secondary'" />
               <span>
-                <span class="block text-[13px] font-medium">{{ opt.title }}</span>
+                <span class="block text-body font-medium">{{ opt.title }}</span>
                 <span class="mt-0.5 block text-xs leading-5 text-text-secondary">{{ opt.desc }}</span>
               </span>
             </button>
@@ -85,7 +85,7 @@ function testPrint() {
         </AppCard>
 
         <AppCard title="اختبار الطباعة">
-          <p class="mb-4 text-[13px] leading-6 text-text-secondary">
+          <p class="mb-4 text-body leading-6 text-text-secondary">
             يفتح نموذج فاتورة تجريبي بالإعدادات الحالية في نافذة معاينة الطباعة. لا يتم الاتصال بأي جهاز في هذه المرحلة — اختر الطابعة من نافذة الطباعة في النظام.
           </p>
           <AppButton variant="primary" :icon="Printer" @click="testPrint">اختبار الطباعة</AppButton>

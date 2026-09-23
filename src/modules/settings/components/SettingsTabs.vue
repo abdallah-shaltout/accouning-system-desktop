@@ -21,7 +21,7 @@ const tabs = computed(() =>
       v-for="t in tabs"
       :key="t.to"
       :to="t.to"
-      class="-mb-px border-b-2 px-3 py-2 text-[13px] transition-colors"
+      class="-mb-px border-b-2 px-3 py-2 text-body transition-colors"
       :class="route.path === t.to ? 'border-primary font-medium text-text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'"
     >
       {{ t.label }}

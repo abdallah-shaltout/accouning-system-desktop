@@ -20,7 +20,7 @@ const crumbs = computed(() => {
 
 <template>
   <header class="no-print flex h-[52px] shrink-0 items-center justify-between gap-4 border-b border-border bg-background px-5">
-    <nav aria-label="مسار التنقل" class="flex min-w-0 items-center gap-1.5 text-[13px]">
+    <nav aria-label="مسار التنقل" class="flex min-w-0 items-center gap-1.5 text-body">
       <template v-for="(c, i) in crumbs" :key="i">
         <span v-if="i > 0" class="text-text-secondary/60">/</span>
         <span class="truncate" :class="i === crumbs.length - 1 ? 'font-medium' : 'text-text-secondary'">{{ c }}</span>

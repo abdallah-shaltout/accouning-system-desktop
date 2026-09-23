@@ -92,7 +92,7 @@ const table = computed<ExportTable | undefined>(() =>
     <DataTable :columns="columns" :rows="rows" row-key="productId" :page-size="0">
       <template #cell-name="{ row }">
         <RouterLink :to="`/products/${row.productId}`" class="hover:text-primary">{{ row.name }}</RouterLink>
-        <span class="num block text-[11px] text-text-secondary">{{ row.sku }}</span>
+        <span class="num block text-tiny text-text-secondary">{{ row.sku }}</span>
       </template>
       <template #cell-category="{ row }"><span class="text-text-secondary">{{ row.category }}</span></template>
       <template #cell-costPrice="{ row }"><MoneyText :value="row.costPrice" plain /></template>

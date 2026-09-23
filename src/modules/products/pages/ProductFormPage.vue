@@ -180,7 +180,7 @@ async function save() {
             <AppInput v-model="form.price" label="سعر البيع" type="number" min="0" required :error="errors.price" hint="قبل الضريبة" />
             <div>
               <span class="field-label">هامش الربح</span>
-              <div class="flex h-[34px] items-center gap-2 rounded-md border border-dashed border-border px-3 text-[13px]">
+              <div class="flex h-[34px] items-center gap-2 rounded-md border border-dashed border-border px-3 text-body">
                 <template v-if="margin">
                   <MoneyText :value="margin.amount" signed />
                   <span class="num text-text-secondary">({{ formatNumber(margin.pct, 1) }}%)</span>
@@ -209,7 +209,7 @@ async function save() {
       <div class="space-y-5">
         <AppCard v-if="form.type === 'product'" title="المخزون">
           <div class="space-y-4">
-            <div v-if="id" class="flex items-center justify-between rounded-md bg-background px-3 py-2 text-[13px]">
+            <div v-if="id" class="flex items-center justify-between rounded-md bg-background px-3 py-2 text-body">
               <span class="text-text-secondary">الرصيد الحالي</span>
               <span class="num font-medium">{{ formatNumber(stockQty) }} {{ catalog.unitName(form.unitId) }}</span>
             </div>

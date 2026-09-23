@@ -31,7 +31,7 @@ const variantClass: Record<Variant, string> = {
 
 const sizeClass = {
   sm: 'h-7 px-2.5 text-xs gap-1.5',
-  md: 'h-[34px] px-3.5 text-[13px] gap-2',
+  md: 'h-[34px] px-3.5 text-body gap-2',
   lg: 'h-11 px-5 text-sm gap-2',
 };
 
@@ -53,7 +53,7 @@ const isDisabled = computed(() => props.disabled || props.loading);
     <slot />
     <kbd
       v-if="kbd"
-      class="num rounded border border-current/25 px-1 font-sans text-[10px] leading-4 opacity-70"
+      class="num rounded border border-current/25 px-1 font-sans text-caption leading-4 opacity-70"
     >{{ kbd }}</kbd>
   </component>
 </template>

@@ -48,7 +48,7 @@ function retryAll() {
     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-lg font-semibold tracking-tight">{{ greeting }}، {{ auth.user?.name.split(' ')[0] }}</h1>
-        <p class="mt-0.5 text-[13px] text-text-secondary">{{ formatDateLong(new Date().toISOString()) }}</p>
+        <p class="mt-0.5 text-body text-text-secondary">{{ formatDateLong(new Date().toISOString()) }}</p>
       </div>
       <div class="flex gap-2">
         <AppButton v-if="auth.can('purchases', 'write')" :icon="Plus" to="/purchases/new">أمر شراء</AppButton>
@@ -115,8 +115,8 @@ function retryAll() {
               >
                 <span class="mt-1.5 size-1.5 shrink-0 rounded-full bg-text-secondary/50" />
                 <span class="min-w-0 flex-1">
-                  <span class="block truncate text-[13px]">{{ a.message }}</span>
-                  <span class="block text-[11px] text-text-secondary">{{ a.userName }} · {{ formatRelative(a.date) }}</span>
+                  <span class="block truncate text-body">{{ a.message }}</span>
+                  <span class="block text-tiny text-text-secondary">{{ a.userName }} · {{ formatRelative(a.date) }}</span>
                 </span>
               </component>
             </li>
@@ -132,7 +132,7 @@ function retryAll() {
           </template>
           <div v-if="recent.loading.value" class="p-4"><SkeletonBlock :lines="6" /></div>
           <EmptyState v-else-if="!recent.data.value?.length" title="لا توجد فواتير بعد" compact />
-          <table v-else class="w-full text-[13px]">
+          <table v-else class="w-full text-body">
             <tbody>
               <tr
                 v-for="inv in recent.data.value"
@@ -153,7 +153,7 @@ function retryAll() {
                 </td>
                 <td class="px-4 py-2.5 text-end">
                   <MoneyText :value="inv.grandTotal" />
-                  <span v-if="invoiceOutstanding(inv) > 0 && inv.status !== 'REFUNDED'" class="block text-[11px] text-warning">
+                  <span v-if="invoiceOutstanding(inv) > 0 && inv.status !== 'REFUNDED'" class="block text-tiny text-warning">
                     متبقي <MoneyText :value="invoiceOutstanding(inv)" plain />
                   </span>
                 </td>
@@ -172,12 +172,12 @@ function retryAll() {
             <li v-for="p in lowStock.data.value" :key="p.id">
               <RouterLink :to="`/products/${p.id}`" class="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-hover">
                 <span class="min-w-0">
-                  <span class="block truncate text-[13px]">{{ p.name }}</span>
-                  <span class="num block text-[11px] text-text-secondary">{{ p.sku }}</span>
+                  <span class="block truncate text-body">{{ p.name }}</span>
+                  <span class="num block text-tiny text-text-secondary">{{ p.sku }}</span>
                 </span>
                 <span class="shrink-0 text-end text-xs">
                   <span class="num block font-medium" :class="p.stockQty <= 0 ? 'text-danger' : 'text-warning'">{{ formatNumber(p.stockQty) }}</span>
-                  <span class="block text-[11px] text-text-secondary">الحد <span class="num">{{ formatNumber(p.minStock) }}</span></span>
+                  <span class="block text-tiny text-text-secondary">الحد <span class="num">{{ formatNumber(p.minStock) }}</span></span>
                 </span>
               </RouterLink>
             </li>

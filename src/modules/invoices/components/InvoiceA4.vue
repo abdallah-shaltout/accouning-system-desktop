@@ -28,25 +28,25 @@ const outstanding = computed(() => Math.max(0, round2(inv.value.grandTotal - inv
 </script>
 
 <template>
-  <article class="mx-auto flex min-h-[273mm] w-[186mm] flex-col bg-white p-0 text-[12px] leading-relaxed text-black" dir="rtl">
+  <article class="mx-auto flex min-h-[273mm] w-[186mm] flex-col bg-white p-0 text-label leading-relaxed text-black" dir="rtl">
     <!-- Header -->
     <header class="flex items-start justify-between gap-6 border-b-2 border-black pb-4">
       <div class="flex items-start gap-3">
         <img v-if="s.logo" :src="s.logo" alt="" class="size-16 object-contain" />
         <div>
-          <h1 class="text-[18px] font-semibold">{{ s.storeName }}</h1>
-          <p v-if="s.address" class="text-[11px] text-print-muted">{{ s.address }}</p>
-          <p class="text-[11px] text-print-muted">
+          <h1 class="text-heading font-semibold">{{ s.storeName }}</h1>
+          <p v-if="s.address" class="text-tiny text-print-muted">{{ s.address }}</p>
+          <p class="text-tiny text-print-muted">
             <template v-if="s.phone">هاتف: <span class="num">{{ formatDigits(s.phone) }}</span></template>
             <template v-if="s.commercialRegister"> · س.ت: <span class="num">{{ formatDigits(s.commercialRegister) }}</span></template>
           </p>
-          <p v-if="s.vatNumber" class="text-[11px]">الرقم الضريبي: <span class="num font-medium">{{ formatDigits(s.vatNumber) }}</span></p>
+          <p v-if="s.vatNumber" class="text-tiny">الرقم الضريبي: <span class="num font-medium">{{ formatDigits(s.vatNumber) }}</span></p>
         </div>
       </div>
       <div class="text-start">
-        <p class="text-[17px] font-semibold">{{ isB2B ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة' }}</p>
-        <p class="text-[10px] tracking-wide text-print-muted" dir="ltr">{{ isB2B ? 'TAX INVOICE' : 'SIMPLIFIED TAX INVOICE' }}</p>
-        <table class="mt-2 text-[11px]">
+        <p class="text-heading-sm font-semibold">{{ isB2B ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة' }}</p>
+        <p class="text-caption tracking-wide text-print-muted" dir="ltr">{{ isB2B ? 'TAX INVOICE' : 'SIMPLIFIED TAX INVOICE' }}</p>
+        <table class="mt-2 text-tiny">
           <tbody>
             <tr><td class="pe-3 text-print-muted">رقم الفاتورة</td><td class="num font-medium">{{ formatDigits(inv.number) }}</td></tr>
             <tr><td class="pe-3 text-print-muted">التاريخ</td><td class="num">{{ formatDateTime(inv.date) }}</td></tr>
@@ -56,11 +56,11 @@ const outstanding = computed(() => Math.max(0, round2(inv.value.grandTotal - inv
     </header>
 
     <!-- Parties -->
-    <section class="grid grid-cols-2 gap-6 border-b border-print-rule py-3 text-[11px]">
+    <section class="grid grid-cols-2 gap-6 border-b border-print-rule py-3 text-tiny">
       <div>
         <p class="mb-1 font-medium text-print-muted">العميل</p>
         <template v-if="data.customer">
-          <p class="text-[12px] font-medium">{{ data.customer.name }}</p>
+          <p class="text-label font-medium">{{ data.customer.name }}</p>
           <p v-if="data.customer.vatNumber">الرقم الضريبي: <span class="num">{{ formatDigits(data.customer.vatNumber) }}</span></p>
           <p v-if="data.customer.address" class="text-print-muted">{{ data.customer.address }}</p>
           <p v-if="data.customer.phone" class="num text-print-muted">{{ formatDigits(data.customer.phone) }}</p>
@@ -76,7 +76,7 @@ const outstanding = computed(() => Math.max(0, round2(inv.value.grandTotal - inv
     </section>
 
     <!-- Lines -->
-    <table class="mt-4 w-full border-collapse text-[11px]">
+    <table class="mt-4 w-full border-collapse text-tiny">
       <thead>
         <tr class="border-y border-black bg-print-fill">
           <th class="w-8 px-2 py-1.5 text-start font-medium">#</th>
@@ -103,7 +103,7 @@ const outstanding = computed(() => Math.max(0, round2(inv.value.grandTotal - inv
 
     <!-- Totals -->
     <section class="mt-4 flex justify-end">
-      <table class="w-[80mm] text-[11px]">
+      <table class="w-[80mm] text-tiny">
         <tbody>
           <tr><td class="py-1 text-print-muted">الإجمالي قبل الخصم</td><td class="py-1 text-end"><MoneyText :value="inv.subTotal" /></td></tr>
           <tr v-if="inv.discountAmount > 0">
@@ -115,7 +115,7 @@ const outstanding = computed(() => Math.max(0, round2(inv.value.grandTotal - inv
             <td class="py-1 text-print-muted">ضريبة القيمة المضافة (<span class="num">{{ formatNumber(inv.taxRate) }}%</span>)</td>
             <td class="py-1 text-end"><MoneyText :value="inv.taxAmount" /></td>
           </tr>
-          <tr class="border-t-2 border-black text-[13px] font-semibold">
+          <tr class="border-t-2 border-black text-body font-semibold">
             <td class="py-1.5">الإجمالي شامل الضريبة</td>
             <td class="py-1.5 text-end"><MoneyText :value="inv.grandTotal" /></td>
           </tr>
@@ -127,11 +127,11 @@ const outstanding = computed(() => Math.max(0, round2(inv.value.grandTotal - inv
       </table>
     </section>
 
-    <p v-if="inv.note" class="mt-4 text-[11px] text-print-muted">ملاحظات: {{ inv.note }}</p>
+    <p v-if="inv.note" class="mt-4 text-tiny text-print-muted">ملاحظات: {{ inv.note }}</p>
 
     <!-- Footer: QR at the bottom-left (the end edge in RTL) -->
     <footer class="mt-auto flex items-end justify-between gap-6 border-t border-print-rule pt-4">
-      <div class="text-[11px] text-print-muted">
+      <div class="text-tiny text-print-muted">
         <p v-if="s.receiptFooter">{{ s.receiptFooter }}</p>
         <p v-if="data.sample" class="mt-1 font-medium text-black">— نموذج اختبار طباعة، ليست فاتورة حقيقية —</p>
       </div>

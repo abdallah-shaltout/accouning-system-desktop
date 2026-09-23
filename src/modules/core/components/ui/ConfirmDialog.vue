@@ -14,7 +14,7 @@ const open = computed({
 
 <template>
   <AppModal v-model:open="open" :title="confirmState.title" size="sm">
-    <p v-if="confirmState.message" class="text-[13px] leading-6 text-text-secondary">{{ confirmState.message }}</p>
+    <p v-if="confirmState.message" class="text-body leading-6 text-text-secondary">{{ confirmState.message }}</p>
     <template #footer>
       <AppButton @click="settleConfirm(false)">{{ confirmState.cancelText ?? 'إلغاء' }}</AppButton>
       <AppButton :variant="confirmState.danger ? 'danger-solid' : 'primary'" @click="settleConfirm(true)">

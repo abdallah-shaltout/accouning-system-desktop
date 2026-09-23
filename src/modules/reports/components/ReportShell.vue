@@ -79,9 +79,9 @@ async function exportAs(kind: 'csv' | 'md') {
     <div v-else class="print-root">
       <!-- Print-only letterhead -->
       <div class="mb-4 hidden border-b-2 border-black pb-3 print:block">
-        <p class="text-[15px] font-semibold">{{ settings.settings?.storeName }}</p>
-        <p class="text-[13px]">{{ title }}</p>
-        <p class="text-[11px] text-print-muted">{{ period }} · <FileText class="inline size-3" /> {{ formatDateTime(new Date().toISOString()) }}</p>
+        <p class="text-lead font-semibold">{{ settings.settings?.storeName }}</p>
+        <p class="text-body">{{ title }}</p>
+        <p class="text-tiny text-print-muted">{{ period }} · <FileText class="inline size-3" /> {{ formatDateTime(new Date().toISOString()) }}</p>
       </div>
       <p class="no-print mb-3 text-xs text-text-secondary">{{ period }}</p>
       <slot />

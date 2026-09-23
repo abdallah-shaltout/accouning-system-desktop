@@ -70,8 +70,8 @@ useHotkeys({ 'ctrl+p': print, Escape: close });
     <div class="no-print sticky top-0 z-10 flex h-12 items-center justify-between gap-3 border-b border-border bg-background px-4">
       <div class="flex items-center gap-2">
         <AppButton size="sm" variant="ghost" :icon="ArrowRight" @click="close">رجوع</AppButton>
-        <span class="text-[13px] font-medium">معاينة الطباعة</span>
-        <span v-if="data" class="num text-[13px] text-text-secondary">{{ data.invoice.number }}</span>
+        <span class="text-body font-medium">معاينة الطباعة</span>
+        <span v-if="data" class="num text-body text-text-secondary">{{ data.invoice.number }}</span>
       </div>
       <div class="flex items-center gap-2">
         <SegmentedControl

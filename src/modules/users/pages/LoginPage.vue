@@ -60,7 +60,7 @@ function useDemo(account: { username: string; password: string }) {
           </div>
           <div>
             <h1 class="text-lg font-semibold">تسجيل الدخول</h1>
-            <p class="text-[13px] text-text-secondary">نظام المحاسبة ونقاط البيع</p>
+            <p class="text-body text-text-secondary">نظام المحاسبة ونقاط البيع</p>
           </div>
         </div>
 
@@ -80,15 +80,15 @@ function useDemo(account: { username: string; password: string }) {
               v-for="d in demo"
               :key="d.username"
               type="button"
-              class="flex w-full items-center justify-between gap-3 border-b border-border px-3 py-2 text-start text-[13px] last:border-0 hover:bg-surface-hover"
+              class="flex w-full items-center justify-between gap-3 border-b border-border px-3 py-2 text-start text-body last:border-0 hover:bg-surface-hover"
               :disabled="pending"
               @click="useDemo(d)"
             >
               <span class="min-w-0">
                 <span class="block truncate">{{ d.name }}</span>
-                <span class="num block text-[11px] text-text-secondary">{{ d.username }} / {{ d.password }}</span>
+                <span class="num block text-tiny text-text-secondary">{{ d.username }} / {{ d.password }}</span>
               </span>
-              <span class="shrink-0 rounded-full bg-surface-hover px-2 py-0.5 text-[11px] text-text-secondary">{{ ROLE_LABEL[d.role] }}</span>
+              <span class="shrink-0 rounded-full bg-surface-hover px-2 py-0.5 text-tiny text-text-secondary">{{ ROLE_LABEL[d.role] }}</span>
             </button>
           </div>
         </div>
@@ -111,7 +111,7 @@ function useDemo(account: { username: string; password: string }) {
           مبيعاتك، مخزونك، وحساباتك<br />
           <span class="text-text-secondary">في تطبيق واحد على جهازك.</span>
         </p>
-        <ul class="mt-6 space-y-2.5 text-[13px] text-text-secondary">
+        <ul class="mt-6 space-y-2.5 text-body text-text-secondary">
           <li>• نقطة بيع سريعة مع فاتورة ضريبية ورمز QR</li>
           <li>• قيود محاسبية تلقائية بنظام القيد المزدوج</li>
           <li>• تقارير: ميزان المراجعة، قائمة الدخل، الميزانية، الضريبة</li>
