@@ -108,20 +108,28 @@ per-module command-palette providers).
 - [x] `exportXlsx()` helper (exceljs, lazy) + "تصدير" menu on `DataTable` (all filtered rows)
 - [x] Command palette shell: Ctrl+K, pages + actions, recents, prefixes, permission filtering
 - [x] **Typst spike (gate)**: the [12 §1](12-documents-pdf-excel.md) checklist; record pass/fail in [12](12-documents-pdf-excel.md) — **PASS**, 49–63ms steady-state render, PDF/A-3b achieved
-- [ ] `verify:mocks` v2 harness listing every invariant (unmet ones reported as TODO, not failures, until their phase)
+- [x] `verify:mocks` v2 harness listing every invariant (unmet ones reported as TODO, not failures, until their phase)
 
 ## Phase 1 — Accounting core v2 → [02](02-accounting-review.md), [03](03-chart-of-accounts.md)
 
-- [ ] Account v2 fields (tree, `isGroup`, subtype, role, currency, branch, flags); CoA templates basic/standard/detailed + country/business add-ons
-- [ ] `accountFor(role, ctx)`; remove every hard-coded code from `src/mocks/backend/*`
-- [ ] Journal line dimensions: party, branch, cost center, currency/amountFc/rate (default branch + base currency for now)
-- [ ] Party balances and statements computed from the ledger (C2)
-- [ ] Control-account rules (B1); fiscal-period check + lock date (B2)
-- [ ] `stockValue` per product, re-averaging on returns, 4-decimal average cost, zero-stock remainder (A1/A2)
-- [ ] Stock-in reasons (A3); variance 5110 / write-off 5120 (A4); count snapshot (A5)
-- [ ] Purchase return refund method (E1); line purchase accounts (E2)
-- [ ] Chart of accounts page: header/leaf rules, path in pickers, drag re-parent, balances with a period filter
-- [ ] Seed rebuilt on the standard template; **invariants 1–4, 7, 8 green**
+**Status: done** (2026-09-23). Commit `658a579`. Rebuilt the CoA on the standard (~60-account)
+template with SA + pharmacy add-ons, `accountFor(role, ctx)` replacing every hard-coded code,
+party balances derived from the ledger, `stockValue`-based inventory (GL now matches
+Σ stockValue exactly), control-account + fiscal-lock enforcement. `verify:mocks`: **23 ok, 1 todo
+(VAT report, phase 3), 0 failed** — invariants 1–4, 7, 8 all green. Full e2e suite green, zero
+console errors. Branches/currencies/cost-centers fields exist but stay inert until phase 9; the
+fiscal-year closing wizard UI is phase 2 (this phase ships the lock-date check only).
+
+- [x] Account v2 fields (tree, `isGroup`, subtype, role, currency, branch, flags); CoA templates basic/standard/detailed + country/business add-ons
+- [x] `accountFor(role, ctx)`; remove every hard-coded code from `src/mocks/backend/*`
+- [x] Journal line dimensions: party, branch, cost center, currency/amountFc/rate (default branch + base currency for now)
+- [x] Party balances and statements computed from the ledger (C2)
+- [x] Control-account rules (B1); fiscal-period check + lock date (B2)
+- [x] `stockValue` per product, re-averaging on returns, 4-decimal average cost, zero-stock remainder (A1/A2)
+- [x] Stock-in reasons (A3); variance 5110 / write-off 5120 (A4); count snapshot (A5)
+- [x] Purchase return refund method (E1); line purchase accounts (E2)
+- [x] Chart of accounts page: header/leaf rules, path in pickers, drag re-parent, balances with a period filter
+- [x] Seed rebuilt on the standard template; **invariants 1–4, 7, 8 green**
 
 ## Phase 2 — Journal redesign & period tools → [11 Part A](11-journal-dashboard-insights.md)
 
