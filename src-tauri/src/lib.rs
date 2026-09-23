@@ -1,6 +1,8 @@
 use std::net::TcpStream;
 use std::io::Write;
 
+pub mod pdf;
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -26,7 +28,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![greet, print_receipt_network])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            print_receipt_network,
+            pdf::render_pdf_spike
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

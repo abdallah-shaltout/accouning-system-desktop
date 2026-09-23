@@ -34,6 +34,43 @@ template can be customized properly.
 **Pass** = correct shaping and order, rendering in under 200 ms, and the file opens in Acrobat and
 Edge. **If it fails**, switch to WebView2 `PrintToPdf` with the existing HTML templates (Windows only).
 
+**Spike result (2026-09-23): PASS.** Built in `src-tauri/src/pdf/` (a `typst::World` impl, font
+embedding, QR generation) + `src-tauri/templates/invoice_spike.typ`, exercised by
+`cargo run --bin typst_spike` (writes a real PDF to `src-tauri/target/typst_spike_output.pdf`) and
+by a `render_pdf_spike` Tauri command. Crates: `typst`, `typst-pdf`, `typst-library`, `typst-layout`,
+`typst-syntax`, `typst-utils` (all 0.15.1), plus `qrcode` + `image` for the placeholder QR and
+`lopdf` for an independent structural check.
+- **Fonts:** Cairo and Noto Naskh Arabic, both embedded via `include_bytes!` as variable TTFs under
+  `src-tauri/assets/fonts/`. Cairo is vendored in the repo only as woff2
+  (`node_modules/@fontsource-variable/cairo`, for the web UI); Typst's font loader wants a format
+  `ttf-parser` parses reliably, so a variable **TTF** build of Cairo was pulled from the same
+  upstream (Google Fonts' OFL repo) instead of transcoding the woff2 — same typeface/license,
+  different container. Noto Naskh Arabic wasn't vendored anywhere in the repo, so it was downloaded
+  fresh (variable TTF) from the same source.
+- **Arabic shaping & RTL:** correct. Verified by rendering the sample invoice and inspecting the
+  output pages: Seller/Buyer boxes mirror correctly for RTL, the mixed Arabic/English/digit table
+  cells (product name in Arabic + English SKU + Latin and Arabic-Indic digits) render correctly
+  side by side, and the long Arabic product name wraps across 4 lines within its cell.
+- **Two-page table with repeating header:** confirmed. With 28 dummy rows the table body itself
+  spans both pages (not just trailing content) and the header row (`table.header(repeat: true)`)
+  correctly repeats at the top of page 2.
+- **Amount in words (tafqit) + QR:** both present — a hardcoded Arabic tafqit string, and a real
+  (not static-image) QR PNG generated at render time with the `qrcode` crate and placed on page 2.
+- **PDF/A-3b:** achieved, after one fix — krilla's PDF/A validator requires a document date (and
+  benefits from a title), so the template sets `#set document(title: ..., date: ...)`. Before that
+  fix, PDF/A-3b export was rejected with a specific, actionable error ("missing document date");
+  after it, `typst_pdf::pdf()` with `PdfStandard::A_3b` succeeds directly — no fallback needed.
+- **Timing:** measured wall-clock around the render call, 5 runs, **unoptimized debug build** (the
+  release build was not completed — LTO + `codegen-units = 1` made a from-scratch release build of
+  the full Typst+Tauri dependency tree too slow for this session; release numbers would be faster,
+  not slower, than these). First run 245–321 ms (font-book/cache warmup); steady-state runs
+  **49–63 ms total** (6–7 ms compile + 32–65 ms PDF export). All steady-state runs are comfortably
+  under the 200 ms target even without release optimizations.
+- **"Opens in Acrobat/Edge":** neither is scriptable in this environment, so structural validity was
+  verified instead with `lopdf` (an independent PDF parser, not Typst's own writer) loading the
+  output bytes and walking the page tree — it parses successfully and reports exactly 2 pages,
+  matching the rendered content.
+
 ## 2. Architecture
 
 ```text

@@ -26,6 +26,23 @@ tauri-plugin-sql = { version = "2.4.1", features = ["sqlite"] }
 tauri-plugin-fs = "2.5.2"
 tauri-plugin-dialog = "2.7.3"
 
+# Typst PDF spike (Phase 0 gate, docs/v2/12-documents-pdf-excel.md §1)
+typst = "0.15.1"
+typst-pdf = "0.15.1"
+typst-library = "0.15.1"
+typst-layout = "0.15.1"
+typst-syntax = "0.15.1"
+typst-utils = "0.15.1"
+qrcode = "0.14.1"
+image = { version = "0.25", default-features = false, features = ["png"] }
+ecow = "0.2"
+time = "0.3"
+lopdf = { version = "0.45", default-features = false, features = ["chrono-clock"] }
+
+[[bin]]
+name = "typst_spike"
+path = "src/bin/typst_spike.rs"
+
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]
