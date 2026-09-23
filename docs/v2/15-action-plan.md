@@ -177,12 +177,15 @@ checked against the wrong settlement amounts).
 
 ## Phase 6 — Products & inventory v2 → [07](07-products-and-inventory.md)
 
-- [ ] Product form v2 tabs; account resolution product → category → settings
-- [ ] Multiple units with factors and unit barcodes; price matrix (price list × unit); min price; unit presets
-- [ ] Batches & expiry (FEFO, alerts, expiry report actions)
-- [ ] Stock-in / write-off with approval threshold; stocktake v2 (scope, snapshot, blind count, scan counting, review)
-- [ ] Storekeeper role preset + home; role matrix editor (Settings → Users & roles)
-- [ ] Custom fields (Settings → Products); product images gallery
+**Status: done** (2026-09-24). Commit `8efbc1b`. Branch stock/transfers (§4) intentionally deferred
+to phase 9. `verify:mocks` gained 2 new batch invariants, both green: **31 ok, 0 todo, 0 failed**.
+
+- [x] Product form v2 tabs; account resolution product → category → settings
+- [x] Multiple units with factors and unit barcodes; price matrix (price list × unit); min price; unit presets
+- [x] Batches & expiry (FEFO, alerts, expiry report actions)
+- [x] Stock-in / write-off with approval threshold; stocktake v2 (scope, snapshot, blind count, scan counting, review)
+- [x] Storekeeper role preset + home; role matrix editor (Settings → Users & roles)
+- [x] Custom fields (Settings → Products); product images gallery
 
 ## Phase 7 — Sales v2 → [06](06-sales-and-pos.md)
 
@@ -253,5 +256,9 @@ providers, shortcuts, final e2e) waits on everything, per the wave table.
 
 ## Phase 14 (optional) — Native thermal printing → [12 §5](12-documents-pdf-excel.md)
 
-- [ ] `list_printers`, raw ESC/POS raster printing (Windows queue + network 9100), cut, drawer kick
-- [ ] Printer settings + test print; asynchronous printing with reprint on failure
+**Status: done** (2026-09-24). Commit `32aaebe`. `list_printers` enumerates real Windows printers
+(3 found in the build environment). The ESC/POS raster byte stream was verified structurally
+correct (header dimensions match the dithered bitmap exactly) for both 80mm and 58mm widths.
+
+- [x] `list_printers`, raw ESC/POS raster printing (Windows queue + network 9100), cut, drawer kick
+- [x] Printer settings + test print; asynchronous printing with reprint on failure
