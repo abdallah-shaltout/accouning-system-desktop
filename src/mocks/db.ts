@@ -1,4 +1,4 @@
-import type { Account, AccountGroup, FiscalYear, JournalEntry } from '@/modules/accounting/types';
+import type { Account, FiscalYear, JournalEntry } from '@/modules/accounting/types';
 import type { ActivityEntry } from '@/modules/core/types';
 import type { Invoice, Refund } from '@/modules/invoices/types';
 import type { Customer, Supplier } from '@/modules/parties/types';
@@ -24,7 +24,6 @@ export interface MockDb {
   users: User[];
   /** username → password. Plain text on purpose: this is a UI mock, not an auth system. */
   credentials: Record<string, string>;
-  accountGroups: AccountGroup[];
   accounts: Account[];
   journalEntries: JournalEntry[];
   fiscalYears: FiscalYear[];
@@ -59,7 +58,6 @@ export type DocumentKind =
 export const db: MockDb = {
   users: [],
   credentials: {},
-  accountGroups: [],
   accounts: [],
   journalEntries: [],
   fiscalYears: [],

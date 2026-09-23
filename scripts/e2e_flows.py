@@ -103,7 +103,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(800)
     page.locator("input[placeholder^='مثال: سداد']").fill("اختبار: شراء أكياس تغليف")
     rows = page.locator("tbody tr")
-    pick_combobox(page, rows.nth(0).locator("button[aria-haspopup=listbox]"), "5300")
+    pick_combobox(page, rows.nth(0).locator("button[aria-haspopup=listbox]"), "6130")
     rows.nth(0).locator("input[type=number]").nth(0).fill("250")
     pick_combobox(page, rows.nth(1).locator("button[aria-haspopup=listbox]"), "1110")
     rows.nth(1).locator("input[type=number]").nth(1).fill("250")

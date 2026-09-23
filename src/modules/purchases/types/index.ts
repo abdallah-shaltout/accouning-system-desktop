@@ -42,6 +42,9 @@ export interface PurchaseFilter {
   supplierId?: string;
 }
 
+/** v2 (E1): how the supplier gives the money back — cash/bank hit their own account; credit stays on AP. */
+export type RefundMethod = 'cash' | 'bank_transfer' | 'credit';
+
 export interface PurchaseReturn {
   id: string;
   number: string;
@@ -55,10 +58,14 @@ export interface PurchaseReturn {
   grandTotal: number;
   settledToPayable: number;
   cashBack: number;
+  /** v2 (E1): the method `cashBack` was actually refunded through (never hard-coded to cash any more). */
+  refundMethod: RefundMethod;
 }
 
 export interface PurchaseReturnInput {
   purchaseOrderId: string;
   reason?: string;
+  /** v2 (E1): defaults to 'credit' (stays on the supplier's account) when omitted. */
+  refundMethod?: RefundMethod;
   lines: { productId: string; qty: number }[];
 }

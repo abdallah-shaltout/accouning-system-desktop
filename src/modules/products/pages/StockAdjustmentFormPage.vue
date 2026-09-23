@@ -14,13 +14,22 @@ import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
+import { getAccounts, type AccountWithBalance } from '@/modules/accounting/services/accountingService';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { dateKeyToIso, formatNumber, todayKey } from '@/modules/core/helpers/format';
 import { num0, toNum } from '@/modules/core/helpers/numbers';
 import { useCatalogStore } from '../controllers/useCatalogStore';
 import { createStockAdjustment } from '../services/inventoryService';
 import { getProducts } from '../services/productService';
-import type { Product, StockAdjustmentType } from '../types';
+import type { Product, StockAdjustmentType, StockInReason } from '../types';
+
+const STOCK_IN_REASON_OPTIONS: { value: StockInReason; label: string }[] = [
+  { value: 'opening', label: 'رصيد افتتاحي' },
+  { value: 'owner_contribution', label: 'مساهمة من المالك' },
+  { value: 'gift', label: 'هدية / بضاعة مجانية من مورد' },
+  { value: 'found', label: 'فائض تم العثور عليه' },
+  { value: 'other', label: 'أخرى' },
+];
 
 interface Line {
   key: number;
@@ -40,12 +49,22 @@ const date = ref(todayKey());
 const note = ref('');
 const lines = ref<Line[]>([]);
 const products = ref<Product[]>([]);
+const accounts = ref<AccountWithBalance[]>([]);
 const loading = ref(true);
 const saving = ref<'draft' | 'complete' | null>(null);
 const stocktakeCategory = ref('');
 const scan = ref('');
 const lineErrors = ref<Record<number, string>>({});
+// A3: every STOCK_IN needs a reason — it decides the credit account (see backend/inventory.ts).
+const stockInReason = ref<StockInReason>('opening');
+const offsetAccountId = ref('');
 let seq = 0;
+
+const offsetAccountOptions = computed(() =>
+  accounts.value
+    .filter((a) => a.active && !a.isGroup && a.allowManual && a.systemRole !== 'receivable' && a.systemRole !== 'payable')
+    .map((a) => ({ value: a.id, label: `${a.code} — ${a.name}` })),
+);
 
 const byId = computed(() => new Map(products.value.map((p) => [p.id, p])));
 const productOptions = computed(() =>
@@ -59,7 +78,7 @@ const productOptions = computed(() =>
 
 onMounted(async () => {
   await catalog.load();
-  products.value = await getProducts({ type: 'product' });
+  [products.value, accounts.value] = await Promise.all([getProducts({ type: 'product' }), getAccounts()]);
   loading.value = false;
   const pre = typeof route.query.product === 'string' ? route.query.product : undefined;
   if (type.value === 'STOCKTAKE') loadStocktake();
@@ -126,18 +145,32 @@ const gains = computed(() => lines.value.reduce((a, l) => a + Math.max(0, value(
 const losses = computed(() => lines.value.reduce((a, l) => a + Math.max(0, -value(l)), 0));
 const diffCount = computed(() => lines.value.filter((l) => change(l) !== 0).length);
 
+const inventoryAccount = computed(() => accounts.value.find((a) => a.systemRole === 'inventory'));
+const offsetAccount = computed(() => {
+  if (stockInReason.value === 'other') return accounts.value.find((a) => a.id === offsetAccountId.value);
+  const role = stockInReason.value === 'opening' ? 'openingBalanceEquity' : stockInReason.value === 'owner_contribution' ? 'ownerCurrent' : stockInReason.value === 'gift' ? 'otherIncome' : 'inventoryVariance';
+  return accounts.value.find((a) => a.systemRole === role);
+});
+
 const journal = computed(() => {
-  const acc = (code: string) => ({ '1140': 'بضاعة المخزون', '3100': 'رأس المال', '4400': 'أرباح جرد المخزون', '5800': 'خسائر جرد المخزون' })[code]!;
+  const inv = inventoryAccount.value;
   const out: { accountCode: string; accountName: string; debit: number; credit: number }[] = [];
-  const push = (code: string, debit: number, credit: number) => (debit || credit) && out.push({ accountCode: code, accountName: acc(code), debit, credit });
+  const push = (a: AccountWithBalance | undefined, debit: number, credit: number) => a && (debit || credit) && out.push({ accountCode: a.code, accountName: a.name, debit, credit });
   if (type.value === 'STOCK_IN') {
-    push('1140', gains.value, 0);
-    push('3100', 0, gains.value);
+    push(inv, gains.value, 0);
+    push(offsetAccount.value, 0, gains.value);
+  } else if (type.value === 'LOSS') {
+    // Write-off (damaged/expired): its own account (5120), not the stocktake-variance account.
+    const writeOff = accounts.value.find((a) => a.systemRole === 'inventoryWriteOff');
+    push(writeOff, losses.value, 0);
+    push(inv, 0, losses.value);
   } else {
-    push('1140', gains.value, 0);
-    push('4400', 0, gains.value);
-    push('5800', losses.value, 0);
-    push('1140', 0, losses.value);
+    // A4: stocktake gains AND losses both post to inventoryVariance — corrections of COGS.
+    const variance = accounts.value.find((a) => a.systemRole === 'inventoryVariance');
+    push(inv, gains.value, 0);
+    push(variance, 0, gains.value);
+    push(variance, losses.value, 0);
+    push(inv, 0, losses.value);
   }
   return out;
 });
@@ -151,9 +184,9 @@ const typeOptions = [
 const typeHelp = computed(
   () =>
     ({
-      STOCK_IN: 'إضافة بضاعة للمخزون بدون أمر شراء (رصيد افتتاحي أو بضاعة من المالك). تُسجل مقابل رأس المال.',
-      LOSS: 'إخراج بضاعة تالفة أو مفقودة من المخزون. تُسجل كخسارة بسعر التكلفة.',
-      STOCKTAKE: 'أدخل الكمية المعدودة فعلياً لكل صنف — يُحتسب الفرق تلقائياً ويُسجل كربح أو خسارة جرد.',
+      STOCK_IN: 'إضافة بضاعة للمخزون بدون أمر شراء — اختر السبب أدناه ليحدد الحساب المقابل.',
+      LOSS: 'إخراج بضاعة تالفة أو مفقودة من المخزون. تُسجل في حساب البضاعة التالفة ومنتهية الصلاحية.',
+      STOCKTAKE: 'أدخل الكمية المعدودة فعلياً لكل صنف — يُحتسب الفرق تلقائياً ويُسجل في حساب فروقات جرد المخزون (ربحاً كان أو خسارة).',
     })[type.value],
 );
 
@@ -174,6 +207,10 @@ function validateLines(): boolean {
   });
   lineErrors.value = errs;
   if (!filled.length) toast.warning('أضف صنفاً واحداً على الأقل');
+  if (type.value === 'STOCK_IN' && stockInReason.value === 'other' && !offsetAccountId.value) {
+    toast.warning('اختر الحساب المقابل لسبب "أخرى"');
+    return false;
+  }
   return filled.length > 0 && !Object.keys(errs).length;
 }
 
@@ -188,6 +225,8 @@ async function submit(asDraft: boolean) {
         type: type.value,
         date: dateKeyToIso(date.value),
         note: note.value.trim() || undefined,
+        reason: type.value === 'STOCK_IN' ? stockInReason.value : undefined,
+        offsetAccountId: type.value === 'STOCK_IN' && stockInReason.value === 'other' ? offsetAccountId.value : undefined,
         lines: filled.map((l) => (type.value === 'STOCKTAKE' ? { productId: l.productId!, countedQty: toNum(l.counted) } : { productId: l.productId!, qtyChange: toNum(l.qty) })),
       },
       asDraft,
@@ -222,6 +261,15 @@ async function submit(asDraft: boolean) {
               class="w-44"
               placeholder="كل الأصناف"
               :options="catalog.categories.filter((c) => c.id !== 'cat-services').map((c) => ({ value: c.id, label: c.name }))"
+            />
+            <AppSelect v-if="type === 'STOCK_IN'" v-model="stockInReason" label="سبب الإدخال" class="w-56" :options="STOCK_IN_REASON_OPTIONS" />
+            <AppSelect
+              v-if="type === 'STOCK_IN' && stockInReason === 'other'"
+              v-model="offsetAccountId"
+              label="الحساب المقابل"
+              class="w-56"
+              placeholder="اختر الحساب…"
+              :options="offsetAccountOptions"
             />
           </div>
           <p class="mt-3 text-xs leading-5 text-text-secondary">{{ typeHelp }}</p>

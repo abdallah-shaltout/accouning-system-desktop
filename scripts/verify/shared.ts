@@ -6,7 +6,9 @@
  * rules/helpers land in a later phase) — those are reported as `todo(...)`, not failures, per
  * docs/v2/15-action-plan.md Phase 0's "`verify:mocks` v2 harness" item.
  */
+import { accountFor } from '../../src/mocks/backend/accounts';
 import { db } from '../../src/mocks/db';
+import type { SystemRole } from '../../src/modules/accounting/types';
 
 export interface Result {
   status: 'ok' | 'fail' | 'todo';
@@ -35,9 +37,9 @@ export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
-/** Net balance (Σdebit − Σcredit) of an account across every posted journal entry. */
-export function glBalance(code: string): number {
-  const id = `acc-${code}`;
+/** Net balance (Σdebit − Σcredit) of the account holding this system role, across every posted journal entry. */
+export function glBalance(role: SystemRole): number {
+  const id = accountFor(role).id;
   return round2(
     db.journalEntries
       .flatMap((e) => e.lines)

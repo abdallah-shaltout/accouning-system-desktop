@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { CalendarRange, Lock, Pencil, Plus } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
@@ -12,13 +12,31 @@ import { useAsync } from '@/modules/core/controllers/useAsync';
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
 import { formatDate, todayKey } from '@/modules/core/helpers/format';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
-import { getFiscalYears, saveFiscalYear } from '../services/accountingService';
+import { getFiscalYears, getLockDate, saveFiscalYear, saveLockDate } from '../services/accountingService';
 import type { FiscalYear } from '../types';
 
 const auth = useAuthStore();
 const toast = useToast();
 const canWrite = computed(() => auth.can('accounting', 'write'));
 const { data, loading, error, reload } = useAsync(getFiscalYears);
+
+// Lock date (docs/v2/02-accounting-review.md B2): no posting is allowed on/before this date,
+// regardless of the fiscal year's own open/closed flag. The full closing wizard is Phase 2 — this
+// is just the setting + the posting-time check (src/mocks/backend/core.ts assertOpenPeriod).
+const lockDate = ref('');
+const lockSaving = ref(false);
+onMounted(async () => (lockDate.value = (await getLockDate()) ?? ''));
+async function saveLock() {
+  lockSaving.value = true;
+  try {
+    await saveLockDate(lockDate.value || undefined);
+    toast.success('تم حفظ تاريخ القفل');
+  } catch (err) {
+    toast.error(err);
+  } finally {
+    lockSaving.value = false;
+  }
+}
 
 const today = todayKey();
 const isCurrent = (f: FiscalYear) => f.startDate <= today && f.endDate >= today;
@@ -63,11 +81,17 @@ const columns: Column<FiscalYear>[] = [
 
 <template>
   <div>
-    <PageHeader title="السنة المالية" subtitle="تحدد الفترة الافتراضية لتقارير الحسابات — لا يوجد قفل للفترات في هذه المرحلة">
+    <PageHeader title="السنة المالية" subtitle="تحدد الفترة الافتراضية لتقارير الحسابات — إقفال السنة بالكامل (قيد الإقفال) في مرحلة لاحقة">
       <template v-if="canWrite" #actions>
         <AppButton variant="primary" :icon="Plus" @click="openForm()">سنة مالية جديدة</AppButton>
       </template>
     </PageHeader>
+
+    <div v-if="canWrite" class="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border p-3">
+      <AppInput v-model="lockDate" type="date" label="تاريخ قفل الترحيل" hint="لا يمكن الترحيل في تاريخ يساويه أو يسبقه إلا بصلاحية المدير" class="w-52" />
+      <AppButton :loading="lockSaving" @click="saveLock">حفظ تاريخ القفل</AppButton>
+      <AppButton v-if="lockDate" variant="ghost" @click="((lockDate = ''), saveLock())">إزالة القفل</AppButton>
+    </div>
 
     <DataTable :columns="columns" :rows="data" :loading="loading" :error="error" :page-size="0" :empty-icon="CalendarRange" @retry="reload">
       <template #cell-name="{ row }">

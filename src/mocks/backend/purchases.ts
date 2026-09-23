@@ -4,7 +4,22 @@ import { db, nextNumber } from '../db';
 import { emit } from '../events';
 import { mutate } from '../persist';
 import { ApiError, round2, sum, uid } from '../utils';
-import { applyStockChange, logActivity, postJournal, productById, purchaseTaxRate } from './core';
+import { accountFor, settlementAccountFor } from './accounts';
+import { applyStockChange, logActivity, postJournal, productById, purchaseTaxRate, type PostingLine } from './core';
+
+/**
+ * v2 (E2): the account a non-stock/service purchase line posts to — product override → category
+ * fallback → settings default → generic operating-expense role, so a purchase never has to force
+ * everything to one hard-coded code.
+ */
+function purchaseLineAccountId(productId: string): string {
+  const product = productById(productId);
+  if (product.purchaseAccountId) return product.purchaseAccountId;
+  const category = db.categories.find((c) => c.id === product.categoryId);
+  if (category?.purchaseAccountId) return category.purchaseAccountId;
+  if (db.settings.accounting?.defaultPurchaseAccountId) return db.settings.accounting.defaultPurchaseAccountId;
+  return accountFor('freightIn').id;
+}
 
 export function computePurchaseTotals(lines: { qty: number; costPrice: number }[], taxRate: number) {
   const subTotal = round2(lines.reduce((acc, l) => acc + l.qty * l.costPrice, 0));
@@ -63,35 +78,42 @@ export function savePurchase(input: PurchaseOrderInput, userId: string, existing
   return po;
 }
 
-/** Receive the goods: stock in at weighted-average cost, post Inventory + VAT input against AP. */
+/** Receive the goods: stock in at weighted-average cost (re-averaged, A1/A2), post Inventory +
+ * service-line purchase accounts (E2) + VAT input against AP. */
 export function confirmPurchase(id: string, userId: string, date = new Date().toISOString()): PurchaseOrder {
   const po = db.purchaseOrders.find((p) => p.id === id);
   if (!po) throw new ApiError('أمر الشراء غير موجود', 'NOT_FOUND');
   if (po.status !== 'DRAFT') throw new ApiError('أمر الشراء مؤكد أو ملغي بالفعل');
 
   let inventoryValue = 0;
+  const serviceByAccount = new Map<string, number>();
   for (const line of po.lines) {
     const product = productById(line.productId);
-    const value = line.qty * line.costPrice;
-    if (product.type === 'service') continue;
+    const value = round2(line.qty * line.costPrice);
+    if (product.type === 'service') {
+      const accId = purchaseLineAccountId(line.productId);
+      serviceByAccount.set(accId, round2((serviceByAccount.get(accId) ?? 0) + value));
+      continue;
+    }
     inventoryValue += value;
-    const onHand = Math.max(0, product.stockQty);
-    product.costPrice = onHand > 0 ? round2((onHand * product.costPrice + value) / (onHand + line.qty)) : line.costPrice;
-    applyStockChange(product, line.qty, 'purchase', po, date);
+    // Receipt re-averages: value += posted amount, so stockValue stays exactly Σ posted GL amounts.
+    applyStockChange(product, line.qty, value, 'purchase', po, date);
   }
+  inventoryValue = round2(inventoryValue);
 
   mutate(() => (po.status = 'CONFIRMED'));
+  const lines: PostingLine[] = [
+    { role: 'inventory', debit: inventoryValue },
+    ...[...serviceByAccount.entries()].map(([accountId, amount]) => ({ accountId, debit: amount })),
+    { role: 'vatInput', debit: po.taxAmount },
+    { role: 'payable', credit: po.grandTotal, partyKind: 'supplier' as const, partyId: po.supplierId },
+  ];
   postJournal({
     date,
     description: `أمر شراء ${po.number}`,
     type: 'SYSTEM',
     sourceRef: { kind: 'purchaseOrder', id: po.id, number: po.number },
-    lines: [
-      { code: '1140', debit: round2(inventoryValue) },
-      { code: '5300', debit: round2(po.subTotal - round2(inventoryValue)) },
-      { code: '1150', debit: po.taxAmount },
-      { code: '2100', credit: po.grandTotal },
-    ],
+    lines,
     createdBy: userId,
   });
 
@@ -142,6 +164,8 @@ export function recordPurchaseReturn(input: PurchaseReturnInput, userId: string,
   const totals = computePurchaseTotals(lines, po.taxRate);
   const settledToPayable = Math.min(totals.grandTotal, purchaseOutstanding(po));
   const cashBack = round2(totals.grandTotal - settledToPayable);
+  // E1: refund method defaults to staying on the supplier's account (credit) — never hard-coded to cash.
+  const refundMethod = input.refundMethod ?? 'credit';
 
   const ret: PurchaseReturn = {
     id: uid('pr'),
@@ -154,6 +178,7 @@ export function recordPurchaseReturn(input: PurchaseReturnInput, userId: string,
     ...totals,
     settledToPayable,
     cashBack,
+    refundMethod,
   };
   mutate(() => {
     db.purchaseReturns.push(ret);
@@ -161,25 +186,52 @@ export function recordPurchaseReturn(input: PurchaseReturnInput, userId: string,
     po.paymentStatus = paymentStatusFor(po.grandTotal - po.returnedAmount, po.paidAmount);
   });
 
+  // A1/A2: value −= qty × purchase price. If that would leave a negative value, or a non-zero
+  // value with zero quantity, the difference goes to inventoryVariance (5110) instead of silently
+  // drifting the GL away from Σ product.stockValue.
   let inventoryValue = 0;
+  let variance = 0;
+  const serviceByAccount = new Map<string, number>();
   for (const line of lines) {
     const product = productById(line.productId);
-    if (product.type !== 'service') inventoryValue += line.qty * line.costPrice;
-    applyStockChange(product, -line.qty, 'purchase_return', ret, date);
+    if (product.type === 'service') {
+      const accId = purchaseLineAccountId(line.productId);
+      const amount = round2(line.qty * line.costPrice);
+      serviceByAccount.set(accId, round2((serviceByAccount.get(accId) ?? 0) + amount));
+      continue;
+    }
+    const atPurchasePrice = round2(line.qty * line.costPrice);
+    const newQty = round2(product.stockQty - line.qty);
+    const newValue = round2(product.stockValue - atPurchasePrice);
+    let valueOut = atPurchasePrice;
+    if (newValue < 0 || (newQty <= 0.0001 && Math.abs(newValue) > 0.001)) {
+      // Guard: don't let the line's own posted value push stockValue negative / leave a stray
+      // balance at zero qty — take exactly what's there and book the rest as variance.
+      valueOut = product.stockValue;
+      variance = round2(variance + (atPurchasePrice - valueOut));
+    }
+    inventoryValue += valueOut;
+    applyStockChange(product, -line.qty, -valueOut, 'purchase_return', ret, date);
   }
+  inventoryValue = round2(inventoryValue);
+
+  const postingLines: PostingLine[] = [
+    { role: 'payable', debit: settledToPayable, partyKind: 'supplier', partyId: po.supplierId },
+    { accountId: settlementAccountFor(refundMethod).id, debit: refundMethod === 'credit' ? 0 : cashBack },
+    { role: 'payable', debit: refundMethod === 'credit' ? cashBack : 0, partyKind: 'supplier', partyId: po.supplierId },
+    { role: 'inventory', credit: inventoryValue },
+    ...[...serviceByAccount.entries()].map(([accountId, amount]) => ({ accountId, credit: amount })),
+    { role: 'vatInput', credit: totals.taxAmount },
+  ];
+  if (variance > 0) postingLines.push({ role: 'inventoryVariance', debit: variance });
+  else if (variance < 0) postingLines.push({ role: 'inventoryVariance', credit: -variance });
 
   postJournal({
     date,
     description: `مرتجع مشتريات ${ret.number} على أمر الشراء ${po.number}`,
     type: 'SYSTEM',
     sourceRef: { kind: 'purchaseReturn', id: ret.id, number: ret.number },
-    lines: [
-      { code: '2100', debit: settledToPayable },
-      { code: '1110', debit: cashBack },
-      { code: '1140', credit: round2(inventoryValue) },
-      { code: '5300', credit: round2(totals.subTotal - round2(inventoryValue)) },
-      { code: '1150', credit: totals.taxAmount },
-    ],
+    lines: postingLines,
     createdBy: userId,
   });
 

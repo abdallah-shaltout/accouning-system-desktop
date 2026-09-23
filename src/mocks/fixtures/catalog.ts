@@ -87,6 +87,7 @@ export const productsFixture: (Product & { openingQty: number })[] = [
       costPrice,
       price,
       stockQty: 0,
+      stockValue: 0,
       minStock,
       active: true,
       prices: [
@@ -106,6 +107,7 @@ export const productsFixture: (Product & { openingQty: number })[] = [
     costPrice: 0,
     price: 25,
     stockQty: 0,
+    stockValue: 0,
     active: true,
     openingQty: 0,
   },
@@ -119,6 +121,7 @@ export const productsFixture: (Product & { openingQty: number })[] = [
     costPrice: 0,
     price: 15,
     stockQty: 0,
+    stockValue: 0,
     active: true,
     openingQty: 0,
   },

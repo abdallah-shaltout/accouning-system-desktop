@@ -14,7 +14,9 @@ import { useToast } from '@/modules/core/controllers/useToast';
 import { dateKeyToIso, todayKey } from '@/modules/core/helpers/format';
 import { num0 } from '@/modules/core/helpers/numbers';
 import { round2 } from '@/modules/invoices/helpers/totals';
-import { createJournalEntry, getAccounts, type AccountWithBalance } from '../services/accountingService';
+import { getCustomers, getSuppliers } from '@/modules/parties/services/partyService';
+import type { Customer, Supplier } from '@/modules/parties/types';
+import { accountPath, createJournalEntry, getAccounts, type AccountWithBalance } from '../services/accountingService';
 
 interface Line {
   key: number;
@@ -22,6 +24,8 @@ interface Line {
   description: string;
   debit?: number;
   credit?: number;
+  partyKind?: 'customer' | 'supplier';
+  partyId?: string;
 }
 
 const router = useRouter();
@@ -35,17 +39,43 @@ const lines = ref<Line[]>([
   { key: ++seq, description: '' },
 ]);
 const accounts = ref<AccountWithBalance[]>([]);
+const customers = ref<Customer[]>([]);
+const suppliers = ref<Supplier[]>([]);
 const saving = ref(false);
 const submitted = ref(false);
 
-onMounted(async () => (accounts.value = await getAccounts()));
+onMounted(async () => {
+  [accounts.value, customers.value, suppliers.value] = await Promise.all([getAccounts(), getCustomers(), getSuppliers()]);
+});
 
-// Only leaf accounts can be posted to; parents are summaries.
+// Manual entries only post to leaf, allowManual accounts (control accounts like AR/AP/inventory/VAT
+// are blocked or need a party — docs/v2/02-accounting-review.md B1). Pickers show the header path.
 const accountOptions = computed(() =>
   accounts.value
-    .filter((a) => a.active && !accounts.value.some((c) => c.parentId === a.id))
-    .map((a) => ({ value: a.id, label: `${a.code} — ${a.name}`, keywords: a.code })),
+    .filter((a) => a.active && !a.isGroup && a.allowManual)
+    .map((a) => ({ value: a.id, label: `${a.code} — ${a.name}`, sublabel: accountPath(a, accounts.value), keywords: a.code })),
 );
+
+function accountOf(line: Line) {
+  return accounts.value.find((a) => a.id === line.accountId);
+}
+
+function requiresParty(line: Line): boolean {
+  return !!accountOf(line)?.requiresParty;
+}
+
+const partyOptions = (kind: 'customer' | 'supplier') =>
+  (kind === 'customer' ? customers.value : suppliers.value).map((p) => ({ value: p.id, label: p.name }));
+
+function onAccountChange(line: Line) {
+  const account = accountOf(line);
+  if (account?.requiresParty) {
+    line.partyKind = account.systemRole === 'payable' ? 'supplier' : 'customer';
+  } else {
+    line.partyKind = undefined;
+    line.partyId = undefined;
+  }
+}
 
 const totalDebit = computed(() => round2(lines.value.reduce((a, l) => a + num0(l.debit), 0)));
 const totalCredit = computed(() => round2(lines.value.reduce((a, l) => a + num0(l.credit), 0)));
@@ -58,6 +88,7 @@ const problems = computed(() => {
   if (filled.value.length < 2) list.push('القيد يحتاج سطرين على الأقل بحساب ومبلغ');
   if (lines.value.some((l) => num0(l.debit) > 0 && num0(l.credit) > 0)) list.push('السطر الواحد إما مدين أو دائن');
   if (lines.value.some((l) => !l.accountId && (num0(l.debit) > 0 || num0(l.credit) > 0))) list.push('اختر الحساب لكل سطر به مبلغ');
+  if (filled.value.some((l) => requiresParty(l) && !l.partyId)) list.push('اختر العميل أو المورد للأسطر على حسابات العملاء/الموردين');
   if (difference.value !== 0) list.push('المدين لا يساوي الدائن');
   if (totalDebit.value === 0) list.push('أدخل المبالغ');
   return list;
@@ -89,7 +120,14 @@ async function save() {
     const entry = await createJournalEntry({
       date: dateKeyToIso(date.value),
       description: description.value,
-      lines: filled.value.map((l) => ({ accountId: l.accountId!, description: l.description.trim() || undefined, debit: l.debit ?? 0, credit: l.credit ?? 0 })),
+      lines: filled.value.map((l) => ({
+        accountId: l.accountId!,
+        description: l.description.trim() || undefined,
+        debit: l.debit ?? 0,
+        credit: l.credit ?? 0,
+        partyKind: l.partyKind,
+        partyId: l.partyId,
+      })),
     });
     toast.success('تم ترحيل القيد', entry.number);
     router.push(`/accounting/journal/${entry.id}`);
@@ -126,6 +164,7 @@ useHotkeys({ 'ctrl+Enter': () => void save(), 'ctrl+s': () => void save() });
           <tr class="border-b border-border">
             <th class="w-10 px-3 py-2.5 text-start font-medium">#</th>
             <th class="px-2 py-2.5 text-start font-medium">الحساب</th>
+            <th class="px-2 py-2.5 text-start font-medium">العميل/المورد</th>
             <th class="px-2 py-2.5 text-start font-medium">البيان (اختياري)</th>
             <th class="w-36 px-2 py-2.5 text-start font-medium">مدين</th>
             <th class="w-36 px-2 py-2.5 text-start font-medium">دائن</th>
@@ -143,7 +182,19 @@ useHotkeys({ 'ctrl+Enter': () => void save(), 'ctrl+s': () => void save() });
                 search-placeholder="رمز أو اسم الحساب"
                 dense
                 :error="submitted && !line.accountId && (line.debit || line.credit) ? 'اختر الحساب' : undefined"
+                @update:model-value="onAccountChange(line)"
               />
+            </td>
+            <td class="min-w-44 px-2 py-1.5">
+              <AppCombobox
+                v-if="requiresParty(line)"
+                v-model="line.partyId"
+                :options="partyOptions(line.partyKind!)"
+                :placeholder="line.partyKind === 'supplier' ? 'اختر المورد…' : 'اختر العميل…'"
+                dense
+                :error="submitted && !line.partyId ? 'مطلوب' : undefined"
+              />
+              <span v-else class="text-xs text-text-secondary">—</span>
             </td>
             <td class="px-2 py-1.5"><input v-model="line.description" class="control h-8" /></td>
             <td class="px-2 py-1.5">
@@ -167,7 +218,7 @@ useHotkeys({ 'ctrl+Enter': () => void save(), 'ctrl+s': () => void save() });
         </tbody>
         <tfoot class="border-t border-border bg-surface">
           <tr>
-            <td colspan="3" class="px-3 py-2">
+            <td colspan="4" class="px-3 py-2">
               <div class="flex items-center gap-2">
                 <AppButton size="sm" variant="ghost" :icon="Plus" @click="addLine">إضافة سطر</AppButton>
                 <AppButton v-if="difference !== 0" size="sm" variant="ghost" @click="balanceLast">موازنة آخر سطر</AppButton>

@@ -18,6 +18,7 @@ export function postOpeningStock(date: string, createdBy: string): void {
       type: 'STOCK_IN',
       date,
       note: 'رصيد افتتاحي للمخزون',
+      reason: 'opening',
       lines: productsFixture.filter((p) => p.openingQty > 0).map((p) => ({ productId: p.id, qtyChange: p.openingQty })),
     },
     createdBy,

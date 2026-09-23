@@ -1,6 +1,7 @@
 import { ApiError, db, delay, inDateRange, localDateKey, round2, sum } from '@/mocks';
+import { accountFor } from '@/mocks/backend/accounts';
 import { customerStatement, supplierStatement } from '@/mocks/backend/balances';
-import type { Account, AccountGroupKind } from '@/modules/accounting/types';
+import type { Account, AccountKind } from '@/modules/accounting/types';
 import { SALE_METHOD_LABEL } from '@/modules/core/helpers/labels';
 import type {
   AccountLedger,
@@ -16,8 +17,15 @@ import type {
 
 /** Every report is computed on the fly from journal entries / documents — nothing is stored. */
 
-function kindOf(account: Account): AccountGroupKind {
-  return db.accountGroups.find((g) => g.id === account.groupId)!.kind;
+function kindOf(account: Account): AccountKind {
+  return account.kind;
+}
+
+/** The nearest header (isGroup) ancestor's name — what the trial balance shows as "groupName". */
+function groupNameOf(account: Account): string {
+  let parent = account.parentId ? db.accounts.find((a) => a.id === account.parentId) : undefined;
+  while (parent && !parent.isGroup) parent = parent.parentId ? db.accounts.find((a) => a.id === parent!.parentId) : undefined;
+  return parent?.name ?? '';
 }
 
 /** Σ(debit − credit) per account for entries within the range. */
@@ -47,7 +55,7 @@ export async function getTrialBalance(range: DateRangeInput): Promise<TrialBalan
   const opening = range.from ? movements({ to: dayBefore(range.from) }) : new Map();
   const period = movements(range);
   return db.accounts
-    .filter((a) => opening.has(a.id) || period.has(a.id))
+    .filter((a) => !a.isGroup && (opening.has(a.id) || period.has(a.id)))
     .sort((a, b) => a.code.localeCompare(b.code))
     .map((a) => {
       const o = opening.get(a.id) ?? { d: 0, c: 0 };
@@ -57,7 +65,7 @@ export async function getTrialBalance(range: DateRangeInput): Promise<TrialBalan
         accountId: a.id,
         code: a.code,
         name: a.name,
-        groupName: db.accountGroups.find((g) => g.id === a.groupId)?.name ?? '',
+        groupName: groupNameOf(a),
         openingBalance: round2(o.d - o.c),
         periodDebit: round2(p.d),
         periodCredit: round2(p.c),
@@ -69,9 +77,9 @@ export async function getTrialBalance(range: DateRangeInput): Promise<TrialBalan
 
 // --- Profit & loss ---------------------------------------------------------------------------
 
-function lines(kind: AccountGroupKind, mv: Map<string, { d: number; c: number }>, sign: 1 | -1, filter?: (a: Account) => boolean): StatementLine[] {
+function lines(kind: AccountKind, mv: Map<string, { d: number; c: number }>, sign: 1 | -1, filter?: (a: Account) => boolean): StatementLine[] {
   return db.accounts
-    .filter((a) => kindOf(a) === kind && mv.has(a.id) && (!filter || filter(a)))
+    .filter((a) => !a.isGroup && kindOf(a) === kind && mv.has(a.id) && (!filter || filter(a)))
     .sort((a, b) => a.code.localeCompare(b.code))
     .map((a) => {
       const t = mv.get(a.id)!;
@@ -83,8 +91,9 @@ function lines(kind: AccountGroupKind, mv: Map<string, { d: number; c: number }>
 function computePnl(range: DateRangeInput): ProfitAndLoss {
   const mv = movements(range);
   const revenue = lines('REVENUE', mv, -1); // credit − debit → returns come out negative
-  const cogs = lines('EXPENSE', mv, 1, (a) => a.code === '5200');
-  const expenses = lines('EXPENSE', mv, 1, (a) => a.code !== '5200');
+  // costOfSales subtype (5xxx: COGS, inventory variance, write-offs, freight-in) vs 6xxx operating expenses.
+  const cogs = lines('EXPENSE', mv, 1, (a) => a.subtype === 'costOfSales');
+  const expenses = lines('EXPENSE', mv, 1, (a) => a.subtype !== 'costOfSales');
   const netRevenue = sum(revenue, (l) => l.amount);
   const totalCogs = sum(cogs, (l) => l.amount);
   const totalExpenses = sum(expenses, (l) => l.amount);
@@ -312,8 +321,8 @@ export async function getVatReport(range: DateRangeInput): Promise<VatReport> {
   const inputVat = round2(purchases.vat - purchaseReturns.vat);
 
   const mv = movements(range);
-  const out = mv.get(db.accounts.find((a) => a.code === '2150')!.id) ?? { d: 0, c: 0 };
-  const inp = mv.get(db.accounts.find((a) => a.code === '1150')!.id) ?? { d: 0, c: 0 };
+  const out = mv.get(accountFor('vatOutput').id) ?? { d: 0, c: 0 };
+  const inp = mv.get(accountFor('vatInput').id) ?? { d: 0, c: 0 };
 
   return {
     sales,

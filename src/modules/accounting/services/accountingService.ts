@@ -2,8 +2,9 @@ import { ApiError, clone, db, delay, inDateRange, includesText, localDateKey, ro
 import { logActivity } from '@/mocks/backend/core';
 import { recordManualJournal, reverseJournal } from '@/mocks/backend/journal';
 import { mutate } from '@/mocks/persist';
+import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
-import type { Account, AccountGroup, AccountInput, FiscalYear, JournalEntry, JournalEntryInput, JournalFilter } from '../types';
+import type { Account, AccountInput, FiscalYear, JournalEntry, JournalEntryInput, JournalFilter } from '../types';
 
 export type AccountWithBalance = Account & { balance: number; debitTotal: number; creditTotal: number; hasPostings: boolean };
 
@@ -12,15 +13,18 @@ export function signedBalance(account: Pick<Account, 'normalSide'>, debit: numbe
   return round2(account.normalSide === 'DEBIT' ? debit - credit : credit - debit);
 }
 
-export async function getAccountGroups(): Promise<AccountGroup[]> {
-  await delay(100);
-  return clone(db.accountGroups);
+/** Admin-only override for posting into a closed period (accounting.postToClosedPeriod) — this phase
+ * keeps permissions coarse (modules/users/helpers/permissions.ts has no fine-grained strings yet). */
+function canPostToClosedPeriod(): boolean {
+  return useAuthStore().user?.role === 'admin';
 }
 
-export async function getAccounts(): Promise<AccountWithBalance[]> {
+/** `range` filters which journal entries count toward the balance column (CoA page period filter). Omitted = all time. */
+export async function getAccounts(range: { from?: string; to?: string } = {}): Promise<AccountWithBalance[]> {
   await delay();
   const totals = new Map<string, { d: number; c: number }>();
   for (const e of db.journalEntries) {
+    if (!inDateRange(e.date, range.from, range.to)) continue;
     for (const l of e.lines) {
       const t = totals.get(l.accountId) ?? { d: 0, c: 0 };
       t.d += l.debit;
@@ -36,18 +40,40 @@ export async function getAccounts(): Promise<AccountWithBalance[]> {
     .sort((a, b) => a.code.localeCompare(b.code));
 }
 
+/**
+ * Header path shown in grey next to an account in pickers, e.g. "المصروفات › العمومية"
+ * (docs/v2/03-chart-of-accounts.md §6). Excludes the account itself and the root kind header.
+ */
+export function accountPath(account: Pick<Account, 'parentId'>, all: Account[]): string {
+  const segments: string[] = [];
+  let parent = account.parentId ? all.find((a) => a.id === account.parentId) : undefined;
+  while (parent) {
+    if (parent.parentId) segments.unshift(parent.name);
+    parent = parent.parentId ? all.find((a) => a.id === parent!.parentId) : undefined;
+  }
+  return segments.join(' › ');
+}
+
+/** Rolled-up balance of an account including its sub-accounts, in the account's normal direction. */
+export function rolledBalance(account: AccountWithBalance, all: AccountWithBalance[]): number {
+  return all
+    .filter((c) => c.parentId === account.id)
+    .reduce((acc, c) => acc + (c.normalSide === account.normalSide ? 1 : -1) * rolledBalance(c, all), account.balance);
+}
+
 function validateAccount(input: AccountInput, exceptId?: string) {
-  if (!/^\d{3,8}$/.test(input.code)) throw new ApiError('رمز الحساب أرقام فقط (3 إلى 8 أرقام)');
+  if (!/^\d{1,8}$/.test(input.code)) throw new ApiError('رمز الحساب أرقام فقط (حتى 8 أرقام)');
   if (!input.name.trim()) throw new ApiError('اسم الحساب مطلوب');
   if (db.accounts.some((a) => a.id !== exceptId && a.code === input.code)) throw new ApiError('رمز الحساب مستخدم من قبل', 'CONFLICT');
-  const group = db.accountGroups.find((g) => g.id === input.groupId);
-  if (!group) throw new ApiError('اختر المجموعة');
-  if (!input.code.startsWith(group.code)) throw new ApiError(`رمز الحساب يجب أن يبدأ برقم المجموعة (${group.code})`);
   if (input.parentId) {
     if (input.parentId === exceptId) throw new ApiError('لا يمكن أن يكون الحساب أباً لنفسه');
     const parent = db.accounts.find((a) => a.id === input.parentId);
-    if (!parent || parent.groupId !== input.groupId) throw new ApiError('الحساب الأب يجب أن يكون في نفس المجموعة');
+    if (!parent) throw new ApiError('الحساب الأب غير موجود');
+    if (!parent.isGroup) throw new ApiError('الحساب الأب يجب أن يكون حساباً رئيسياً (تجميعياً)');
+    if (parent.kind !== input.kind) throw new ApiError(`الحساب الأب من نوع مختلف (${parent.kind})`);
+    if (!input.code.startsWith(parent.code)) throw new ApiError(`رمز الحساب يجب أن يبدأ برمز الحساب الأب (${parent.code})`);
   }
+  if (input.isGroup && input.allowManual) throw new ApiError('الحسابات الرئيسية (التجميعية) لا تقبل الترحيل المباشر');
 }
 
 export async function saveAccount(input: AccountInput, id?: string): Promise<Account> {
@@ -57,14 +83,18 @@ export async function saveAccount(input: AccountInput, id?: string): Promise<Acc
   if (id) {
     const found = db.accounts.find((a) => a.id === id);
     if (!found) throw new ApiError('الحساب غير موجود', 'NOT_FOUND');
-    // System accounts keep their code and group — the posting rules depend on them.
-    if (!found.canDelete && (input.code !== found.code || input.groupId !== found.groupId)) {
-      throw new ApiError('لا يمكن تغيير رمز أو مجموعة حساب أساسي في النظام');
+    // System accounts keep their code, kind and header/leaf shape — the posting rules depend on them.
+    if (!found.canDelete && (input.code !== found.code || input.kind !== found.kind || input.isGroup !== found.isGroup)) {
+      throw new ApiError('لا يمكن تغيير رمز أو نوع أو شكل (رئيسي/فرعي) حساب أساسي في النظام');
     }
-    mutate(() => Object.assign(found, { ...input, name: input.name.trim(), parentId: input.parentId || undefined }));
+    if (found.isGroup !== input.isGroup) {
+      if (db.accounts.some((a) => a.parentId === found.id)) throw new ApiError('للحساب حسابات فرعية — لا يمكن جعله فرعياً (postable)');
+      if (db.journalEntries.some((e) => e.lines.some((l) => l.accountId === found.id))) throw new ApiError('للحساب قيود مسجلة — لا يمكن جعله رئيسياً (تجميعياً)');
+    }
+    mutate(() => Object.assign(found, { ...input, name: input.name.trim(), parentId: input.parentId || null }));
     account = found;
   } else {
-    account = { id: uid('acc'), ...input, name: input.name.trim(), parentId: input.parentId || undefined, canDelete: true };
+    account = { id: uid('acc'), ...input, name: input.name.trim(), parentId: input.parentId || null, canDelete: true };
     mutate(() => db.accounts.push(account));
   }
   logActivity('journal', `${id ? 'تعديل' : 'إضافة'} الحساب ${account.code} — ${account.name}`, session.userId, new Date().toISOString(), '/accounting/accounts');
@@ -81,13 +111,28 @@ export async function deleteAccount(id: string): Promise<void> {
   mutate(() => (db.accounts = db.accounts.filter((a) => a.id !== id)));
 }
 
-export async function renameAccountGroup(id: string, name: string): Promise<AccountGroup> {
+/**
+ * Move an account under a new parent (drag-to-reparent on the CoA tree). Same `kind`-change
+ * validation as `saveAccount` (docs/v2/03-chart-of-accounts.md §6: "an account can't move under a
+ * different kind").
+ */
+export async function reparentAccount(id: string, newParentId: string | null): Promise<Account> {
   await delay();
-  const group = db.accountGroups.find((g) => g.id === id);
-  if (!group) throw new ApiError('المجموعة غير موجودة', 'NOT_FOUND');
-  if (!name.trim()) throw new ApiError('اسم المجموعة مطلوب');
-  mutate(() => (group.name = name.trim()));
-  return clone(group);
+  const account = db.accounts.find((a) => a.id === id);
+  if (!account) throw new ApiError('الحساب غير موجود', 'NOT_FOUND');
+  if (newParentId === id) throw new ApiError('لا يمكن أن يكون الحساب أباً لنفسه');
+  let cursor = newParentId ? db.accounts.find((a) => a.id === newParentId) : undefined;
+  if (newParentId && !cursor) throw new ApiError('الحساب الأب غير موجود');
+  if (cursor && !cursor.isGroup) throw new ApiError('الحساب الأب يجب أن يكون حساباً رئيسياً (تجميعياً)');
+  if (cursor && cursor.kind !== account.kind) throw new ApiError(`لا يمكن نقل الحساب إلى مجموعة من نوع مختلف (${cursor.kind})`);
+  // No cycles: the new parent can't be a descendant of the account being moved.
+  while (cursor) {
+    if (cursor.id === id) throw new ApiError('لا يمكن نقل الحساب إلى أحد فروعه');
+    cursor = cursor.parentId ? db.accounts.find((a) => a.id === cursor!.parentId) : undefined;
+  }
+  mutate(() => (account.parentId = newParentId));
+  logActivity('journal', `نقل الحساب ${account.code} — ${account.name}`, session.userId, new Date().toISOString(), '/accounting/accounts');
+  return clone(account);
 }
 
 // --- Journal ---------------------------------------------------------------------------------
@@ -158,12 +203,12 @@ export async function getJournalEntry(id: string): Promise<JournalRow & { revers
 
 export async function createJournalEntry(input: JournalEntryInput): Promise<JournalEntry> {
   await delay();
-  return clone(recordManualJournal(input, session.userId));
+  return clone(recordManualJournal(input, session.userId, canPostToClosedPeriod()));
 }
 
 export async function reverseJournalEntry(id: string): Promise<JournalEntry> {
   await delay();
-  return clone(reverseJournal(id, session.userId));
+  return clone(reverseJournal(id, session.userId, canPostToClosedPeriod()));
 }
 
 /** Where the SYSTEM entry came from, as an app route. */
@@ -223,4 +268,19 @@ export async function saveFiscalYear(input: Omit<FiscalYear, 'id'>, id?: string)
   }
   logActivity('settings', `${id ? 'تعديل' : 'إضافة'} السنة المالية ${fy.name}`, session.userId, new Date().toISOString(), '/accounting/fiscal-years');
   return clone(fy);
+}
+
+// --- Posting settings (lock date) -------------------------------------------------------------
+
+export async function getLockDate(): Promise<string | undefined> {
+  await delay(60);
+  return db.settings.accounting?.lockDate;
+}
+
+export async function saveLockDate(lockDate: string | undefined): Promise<void> {
+  await delay();
+  mutate(() => {
+    db.settings.accounting = { ...db.settings.accounting, lockDate: lockDate || undefined };
+  });
+  logActivity('settings', lockDate ? `تحديد تاريخ القفل ${lockDate}` : 'إزالة تاريخ القفل', session.userId, new Date().toISOString(), '/accounting/fiscal-years');
 }

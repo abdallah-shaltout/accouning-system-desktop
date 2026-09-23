@@ -1,15 +1,14 @@
 import { db } from '../db';
-import { accountGroupsFixture, accountsFixture, fiscalYearFixture } from '../fixtures/accounts';
+import { accountsFixture, fiscalYearFixture } from '../fixtures/accounts';
 import { postJournal } from '../backend/core';
 import { clone } from '../utils';
 
 /**
- * Accounts area: chart of accounts, account groups, fiscal years, and the opening capital entry.
- * Other seed areas (catalog, people, settings) don't depend on this running first, but the
- * "daily operations" history does — it posts against these accounts.
+ * Accounts area: chart of accounts (v2 standard template + SA add-on — docs/v2/03-chart-of-
+ * accounts.md §4) and fiscal years. Other seed areas (catalog, people, settings) don't depend on
+ * this running first, but the "daily operations" history does — it posts against these accounts.
  */
 export function seedAccounts(now: Date): void {
-  db.accountGroups = clone(accountGroupsFixture);
   db.accounts = clone(accountsFixture);
   db.fiscalYears = fiscalYearFixture(now);
 }
@@ -21,9 +20,9 @@ export function postOpeningCapital(date: string, createdBy: string): void {
     description: 'رأس المال الافتتاحي',
     type: 'MANUAL',
     lines: [
-      { code: '1110', debit: 20000 },
-      { code: '1120', debit: 180000 },
-      { code: '3100', credit: 200000 },
+      { role: 'cash', debit: 20000 },
+      { role: 'bank', debit: 180000 },
+      { role: 'capital', credit: 200000 },
     ],
     createdBy,
   });

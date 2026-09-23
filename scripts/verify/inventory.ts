@@ -3,27 +3,17 @@
  * sanity checks the mock backend relies on internally.
  */
 import { db } from '../../src/mocks/db';
-import { ACC } from '../../src/mocks/fixtures/accounts';
-import { check, closeEnough, glBalance, ok, round2, todo, type Result } from './shared';
+import { check, closeEnough, glBalance, ok, round2, type Result } from './shared';
 
 export function run(): Result[] {
   const results: Result[] = [];
 
-  // 4. GL(inventory) = Σ product.stockValue, exactly. Purchases already re-average `costPrice`
-  // (src/mocks/backend/purchases.ts), but only to 2 decimals; over hundreds of postings that
-  // rounding drifts the GL away from Σ qty×costPrice by a few currency units. Phase 1's "4-decimal
-  // average cost, dedicated `stockValue` field" (docs/v2/15-action-plan.md, item A1/A2) is what
-  // makes this exact — reported here as a diagnostic + TODO rather than a hard failure.
-  const invGl = glBalance(ACC.inventory);
-  const invSum = round2(db.products.reduce((a, p) => a + (p.type === 'product' ? p.stockQty * p.costPrice : 0), 0));
-  const invDiff = round2(invGl - invSum);
-  // Rounding drift from 2-decimal average costing accumulates with posting volume — tolerate a
-  // small fraction of the inventory value instead of a fixed cents-level band.
-  if (closeEnough(invGl, invSum, Math.max(1, invSum * 0.005))) {
-    results.push(check(true, `inventory GL (${invGl}) matches Σ qty×cost (${invSum})`));
-  } else {
-    results.push(todo(`inventory GL (${invGl}) vs Σ qty×cost (${invSum}), diff ${invDiff} — expected until 4-decimal average costing`, 1));
-  }
+  // 4. GL(inventory) = Σ product.stockValue, exactly (Phase 1 A1/A2: a dedicated `stockValue`
+  // field that every stock movement changes by exactly the amount posted to the GL — no more
+  // independently-rounded `qty × costPrice` drift).
+  const invGl = glBalance('inventory');
+  const invSum = round2(db.products.reduce((a, p) => a + (p.type === 'product' ? p.stockValue : 0), 0));
+  results.push(check(closeEnough(invGl, invSum, 0.01), `inventory GL (${invGl}) matches Σ product.stockValue (${invSum})`));
 
   const negative = db.products.filter((p) => p.stockQty < 0);
   results.push(check(negative.length === 0, `no product has negative stock (${negative.length}: ${negative.map((p) => p.name).join(', ')})`));

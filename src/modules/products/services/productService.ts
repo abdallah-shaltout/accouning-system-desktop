@@ -68,12 +68,13 @@ function normalize(input: ProductInput) {
 export async function createProduct(input: ProductInput): Promise<Product> {
   await delay();
   validate(input);
-  const product: Product = { id: uid('prd'), ...normalize(input), stockQty: 0 };
+  const product: Product = { id: uid('prd'), ...normalize(input), stockQty: 0, stockValue: 0 };
   mutate(() => db.products.push(product));
-  // Opening stock goes through a real STOCK_IN adjustment so it has a movement + journal entry.
+  // Opening stock goes through a real STOCK_IN adjustment so it has a movement + journal entry
+  // (A3: reason = opening → credits openingBalanceEquity, not capital).
   if (product.type === 'product' && (input.openingQty ?? 0) > 0) {
     recordStockAdjustment(
-      { type: 'STOCK_IN', date: new Date().toISOString(), note: `رصيد افتتاحي — ${product.name}`, lines: [{ productId: product.id, qtyChange: input.openingQty }] },
+      { type: 'STOCK_IN', date: new Date().toISOString(), note: `رصيد افتتاحي — ${product.name}`, reason: 'opening', lines: [{ productId: product.id, qtyChange: input.openingQty }] },
       session.userId,
     );
   }
@@ -90,7 +91,14 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Pr
   if (input.type !== product.type && product.stockQty !== 0) {
     throw new ApiError('لا يمكن تحويل منتج له رصيد مخزون إلى خدمة — صفّر المخزون أولاً');
   }
-  mutate(() => Object.assign(product, normalize(input)));
+  mutate(() => {
+    const { costPrice: _formCostPrice, ...rest } = normalize(input);
+    Object.assign(product, rest);
+    // A1/A2: costPrice is derived from stockValue/stockQty once there's stock on hand — a stock
+    // movement is the only thing allowed to change it after that. Only a still-empty product can
+    // have its starting cost edited directly from the form.
+    if (product.stockQty <= 0.0001) product.costPrice = _formCostPrice;
+  });
   logActivity('product', `تعديل المنتج ${product.name}`, session.userId, new Date().toISOString(), `/products/${product.id}`);
   emit('catalog:changed');
   return clone(product);

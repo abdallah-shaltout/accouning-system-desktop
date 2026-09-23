@@ -1,21 +1,29 @@
 import type { PartyStatementRow } from '@/modules/parties/types';
-import { invoiceOutstanding } from '@/modules/invoices/helpers/totals';
 import { db } from '../db';
 import { round2, sum } from '../utils';
-import { purchaseOutstanding } from './purchases';
+import { accountFor } from './accounts';
+
+/**
+ * Party balances from the ledger (docs/v2/02-accounting-review.md C2): a party's balance is
+ * Σ(debit − credit) of the journal lines tagged with that party on the receivable/payable control
+ * account — not by summing open documents. This is what makes "AR GL = Σ customers" / "AP GL = Σ
+ * suppliers" hold structurally: every line on the control account carries a party (enforced by
+ * B1's manual-entry rule + every system posting tagging `partyKind`/`partyId`), so the control
+ * account's balance and the sum of party balances are the same total by construction.
+ */
+function partyLedgerLines(kind: 'customer' | 'supplier', partyId: string) {
+  const accountId = accountFor(kind === 'customer' ? 'receivable' : 'payable').id;
+  return db.journalEntries
+    .flatMap((e) => e.lines.map((l) => ({ ...l, entry: e })))
+    .filter((l) => l.accountId === accountId && l.partyKind === kind && l.partyId === partyId);
+}
 
 export function customerBalance(customerId: string): number {
-  return sum(
-    db.invoices.filter((i) => i.customerId === customerId && i.status !== 'DRAFT'),
-    invoiceOutstanding,
-  );
+  return round2(sum(partyLedgerLines('customer', customerId), (l) => l.debit - l.credit));
 }
 
 export function supplierBalance(supplierId: string): number {
-  return sum(
-    db.purchaseOrders.filter((p) => p.supplierId === supplierId && p.status === 'CONFIRMED'),
-    purchaseOutstanding,
-  );
+  return round2(sum(partyLedgerLines('supplier', supplierId), (l) => l.credit - l.debit));
 }
 
 function withRunningBalance(rows: Omit<PartyStatementRow, 'balance'>[], sign: 1 | -1): PartyStatementRow[] {
@@ -28,46 +36,47 @@ function withRunningBalance(rows: Omit<PartyStatementRow, 'balance'>[], sign: 1 
 }
 
 /**
- * Customer statement: invoices are debits; payments (at sale + later) and returns settled
- * against the receivable are credits. The final balance equals `customerBalance()`.
+ * Customer statement: one row per ledger line on the receivable control account tagged with this
+ * customer (invoices are debits; payments and returns settled against the receivable are
+ * credits). The final running balance equals `customerBalance()` by construction.
  */
 export function customerStatement(customerId: string): PartyStatementRow[] {
-  const rows: Omit<PartyStatementRow, 'balance'>[] = [];
-  const invoices = db.invoices.filter((i) => i.customerId === customerId && i.status !== 'DRAFT');
-  for (const inv of invoices) {
-    rows.push({ id: `${inv.id}-d`, date: inv.date, kind: 'invoice', refId: inv.id, number: inv.number, description: 'فاتورة مبيعات', debit: inv.grandTotal, credit: 0 });
-    const laterPayments = sum(db.payments.filter((p) => p.targetRef === inv.id), (p) => p.amount);
-    const paidAtSale = round2(inv.paidAmount - laterPayments);
-    if (paidAtSale > 0) {
-      rows.push({ id: `${inv.id}-p`, date: inv.date, kind: 'invoice', refId: inv.id, number: inv.number, description: 'مدفوع عند البيع', debit: 0, credit: paidAtSale });
-    }
-  }
-  for (const ref of db.refunds.filter((r) => invoices.some((i) => i.id === r.invoiceId))) {
-    if (ref.settledToReceivable > 0) {
-      rows.push({ id: ref.id, date: ref.date, kind: 'refund', refId: ref.invoiceId, number: ref.number, description: 'مرتجع مبيعات', debit: 0, credit: ref.settledToReceivable });
-    }
-  }
-  for (const pay of db.payments.filter((p) => p.type === 'RECEIVED' && p.targetId === customerId)) {
-    rows.push({ id: pay.id, date: pay.date, kind: 'payment', refId: pay.id, number: pay.number, description: `سند قبض — ${pay.targetRefNumber ?? ''}`, debit: 0, credit: pay.amount });
-  }
+  const rows: Omit<PartyStatementRow, 'balance'>[] = partyLedgerLines('customer', customerId).map((l) => {
+    const ref = l.entry.sourceRef;
+    const kind: PartyStatementRow['kind'] = ref?.kind === 'refund' ? 'refund' : ref?.kind === 'payment' ? 'payment' : 'invoice';
+    return {
+      id: l.id,
+      date: l.entry.date,
+      kind,
+      refId: ref?.id ?? l.entry.id,
+      number: ref?.number ?? l.entry.number,
+      description: l.description ?? l.entry.description,
+      debit: l.debit,
+      credit: l.credit,
+    };
+  });
   return withRunningBalance(rows, 1);
 }
 
 /**
- * Supplier statement (AP view): purchase orders are credits (we owe more); payments and
- * returns settled against the payable are debits. Balance = credit − debit = `supplierBalance()`.
+ * Supplier statement (AP view): one row per ledger line on the payable control account tagged
+ * with this supplier (purchases are credits — we owe more; payments and returns settled against
+ * the payable are debits). Balance = credit − debit = `supplierBalance()`.
  */
 export function supplierStatement(supplierId: string): PartyStatementRow[] {
-  const rows: Omit<PartyStatementRow, 'balance'>[] = [];
-  const orders = db.purchaseOrders.filter((p) => p.supplierId === supplierId && p.status === 'CONFIRMED');
-  for (const po of orders) {
-    rows.push({ id: po.id, date: po.date, kind: 'purchaseOrder', refId: po.id, number: po.number, description: 'أمر شراء', debit: 0, credit: po.grandTotal });
-  }
-  for (const ret of db.purchaseReturns.filter((r) => r.supplierId === supplierId && r.settledToPayable > 0)) {
-    rows.push({ id: ret.id, date: ret.date, kind: 'purchaseReturn', refId: ret.purchaseOrderId, number: ret.number, description: 'مرتجع مشتريات', debit: ret.settledToPayable, credit: 0 });
-  }
-  for (const pay of db.payments.filter((p) => p.type === 'PAID' && p.targetId === supplierId)) {
-    rows.push({ id: pay.id, date: pay.date, kind: 'payment', refId: pay.id, number: pay.number, description: `سند صرف — ${pay.targetRefNumber ?? ''}`, debit: pay.amount, credit: 0 });
-  }
+  const rows: Omit<PartyStatementRow, 'balance'>[] = partyLedgerLines('supplier', supplierId).map((l) => {
+    const ref = l.entry.sourceRef;
+    const kind: PartyStatementRow['kind'] = ref?.kind === 'purchaseReturn' ? 'purchaseReturn' : ref?.kind === 'payment' ? 'payment' : 'purchaseOrder';
+    return {
+      id: l.id,
+      date: l.entry.date,
+      kind,
+      refId: ref?.id ?? l.entry.id,
+      number: ref?.number ?? l.entry.number,
+      description: l.description ?? l.entry.description,
+      debit: l.debit,
+      credit: l.credit,
+    };
+  });
   return withRunningBalance(rows, -1);
 }

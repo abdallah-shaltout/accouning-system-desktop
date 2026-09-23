@@ -50,21 +50,21 @@ export function seedHistory(now = new Date()): void {
     // Monthly fixed expenses.
     if (dom === 1) {
       const t = at(day, 9, 5);
-      events.push({ time: t, run: () => expense(t, 'إيجار المحل — شهر ' + (day.getMonth() + 1), '5300', 9000, '1120', ACCOUNTANT) });
+      events.push({ time: t, run: () => expense(t, 'إيجار المحل — شهر ' + (day.getMonth() + 1), '6220', 9000, '1120', ACCOUNTANT) });
     }
     if (dom === 27) {
       const t = at(day, 9, 10);
-      events.push({ time: t, run: () => expense(t, 'رواتب الموظفين — شهر ' + (day.getMonth() + 1), '5600', 18500, '1120', ACCOUNTANT) });
+      events.push({ time: t, run: () => expense(t, 'رواتب الموظفين — شهر ' + (day.getMonth() + 1), '6210', 18500, '1120', ACCOUNTANT) });
     }
     if (dom === 10) {
       const t = at(day, 11, 0);
       const amount = rnd.int(1100, 1900);
-      events.push({ time: t, run: () => expense(t, 'فاتورة الكهرباء والمياه', '5300', amount, '1110', ACCOUNTANT) });
+      events.push({ time: t, run: () => expense(t, 'فاتورة الكهرباء والمياه', '6230', amount, '1110', ACCOUNTANT) });
     }
     if (dom === 15) {
       const t = at(day, 12, 0);
       const amount = rnd.int(250, 700);
-      events.push({ time: t, run: () => expense(t, 'قرطاسية ومستلزمات مكتبية', '5500', amount, '1110', ACCOUNTANT) });
+      events.push({ time: t, run: () => expense(t, 'قرطاسية ومستلزمات مكتبية', '6270', amount, '1110', ACCOUNTANT) });
     }
     if (d === 40) {
       const t = at(day, 20, 0);
@@ -184,14 +184,26 @@ export function seedHistory(now = new Date()): void {
 
 // --- helpers -------------------------------------------------------------------------------------
 
+/**
+ * Picks a specific seeded expense/cash account by code (rent, salaries, utilities…) — this is the
+ * seed script choosing among several equally-valid leaf accounts by name for realistic demo data,
+ * not a posting *rule* hard-coding a role's account (that's what accountFor() replaces — see
+ * docs/v2/02-accounting-review.md F3). Throws loudly if the v2 CoA ever drops one of these codes.
+ */
+function seedAccountId(code: string): string {
+  const account = db.accounts.find((a) => a.code === code);
+  if (!account) throw new Error(`seed/history.ts: account ${code} missing from the v2 chart of accounts`);
+  return account.id;
+}
+
 function expense(date: string, description: string, debitCode: string, amount: number, creditCode: string, userId: string) {
   const entry = postJournal({
     date,
     description,
     type: 'MANUAL',
     lines: [
-      { code: debitCode, debit: amount },
-      { code: creditCode, credit: amount },
+      { accountId: seedAccountId(debitCode), debit: amount },
+      { accountId: seedAccountId(creditCode), credit: amount },
     ],
     createdBy: userId,
   });
@@ -283,7 +295,11 @@ function restock(time: string, rnd: RandomSource) {
     if (p.stockQty > min * 2) continue;
     const supplierId = supplierByCategory[p.categoryId!];
     const qty = Math.max(min * 4 - p.stockQty, min * 2);
-    const costPrice = round2(p.costPrice * (0.96 + rnd.next() * 0.08));
+    // A1/A2: costPrice is now derived (stockValue / stockQty) and resets to 0 once a product's
+    // stock hits zero — it's no longer "the last known cost" a restock can multiply off of. Fall
+    // back to a margin off the retail price (the fixture's price/costPrice ratio) when that happens.
+    const referenceCost = p.costPrice > 0 ? p.costPrice : round2(p.price * 0.5);
+    const costPrice = round2(referenceCost * (0.96 + rnd.next() * 0.08));
     bySupplier.set(supplierId, [...(bySupplier.get(supplierId) ?? []), { productId: p.id, qty: Math.round(qty), costPrice }]);
   }
   for (const [supplierId, lines] of bySupplier) {
@@ -301,9 +317,10 @@ function refund(time: string, rnd: RandomSource) {
 }
 
 function depositCash(time: string) {
+  const cashAccountId = seedAccountId('1110');
   const cash = db.journalEntries
     .flatMap((e) => e.lines)
-    .filter((l) => l.accountId === 'acc-1110')
+    .filter((l) => l.accountId === cashAccountId)
     .reduce((a, l) => a + l.debit - l.credit, 0);
   const amount = Math.floor((cash - 5000) / 1000) * 1000;
   if (amount <= 0) return;

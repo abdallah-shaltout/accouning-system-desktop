@@ -13,6 +13,8 @@ import { useAsync } from '@/modules/core/controllers/useAsync';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { formatDateTime } from '@/modules/core/helpers/format';
+import { getCustomers, getSuppliers } from '@/modules/parties/services/partyService';
+import type { Customer, Supplier } from '@/modules/parties/types';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getAccounts, getJournalEntry, reverseJournalEntry, type AccountWithBalance } from '../services/accountingService';
 
@@ -25,7 +27,14 @@ const id = String(route.params.id);
 
 const entry = useAsync(() => getJournalEntry(id));
 const accounts = ref(new Map<string, AccountWithBalance>());
-onMounted(async () => (accounts.value = new Map((await getAccounts()).map((a) => [a.id, a]))));
+const customers = ref(new Map<string, Customer>());
+const suppliers = ref(new Map<string, Supplier>());
+onMounted(async () => {
+  const [a, c, s] = await Promise.all([getAccounts(), getCustomers(), getSuppliers()]);
+  accounts.value = new Map(a.map((x) => [x.id, x]));
+  customers.value = new Map(c.map((x) => [x.id, x]));
+  suppliers.value = new Map(s.map((x) => [x.id, x]));
+});
 
 const e = computed(() => entry.data.value);
 const SOURCE_LABEL: Record<string, string> = {
@@ -123,7 +132,12 @@ async function reverse() {
                   <span class="num text-text-secondary">{{ accounts.get(l.accountId)?.code }}</span>{{ accounts.get(l.accountId)?.name ?? '…' }}
                 </RouterLink>
               </td>
-              <td class="px-3 py-2.5 text-text-secondary">{{ l.description ?? '—' }}</td>
+              <td class="px-3 py-2.5 text-text-secondary">
+                {{ l.description ?? '—' }}
+                <span v-if="l.partyId" class="text-tiny">
+                  — {{ (l.partyKind === 'supplier' ? suppliers : customers).get(l.partyId)?.name ?? '' }}
+                </span>
+              </td>
               <td class="px-3 py-2.5"><MoneyText v-if="l.debit" :value="l.debit" plain /></td>
               <td class="px-4 py-2.5"><MoneyText v-if="l.credit" :value="l.credit" plain /></td>
             </tr>

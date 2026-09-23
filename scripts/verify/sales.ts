@@ -3,7 +3,6 @@
  * document-count and cash/bank/VAT diagnostics.
  */
 import { db } from '../../src/mocks/db';
-import { ACC } from '../../src/mocks/fixtures/accounts';
 import { glBalance, ok, todo, type Result } from './shared';
 
 export function run(): Result[] {
@@ -36,10 +35,10 @@ export function run(): Result[] {
   );
   results.push(ok(`PO statuses: ${poStatuses.map(([k, v]) => `${k}=${v}`).join(', ') || 'none'}`));
 
-  const cash = glBalance(ACC.cash);
-  const bank = glBalance(ACC.bank);
-  const vatOut = -glBalance(ACC.vatOutput);
-  const vatIn = glBalance(ACC.vatInput);
+  const cash = glBalance('cash');
+  const bank = glBalance('bank');
+  const vatOut = -glBalance('vatOutput');
+  const vatIn = glBalance('vatInput');
   results.push(ok(`cash ${cash}, bank ${bank}, VAT out ${vatOut}, VAT in ${vatIn}`));
 
   return results;

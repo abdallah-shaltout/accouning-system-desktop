@@ -4,14 +4,13 @@ import { db, nextNumber } from '../db';
 import { emit } from '../events';
 import { mutate } from '../persist';
 import { ApiError, round2, sum, uid } from '../utils';
+import { accountFor, settlementAccountFor } from './accounts';
 import {
-  accountByCode,
   applyStockChange,
   logActivity,
   postJournal,
   productById,
   salesTaxRate,
-  settlementAccount,
   userById,
   type PostingLine,
 } from './core';
@@ -42,22 +41,22 @@ function prepareSale(input: SaleInput, userId: string): PreparedSale {
 
   // Aggregate quantities per product so two cart rows of the same item are checked together.
   const qtyByProduct = new Map<string, number>();
-  let costTotal = 0;
   for (const line of input.lines) {
     if (!(line.qty > 0)) throw new ApiError('الكمية يجب أن تكون أكبر من صفر');
     if (line.price < 0) throw new ApiError('السعر لا يمكن أن يكون سالباً');
     const product = productById(line.productId);
     if (!product.active) throw new ApiError(`المنتج "${product.name}" غير نشط`);
-    if (product.type === 'product') {
-      qtyByProduct.set(product.id, (qtyByProduct.get(product.id) ?? 0) + line.qty);
-      costTotal += line.qty * product.costPrice;
-    }
+    if (product.type === 'product') qtyByProduct.set(product.id, (qtyByProduct.get(product.id) ?? 0) + line.qty);
   }
+  // COGS per product (A1/A2): round2(qty × avgCost); if the sale empties the stock, use the exact
+  // remaining stockValue instead, so nothing is left stranded in the GL.
+  let costTotal = 0;
   for (const [productId, qty] of qtyByProduct) {
     const product = productById(productId);
     if (qty > product.stockQty) {
       throw new ApiError(`الكمية المطلوبة من "${product.name}" غير متوفرة — المتاح ${product.stockQty}`, 'CONFLICT');
     }
+    costTotal += round2(qty) >= round2(product.stockQty) ? product.stockValue : round2(qty * product.costPrice);
   }
 
   const taxRate = salesTaxRate();
@@ -78,12 +77,12 @@ function prepareSale(input: SaleInput, userId: string): PreparedSale {
   costTotal = round2(costTotal);
   const receivable = round2(totals.grandTotal - paidAmount);
   const posting: PostingLine[] = [
-    { code: settlementAccount(input.paymentMethod), debit: paidAmount },
-    { code: '1130', debit: receivable },
-    { code: '4100', credit: totals.taxable },
-    { code: '2150', credit: totals.taxAmount },
-    { code: '5200', debit: costTotal },
-    { code: '1140', credit: costTotal },
+    { accountId: settlementAccountFor(input.paymentMethod).id, debit: paidAmount },
+    { role: 'receivable', debit: receivable, partyKind: 'customer', partyId: input.customerId },
+    { role: 'sales', credit: totals.taxable },
+    { role: 'vatOutput', credit: totals.taxAmount },
+    { role: 'cogs', debit: costTotal },
+    { role: 'inventory', credit: costTotal },
   ];
   return { totals, paidAmount, costTotal, taxRate, posting };
 }
@@ -93,7 +92,7 @@ export function previewSaleJournal(input: SaleInput, userId: string): JournalPre
   return posting
     .filter((l) => (l.debit ?? 0) > 0 || (l.credit ?? 0) > 0)
     .map((l) => {
-      const account = accountByCode(l.code!);
+      const account = l.accountId ? db.accounts.find((a) => a.id === l.accountId)! : accountFor(l.role!);
       return { accountCode: account.code, accountName: account.name, debit: round2(l.debit ?? 0), credit: round2(l.credit ?? 0) };
     });
 }
@@ -136,8 +135,17 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
   };
   mutate(() => db.invoices.push(invoice));
 
+  // Apply stock/value changes per product (not per line): two cart rows of the same item must
+  // share one "does this empty the stock" decision, matching prepareSale's COGS aggregation.
+  const qtyByProduct = new Map<string, number>();
   for (const line of invoice.lines) {
-    applyStockChange(productById(line.productId), -line.qty, 'sale', invoice, date);
+    const product = productById(line.productId);
+    if (product.type === 'product') qtyByProduct.set(product.id, (qtyByProduct.get(product.id) ?? 0) + line.qty);
+  }
+  for (const [productId, qty] of qtyByProduct) {
+    const product = productById(productId);
+    const valueOut = round2(qty) >= round2(product.stockQty) ? product.stockValue : round2(qty * product.costPrice);
+    applyStockChange(product, -qty, -valueOut, 'sale', invoice, date);
   }
 
   postJournal({
@@ -234,7 +242,12 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
 
   for (const line of lines) {
     const invLine = invoice.lines.find((l) => l.id === line.invoiceLineId)!;
-    applyStockChange(productById(invLine.productId), line.qty, 'refund', refund, date);
+    const product = productById(invLine.productId);
+    if (product.type === 'product') {
+      // A1/A2: returned units come back at the original line cost, and re-average automatically
+      // because the value moves the same way it hit the GL (value += posted amount).
+      applyStockChange(product, line.qty, round2(line.qty * invLine.costPrice), 'refund', refund, date);
+    }
   }
 
   postJournal({
@@ -243,12 +256,12 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
     type: 'SYSTEM',
     sourceRef: { kind: 'refund', id: refund.id, number: refund.number },
     lines: [
-      { code: '4200', debit: subTotal },
-      { code: '2150', debit: taxAmount },
-      { code: '1130', credit: settledToReceivable },
-      { code: settlementAccount(invoice.paymentMethod), credit: cashBack },
-      { code: '1140', debit: cost },
-      { code: '5200', credit: cost },
+      { role: 'salesReturns', debit: subTotal },
+      { role: 'vatOutput', debit: taxAmount },
+      { role: 'receivable', credit: settledToReceivable, partyKind: 'customer', partyId: invoice.customerId },
+      { accountId: settlementAccountFor(invoice.paymentMethod).id, credit: cashBack },
+      { role: 'inventory', debit: cost },
+      { role: 'cogs', credit: cost },
     ],
     createdBy: userId,
   });

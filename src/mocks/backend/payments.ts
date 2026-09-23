@@ -4,7 +4,8 @@ import { db, nextNumber } from '../db';
 import { emit } from '../events';
 import { mutate } from '../persist';
 import { ApiError, round2, uid } from '../utils';
-import { logActivity, postJournal, settlementAccount } from './core';
+import { settlementAccountFor } from './accounts';
+import { logActivity, postJournal, type PostingLine } from './core';
 import { purchaseOutstanding } from './purchases';
 
 /** One payment settles exactly one invoice (received) or one purchase order (paid). */
@@ -14,7 +15,7 @@ export function recordPayment(input: PaymentInput, userId: string): Payment {
 
   let refNumber: string;
   let partyName: string;
-  let posting;
+  let posting: PostingLine[];
 
   if (input.type === 'RECEIVED') {
     const customer = db.customers.find((c) => c.id === input.targetId);
@@ -30,8 +31,8 @@ export function recordPayment(input: PaymentInput, userId: string): Payment {
     refNumber = invoice.number;
     partyName = customer.name;
     posting = [
-      { code: settlementAccount(input.method), debit: amount },
-      { code: '1130', credit: amount },
+      { accountId: settlementAccountFor(input.method).id, debit: amount },
+      { role: 'receivable' as const, credit: amount, partyKind: 'customer' as const, partyId: customer.id },
     ];
   } else {
     const supplier = db.suppliers.find((s) => s.id === input.targetId);
@@ -47,8 +48,8 @@ export function recordPayment(input: PaymentInput, userId: string): Payment {
     refNumber = po.number;
     partyName = supplier.name;
     posting = [
-      { code: '2100', debit: amount },
-      { code: settlementAccount(input.method), credit: amount },
+      { role: 'payable' as const, debit: amount, partyKind: 'supplier' as const, partyId: supplier.id },
+      { accountId: settlementAccountFor(input.method).id, credit: amount },
     ];
   }
 

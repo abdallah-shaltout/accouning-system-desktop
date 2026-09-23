@@ -177,7 +177,16 @@ async function save() {
 
         <AppCard title="الأسعار">
           <div class="grid gap-4 sm:grid-cols-3">
-            <AppInput v-model="form.costPrice" label="سعر التكلفة" type="number" min="0" required :error="errors.costPrice" hint="قبل الضريبة" />
+            <AppInput
+              v-model="form.costPrice"
+              label="سعر التكلفة"
+              type="number"
+              min="0"
+              required
+              :error="errors.costPrice"
+              :disabled="stockQty > 0"
+              :hint="stockQty > 0 ? 'متوسط تكلفة محسوب من حركات المخزون — لا يُعدَّل يدوياً' : 'قبل الضريبة'"
+            />
             <AppInput v-model="form.price" label="سعر البيع" type="number" min="0" required :error="errors.price" hint="قبل الضريبة" />
             <div>
               <span class="field-label">هامش الربح</span>

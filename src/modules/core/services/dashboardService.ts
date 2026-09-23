@@ -1,11 +1,13 @@
 import { clone, db, delay, localDateKey, round2, sum } from '@/mocks';
+import { accountFor } from '@/mocks/backend/accounts';
 import { invoiceOutstanding } from '@/modules/invoices/helpers/totals';
 import type { Invoice } from '@/modules/invoices/types';
 import type { Product } from '@/modules/products/types';
+import type { SystemRole } from '@/modules/accounting/types';
 import type { ActivityEntry, DashboardSummary } from '../types';
 
-function accountBalance(code: string): number {
-  const id = db.accounts.find((a) => a.code === code)?.id;
+function accountBalance(role: SystemRole): number {
+  const id = accountFor(role).id;
   let total = 0;
   for (const entry of db.journalEntries) for (const line of entry.lines) if (line.accountId === id) total += line.debit - line.credit;
   return round2(total);
@@ -19,8 +21,8 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   const todays = sold.filter((i) => localDateKey(i.date) === today);
   const todayRefunds = db.refunds.filter((r) => localDateKey(r.date) === today);
   const unpaid = sold.filter((i) => invoiceOutstanding(i) > 0);
-  const cashOnHand = accountBalance('1110');
-  const bankBalance = accountBalance('1120');
+  const cashOnHand = accountBalance('cash');
+  const bankBalance = accountBalance('bank');
 
   const trend: DashboardSummary['salesTrend'] = [];
   for (let d = 13; d >= 0; d--) {
