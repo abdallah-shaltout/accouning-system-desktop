@@ -11,6 +11,7 @@ import { useNotificationStore } from './modules/core/controllers/useNotification
 import { initAppearance } from './modules/core/controllers/useAppearance';
 import { initTheme } from './modules/core/controllers/useTheme';
 import { errorMessage } from './modules/core/controllers/useToast';
+import { initAutoBackup } from './modules/settings/services/backupService';
 
 initTheme();
 initAppearance();
@@ -37,6 +38,10 @@ async function bootstrap() {
   };
 
   app.mount('#app');
+
+  // Phase 13a: daily schedule check + on-close hook (docs/v2/14-platform.md §4 "نسخ تلقائي").
+  // No-ops until the user turns automatic backup on in Settings → النسخ الاحتياطي.
+  void initAutoBackup();
 }
 
 void bootstrap();

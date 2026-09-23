@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ChevronDown, LogOut, Palette, RefreshCw, UserRound } from '@lucide/vue';
+import { ChevronDown, DatabaseBackup, LogOut, Palette, RefreshCw, UserRound } from '@lucide/vue';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getDemoAccounts } from '@/modules/users/services/authService';
+import { useBackupStore } from '@/modules/settings/controllers/useBackupStore';
+import { formatDateTime } from '../../helpers/format';
 import { ROLE_LABEL } from '../../helpers/labels';
 import { useToast } from '../../controllers/useToast';
 
 const auth = useAuthStore();
 const router = useRouter();
 const toast = useToast();
+const backup = useBackupStore();
 const open = ref(false);
 const root = ref<HTMLElement>();
 const demo = ref<Awaited<ReturnType<typeof getDemoAccounts>>>([]);
@@ -22,6 +25,7 @@ async function toggle() {
   if (open.value) {
     document.addEventListener('mousedown', onOutside);
     if (isDev && !demo.value.length) demo.value = await getDemoAccounts();
+    await backup.load();
   } else document.removeEventListener('mousedown', onOutside);
 }
 
@@ -94,6 +98,13 @@ onBeforeUnmount(() => document.removeEventListener('mousedown', onOutside));
           <span class="flex-1 truncate">{{ d.name }}</span>
           <span class="text-tiny text-text-secondary">{{ ROLE_LABEL[d.role] }}</span>
         </button>
+      </div>
+      <div v-if="auth.can('settings')" class="border-b border-border px-3 py-2 text-tiny text-text-secondary">
+        <RouterLink to="/settings/backup" class="flex items-center gap-1.5 hover:text-text-primary" @click="open = false">
+          <DatabaseBackup class="size-3" />
+          <span v-if="backup.lastBackupAt">آخر نسخة احتياطية: <span class="num">{{ formatDateTime(backup.lastBackupAt) }}</span></span>
+          <span v-else>لا توجد نسخة احتياطية بعد</span>
+        </RouterLink>
       </div>
       <div class="p-1">
         <RouterLink

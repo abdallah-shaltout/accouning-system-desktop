@@ -32,3 +32,13 @@ export function roleCan(role: Role | undefined, area: Area, access: Exclude<Acce
   if (!role) return false;
   return RANK[ROLE_ACCESS[role][area]] >= RANK[access];
 }
+
+/**
+ * `settings.restoreBackup` (docs/v2/14-platform.md §4 "الاستعادة"). The app only has area+access
+ * permissions today (no fine-grained permission strings), so this is modeled as "write access to
+ * settings" — i.e. admin/manager, the same roles that can already change store settings. If a real
+ * per-permission matrix is added later, this is the one place to swap the check.
+ */
+export function roleCanRestoreBackup(role: Role | undefined): boolean {
+  return roleCan(role, 'settings', 'write');
+}

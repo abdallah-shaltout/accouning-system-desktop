@@ -104,3 +104,34 @@ export async function listAttachments(ownerRef: string): Promise<AttachmentMeta[
     tx.oncomplete = () => conn.close();
   });
 }
+
+/**
+ * Every attachment record (blob + thumbnail included) — used by the Phase 13a backup archiver to
+ * pack `attachments/` into the zip, and by restore to repopulate this store.
+ */
+export async function getAllAttachmentRecords(): Promise<AttachmentRecord[]> {
+  const conn = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = conn.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).getAll();
+    req.onsuccess = () => resolve(req.result as AttachmentRecord[]);
+    req.onerror = () => reject(req.error);
+    tx.oncomplete = () => conn.close();
+  });
+}
+
+/** Replaces the entire attachments store with `records` — used by restore. */
+export async function replaceAllAttachments(records: AttachmentRecord[]): Promise<void> {
+  const conn = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = conn.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.clear();
+    for (const record of records) store.put(record);
+    tx.oncomplete = () => {
+      conn.close();
+      resolve();
+    };
+    tx.onerror = () => reject(tx.error);
+  });
+}

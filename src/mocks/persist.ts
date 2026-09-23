@@ -43,7 +43,13 @@ function runMigrations(data: any, fromVersion: number): MockDb {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
+    // No explicit version: opens at whatever version the database is currently at (1 for a brand
+    // new database — `onupgradeneeded` still fires and creates `STORE_NAME` in that case). This
+    // module used to hardcode version 1, which threw `VersionError` as soon as `attachments.ts`
+    // (opened at version 2) had touched the database first in the session — IndexedDB refuses
+    // `open(name, v)` whenever `v` is lower than the database's current on-disk version, regardless
+    // of call order. Omitting the version avoids the two modules needing to agree on one at all.
+    const req = indexedDB.open(DB_NAME);
     req.onupgradeneeded = () => {
       if (!req.result.objectStoreNames.contains(STORE_NAME)) req.result.createObjectStore(STORE_NAME);
     };

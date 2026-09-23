@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import * as authService from '../services/authService';
-import { roleCan } from '../helpers/permissions';
+import { roleCan, roleCanRestoreBackup } from '../helpers/permissions';
 import type { Access, Area, User } from '../types';
 
 const SESSION_KEY = 'app_session_user';
@@ -34,6 +34,9 @@ export const useAuthStore = defineStore('auth', () => {
   function can(area: Area, access: Exclude<Access, 'none'> = 'read'): boolean {
     return roleCan(role.value, area, access);
   }
+
+  /** `settings.restoreBackup` — see `roleCanRestoreBackup` for why this maps to settings:write. */
+  const canRestoreBackup = computed(() => roleCanRestoreBackup(role.value));
 
   async function login(username: string, password: string) {
     user.value = await authService.login(username, password);
@@ -70,5 +73,5 @@ export const useAuthStore = defineStore('auth', () => {
     if (user.value?.id === updated.id) user.value = updated;
   }
 
-  return { user, role, isAuthenticated, can, login, restore, logout, switchTo, patchCurrent };
+  return { user, role, isAuthenticated, can, canRestoreBackup, login, restore, logout, switchTo, patchCurrent };
 });

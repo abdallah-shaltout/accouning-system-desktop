@@ -38,4 +38,6 @@ export interface StoreSettings {
     /** v2 (E2): fallback purchase (expense) account id when neither the product nor its category has one. */
     defaultPurchaseAccountId?: string;
   };
+  /** Phase 13a — docs/v2/14-platform.md §4. Absent until the backup settings page is opened once. */
+  backup?: import('./backup').BackupSettings;
 }
