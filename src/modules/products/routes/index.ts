@@ -19,6 +19,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/inventory/counts/:id', name: 'count', component: () => import('../pages/StockCountDetailPage.vue'), meta: { title: 'تفاصيل الجرد', section, area: 'inventory' } },
   // v2 phase 6 §4 — Expiry report (expired/≤30/≤60/≤90, grouped by supplier).
   { path: '/inventory/expiry', name: 'expiry', component: () => import('../pages/ExpiryReportPage.vue'), meta: { title: 'تقرير الصلاحية', section, area: 'inventory' } },
+  // v2 phase 9 (docs/v2/07-products-and-inventory.md §4, deferred from phase 6): branch transfers.
+  { path: '/inventory/transfers', name: 'transfers', component: () => import('../pages/StockTransferListPage.vue'), meta: { title: 'تحويلات الفروع', section, area: 'inventory' } },
 ];
 
 export default routes;

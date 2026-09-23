@@ -13,9 +13,10 @@ import * as accounts from './accounts';
 import * as inventory from './inventory';
 import * as parties from './parties';
 import * as sales from './sales';
+import * as branches from './branches';
 import type { Result } from './shared';
 
-const areas: Record<string, { run: () => Result[] }> = { accounts, inventory, parties, sales };
+const areas: Record<string, { run: () => Result[] }> = { accounts, inventory, parties, sales, branches };
 
 const only = process.argv[2];
 const names = only ? [only] : Object.keys(areas);

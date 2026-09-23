@@ -67,4 +67,6 @@ export const MOVEMENT_REASON: Record<StockMovementReason, string> = {
   stocktake: 'تسوية جرد',
   refund: 'مرتجع مبيعات',
   purchase_return: 'مرتجع مشتريات',
+  transfer_out: 'تحويل صادر لفرع آخر',
+  transfer_in: 'تحويل وارد من فرع آخر',
 };

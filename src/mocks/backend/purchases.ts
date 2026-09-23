@@ -16,7 +16,8 @@ import { mutate } from '../persist';
 import { ApiError, round2, sum, uid } from '../utils';
 import { accountFor, settlementAccountFor } from './accounts';
 import { activeBatchesFor, receiveBatch } from './inventory';
-import { applyStockChange, logActivity, postJournal, productById, purchaseTaxRate, type PostingLine } from './core';
+import { applyStockChange, logActivity, postJournal, productById, purchaseTaxRate, DEFAULT_BRANCH_ID, type PostingLine } from './core';
+import { branchPrefix, defaultCostCenterFor } from './branches';
 
 /**
  * v2 (E2): the account a non-stock/service purchase line posts to — product override → category
@@ -132,15 +133,16 @@ export function savePurchase(input: PurchaseOrderInput, userId: string, existing
         supplierInvoiceNo: input.supplierInvoiceNo,
         supplierInvoiceDate: input.supplierInvoiceDate,
         attachmentIds: input.attachmentIds,
-        costCenterId: input.costCenterId,
+        costCenterId: defaultCostCenterFor(found.branchId, input.costCenterId),
         ...totals,
       }),
     );
     po = found;
   } else {
+    const branchId = input.branchId ?? DEFAULT_BRANCH_ID;
     po = {
       id: uid('po'),
-      number: nextNumber('purchaseOrder'),
+      number: `${branchPrefix(branchId)}${nextNumber('purchaseOrder')}`,
       supplierId: input.supplierId,
       date: input.date,
       status: 'DRAFT',
@@ -155,7 +157,10 @@ export function savePurchase(input: PurchaseOrderInput, userId: string, existing
       supplierInvoiceNo: input.supplierInvoiceNo,
       supplierInvoiceDate: input.supplierInvoiceDate,
       attachmentIds: input.attachmentIds,
-      costCenterId: input.costCenterId,
+      costCenterId: defaultCostCenterFor(branchId, input.costCenterId),
+      branchId,
+      currency: input.currency,
+      exchangeRate: input.exchangeRate,
     };
     mutate(() => db.purchaseOrders.push(po));
   }
@@ -273,7 +278,7 @@ export function receivePurchase(id: string, input: ReceivePurchaseInput, userId:
 
     // Receipt re-averages: value += posted amount (order price + this line's landed-cost share), so
     // stockValue stays exactly Σ posted GL amounts (review A1/A2 + E4).
-    applyStockChange(product, rv.qty, postedValue, 'purchase', po, date);
+    applyStockChange(product, rv.qty, postedValue, 'purchase', po, date, po.branchId ?? DEFAULT_BRANCH_ID);
 
     if (product.trackBatches) {
       const requested = byProduct.get(rv.productId)?.batches?.filter((b) => b.qty > 0) ?? [];
@@ -304,16 +309,17 @@ export function receivePurchase(id: string, input: ReceivePurchaseInput, userId:
   // own line, straight to the freightIn/COGS-adjacent role that already stands in for "cost, not a
   // dedicated account" elsewhere in this file (`purchaseLineAccountId`'s own fallback) — never routed
   // through `applyStockChange`, so no separate stockValue bookkeeping is needed for it.
-  const lines: PostingLine[] = [{ role: 'inventory', debit: inventoryValue }, ...[...serviceByAccount.entries()].map(([accountId, amount]) => ({ accountId, debit: amount }))];
+  const dim = { branchId: po.branchId ?? DEFAULT_BRANCH_ID, costCenterId: po.costCenterId };
+  const lines: PostingLine[] = [{ role: 'inventory', debit: inventoryValue, ...dim }, ...[...serviceByAccount.entries()].map(([accountId, amount]) => ({ accountId, debit: amount, ...dim }))];
   if (vatNotRecoverable) {
-    if (vatOnReceipt > 0) lines.push({ role: 'freightIn', debit: vatOnReceipt, description: 'ضريبة مدخلات غير مستردة (مورد بدون رقم ضريبي) — أُضيفت إلى التكلفة' });
+    if (vatOnReceipt > 0) lines.push({ role: 'freightIn', debit: vatOnReceipt, description: 'ضريبة مدخلات غير مستردة (مورد بدون رقم ضريبي) — أُضيفت إلى التكلفة', ...dim });
   } else {
-    lines.push({ role: 'vatInput', debit: vatOnReceipt });
+    lines.push({ role: 'vatInput', debit: vatOnReceipt, ...dim });
   }
   const apAmount = round2(sum(receivedValued, (r) => r.value) + vatOnReceipt + ownSupplierTotal);
-  lines.push({ role: 'payable', credit: apAmount, partyKind: 'supplier' as const, partyId: po.supplierId });
+  lines.push({ role: 'payable', credit: apAmount, partyKind: 'supplier' as const, partyId: po.supplierId, ...dim });
   for (const other of otherSupplierLines) {
-    lines.push({ role: 'payable', credit: other.amount, partyKind: 'supplier' as const, partyId: other.supplierId });
+    lines.push({ role: 'payable', credit: other.amount, partyKind: 'supplier' as const, partyId: other.supplierId, ...dim });
   }
 
   // A PO's totals describe exactly what's billed against it — i.e. what's posted to AP (the
@@ -461,7 +467,7 @@ export function recordPurchaseReturn(input: PurchaseReturnInput, userId: string,
       variance = round2(variance + (atPurchasePrice - valueOut));
     }
     inventoryValue += valueOut;
-    applyStockChange(product, -line.qty, -valueOut, 'purchase_return', ret, date);
+    applyStockChange(product, -line.qty, -valueOut, 'purchase_return', ret, date, po.branchId ?? DEFAULT_BRANCH_ID);
 
     // v2 §4 batch picking: draw the returned qty from the chosen batch (or FEFO-oldest if unspecified).
     if (product.trackBatches) {
@@ -481,12 +487,13 @@ export function recordPurchaseReturn(input: PurchaseReturnInput, userId: string,
   }
   inventoryValue = round2(inventoryValue);
 
+  const retDim = { branchId: po.branchId ?? DEFAULT_BRANCH_ID, costCenterId: po.costCenterId };
   const postingLines: PostingLine[] = [
-    { role: 'payable', debit: settledToPayable, partyKind: 'supplier', partyId: po.supplierId },
-    { accountId: settlementAccountFor(refundMethod).id, debit: refundMethod === 'credit' ? 0 : cashBack },
-    { role: 'payable', debit: refundMethod === 'credit' ? cashBack : 0, partyKind: 'supplier', partyId: po.supplierId },
-    { role: 'inventory', credit: inventoryValue },
-    ...[...serviceByAccount.entries()].map(([accountId, amount]) => ({ accountId, credit: amount })),
+    { role: 'payable', debit: settledToPayable, partyKind: 'supplier', partyId: po.supplierId, ...retDim },
+    { accountId: settlementAccountFor(refundMethod).id, debit: refundMethod === 'credit' ? 0 : cashBack, ...retDim },
+    { role: 'payable', debit: refundMethod === 'credit' ? cashBack : 0, partyKind: 'supplier', partyId: po.supplierId, ...retDim },
+    { role: 'inventory', credit: inventoryValue, ...retDim },
+    ...[...serviceByAccount.entries()].map(([accountId, amount]) => ({ accountId, credit: amount, ...retDim })),
   ];
   // E3: a non-VAT supplier's receipt never debited vatInput (the VAT was added to cost instead), so
   // the debit note must not credit vatInput either — it credits the same freightIn "cost, not a

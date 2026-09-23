@@ -12,6 +12,10 @@ const routes: RouteRecordRaw[] = [
   { path: '/settings/printing', name: 'settings-printing', component: () => import('../pages/PrintingSettingsPage.vue'), meta: { title: 'الطباعة', section, area: 'settings' } },
   // v2 phase 6 §7: custom product fields + unit presets.
   { path: '/settings/products', name: 'settings-products', component: () => import('../pages/ProductsSettingsPage.vue'), meta: { title: 'المنتجات', section, area: 'inventory', access: 'write' } },
+  // v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md): branches, cost centers, currencies.
+  { path: '/settings/branches', name: 'settings-branches', component: () => import('../pages/BranchesSettingsPage.vue'), meta: { title: 'الفروع', section, area: 'settings' } },
+  { path: '/settings/cost-centers', name: 'settings-cost-centers', component: () => import('../pages/CostCentersSettingsPage.vue'), meta: { title: 'مراكز التكلفة', section, area: 'settings' } },
+  { path: '/settings/currencies', name: 'settings-currencies', component: () => import('../pages/CurrenciesSettingsPage.vue'), meta: { title: 'العملات', section, area: 'settings' } },
   // v2 phase 6 §6: role matrix editor. Gated on `users` (only admins manage users/roles today).
   { path: '/settings/roles', name: 'settings-roles', component: () => import('../pages/RoleMatrixSettingsPage.vue'), meta: { title: 'المستخدمون والأدوار', section, area: 'users' } },
   // Appearance is a per-device preference, open to every signed-in user.

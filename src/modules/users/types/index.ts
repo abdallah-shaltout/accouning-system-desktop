@@ -13,6 +13,15 @@ export interface User {
   priceListId?: string;
   active: boolean;
   avatar?: string;
+  /**
+   * v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md §1): branches this user may work
+   * from. Empty/undefined = every branch (the pre-phase-9 default, and what a single-branch
+   * company always effectively has). A user with more than one allowed branch gets the topbar
+   * branch switcher; a cashier is further locked to their open shift's branch regardless of this list.
+   */
+  allowedBranches?: string[];
+  /** Default branch selected after login / when starting a shift. */
+  homeBranch?: string;
 }
 
 export interface UserInput {
@@ -25,6 +34,8 @@ export interface UserInput {
   active: boolean;
   /** Only sent when creating a user or changing the password. */
   password?: string;
+  allowedBranches?: string[];
+  homeBranch?: string;
 }
 
 /** Permission areas used for route + nav + action gating (role presets, no permission matrix). */

@@ -13,11 +13,18 @@ const props = withDefaults(
     plain?: boolean;
     /** Render zero as a dash. */
     dashZero?: boolean;
+    /**
+     * v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md §2): show this currency's symbol
+     * instead of the store's base currency — for an FC document/line (`invoice.currency`,
+     * `journalLine.currency`). Omitted = base currency (every pre-phase-9 caller, unchanged).
+     */
+    currency?: string;
   }>(),
   {},
 );
 
 const settings = useSettingsStore();
+const displayCurrency = computed(() => props.currency ?? settings.currency);
 const isZero = computed(() => Math.abs(props.value ?? 0) < 0.005);
 const tone = computed(() => {
   if (!props.signed || isZero.value) return '';
@@ -31,8 +38,8 @@ const tone = computed(() => {
     <template v-else>
       <span class="num">{{ formatMoney(value) }}</span>
       <template v-if="!plain">
-        <RiyalIcon v-if="settings.currency === 'SAR'" class="opacity-70" />
-        <span v-else class="text-[0.85em] opacity-70">{{ settings.currency }}</span>
+        <RiyalIcon v-if="displayCurrency === 'SAR'" class="opacity-70" />
+        <span v-else class="text-[0.85em] opacity-70">{{ displayCurrency }}</span>
       </template>
     </template>
   </span>

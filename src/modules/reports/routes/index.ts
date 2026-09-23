@@ -12,6 +12,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/reports/sales', name: 'report-sales', component: () => import('../pages/SalesReportPage.vue'), meta: meta('تقرير المبيعات') },
   { path: '/reports/inventory', name: 'report-inventory', component: () => import('../pages/InventoryReportPage.vue'), meta: meta('تقرير المخزون') },
   { path: '/reports/vat', name: 'report-vat', component: () => import('../pages/VatReportPage.vue'), meta: meta('ملخص الضريبة') },
+  // v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md §3): P&L by cost center.
+  { path: '/reports/cost-centers', name: 'report-cost-centers', component: () => import('../pages/CostCenterPnlPage.vue'), meta: meta('الأرباح حسب مركز التكلفة') },
 ];
 
 export default routes;

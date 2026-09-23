@@ -93,7 +93,7 @@ export interface Invoice {
   source?: 'POS' | 'DESK';
   /** v2 phase 7 (§5 shifts): the shift this sale's cash/tenders were recorded against, when sold from the till. */
   shiftId?: string;
-  /** v2 phase 7: branch id (inert single-branch value until Phase 9 — kept for the invoice-list filter's shape). */
+  /** v2 phase 7 (real branch since phase 9 — see docs/v2/10 §1); branch-prefixed numbering follows `number`. */
   branchId?: string;
   /** v2 phase 7 (§2 desk form "Invoice type is automatic"). */
   invoiceType?: 'STANDARD' | 'SIMPLIFIED';
@@ -101,6 +101,16 @@ export interface Invoice {
   poReference?: string;
   terms?: string;
   attachmentIds?: string[];
+  /**
+   * v2 phase 9 currency (docs/v2/10-branches-currencies-cost-centers.md §2): set only when the
+   * customer's currency differs from the base currency. `lines[]`/totals stay in this currency;
+   * `exchangeRate` (base per 1 unit, snapshotted at sale time) converts them for posting. Undefined
+   * = base currency (the overwhelmingly common case, and the only one before this phase).
+   */
+  currency?: string;
+  exchangeRate?: number;
+  /** v2 phase 9: cost center for the sale's revenue/COGS lines (defaults to the branch's cost center). */
+  costCenterId?: string;
 }
 
 /**
@@ -297,6 +307,12 @@ export interface SaleInput {
   terms?: string;
   attachmentIds?: string[];
   managerApprovedBy?: string;
+  /** v2 phase 9: real branch (docs/v2/10 §1) — omitted falls back to the caller's default/home branch. */
+  branchId?: string;
+  costCenterId?: string;
+  /** v2 phase 9 currency: FC sale — `lines[].price`/totals are all in this currency; `exchangeRate` converts to base for posting. */
+  currency?: string;
+  exchangeRate?: number;
 }
 
 /** v2 phase 7 (§4): refund method after the outstanding balance is settled first. */

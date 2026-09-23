@@ -14,6 +14,15 @@ export interface PaymentAllocation {
   targetNumber: string;
   amount: number;
   date: string;
+  /**
+   * v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md "Realized FX"): when the target
+   * document carries a foreign currency, the FC amount this allocation covers (at the document's
+   * OWN rate — "partial allocations use the invoice's rate for AR") plus the realized FX gain/loss
+   * this allocation produced (positive = gain), for the allocation-grid display. Undefined for
+   * base-currency documents.
+   */
+  amountFc?: number;
+  fxGainLoss?: number;
 }
 
 export interface Payment {
@@ -35,6 +44,22 @@ export interface Payment {
   note?: string;
   /** Sub-ledger allocation rows (C1). Σ allocations ≤ amount; the remainder is unallocated credit. */
   allocations: PaymentAllocation[];
+  /**
+   * v2 phase 9: branch this payment/receipt was recorded from (real once branches are on — see
+   * `DEFAULT_BRANCH_ID` in `src/mocks/backend/core.ts`).
+   */
+  branchId?: string;
+  /**
+   * v2 phase 9 currency (docs/v2/10 §2): set when the party's currency differs from the base
+   * currency — the payment was tendered/received in the party's FC. `amount` above always stays
+   * the BASE-currency amount actually posted to the settlement account (Dr/Cr method account uses
+   * `amount`, not `amountFc`) — this mirrors every other document in the app.
+   */
+  currency?: string;
+  amountFc?: number;
+  rate?: number;
+  /** Σ of `allocations[].fxGainLoss` — the total realized FX gain(+)/loss(−) this payment produced. */
+  fxGainLoss?: number;
 }
 
 export interface PaymentAllocationInput {
@@ -53,6 +78,11 @@ export interface PaymentInput {
   note?: string;
   /** Allocations to apply at creation time. May be empty/partial — "allocate later" is supported. */
   allocations?: PaymentAllocationInput[];
+  branchId?: string;
+  /** v2 phase 9: FC tender — when set, `amount` must equal round2(amountFc × rate) (the base-currency amount actually posted). */
+  currency?: string;
+  amountFc?: number;
+  rate?: number;
 }
 
 export interface PaymentFilter {
@@ -75,6 +105,14 @@ export interface OpenDocument {
   dueDate?: string;
   total: number;
   outstanding: number;
+  /**
+   * v2 phase 9 (docs/v2/10 §2 "Realized FX"): set when the document is in a foreign currency —
+   * `fcOutstanding` (in that currency) and the document's OWN rate (base per unit), used so an
+   * allocation against it converts at the INVOICE's rate, never the payment's.
+   */
+  currency?: string;
+  fcOutstanding?: number;
+  rate?: number;
 }
 
 /** Allocation status shown on lists (docs/v2/09-purchases-payments-expenses.md §3 "Printing and lists"). */

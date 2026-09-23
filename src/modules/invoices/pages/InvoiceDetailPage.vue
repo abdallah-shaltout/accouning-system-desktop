@@ -137,20 +137,29 @@ async function print() {
           <AppCard title="الملخص" padding="sm">
             <SkeletonBlock v-if="!inv" :lines="5" />
             <dl v-else class="space-y-1.5 text-body">
-              <div class="flex justify-between"><dt class="text-text-secondary">المجموع</dt><dd><MoneyText :value="inv.subTotal" /></dd></div>
+              <!-- v2 phase 9 (docs/v2/10 §2): an FC invoice's totals are in ITS OWN currency; a
+                   base-currency equivalent line (at the invoice's own rate) is shown alongside the
+                   grand total, mirroring the doc's "VAT-in-SAR" requirement for the total itself. -->
+              <div v-if="inv.currency" class="mb-1 rounded-md bg-primary/10 px-2 py-1 text-tiny text-primary">
+                فاتورة بعملة {{ inv.currency }} — سعر الصرف <span class="num">{{ inv.exchangeRate }}</span>
+              </div>
+              <div class="flex justify-between"><dt class="text-text-secondary">المجموع</dt><dd><MoneyText :value="inv.subTotal" :currency="inv.currency" /></dd></div>
               <div v-if="inv.discountAmount" class="flex justify-between">
                 <dt class="text-text-secondary">الخصم <span class="num">({{ formatNumber(inv.discountRate) }}%)</span></dt>
-                <dd>−<MoneyText :value="inv.discountAmount" /></dd>
+                <dd>−<MoneyText :value="inv.discountAmount" :currency="inv.currency" /></dd>
               </div>
               <div class="flex justify-between">
                 <dt class="text-text-secondary">الضريبة <span class="num">({{ formatNumber(inv.taxRate) }}%)</span></dt>
-                <dd><MoneyText :value="inv.taxAmount" /></dd>
+                <dd><MoneyText :value="inv.taxAmount" :currency="inv.currency" /></dd>
               </div>
-              <div class="flex justify-between border-t border-border pt-1.5 font-semibold"><dt>الإجمالي</dt><dd><MoneyText :value="inv.grandTotal" /></dd></div>
-              <div v-if="inv.refundedAmount" class="flex justify-between text-danger"><dt>المرتجع</dt><dd>−<MoneyText :value="inv.refundedAmount" /></dd></div>
-              <div class="flex justify-between"><dt class="text-text-secondary">المدفوع</dt><dd><MoneyText :value="inv.paidAmount" /></dd></div>
+              <div class="flex justify-between border-t border-border pt-1.5 font-semibold"><dt>الإجمالي</dt><dd><MoneyText :value="inv.grandTotal" :currency="inv.currency" /></dd></div>
+              <div v-if="inv.currency && inv.exchangeRate" class="flex justify-between text-tiny text-text-secondary">
+                <dt>ما يعادل بالعملة الأساسية</dt><dd><MoneyText :value="inv.grandTotal * inv.exchangeRate" /></dd>
+              </div>
+              <div v-if="inv.refundedAmount" class="flex justify-between text-danger"><dt>المرتجع</dt><dd>−<MoneyText :value="inv.refundedAmount" :currency="inv.currency" /></dd></div>
+              <div class="flex justify-between"><dt class="text-text-secondary">المدفوع</dt><dd><MoneyText :value="inv.paidAmount" :currency="inv.currency" /></dd></div>
               <div class="flex justify-between font-medium" :class="inv.outstanding > 0 ? 'text-warning' : ''">
-                <dt>المتبقي</dt><dd><MoneyText :value="inv.outstanding" /></dd>
+                <dt>المتبقي</dt><dd><MoneyText :value="inv.outstanding" :currency="inv.currency" /></dd>
               </div>
             </dl>
           </AppCard>

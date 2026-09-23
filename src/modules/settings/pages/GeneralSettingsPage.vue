@@ -14,11 +14,13 @@ import { useToast } from '@/modules/core/controllers/useToast';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import SettingsTabs from '../components/SettingsTabs.vue';
 import { useSettingsStore } from '../controllers/useSettingsStore';
+import { isBaseCurrencyLocked } from '../services/branchesService';
 
 const store = useSettingsStore();
 const auth = useAuthStore();
 const toast = useToast();
 const canWrite = computed(() => auth.can('settings', 'write'));
+const currencyLocked = ref(false);
 
 const form = reactive({
   storeName: '',
@@ -35,6 +37,14 @@ const form = reactive({
   logo: undefined as string | undefined,
   /** v2 phase 6 §5 — stock-in/write-off at/above this value needs a manager PIN. 0/empty = off. */
   inventoryApprovalThreshold: undefined as number | undefined,
+  /**
+   * v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md §4): master switches for the three
+   * dimensions. All default OFF, so a fresh company looks exactly as it did before this phase until
+   * the owner opts in.
+   */
+  featureBranches: false,
+  featureCurrencies: false,
+  featureCostCenters: false,
 });
 const errors = ref<Record<string, string>>({});
 const saving = ref(false);
@@ -57,7 +67,11 @@ onMounted(async () => {
     pricesIncludeTax: s.pricesIncludeTax !== false,
     logo: s.logo,
     inventoryApprovalThreshold: s.inventoryApprovalThreshold,
+    featureBranches: s.features?.branches ?? false,
+    featureCurrencies: s.features?.currencies ?? false,
+    featureCostCenters: s.features?.costCenters ?? false,
   });
+  currencyLocked.value = await isBaseCurrencyLocked();
   loading.value = false;
 });
 
@@ -90,6 +104,7 @@ async function save() {
       defaultTaxId: form.defaultTaxId || undefined,
       pricesIncludeTax: form.pricesIncludeTax,
       inventoryApprovalThreshold: form.inventoryApprovalThreshold || undefined,
+      features: { branches: form.featureBranches, currencies: form.featureCurrencies, costCenters: form.featureCostCenters },
     });
     toast.success('تم حفظ الإعدادات');
   } catch (err) {
@@ -119,8 +134,9 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
             <AppInput v-model="form.vatNumber" label="الرقم الضريبي" ltr :disabled="!canWrite" :error="errors.vatNumber" hint="يظهر على الفاتورة وفي رمز QR" />
             <AppSelect
               v-model="form.currency"
-              label="العملة"
-              :disabled="!canWrite"
+              label="العملة الأساسية"
+              :disabled="!canWrite || currencyLocked"
+              :hint="currencyLocked ? 'العملة الأساسية مقفلة بعد بدء الترحيل — لا يمكن تغييرها' : undefined"
               :options="[
                 { value: 'SAR', label: 'ريال سعودي (SAR)' },
                 { value: 'AED', label: 'درهم إماراتي (AED)' },
@@ -128,6 +144,14 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
                 { value: 'USD', label: 'دولار أمريكي (USD)' },
               ]"
             />
+          </div>
+        </AppCard>
+
+        <AppCard title="الأبعاد (الفروع / العملات / مراكز التكلفة)" subtitle="تبقى واجهات هذه الأبعاد مخفية حتى تُفعّلها — فلا تظهر لأصحاب المتجر الواحد بعملة واحدة">
+          <div class="grid gap-3 sm:grid-cols-3">
+            <AppSwitch v-model="form.featureBranches" label="تفعيل الفروع" description="مبدّل الفرع في الشريط العلوي، عمود الفرع في المستندات، تقارير الفروع" :disabled="!canWrite" />
+            <AppSwitch v-model="form.featureCurrencies" label="تفعيل العملات" description="عملات غير أساسية على العملاء/الموردين/المستندات، فروق العملة" :disabled="!canWrite" />
+            <AppSwitch v-model="form.featureCostCenters" label="تفعيل مراكز التكلفة" description="عمود مركز التكلفة في القيود، تقرير الأرباح حسب المركز" :disabled="!canWrite" />
           </div>
         </AppCard>
 

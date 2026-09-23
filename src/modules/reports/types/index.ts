@@ -33,6 +33,39 @@ export interface ProfitAndLoss {
   netIncome: number;
 }
 
+/**
+ * v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md §3 "P&L by cost center: a column per
+ * center, with a drill-down"). `centers` is every active cost center that had any movement in the
+ * range, plus a synthetic `unassigned` column for lines with no `costCenterId` at all (pre-phase-9
+ * data, or accounts that don't require one) — so Σ columns always equals the flat P&L's totals.
+ */
+export interface CostCenterPnlColumn {
+  costCenterId: string;
+  name: string;
+  netRevenue: number;
+  totalCogs: number;
+  grossProfit: number;
+  totalExpenses: number;
+  netIncome: number;
+}
+
+export interface CostCenterPnl {
+  centers: CostCenterPnlColumn[];
+  unassigned: CostCenterPnlColumn;
+  total: CostCenterPnlColumn;
+}
+
+/** Budget vs actual for one cost center in one fiscal year (docs/v2/10 §3). */
+export interface CostCenterBudgetRow {
+  costCenterId: string;
+  name: string;
+  budget: number;
+  actual: number;
+  variancePct: number;
+  /** True once actual crosses 90% of budget — the insight stub this phase leaves for Phase 10. */
+  nearBudget: boolean;
+}
+
 export interface BalanceSheet {
   asOf: string;
   assets: StatementLine[];

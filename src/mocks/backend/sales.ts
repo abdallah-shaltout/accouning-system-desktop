@@ -6,6 +6,7 @@ import { emit } from '../events';
 import { mutate } from '../persist';
 import { ApiError, round2, sum, uid } from '../utils';
 import { accountFor, settlementAccountFor } from './accounts';
+import { branchPrefix, defaultCostCenterFor } from './branches';
 import {
   applyStockChange,
   logActivity,
@@ -13,10 +14,12 @@ import {
   productById,
   salesTaxRate,
   userById,
+  DEFAULT_BRANCH_ID,
   type PostingLine,
 } from './core';
 import { consumeFefo } from './inventory';
 import { recordShiftMovement } from './shifts';
+import { convertLinesToBase, isBaseCurrency, requireRate, toBase } from './currency';
 
 const METHOD_LABEL: Record<string, string> = {
   cash: 'نقداً',
@@ -67,6 +70,8 @@ interface PreparedSale {
   paidAmount: number;
   costTotal: number;
   posting: PostingLine[];
+  /** v2 phase 9: FC rate used (1 when the sale is in the base currency). */
+  rate: number;
 }
 
 /**
@@ -160,11 +165,27 @@ function prepareSale(input: SaleInput, userId: string): PreparedSale {
   costTotal = round2(costTotal);
   const receivable = round2(grandTotal - paidAmount);
 
+  // v2 phase 9 currency (docs/v2/10 §2): everything above (lines, totals, tenders, receivable) is
+  // in `input.currency` when set (FC invoice) — `rate` (base per 1 FC unit) converts each posting
+  // amount to base for the GL, which only ever holds base-currency balances. COGS/inventory are
+  // NEVER in FC (cost basis is always base currency, regardless of the sale's currency), so they
+  // post at `costTotal` unconverted either way. Branch/cost center: real once Phase 9 branches
+  // exist; falls back to the single default branch/its cost center otherwise (unchanged behavior).
+  const branchId = input.branchId ?? DEFAULT_BRANCH_ID;
+  const costCenterId = defaultCostCenterFor(branchId, input.costCenterId);
+  const currency = input.currency && !isBaseCurrency(input.currency) ? input.currency : undefined;
+  const rate = currency ? (input.exchangeRate ?? requireRate(currency)) : 1;
+  const dim = { branchId, costCenterId };
+  const fc = (amount: number) => (currency ? { currency, amountFc: amount, rate } : {});
+  const toBaseAmt = (amount: number) => (currency ? toBase(amount, rate) : amount);
+
   // One posting line per tender, each to its own method's account (C3 fix: card/wallet tenders go
-  // to their clearing account, not straight to bank — see `tenderAccountId` above).
+  // to their clearing account, not straight to bank — see `tenderAccountId` above). Tenders are
+  // always collected in the base currency (POS "accept foreign cash" is a separate tender-level
+  // conversion handled by the caller before this point — see `modules/invoices/services`).
   const tenderLines: PostingLine[] = resolvedTenders
     .filter((t) => t.amount > 0)
-    .map((t) => ({ accountId: tenderAccountId(t.method), debit: t.amount, description: t.reference ? `${t.method.name} — ${t.reference}` : t.method.name }));
+    .map((t) => ({ accountId: tenderAccountId(t.method), debit: t.amount, description: t.reference ? `${t.method.name} — ${t.reference}` : t.method.name, ...dim }));
 
   // vatByCategory (docs/v2/06 §3 step 5) posts sales net per category to the same `sales` role for
   // now — a separate revenue account per category (e.g. 4120 zero-rated sales) is a per-product/
@@ -182,16 +203,29 @@ function prepareSale(input: SaleInput, userId: string): PreparedSale {
     else stockedNet = round2(stockedNet + lr.net);
   });
 
+  // v2 phase 9 rounding rule (docs/v2/10 §2 "any cent difference between Σ lines and the converted
+  // total goes to the LARGEST line, never a separate account"): converting `stockedNet`,
+  // `freeTextRevenue`'s entries and `vat` to base INDEPENDENTLY (each round2(fc × rate)) can leave a
+  // stray halala vs. the receivable's own round2(fcTotal × rate) — `convertLinesToBase` distributes
+  // that gap onto the largest of these credit-side amounts instead, so the entry always balances
+  // exactly without a dedicated rounding account.
+  const freeTextEntries = [...freeTextRevenue.entries()];
+  const creditFcAmounts = [stockedNet, ...freeTextEntries.map(([, v]) => v), totals.vat];
+  const creditBaseAmounts = currency ? convertLinesToBase(creditFcAmounts, rate) : creditFcAmounts;
+  const [stockedNetBase, ...restBase] = creditBaseAmounts;
+  const vatBase = restBase.pop()!;
+  const freeTextBase = freeTextEntries.map(([accountId], i): PostingLine => ({ accountId, credit: restBase[i], ...dim }));
+
   const posting: PostingLine[] = [
     ...tenderLines,
-    { role: 'receivable', debit: receivable, partyKind: 'customer', partyId: input.customerId },
-    { role: 'sales', credit: stockedNet },
-    ...[...freeTextRevenue.entries()].map(([accountId, credit]): PostingLine => ({ accountId, credit })),
-    { role: 'vatOutput', credit: totals.vat },
-    { role: 'cogs', debit: costTotal },
-    { role: 'inventory', credit: costTotal },
+    { role: 'receivable', debit: toBaseAmt(receivable), partyKind: 'customer', partyId: input.customerId, ...dim, ...fc(receivable) },
+    { role: 'sales', credit: stockedNetBase, ...dim },
+    ...freeTextBase,
+    { role: 'vatOutput', credit: vatBase, ...dim },
+    { role: 'cogs', debit: costTotal, ...dim },
+    { role: 'inventory', credit: costTotal, ...dim },
   ];
-  return { totals, tenders: resolvedTenders, paidAmount, costTotal, posting };
+  return { totals, tenders: resolvedTenders, paidAmount, costTotal, posting, rate };
 }
 
 export function previewSaleJournal(input: SaleInput, userId: string): JournalPreviewLine[] {
@@ -205,8 +239,10 @@ export function previewSaleJournal(input: SaleInput, userId: string): JournalPre
 }
 
 export function recordSale(input: SaleInput, userId: string, date = new Date().toISOString()): Invoice {
-  const { totals, tenders, paidAmount, posting } = prepareSale(input, userId);
+  const { totals, tenders, paidAmount, posting, rate } = prepareSale(input, userId);
   const lineTaxes = input.lines.map((l) => taxForLine(l.taxId));
+  const branchId = input.branchId ?? DEFAULT_BRANCH_ID;
+  const currency = input.currency && !isBaseCurrency(input.currency) ? input.currency : undefined;
 
   // `taxRate`/`taxAmount`/`grandTotal` are kept as a single-rate snapshot for the legacy print/
   // refund/report code paths (InvoiceA4, InvoiceThermal, recordRefund — outside this phase's
@@ -216,7 +252,7 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
   const id = uid('inv');
   const invoice: Invoice = {
     id,
-    number: nextNumber('invoice'),
+    number: `${branchPrefix(branchId)}${nextNumber('invoice')}`,
     date,
     customerId: input.customerId,
     cashierId: userId,
@@ -282,6 +318,10 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
     poReference: input.poReference,
     terms: input.terms,
     attachmentIds: input.attachmentIds,
+    branchId,
+    costCenterId: defaultCostCenterFor(branchId, input.costCenterId),
+    currency,
+    exchangeRate: currency ? rate : undefined,
   };
   mutate(() => db.invoices.push(invoice));
 
@@ -299,7 +339,7 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
   for (const [productId, qty] of qtyByProduct) {
     const product = productById(productId);
     const valueOut = round2(qty) >= round2(product.stockQty) ? product.stockValue : round2(qty * product.costPrice);
-    applyStockChange(product, -qty, -valueOut, 'sale', invoice, date);
+    applyStockChange(product, -qty, -valueOut, 'sale', invoice, date, branchId);
     // §3 FEFO (docs/v2/06 §1 "Batch: auto-picked first-expiry-first-out... can be changed"): draw
     // from the manually-picked batch first (its exact qty), then FEFO for the rest of this product's
     // total base-unit qty across every cart line.
@@ -321,7 +361,7 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
 
   postJournal({
     date,
-    description: `فاتورة مبيعات ${invoice.number} (${METHOD_LABEL[invoice.paymentMethod]})`,
+    description: `فاتورة مبيعات ${invoice.number} (${METHOD_LABEL[invoice.paymentMethod]})${currency ? ` — ${currency}` : ''}`,
     type: 'SYSTEM',
     sourceRef: { kind: 'invoice', id: invoice.id, number: invoice.number },
     lines: posting,

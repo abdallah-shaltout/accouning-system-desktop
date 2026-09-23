@@ -107,6 +107,77 @@ export async function getProfitAndLoss(range: DateRangeInput): Promise<ProfitAnd
   return computePnl(range);
 }
 
+// ---------------------------------------------------------------------------------------------
+// v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md §3): P&L by cost center + budget vs
+// actual. Reuses `movements()`'s shape but keyed by (accountId, costCenterId) instead of just
+// accountId, so every column below is computed from the exact same ledger lines the flat P&L reads
+// — Σ columns always reconciles to `computePnl()`'s totals for the same range.
+// ---------------------------------------------------------------------------------------------
+
+const UNASSIGNED_CC = '__unassigned__';
+
+function movementsByCostCenter(range: DateRangeInput): Map<string, Map<string, { d: number; c: number }>> {
+  const byCc = new Map<string, Map<string, { d: number; c: number }>>();
+  for (const e of db.journalEntries) {
+    if (!inDateRange(e.date, range.from, range.to)) continue;
+    for (const l of e.lines) {
+      const ccId = l.costCenterId ?? UNASSIGNED_CC;
+      const accMap = byCc.get(ccId) ?? new Map<string, { d: number; c: number }>();
+      const t = accMap.get(l.accountId) ?? { d: 0, c: 0 };
+      t.d += l.debit;
+      t.c += l.credit;
+      accMap.set(l.accountId, t);
+      byCc.set(ccId, accMap);
+    }
+  }
+  return byCc;
+}
+
+function pnlColumnFor(mv: Map<string, { d: number; c: number }>): Omit<import('../types').CostCenterPnlColumn, 'costCenterId' | 'name'> {
+  const netRevenue = sum(lines('REVENUE', mv, -1), (l) => l.amount);
+  const totalCogs = sum(lines('EXPENSE', mv, 1, (a) => a.subtype === 'costOfSales'), (l) => l.amount);
+  const totalExpenses = sum(lines('EXPENSE', mv, 1, (a) => a.subtype !== 'costOfSales'), (l) => l.amount);
+  const grossProfit = round2(netRevenue - totalCogs);
+  return { netRevenue, totalCogs, grossProfit, totalExpenses, netIncome: round2(grossProfit - totalExpenses) };
+}
+
+export async function getCostCenterProfitAndLoss(range: DateRangeInput): Promise<import('../types').CostCenterPnl> {
+  await delay();
+  const byCc = movementsByCostCenter(range);
+  const centers = db.costCenters
+    .filter((c) => byCc.has(c.id))
+    .map((c) => ({ costCenterId: c.id, name: c.name, ...pnlColumnFor(byCc.get(c.id)!) }))
+    .sort((a, b) => b.netRevenue - a.netRevenue);
+  const unassignedMv = byCc.get(UNASSIGNED_CC) ?? new Map();
+  const unassigned = { costCenterId: UNASSIGNED_CC, name: 'غير مخصص', ...pnlColumnFor(unassignedMv) };
+  const total = computePnl(range);
+  return {
+    centers,
+    unassigned,
+    total: { costCenterId: '__total__', name: 'الإجمالي', netRevenue: total.netRevenue, totalCogs: total.totalCogs, grossProfit: total.grossProfit, totalExpenses: total.totalExpenses, netIncome: total.netIncome },
+  };
+}
+
+/** Budget vs actual (docs/v2/10 §3): actual = Σ expense-account movement for the cost center within the fiscal year's dates. */
+export async function getCostCenterBudgetVsActual(fiscalYearId: string): Promise<import('../types').CostCenterBudgetRow[]> {
+  await delay();
+  const fy = db.fiscalYears.find((f) => f.id === fiscalYearId);
+  if (!fy) throw new ApiError('السنة المالية غير موجودة', 'NOT_FOUND');
+  const byCc = movementsByCostCenter({ from: fy.startDate, to: fy.endDate });
+  const rows: import('../types').CostCenterBudgetRow[] = [];
+  for (const c of db.costCenters) {
+    const budgetRow = c.budgets?.find((b) => b.fiscalYearId === fiscalYearId);
+    if (!budgetRow) continue;
+    const mv = byCc.get(c.id) ?? new Map();
+    const actual = sum(lines('EXPENSE', mv, 1), (l) => l.amount);
+    const variancePct = budgetRow.amount > 0 ? round2(((actual - budgetRow.amount) / budgetRow.amount) * 100) : 0;
+    // TODO(phase 10): surface this as a real insight (insight engine, dismiss/snooze) — this phase
+    // only computes the 90%-of-budget signal as a plain boolean column on the report.
+    rows.push({ costCenterId: c.id, name: c.name, budget: budgetRow.amount, actual, variancePct, nearBudget: budgetRow.amount > 0 && actual >= budgetRow.amount * 0.9 });
+  }
+  return rows.sort((a, b) => b.actual - a.actual);
+}
+
 // --- Balance sheet ---------------------------------------------------------------------------
 
 export async function getBalanceSheet(asOf: string): Promise<BalanceSheet> {
@@ -358,9 +429,30 @@ function salesVatBoxes(invoices: typeof db.invoices, refunds: typeof db.refunds)
   return { boxes: list, vat: round2(list.reduce((a, b) => a + b.vat, 0)), taxable: round2(list.reduce((a, b) => a + b.net, 0)) };
 }
 
+/**
+ * v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md §2): every VAT report figure below is
+ * compared against the (always base-currency) vatOutput/vatInput ledger, so an FC invoice's
+ * `taxAmount`/`subTotal`/`discountAmount`/lines' `net`/`vat` — all in the invoice's OWN currency —
+ * must be converted to base first, at the invoice's own `exchangeRate`, exactly like every other
+ * base-currency reader in the app. Refunds/POs/expenses aren't extended to FC in this phase (see
+ * the phase report's deviations), so only invoices need this.
+ */
+function toBaseInvoice(inv: (typeof db.invoices)[number]): (typeof db.invoices)[number] {
+  if (!inv.currency || !inv.exchangeRate) return inv;
+  const rate = inv.exchangeRate;
+  return {
+    ...inv,
+    subTotal: round2(inv.subTotal * rate),
+    discountAmount: round2(inv.discountAmount * rate),
+    taxAmount: round2(inv.taxAmount * rate),
+    grandTotal: round2(inv.grandTotal * rate),
+    lines: inv.lines.map((l) => ({ ...l, net: l.net !== undefined ? round2(l.net * rate) : l.net, vat: l.vat !== undefined ? round2(l.vat * rate) : l.vat })),
+  };
+}
+
 export async function getVatReport(range: DateRangeInput): Promise<VatReport> {
   await delay();
-  const invoices = db.invoices.filter((i) => inDateRange(i.date, range.from, range.to));
+  const invoices = db.invoices.filter((i) => inDateRange(i.date, range.from, range.to)).map(toBaseInvoice);
   const refunds = db.refunds.filter((r) => inDateRange(r.date, range.from, range.to));
   // v2 phase 8 (docs/v2/09-purchases-payments-expenses.md §1 "VAT", review E3): a non-VAT
   // supplier's receipt never claims input VAT — it's added to cost instead — so it (and its debit

@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import type { Component } from 'vue';
-import { BookText, Boxes, ChartColumn, FileText, Landmark, Percent, Scale } from '@lucide/vue';
+import { computed, onMounted, type Component } from 'vue';
+import { BookText, Boxes, ChartColumn, FileText, Landmark, Percent, PieChart, Scale } from '@lucide/vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
+
+const settingsStore = useSettingsStore();
+onMounted(() => settingsStore.load());
 
 interface ReportLink {
   to: string;
@@ -10,7 +14,7 @@ interface ReportLink {
   icon: Component;
 }
 
-const groups: { title: string; reports: ReportLink[] }[] = [
+const groups = computed<{ title: string; reports: ReportLink[] }[]>(() => [
   {
     title: 'التقارير المالية',
     reports: [
@@ -18,6 +22,10 @@ const groups: { title: string; reports: ReportLink[] }[] = [
       { to: '/reports/profit-loss', title: 'قائمة الدخل', description: 'الإيرادات وتكلفة المبيعات والمصروفات وصافي الربح', icon: ChartColumn },
       { to: '/reports/balance-sheet', title: 'الميزانية العمومية', description: 'الأصول والالتزامات وحقوق الملكية في تاريخ محدد', icon: Landmark },
       { to: '/reports/ledger', title: 'كشف حساب', description: 'حركة أي حساب أو عميل أو مورد مع الرصيد التراكمي', icon: BookText },
+      // v2 phase 9: hidden until cost centers are on (docs/v2/10 §4 "invisible until needed").
+      ...(settingsStore.settings?.features?.costCenters
+        ? [{ to: '/reports/cost-centers', title: 'الأرباح حسب مركز التكلفة', description: 'عمود لكل مركز تكلفة، مع تفاصيل عند الضغط على اسم المركز', icon: PieChart }]
+        : []),
     ],
   },
   {
@@ -31,7 +39,7 @@ const groups: { title: string; reports: ReportLink[] }[] = [
     title: 'الضرائب',
     reports: [{ to: '/reports/vat', title: 'ملخص ضريبة القيمة المضافة', description: 'ضريبة المخرجات والمدخلات وصافي الضريبة المستحقة للفترة', icon: Percent }],
   },
-];
+]);
 </script>
 
 <template>

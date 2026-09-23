@@ -77,8 +77,13 @@ export interface PurchaseOrder {
   /** The date goods were actually received/posted (RECEIVED status), separate from the order `date`. */
   receivedDate?: string;
   attachmentIds?: string[];
-  /** docs/v2/09 §6 — inert until phase 9 (branch's default cost center), just the field for now. */
+  /** docs/v2/09 §6 — real since phase 9 (branch's default cost center, or user-picked). */
   costCenterId?: string;
+  /** v2 phase 9 (docs/v2/10 §1): real branch — numbering/postings/branch stock all key off this. */
+  branchId?: string;
+  /** v2 phase 9 currency: set when the supplier's currency differs from the base currency. */
+  currency?: string;
+  exchangeRate?: number;
 }
 
 export interface PurchaseLineInput {
@@ -110,6 +115,9 @@ export interface PurchaseOrderInput {
   supplierInvoiceDate?: string;
   attachmentIds?: string[];
   costCenterId?: string;
+  branchId?: string;
+  currency?: string;
+  exchangeRate?: number;
   /** true = post immediately (stock + journal, status RECEIVED); false = save as DRAFT. Superseded by `order`/`receive` flows below for the v2 order→receive split, kept for the "confirm directly" quick path. */
   confirm: boolean;
 }

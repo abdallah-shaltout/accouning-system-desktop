@@ -26,6 +26,22 @@ export function supplierBalance(supplierId: string): number {
   return round2(sum(partyLedgerLines('supplier', supplierId), (l) => l.credit - l.debit));
 }
 
+/**
+ * v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md §2 "Realized FX" worked example):
+ * the party's balance in ITS OWN foreign currency, from `amountFc` on the same control-account
+ * ledger lines `customerBalance`/`supplierBalance` read (only lines actually tagged with an FC
+ * amount count — the FX gain/loss line itself never carries one). This is what should net to
+ * exactly 0 once an FC invoice is fully settled by an FC receipt, regardless of what the base
+ * currency did to get there.
+ */
+export function customerBalanceFc(customerId: string): number {
+  return round2(sum(partyLedgerLines('customer', customerId).filter((l) => l.amountFc !== undefined), (l) => (l.debit > 0 ? (l.amountFc ?? 0) : -(l.amountFc ?? 0))));
+}
+
+export function supplierBalanceFc(supplierId: string): number {
+  return round2(sum(partyLedgerLines('supplier', supplierId).filter((l) => l.amountFc !== undefined), (l) => (l.credit > 0 ? (l.amountFc ?? 0) : -(l.amountFc ?? 0))));
+}
+
 function withRunningBalance(rows: Omit<PartyStatementRow, 'balance'>[], sign: 1 | -1): PartyStatementRow[] {
   rows.sort((a, b) => a.date.localeCompare(b.date));
   let balance = 0;

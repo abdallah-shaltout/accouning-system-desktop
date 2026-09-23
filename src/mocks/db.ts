@@ -16,10 +16,11 @@ import type {
   Unit,
 } from '@/modules/products/types';
 import type { PurchaseOrder, PurchaseReturn } from '@/modules/purchases/types';
-import type { PaymentMethod, StoreSettings, Tax } from '@/modules/settings/types';
+import type { PaymentMethod, StoreSettings, Tax, Branch, CostCenter, Currency, ExchangeRate } from '@/modules/settings/types';
 import type { User } from '@/modules/users/types';
 import type { Expense, ExpenseCategory, RecurringExpense } from '@/modules/expenses/types';
 import type { CardSettlement, Voucher } from '@/modules/vouchers/types';
+import type { StockTransfer } from '@/modules/products/types';
 
 /**
  * The in-memory "database" behind every mock service. It lives only for the lifetime of the
@@ -92,6 +93,19 @@ export interface MockDb {
   vouchers: Voucher[];
   /** §2 — posted card/wallet settlement vouchers. */
   cardSettlements: CardSettlement[];
+
+  // --- v2 phase 9 additions (docs/v2/10-branches-currencies-cost-centers.md) --------------------
+
+  /** §1 — Settings → Branches. Always ≥ 1 (the seeded/onboarded default branch). */
+  branches: Branch[];
+  /** §3 — Settings → Accounting → Cost centers (tree). */
+  costCenters: CostCenter[];
+  /** §1/§4 — Settings → Products → Transfers: branch-to-branch stock moves via inventoryInTransit. */
+  stockTransfers: StockTransfer[];
+  /** §2 — Settings → Currencies: enabled foreign currencies (the base currency lives at `settings.currency`, not here). */
+  currencies: Currency[];
+  /** §2 — the exchange-rate table (currency, date, rate = base per 1 unit). */
+  exchangeRates: ExchangeRate[];
 }
 
 export type DocumentKind =
@@ -108,7 +122,8 @@ export type DocumentKind =
   | 'shift'
   | 'expense'
   | 'voucher'
-  | 'cardSettlement';
+  | 'cardSettlement'
+  | 'stockTransfer';
 
 export const db: MockDb = {
   users: [],
@@ -147,6 +162,11 @@ export const db: MockDb = {
   recurringExpenses: [],
   vouchers: [],
   cardSettlements: [],
+  branches: [],
+  costCenters: [],
+  stockTransfers: [],
+  currencies: [],
+  exchangeRates: [],
   settings: {
     storeName: '',
     currency: 'SAR',
@@ -170,6 +190,7 @@ export const db: MockDb = {
     expense: 0,
     voucher: 0,
     cardSettlement: 0,
+    stockTransfer: 0,
   },
 };
 
@@ -187,6 +208,7 @@ const PREFIX: Record<Exclude<DocumentKind, 'invoice'>, string> = {
   expense: 'EXP-',
   voucher: 'VCH-',
   cardSettlement: 'STL-',
+  stockTransfer: 'TRF-',
 };
 
 /** Next human-readable document number, e.g. "INV-000457". */

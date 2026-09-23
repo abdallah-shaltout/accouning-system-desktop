@@ -90,7 +90,9 @@ export type JournalSourceKind =
   /** v2 phase 8 (§2): card/wallet settlement voucher. */
   | 'settlement'
   /** v2 phase 7 (docs/v2/06-sales-and-pos.md §5): shift-close cash variance / cash-drop postings. */
-  | 'shift';
+  | 'shift'
+  /** v2 phase 9 (docs/v2/10 §2 "Unrealized FX"): the currency-revaluation wizard's auto-reversing entry. */
+  | 'fxReval';
 
 export interface JournalLine {
   id: string;

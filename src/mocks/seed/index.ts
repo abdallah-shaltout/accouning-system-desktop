@@ -15,6 +15,7 @@ import { seedSettings } from './settings';
 import { seedShifts } from './shifts';
 import { ADMIN, seedHistory } from './history';
 import { seedPurchases8 } from './purchases8';
+import { seedBranches9 } from './branches9';
 
 /**
  * Full demo seed: fixtures for every area, the opening position, then a deterministic replay of
@@ -42,6 +43,9 @@ export function seedDatabase(now = new Date()): void {
   // card-settlement demo data. Runs last — the card settlement needs seedHistory's card tenders.
   // usr-2/usr-3 are history.ts's MANAGER/ACCOUNTANT seed users (not exported; same fixture ids).
   seedPurchases8(now, ADMIN, 'usr-3', 'usr-2');
+  // v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md): branches, currencies, cost
+  // centers demo data. Runs last — needs every other area's fixtures/history already seeded.
+  seedBranches9(now, ADMIN, 'usr-3');
 }
 
 /**
@@ -55,6 +59,16 @@ export function seedDatabase(now = new Date()): void {
  */
 export function seedEmptyCompany(): void {
   seedAccounts(new Date());
+  // v2 phase 9: every document/journal-line implicitly uses `DEFAULT_BRANCH_ID`/`branch-main` (see
+  // src/mocks/backend/core.ts) even before the owner ever opens Settings → Branches, so a real
+  // `Branch` row with that exact id must exist from the very first posting, not only once the
+  // feature switch is turned on — otherwise branch reports/pickers see a dangling id.
+  const mainCash = db.accounts.find((a) => a.code === '1110');
+  db.branches = [{ id: 'branch-main', name: 'الفرع الرئيسي', code: 'MAIN', cashAccountId: mainCash?.id, costCenterId: 'cc-main', active: true, canDelete: false, createdAt: new Date().toISOString() }];
+  db.costCenters = [{ id: 'cc-main', code: 'CC-MAIN', name: 'الفرع الرئيسي', type: 'branch', active: true, canDelete: false, branchId: 'branch-main' }];
+  db.currencies = [];
+  db.exchangeRates = [];
+  db.stockTransfers = [];
   db.categories = [];
   db.units = [];
   db.priceLists = [];

@@ -29,7 +29,47 @@ function validateManualLines(input: JournalEntryInput): void {
     if (account.requiresParty && (line.debit > 0 || line.credit > 0) && !line.partyId) {
       throw new ApiError(`السطر على حساب "${account.name}" يتطلب اختيار عميل أو مورد`, 'VALIDATION');
     }
+    // v2 phase 9 (docs/v2/10 §3 "Expense accounts can be marked requiresCostCenter"): only enforced
+    // once cost centers are actually on — a company that never turned the feature on never has to
+    // pick one, matching the "invisible until needed" rule for every dimension in this phase.
+    if (account.requiresCostCenter && db.settings.features?.costCenters && (line.debit > 0 || line.credit > 0) && !line.costCenterId) {
+      throw new ApiError(`السطر على حساب "${account.name}" يتطلب اختيار مركز تكلفة`, 'VALIDATION');
+    }
   }
+}
+
+/**
+ * v2 phase 9 (docs/v2/10 §3 "توزيع" split action): splits one manual-entry line by percentages
+ * across several cost centers, e.g. rent 60% branch A / 40% branch B. Pure helper — the caller
+ * (journal entry form) replaces the one line with these in its own `lines[]` before submitting;
+ * this never touches `db` itself. Σ split amounts = the original amount exactly (largest-remainder
+ * rounding, the same halala-safe technique `totals.ts` uses).
+ */
+export function splitLineByCostCenters(
+  line: { accountId: string; description?: string; debit: number; credit: number; partyKind?: 'customer' | 'supplier'; partyId?: string; branchId?: string },
+  splits: { costCenterId: string; pct: number }[],
+): JournalEntryInput['lines'] {
+  const amount = line.debit > 0 ? line.debit : line.credit;
+  const isDebit = line.debit > 0;
+  const pctSum = splits.reduce((a, s) => a + s.pct, 0) || 1;
+  const raw = splits.map((s) => (amount * s.pct) / pctSum);
+  const rounded = raw.map((r) => round2(r));
+  let diff = round2(amount - rounded.reduce((a, r) => a + r, 0));
+  if (diff !== 0 && rounded.length) {
+    const order = raw.map((r, i) => ({ i, rem: r - rounded[i] })).sort((a, b) => (diff > 0 ? b.rem - a.rem : a.rem - b.rem));
+    rounded[order[0].i] = round2(rounded[order[0].i] + diff);
+    diff = 0;
+  }
+  return splits.map((s, i) => ({
+    accountId: line.accountId,
+    description: line.description,
+    debit: isDebit ? rounded[i] : 0,
+    credit: isDebit ? 0 : rounded[i],
+    partyKind: line.partyKind,
+    partyId: line.partyId,
+    branchId: line.branchId,
+    costCenterId: s.costCenterId,
+  }));
 }
 
 function toPostingLines(input: JournalEntryInput): PostingLine[] {

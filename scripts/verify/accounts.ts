@@ -75,6 +75,8 @@ export function run(): Result[] {
     'expense',
     'voucher',
     'settlement',
+    // v2 phase 9 (docs/v2/10 §2 "Unrealized FX"): the revaluation wizard's auto-reversing entry.
+    'fxReval',
   ]);
   const badSourceRefs = db.journalEntries.filter((e) => e.sourceRef && !sourceKinds.has(e.sourceRef.kind));
   results.push(check(badSourceRefs.length === 0, `every entry's sourceRef has a known kind (${badSourceRefs.length} unrecognized)`));

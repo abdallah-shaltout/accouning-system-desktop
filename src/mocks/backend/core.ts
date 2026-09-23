@@ -6,6 +6,7 @@ import { emit } from '../events';
 import { mutate } from '../persist';
 import { ApiError, localDateKey, round2, sum, uid } from '../utils';
 import { accountById, accountFor } from './accounts';
+import { baseCurrency } from './currency';
 
 export { accountById, accountFor, settlementAccountFor } from './accounts';
 
@@ -35,6 +36,7 @@ export function resolvePosting(lines: PostingLine[]) {
   const resolved: JournalLine[] = lines
     .map((l) => {
       const account = l.accountId ? accountById(l.accountId) : accountFor(l.role!, { branchId: l.branchId, currency: l.currency });
+      const branchId = l.branchId ?? DEFAULT_BRANCH_ID;
       return {
         id: uid('jl'),
         accountId: account.id,
@@ -43,9 +45,12 @@ export function resolvePosting(lines: PostingLine[]) {
         credit: round2(l.credit ?? 0),
         partyKind: l.partyKind,
         partyId: l.partyId,
-        branchId: l.branchId ?? DEFAULT_BRANCH_ID,
-        costCenterId: l.costCenterId,
-        currency: l.currency ?? BASE_CURRENCY,
+        branchId,
+        // v2 phase 9 (docs/v2/10 §3 "Documents fill it from the branch, or from the document or
+        // line if the user picked one"): an explicit line-level cost center wins; otherwise fall
+        // back to the line's branch's own cost center (undefined pre-phase-9 / no branches yet).
+        costCenterId: l.costCenterId ?? db.branches.find((b) => b.id === branchId)?.costCenterId,
+        currency: l.currency ?? baseCurrency(),
         amountFc: l.amountFc,
         rate: l.rate,
       };
@@ -60,11 +65,14 @@ export function resolvePosting(lines: PostingLine[]) {
 }
 
 /**
- * Single default branch id used on every journal line until Phase 9 builds real branches. Kept as
- * a named constant (not a magic string sprinkled around) so the Phase 9 migration is a one-line
- * change once `Branch` entities exist.
+ * v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md §1): the id every journal line falls
+ * back to when a caller doesn't pass one — matches `MAIN_BRANCH_ID` in `./branches.ts` (the seeded/
+ * onboarded default branch's real id), so every pre-phase-9 posting path that never learned about
+ * branches still lands on the one real `Branch` row instead of a dangling id.
  */
 export const DEFAULT_BRANCH_ID = 'branch-main';
+export { baseCurrency } from './currency';
+/** @deprecated kept for callers that haven't been touched by this phase — prefer `baseCurrency()`, which reads the real setting. */
 export const BASE_CURRENCY = 'SAR';
 
 /**
@@ -222,6 +230,10 @@ export function productById(id: string): Product {
  * `GL(inventory) = Σ product.stockValue` holds exactly. `costPrice` is re-derived as the 4-decimal
  * average (`stockValue / stockQty`) for display; it is never the posting input any more. Services
  * are not stocked.
+ *
+ * v2 phase 9 (docs/v2/07-products-and-inventory.md §4 "Branch stock"): `branchId` (defaulting to
+ * `DEFAULT_BRANCH_ID` — every pre-phase-9 caller keeps posting to the one implicit branch) also
+ * updates `product.stockByBranch[branchId]`, which always sums back to `stockQty`/`stockValue`.
  */
 export function applyStockChange(
   product: Product,
@@ -230,12 +242,16 @@ export function applyStockChange(
   reason: StockMovementReason,
   ref: { id: string; number: string },
   date: string,
+  branchId: string = DEFAULT_BRANCH_ID,
 ): void {
   if (product.type === 'service' || product.stockMode === 'none' || (qtyChange === 0 && valueChange === 0)) return;
   mutate(() => {
     product.stockQty = round2(product.stockQty + qtyChange);
     product.stockValue = round2(product.stockValue + valueChange);
     product.costPrice = product.stockQty > 0.0001 ? round4(product.stockValue / product.stockQty) : 0;
+    if (!product.stockByBranch) product.stockByBranch = {};
+    const cur = product.stockByBranch[branchId] ?? { qty: 0, value: 0 };
+    product.stockByBranch[branchId] = { qty: round2(cur.qty + qtyChange), value: round2(cur.value + valueChange) };
     db.stockMovements.push({
       id: uid('mv'),
       date,

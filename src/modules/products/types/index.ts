@@ -92,6 +92,16 @@ export interface Product {
    */
   stockValue: number;
 
+  /**
+   * v2 phase 9 (docs/v2/07-products-and-inventory.md §4 "Branch stock", docs/v2/10 §1): per-branch
+   * qty/value, keyed by branch id. `stockQty`/`stockValue` above stay the COMPANY-WIDE totals (their
+   * invariant — `GL(inventory) = Σ product.stockValue` — is untouched by this phase), and always
+   * equal Σ of this map's values when branches are on. Undefined/empty on a single-branch company
+   * (every quantity implicitly lives on the one default branch) — this is what keeps a
+   * single-branch business's stock screens looking exactly as before.
+   */
+  stockByBranch?: Record<string, { qty: number; value: number }>;
+
   // --- v2 phase 6 additions (docs/v2/07-products-and-inventory.md) ---------------------------
 
   /** "أساسي" tab. */
@@ -170,6 +180,8 @@ export interface PriceList {
   id: string;
   name: string;
   active: boolean;
+  /** v2 phase 9 (docs/v2/10 §2 "Price lists can have a currency"): undefined = base currency. */
+  currency?: string;
 }
 
 export type StockAdjustmentType = 'STOCK_IN' | 'LOSS' | 'STOCKTAKE';
@@ -224,7 +236,10 @@ export interface StockAdjustmentInput {
   approvedBy?: string;
 }
 
-export type StockMovementReason = 'sale' | 'purchase' | 'stock_in' | 'loss' | 'stocktake' | 'refund' | 'purchase_return';
+export type StockMovementReason =
+  | 'sale' | 'purchase' | 'stock_in' | 'loss' | 'stocktake' | 'refund' | 'purchase_return'
+  /** v2 phase 9 (docs/v2/07 §4): a branch transfer's send/receive legs. */
+  | 'transfer_out' | 'transfer_in';
 
 export interface StockMovement {
   id: string;
@@ -300,4 +315,58 @@ export interface DebitNoteDraft {
   status: 'DRAFT';
   lines: { productId: string; batchId: string; qty: number; unitCost: number }[];
   note?: string;
+}
+
+// ---------------------------------------------------------------------------------------------
+// v2 phase 9 (docs/v2/07-products-and-inventory.md §4 "Branch stock & transfers", deferred from
+// phase 6): draft → send → receive, with shortage/reject handling through the inventoryInTransit
+// system role (seeded since Phase 1, unused until now).
+// ---------------------------------------------------------------------------------------------
+
+export type StockTransferStatus = 'DRAFT' | 'SENT' | 'RECEIVED' | 'REJECTED';
+
+export interface StockTransferLine {
+  productId: string;
+  /** Qty requested/sent, in the base (stock) unit. */
+  qty: number;
+  unitId?: string;
+  unitFactor?: number;
+  batchId?: string;
+  batchNo?: string;
+  /** Filled at receiving time — may be less than `qty` (shortage). */
+  receivedQty?: number;
+  /** Unit cost snapshot at send time (the source branch's average cost) — what moves through transit and what a shortage writes off. */
+  unitCost?: number;
+}
+
+export interface StockTransfer {
+  id: string;
+  number: string;
+  fromBranchId: string;
+  toBranchId: string;
+  status: StockTransferStatus;
+  date: string;
+  lines: StockTransferLine[];
+  note?: string;
+  sentAt?: string;
+  sentBy?: string;
+  receivedAt?: string;
+  receivedBy?: string;
+  rejectedAt?: string;
+  rejectedBy?: string;
+  rejectReason?: string;
+  /** Σ shortage value posted to inventoryVariance (5110) on receipt, when received < sent. */
+  shortageValue?: number;
+}
+
+export interface StockTransferInput {
+  fromBranchId: string;
+  toBranchId: string;
+  date: string;
+  note?: string;
+  lines: { productId: string; qty: number; unitId?: string; unitFactor?: number; batchId?: string; batchNo?: string }[];
+}
+
+export interface ReceiveTransferInput {
+  lines: { productId: string; receivedQty: number; batchId?: string }[];
 }

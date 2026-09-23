@@ -15,8 +15,13 @@ export function run(): Result[] {
   // produces per line — as the `vatOutput` credit), so summing them across every posted document
   // must equal the vatOutput/vatInput ledger balances exactly, for ALL TIME (no period filter — the
   // ledger balance itself has none either).
+  // v2 phase 9 (docs/v2/10 §2): `taxAmount` (like every other total) is in the DOCUMENT's own
+  // currency — an FC invoice's `taxAmount` must convert to base at its own `exchangeRate` before
+  // summing against the (always-base) `vatOutput` ledger. Refunds are always in the base currency
+  // (Phase 9 doesn't extend FC to returns — a smaller, explicit deferral, see the phase report).
+  const invoiceVatBase = (i: (typeof db.invoices)[number]) => (i.currency && i.exchangeRate ? round2(i.taxAmount * i.exchangeRate) : i.taxAmount);
   const outputVatFromDocs = round2(
-    db.invoices.reduce((a, i) => a + i.taxAmount, 0) - db.refunds.reduce((a, r) => a + r.taxAmount, 0),
+    db.invoices.reduce((a, i) => a + invoiceVatBase(i), 0) - db.refunds.reduce((a, r) => a + r.taxAmount, 0),
   );
   const outputVatLedger = -glBalance('vatOutput'); // vatOutput is credit-normal; glBalance is debit − credit
   results.push(

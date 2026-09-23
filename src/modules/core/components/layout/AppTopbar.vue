@@ -1,19 +1,26 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { Moon, Search, ShoppingCart, Sun } from '@lucide/vue';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import { useBranchStore } from '@/modules/settings/controllers/useBranchStore';
 import { useCommandPalette } from '../../controllers/useCommandPalette';
 import { resolvedTheme, toggleTheme } from '../../controllers/useTheme';
 import AppButton from '../ui/AppButton.vue';
 import DevMenu from '../DevMenu.vue';
+import BranchSwitcher from './BranchSwitcher.vue';
 import UserMenu from './UserMenu.vue';
 
 const palette = useCommandPalette();
 
 const route = useRoute();
 const auth = useAuthStore();
+const branchStore = useBranchStore();
 const isDev = import.meta.env.DEV;
+
+onMounted(() => {
+  branchStore.load();
+});
 
 const crumbs = computed(() => {
   const list: string[] = [];
@@ -42,6 +49,7 @@ const crumbs = computed(() => {
         <kbd class="num rounded border border-border px-1">Ctrl K</kbd>
       </button>
       <DevMenu v-if="isDev" />
+      <BranchSwitcher v-if="branchStore.showSwitcher" />
       <AppButton v-if="auth.can('pos', 'write')" to="/pos" size="sm" :icon="ShoppingCart">نقطة البيع</AppButton>
       <button
         type="button"

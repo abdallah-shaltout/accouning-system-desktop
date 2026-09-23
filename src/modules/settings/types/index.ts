@@ -1,3 +1,6 @@
+// v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md): Branch/CostCenter/Currency/ExchangeRate.
+export * from './dimensions';
+
 /**
  * Tax v2 (docs/v2/06-sales-and-pos.md §3, docs/v2/02-accounting-review.md D1/D2). The ZATCA tax
  * categories replace a single store rate:
@@ -164,5 +167,16 @@ export interface StoreSettings {
   sales?: {
     /** A return can be recorded without scanning/typing a receipt number (§1 "Return (F7)"). Default false. */
     refundWithoutReceipt?: boolean;
+  };
+  /**
+   * v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md §4, README decision "invisible until
+   * needed"): master switches for the three dimensions. All default OFF/undefined so a fresh company
+   * (and every existing screenshot/e2e flow from phases 0-8) looks exactly as before — no switcher,
+   * no extra columns, no filters — until the owner turns one on (or onboarding does, per the doc).
+   */
+  features?: {
+    branches?: boolean;
+    currencies?: boolean;
+    costCenters?: boolean;
   };
 }

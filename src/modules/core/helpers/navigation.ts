@@ -63,6 +63,8 @@ export const NAVIGATION: NavGroup[] = [
       { label: 'الجرد', to: '/inventory/counts', icon: ClipboardCheck, area: 'inventory' },
       { label: 'حركة المخزون', to: '/inventory/movements', icon: ArrowLeftRight, area: 'inventory' },
       { label: 'تقرير الصلاحية', to: '/inventory/expiry', icon: AlertTriangle, area: 'inventory' },
+      // v2 phase 9 (docs/v2/07 §4, deferred from phase 6): branch-to-branch stock transfers.
+      { label: 'تحويلات الفروع', to: '/inventory/transfers', icon: Truck, area: 'inventory' },
     ],
   },
   {
