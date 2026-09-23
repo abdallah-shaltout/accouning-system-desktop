@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Undo2 } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
+import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
@@ -15,7 +16,9 @@ import { useToast } from '@/modules/core/controllers/useToast';
 import { formatNumber } from '@/modules/core/helpers/format';
 import { num0 } from '@/modules/core/helpers/numbers';
 import { round2 } from '@/modules/invoices/helpers/totals';
-import { createPurchaseReturn, getPurchaseOrder } from '../services/purchaseService';
+import type { ProductBatch } from '@/modules/products/types';
+import { createPurchaseReturn, getActiveBatches, getPurchaseOrder } from '../services/purchaseService';
+import type { RefundMethod } from '../types';
 
 const route = useRoute();
 const router = useRouter();
@@ -25,13 +28,22 @@ const id = String(route.params.id);
 
 const { data, error, reload } = useAsync(() => getPurchaseOrder(id));
 const qty = ref<Record<string, number>>({});
-const reason = ref('عيوب تصنيع');
+const batchId = reactive<Record<string, string>>({});
+const batchesByProduct = ref<Record<string, ProductBatch[]>>({});
+const reason = ref('');
+const refundMethod = ref<RefundMethod>('credit');
 const saving = ref(false);
+const submitted = ref(false);
 
-watch(data, (d) => {
+watch(data, async (d) => {
   if (!d) return;
-  if (d.status !== 'CONFIRMED') router.replace(`/purchases/${id}`);
+  if (d.status !== 'RECEIVED') router.replace(`/purchases/${id}`);
   qty.value = Object.fromEntries(d.lines.map((l) => [l.productId, 0]));
+  for (const l of d.lines) {
+    if (d.products[l.productId]?.trackBatches) {
+      batchesByProduct.value[l.productId] = await getActiveBatches(l.productId);
+    }
+  }
 });
 
 /** Can't return more than was bought (minus earlier returns), nor more than is still in stock. */
@@ -52,16 +64,26 @@ const totals = computed(() => {
 const count = computed(() => Object.values(qty.value).reduce((a, n) => a + num0(n), 0));
 const invalid = computed(() => data.value?.lines.some((l) => num0(qty.value[l.productId]) > maxReturn(l.productId, l.qty)) ?? false);
 
+const refundOptions: { value: RefundMethod; label: string }[] = [
+  { value: 'credit', label: 'خصم من رصيد المورد (آجل)' },
+  { value: 'cash', label: 'استرداد نقدي' },
+  { value: 'bank_transfer', label: 'استرداد بنكي' },
+];
+
 async function submit() {
-  if (!data.value || !count.value || invalid.value) return;
+  submitted.value = true;
+  if (!data.value || !count.value || invalid.value || !reason.value.trim()) return;
   const ok = await confirm({ title: 'تأكيد المرتجع للمورد؟', message: 'ستُخصم الكميات من المخزون ويُخفض رصيد المورد.', confirmText: 'تأكيد' });
   if (!ok) return;
   saving.value = true;
   try {
     const ret = await createPurchaseReturn({
       purchaseOrderId: id,
-      reason: reason.value.trim() || undefined,
-      lines: data.value.lines.filter((l) => num0(qty.value[l.productId]) > 0).map((l) => ({ productId: l.productId, qty: num0(qty.value[l.productId]) })),
+      reason: reason.value.trim(),
+      refundMethod: refundMethod.value,
+      lines: data.value.lines
+        .filter((l) => num0(qty.value[l.productId]) > 0)
+        .map((l) => ({ productId: l.productId, qty: num0(qty.value[l.productId]), batchId: batchId[l.productId] || undefined })),
     });
     toast.success('تم تسجيل المرتجع', ret.number);
     router.push(`/purchases/${id}`);
@@ -87,6 +109,7 @@ async function submit() {
               <th class="px-3 py-2.5 text-start font-medium">المشترى</th>
               <th class="px-3 py-2.5 text-start font-medium">المتوفر حالياً</th>
               <th class="px-3 py-2.5 text-start font-medium">التكلفة</th>
+              <th class="px-3 py-2.5 text-start font-medium">التشغيلة</th>
               <th class="px-4 py-2.5 text-start font-medium">كمية الإرجاع</th>
             </tr>
           </thead>
@@ -96,6 +119,13 @@ async function submit() {
               <td class="px-3 py-2"><span class="num">{{ formatNumber(l.qty) }}</span></td>
               <td class="px-3 py-2"><span class="num text-text-secondary">{{ formatNumber(data.products[l.productId]?.stockQty) }}</span></td>
               <td class="px-3 py-2"><MoneyText :value="l.costPrice" plain /></td>
+              <td class="px-3 py-2">
+                <select v-if="data.products[l.productId]?.trackBatches && batchesByProduct[l.productId]?.length" v-model="batchId[l.productId]" class="control h-8 text-xs">
+                  <option value="">أقدم صلاحية (تلقائي)</option>
+                  <option v-for="b in batchesByProduct[l.productId]" :key="b.id" :value="b.id">{{ b.batchNo }} ({{ formatNumber(b.qty) }})</option>
+                </select>
+                <span v-else class="text-tiny text-text-secondary">—</span>
+              </td>
               <td class="px-4 py-2">
                 <input
                   v-model.number="qty[l.productId]"
@@ -114,13 +144,14 @@ async function submit() {
       </AppCard>
       <div class="space-y-4">
         <AppCard padding="sm">
-          <AppInput v-model="reason" label="سبب الإرجاع" />
+          <AppInput v-model="reason" label="سبب الإرجاع" required :error="submitted && !reason.trim() ? 'سبب الإرجاع مطلوب' : undefined" />
+          <div class="mt-3"><AppSelect v-model="refundMethod" label="طريقة الاسترداد" :options="refundOptions" /></div>
           <dl class="mt-4 space-y-1.5 text-body">
             <div class="flex justify-between"><dt class="text-text-secondary">قبل الضريبة</dt><dd><MoneyText :value="totals.sub" /></dd></div>
             <div class="flex justify-between"><dt class="text-text-secondary">الضريبة</dt><dd><MoneyText :value="totals.tax" /></dd></div>
             <div class="flex justify-between border-t border-border pt-1.5 font-semibold"><dt>قيمة المرتجع</dt><dd><MoneyText :value="totals.total" /></dd></div>
           </dl>
-          <p class="mt-3 text-tiny leading-5 text-text-secondary">يُخفض رصيد المورد بقيمة المرتجع؛ وإن كان الأمر مسدداً بالكامل يُسجل الفرق كمبلغ مسترد نقداً.</p>
+          <p class="mt-3 text-tiny leading-5 text-text-secondary">يُخفض رصيد المورد بقيمة المرتجع، أو يُسترد نقداً/بنكياً بحسب الطريقة المختارة.</p>
         </AppCard>
         <p v-if="invalid" class="text-xs text-danger">كمية الإرجاع تتجاوز الحد المسموح لأحد الأصناف</p>
         <AppButton variant="primary" block :icon="Undo2" :disabled="!count || invalid" :loading="saving" @click="submit">تسجيل المرتجع</AppButton>

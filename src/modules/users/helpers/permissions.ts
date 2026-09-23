@@ -4,7 +4,8 @@ import type { Access, Area, Role } from '../types';
  * Role presets (domain_model.md §10) — replaces the reference system's 100+ permission strings.
  *   admin       everything
  *   manager     everything except user management
- *   accountant  accounting, reports, payments (write); sales/purchases/inventory/parties read-only
+ *   accountant  accounting, reports, payments, sales (write, per docs/v2/01-personas.md §3 "Full
+ *               invoice form" + the role-matrix table); purchases/inventory/parties read-only
  *   cashier     POS/sales only, read-only inventory & customers, no accounting/reports
  *   storekeeper v2 (docs/v2/01-personas.md §5, README decision 10): inventory + receiving write,
  *               read-only catalog (except units/barcodes — see `roleCanEditUnits`), no accounting/
@@ -14,23 +15,23 @@ import type { Access, Area, Role } from '../types';
 export const ROLE_ACCESS: Record<Role, Record<Area, Access>> = {
   admin: {
     dashboard: 'write', pos: 'write', sales: 'write', inventory: 'write', parties: 'write',
-    purchases: 'write', accounting: 'write', payments: 'write', reports: 'write', users: 'write', settings: 'write',
+    purchases: 'write', expenses: 'write', accounting: 'write', payments: 'write', reports: 'write', users: 'write', settings: 'write',
   },
   manager: {
     dashboard: 'write', pos: 'write', sales: 'write', inventory: 'write', parties: 'write',
-    purchases: 'write', accounting: 'write', payments: 'write', reports: 'write', users: 'none', settings: 'write',
+    purchases: 'write', expenses: 'write', accounting: 'write', payments: 'write', reports: 'write', users: 'none', settings: 'write',
   },
   accountant: {
-    dashboard: 'read', pos: 'none', sales: 'read', inventory: 'read', parties: 'read',
-    purchases: 'read', accounting: 'write', payments: 'write', reports: 'write', users: 'none', settings: 'none',
+    dashboard: 'read', pos: 'none', sales: 'write', inventory: 'read', parties: 'read',
+    purchases: 'read', expenses: 'write', accounting: 'write', payments: 'write', reports: 'write', users: 'none', settings: 'none',
   },
   cashier: {
     dashboard: 'read', pos: 'write', sales: 'write', inventory: 'read', parties: 'read',
-    purchases: 'none', accounting: 'none', payments: 'none', reports: 'none', users: 'none', settings: 'none',
+    purchases: 'none', expenses: 'write', accounting: 'none', payments: 'none', reports: 'none', users: 'none', settings: 'none',
   },
   storekeeper: {
     dashboard: 'read', pos: 'none', sales: 'none', inventory: 'write', parties: 'read',
-    purchases: 'write', accounting: 'none', payments: 'none', reports: 'read', users: 'none', settings: 'none',
+    purchases: 'write', expenses: 'none', accounting: 'none', payments: 'none', reports: 'read', users: 'none', settings: 'none',
   },
 };
 

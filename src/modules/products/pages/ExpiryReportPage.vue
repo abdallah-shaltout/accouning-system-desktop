@@ -13,8 +13,13 @@ import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { formatDate, formatNumber } from '@/modules/core/helpers/format';
+import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { type ExpiryBucket, type ExpiryRow, getExpiryReport, returnBatchesToSupplier, writeOffExpiredBatches } from '../services/inventoryService';
+// v2 phase 8: completes the phase-6 stub into a real posted debit note (docs/v2/09-purchases-
+// payments-expenses.md "Debit notes v2" — "return expiring batch" shortcut).
+import { postDebitNoteDraft } from '@/modules/purchases/services/purchaseService';
+import type { RefundMethod } from '@/modules/purchases/types';
 
 const auth = useAuthStore();
 const toast = useToast();
@@ -26,6 +31,12 @@ const bucket = ref<ExpiryBucket | 'all'>('all');
 const selected = ref<Set<string>>(new Set());
 const returnOpen = ref(false);
 const busy = ref(false);
+const refundMethod = ref<RefundMethod>('credit');
+const refundOptions: { value: RefundMethod; label: string }[] = [
+  { value: 'credit', label: 'خصم من رصيد المورد (آجل)' },
+  { value: 'cash', label: 'استرداد نقدي' },
+  { value: 'bank_transfer', label: 'استرداد بنكي' },
+];
 
 async function load() {
   loading.value = true;
@@ -109,21 +120,29 @@ const returnSupplierName = computed(() => {
   return names.size === 1 ? [...names][0] : undefined;
 });
 
+/**
+ * v2 phase 8: the shortcut now goes all the way to a posted debit note — draft (phase 6's stub,
+ * kept as the intermediate record) then immediately posted against the batches' purchase order
+ * (stock out + AP reduced), instead of leaving a DRAFT that needed a separate purchases-screen step.
+ */
 async function confirmReturn() {
   const first = selectedRows.value[0];
   if (!first?.supplierId) {
-    toast.warning('لا يوجد مورد مرتبط بهذه التشغيلات — لا يمكن إنشاء مسودة إرجاع');
+    toast.warning('لا يوجد مورد مرتبط بهذه التشغيلات — لا يمكن إنشاء إرجاع');
     return;
   }
   busy.value = true;
   try {
-    await returnBatchesToSupplier(
+    const draft = await returnBatchesToSupplier(
       first.supplierId,
       selectedRows.value.map((r) => ({ productId: r.productId, batchId: r.id, qty: r.qty, unitCost: r.unitCost })),
+      'بضاعة منتهية/قاربت على انتهاء الصلاحية — من تقرير الصلاحية',
     );
-    toast.success('تم إنشاء مسودة إرجاع للمورد', 'بانتظار استكمالها من شاشة المشتريات (المرحلة القادمة)');
+    const debitNote = await postDebitNoteDraft(draft.id, refundMethod.value);
+    toast.success('تم تسجيل مرتجع المشتريات', debitNote.number);
     returnOpen.value = false;
     selected.value = new Set();
+    await load();
   } catch (err) {
     toast.error(err);
   } finally {
@@ -181,14 +200,14 @@ async function confirmReturn() {
 
     <AppModal v-model:open="returnOpen" title="إرجاع للمورد">
       <p class="text-body leading-6">
-        سيتم إنشاء <strong>مسودة إشعار مدين</strong> لـ <strong>{{ returnSupplierName ?? 'المورد' }}</strong> بالتشغيلات المحددة
-        ({{ formatNumber(selectedRows.length) }} تشغيلة). المسودة لا تُسجل قيداً محاسبياً ولا تُخرج البضاعة من المخزون — إكمال
-        عملية الإرجاع (خصم المخزون ورصيد المورد) يتم لاحقاً من شاشة المشتريات.
+        سيتم تسجيل <strong>مرتجع مشتريات (إشعار مدين)</strong> لـ <strong>{{ returnSupplierName ?? 'المورد' }}</strong> بالتشغيلات المحددة
+        ({{ formatNumber(selectedRows.length) }} تشغيلة) — خصم من المخزون وتخفيض رصيد المورد فوراً.
       </p>
+      <div class="mt-3"><AppSelect v-model="refundMethod" label="طريقة الاسترداد" :options="refundOptions" /></div>
       <p v-if="!returnSupplierName" class="mt-3 text-xs text-danger">التشغيلات المحددة تخص موردين مختلفين أو بلا مورد — حدد تشغيلات من نفس المورد.</p>
       <template #footer>
         <AppButton :disabled="busy" @click="returnOpen = false">إلغاء</AppButton>
-        <AppButton variant="primary" :disabled="!returnSupplierName" :loading="busy" @click="confirmReturn">إنشاء المسودة</AppButton>
+        <AppButton variant="primary" :disabled="!returnSupplierName" :loading="busy" @click="confirmReturn">تسجيل المرتجع</AppButton>
       </template>
     </AppModal>
   </div>

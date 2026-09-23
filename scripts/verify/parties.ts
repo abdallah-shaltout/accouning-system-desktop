@@ -76,7 +76,7 @@ export function run(): Result[] {
   const supAllocationMismatch = db.suppliers.filter((s) => {
     const outstanding = round2(
       db.purchaseOrders
-        .filter((p) => p.supplierId === s.id && p.status === 'CONFIRMED')
+        .filter((p) => p.supplierId === s.id && p.status === 'RECEIVED')
         .reduce((a, p) => a + (p.grandTotal - apReducedByReturns(p.id) - p.paidAmount), 0),
     );
     const credit = unallocatedCreditFor('supplier', s.id);

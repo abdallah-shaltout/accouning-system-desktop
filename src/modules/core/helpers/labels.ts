@@ -29,7 +29,8 @@ export const PAYMENT_STATUS: Record<PaymentStatus, { label: string; tone: Tone }
 
 export const PURCHASE_STATUS: Record<PurchaseStatus, { label: string; tone: Tone }> = {
   DRAFT: { label: 'مسودة', tone: 'neutral' },
-  CONFIRMED: { label: 'مؤكد', tone: 'success' },
+  ORDERED: { label: 'مرسل للمورد', tone: 'warning' },
+  RECEIVED: { label: 'مستلم', tone: 'success' },
   CANCELED: { label: 'ملغي', tone: 'danger' },
 };
 

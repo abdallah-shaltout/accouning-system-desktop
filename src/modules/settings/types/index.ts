@@ -143,4 +143,26 @@ export interface StoreSettings {
   inventoryApprovalThreshold?: number;
   /** v2 phase 6 (§6 "Role matrix editor") — sparse per-role area-access overrides on top of the presets. */
   roleAccessOverrides?: import('@/modules/users/helpers/permissions').RoleAccessOverrides;
+  /**
+   * v2 phase 7 POS settings (docs/v2/06-sales-and-pos.md §1). Kept as flat store-wide toggles
+   * (not a per-role permission-matrix entry — no `pos.*`/`sales.*` area exists in
+   * `modules/users/helpers/permissions.ts`'s `Area` type, and adding one is a bigger surface than
+   * this phase's scope) — `undefined` defaults to the safer choice for each (see each field).
+   */
+  pos?: {
+    /** Cashiers can type a custom price on a line at all. Default true (cashier `maxDiscount` already gates how far below list). */
+    overridePrice?: boolean;
+    /** Custom price is allowed below the product's cost — otherwise the floor is max(minPrice, cost). Default false. */
+    sellBelowCost?: boolean;
+    /** A shift must be open to sell from the POS (§5). Default true once the POS is enabled. */
+    requireOpenShift?: boolean;
+    /** Foreign-currency cash tender in the tender dialog (§1 "Foreign cash"). Default false — no FX-rate settings screen exists before Phase 9. */
+    foreignCashEnabled?: boolean;
+    foreignCurrency?: string;
+    foreignCurrencyRate?: number;
+  };
+  sales?: {
+    /** A return can be recorded without scanning/typing a receipt number (§1 "Return (F7)"). Default false. */
+    refundWithoutReceipt?: boolean;
+  };
 }

@@ -1,6 +1,6 @@
 import type { Account, FiscalYear, JournalEntry, JournalTemplate } from '@/modules/accounting/types';
 import type { ActivityEntry } from '@/modules/core/types';
-import type { Invoice, Refund } from '@/modules/invoices/types';
+import type { HeldSale, Invoice, Quotation, Refund, Shift } from '@/modules/invoices/types';
 import type { Customer, PartyGroup, PartyHistoryEntry, Supplier } from '@/modules/parties/types';
 import type { Payment } from '@/modules/payments/types';
 import type {
@@ -18,6 +18,8 @@ import type {
 import type { PurchaseOrder, PurchaseReturn } from '@/modules/purchases/types';
 import type { PaymentMethod, StoreSettings, Tax } from '@/modules/settings/types';
 import type { User } from '@/modules/users/types';
+import type { Expense, ExpenseCategory, RecurringExpense } from '@/modules/expenses/types';
+import type { CardSettlement, Voucher } from '@/modules/vouchers/types';
 
 /**
  * The in-memory "database" behind every mock service. It lives only for the lifetime of the
@@ -62,6 +64,12 @@ export interface MockDb {
   partyHistory: PartyHistoryEntry[];
   invoices: Invoice[];
   refunds: Refund[];
+  /** v2 phase 7 (docs/v2/06-sales-and-pos.md §2 "Quotations"). */
+  quotations: Quotation[];
+  /** v2 phase 7 (§1 "Held sales"): parked POS carts, one per terminal, surviving a reload. */
+  heldSales: HeldSale[];
+  /** v2 phase 7 (§5 "Shifts"). */
+  shifts: Shift[];
   purchaseOrders: PurchaseOrder[];
   purchaseReturns: PurchaseReturn[];
   payments: Payment[];
@@ -71,6 +79,19 @@ export interface MockDb {
   settings: StoreSettings;
   activity: ActivityEntry[];
   counters: Record<DocumentKind, number>;
+
+  // --- v2 phase 8 additions (docs/v2/09-purchases-payments-expenses.md §4, §5, §2) --------------
+
+  /** §4 — Settings → Expenses categories. */
+  expenseCategories: ExpenseCategory[];
+  /** §4 — posted expense vouchers. */
+  expenses: Expense[];
+  /** §4 "Recurring expenses" — template + next due date. */
+  recurringExpenses: RecurringExpense[];
+  /** §5 — general receipt/payment/transfer/owner vouchers. */
+  vouchers: Voucher[];
+  /** §2 — posted card/wallet settlement vouchers. */
+  cardSettlements: CardSettlement[];
 }
 
 export type DocumentKind =
@@ -82,7 +103,12 @@ export type DocumentKind =
   | 'journal'
   | 'adjustment'
   | 'stockCount'
-  | 'debitNoteDraft';
+  | 'debitNoteDraft'
+  | 'quotation'
+  | 'shift'
+  | 'expense'
+  | 'voucher'
+  | 'cardSettlement';
 
 export const db: MockDb = {
   users: [],
@@ -108,11 +134,19 @@ export const db: MockDb = {
   partyHistory: [],
   invoices: [],
   refunds: [],
+  quotations: [],
+  heldSales: [],
+  shifts: [],
   purchaseOrders: [],
   purchaseReturns: [],
   payments: [],
   taxes: [],
   paymentMethods: [],
+  expenseCategories: [],
+  expenses: [],
+  recurringExpenses: [],
+  vouchers: [],
+  cardSettlements: [],
   settings: {
     storeName: '',
     currency: 'SAR',
@@ -131,6 +165,11 @@ export const db: MockDb = {
     adjustment: 0,
     stockCount: 0,
     debitNoteDraft: 0,
+    quotation: 0,
+    shift: 0,
+    expense: 0,
+    voucher: 0,
+    cardSettlement: 0,
   },
 };
 
@@ -140,9 +179,14 @@ const PREFIX: Record<Exclude<DocumentKind, 'invoice'>, string> = {
   purchaseReturn: 'PR-',
   payment: 'PAY-',
   journal: 'JE-',
+  quotation: 'QUO-',
+  shift: 'SH-',
   adjustment: 'ADJ-',
   stockCount: 'CNT-',
   debitNoteDraft: 'DN-',
+  expense: 'EXP-',
+  voucher: 'VCH-',
+  cardSettlement: 'STL-',
 };
 
 /** Next human-readable document number, e.g. "INV-000457". */

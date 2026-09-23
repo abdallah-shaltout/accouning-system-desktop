@@ -1,34 +1,50 @@
 import { ApiError, clone, db, delay, inDateRange, includesText, session } from '@/mocks';
+import { activeBatchesFor } from '@/mocks/backend/inventory';
 import {
   cancelPurchase,
-  confirmPurchase,
+  duplicateSupplierInvoice,
+  getDebitNoteDrafts as getDebitNoteDraftsBackend,
+  missingSupplierInvoice,
+  postDebitNoteFromDraft,
   purchaseOutstanding,
+  receivePurchase,
   recordPurchaseReturn,
   returnedQtyByProduct,
   savePurchase,
+  sendPurchaseToSupplier,
 } from '@/mocks/backend/purchases';
+import type { ProductBatch } from '@/modules/products/types';
 import type { Supplier } from '@/modules/parties/types';
 import type { Payment } from '@/modules/payments/types';
-import type { PurchaseFilter, PurchaseOrder, PurchaseOrderInput, PurchaseReturn, PurchaseReturnInput } from '../types';
+import type {
+  PurchaseFilter,
+  PurchaseOrder,
+  PurchaseOrderInput,
+  PurchaseReturn,
+  PurchaseReturnInput,
+  ReceivePurchaseInput,
+} from '../types';
 
-export type PurchaseRow = PurchaseOrder & { supplierName: string; outstanding: number };
+export type PurchaseRow = PurchaseOrder & { supplierName: string; outstanding: number; missingSupplierInvoice: boolean };
 
 export interface PurchaseDetail extends PurchaseRow {
   supplier?: Supplier;
   /** productId → display info (names aren't snapshotted on PO lines). */
-  products: Record<string, { name: string; sku: string; stockQty: number; type: 'product' | 'service' }>;
+  products: Record<string, { name: string; sku: string; stockQty: number; type: 'product' | 'service'; trackBatches?: boolean }>;
   returns: PurchaseReturn[];
   payments: Payment[];
   journalEntries: { id: string; number: string; description: string }[];
   /** productId → quantity already returned to the supplier. */
   returnedQty: Record<string, number>;
+  duplicateInvoiceWarning?: string;
 }
 
 function toRow(po: PurchaseOrder): PurchaseRow {
   return {
     ...clone(po),
     supplierName: db.suppliers.find((s) => s.id === po.supplierId)?.name ?? '—',
-    outstanding: po.status === 'CONFIRMED' ? purchaseOutstanding(po) : 0,
+    outstanding: po.status === 'RECEIVED' ? purchaseOutstanding(po) : 0,
+    missingSupplierInvoice: missingSupplierInvoice(po),
   };
 }
 
@@ -57,11 +73,13 @@ export async function getPurchaseOrder(id: string): Promise<PurchaseDetail> {
   const products: PurchaseDetail['products'] = {};
   for (const line of po.lines) {
     const p = db.products.find((x) => x.id === line.productId);
-    if (p) products[p.id] = { name: p.name, sku: p.sku, stockQty: p.stockQty, type: p.type };
+    if (p) products[p.id] = { name: p.name, sku: p.sku, stockQty: p.stockQty, type: p.type, trackBatches: p.trackBatches };
   }
+  const supplier = db.suppliers.find((s) => s.id === po.supplierId);
+  const dup = po.supplierInvoiceNo && supplier ? duplicateSupplierInvoice(supplier.id, po.supplierInvoiceNo, po.id) : undefined;
   return {
     ...toRow(po),
-    supplier: clone(db.suppliers.find((s) => s.id === po.supplierId)),
+    supplier: clone(supplier),
     products,
     returns: clone(returns),
     payments: clone(payments),
@@ -69,6 +87,7 @@ export async function getPurchaseOrder(id: string): Promise<PurchaseDetail> {
       .filter((e) => e.sourceRef && sourceIds.has(e.sourceRef.id))
       .map((e) => ({ id: e.id, number: e.number, description: e.description })),
     returnedQty: Object.fromEntries(returnedQtyByProduct(id)),
+    duplicateInvoiceWarning: dup ? `رقم الفاتورة مستخدم من قبل في أمر الشراء ${dup.number} من نفس المورد` : undefined,
   };
 }
 
@@ -77,9 +96,23 @@ export async function savePurchaseOrder(input: PurchaseOrderInput, id?: string):
   return clone(savePurchase(input, session.userId, id));
 }
 
+export async function sendPurchaseOrderToSupplier(id: string): Promise<PurchaseOrder> {
+  await delay();
+  return clone(sendPurchaseToSupplier(id, session.userId));
+}
+
+/** v2 §2 receiving screen: "confirm receipt" posts stock + AP at the ORDER prices. */
+export async function receivePurchaseOrder(id: string, input: ReceivePurchaseInput): Promise<PurchaseOrder> {
+  await delay(300);
+  return clone(receivePurchase(id, input, session.userId));
+}
+
+/** Legacy one-step path (save-as-draft, then immediately receive in full at order prices) — still used by the "quick" flow / seed data. */
 export async function confirmPurchaseOrder(id: string): Promise<PurchaseOrder> {
   await delay(300);
-  return clone(confirmPurchase(id, session.userId));
+  const po = db.purchaseOrders.find((p) => p.id === id);
+  if (!po) throw new ApiError('أمر الشراء غير موجود', 'NOT_FOUND');
+  return clone(receivePurchase(id, { date: new Date().toISOString(), lines: po.lines.map((l) => ({ productId: l.productId, receivedQty: l.qty * (l.unitFactor ?? 1) - (l.receivedQty ?? 0) })) }, session.userId));
 }
 
 export async function cancelPurchaseOrder(id: string): Promise<PurchaseOrder> {
@@ -90,4 +123,21 @@ export async function cancelPurchaseOrder(id: string): Promise<PurchaseOrder> {
 export async function createPurchaseReturn(input: PurchaseReturnInput): Promise<PurchaseReturn> {
   await delay();
   return clone(recordPurchaseReturn(input, session.userId));
+}
+
+/** Batches remaining for a tracked product — the debit-note form's batch picker (v2 §4). */
+export async function getActiveBatches(productId: string): Promise<ProductBatch[]> {
+  await delay();
+  return clone(activeBatchesFor(productId));
+}
+
+/** v2 §4 "return expiring batch" shortcut — posts Phase 6's stubbed draft into a real debit note. */
+export async function getDebitNoteDrafts() {
+  await delay();
+  return clone(getDebitNoteDraftsBackend());
+}
+
+export async function postDebitNoteDraft(draftId: string, refundMethod: PurchaseReturnInput['refundMethod']): Promise<PurchaseReturn> {
+  await delay();
+  return clone(postDebitNoteFromDraft(draftId, refundMethod, session.userId));
 }

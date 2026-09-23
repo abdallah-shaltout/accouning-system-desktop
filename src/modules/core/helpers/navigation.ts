@@ -7,6 +7,7 @@ import {
   ChartColumn,
   ClipboardCheck,
   ClipboardList,
+  CreditCard,
   FolderTree,
   HandCoins,
   House,
@@ -46,7 +47,10 @@ export const NAVIGATION: NavGroup[] = [
     label: 'المبيعات',
     items: [
       { label: 'نقطة البيع', to: '/pos', icon: ShoppingCart, area: 'pos' },
+      { label: 'الورديات', to: '/pos/shifts', icon: Wallet, area: 'pos' },
       { label: 'الفواتير', to: '/invoices', icon: ReceiptText, area: 'sales' },
+      { label: 'فاتورة جديدة', to: '/sales/invoices/new', icon: Receipt, area: 'sales' },
+      { label: 'عروض الأسعار', to: '/sales/quotations', icon: ClipboardList, area: 'sales' },
     ],
   },
   {
@@ -73,6 +77,10 @@ export const NAVIGATION: NavGroup[] = [
     items: [{ label: 'أوامر الشراء', to: '/purchases', icon: ShoppingBag, area: 'purchases' }],
   },
   {
+    label: 'المصروفات',
+    items: [{ label: 'المصروفات', to: '/expenses', icon: Receipt, area: 'expenses' }],
+  },
+  {
     label: 'الحسابات',
     items: [
       { label: 'دليل الحسابات', to: '/accounting/accounts', icon: BookOpen, area: 'accounting' },
@@ -84,7 +92,11 @@ export const NAVIGATION: NavGroup[] = [
   },
   {
     label: 'المدفوعات',
-    items: [{ label: 'سندات القبض والصرف', to: '/payments', icon: HandCoins, area: 'payments' }],
+    items: [
+      { label: 'سندات القبض والصرف', to: '/payments', icon: HandCoins, area: 'payments' },
+      { label: 'تسوية البطاقات', to: '/payments/settlements', icon: CreditCard, area: 'payments' },
+      { label: 'السندات العامة', to: '/vouchers', icon: Wallet, area: 'payments' },
+    ],
   },
   {
     label: 'التقارير',

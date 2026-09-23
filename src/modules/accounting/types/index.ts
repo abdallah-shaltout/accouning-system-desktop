@@ -82,7 +82,15 @@ export type JournalSourceKind =
   | 'purchaseOrder'
   | 'purchaseReturn'
   | 'payment'
-  | 'stockAdjustment';
+  | 'stockAdjustment'
+  /** v2 phase 8 (docs/v2/09-purchases-payments-expenses.md §4): expense voucher. */
+  | 'expense'
+  /** v2 phase 8 (§5): general receipt / general payment / transfer / owner drawings-contribution. */
+  | 'voucher'
+  /** v2 phase 8 (§2): card/wallet settlement voucher. */
+  | 'settlement'
+  /** v2 phase 7 (docs/v2/06-sales-and-pos.md §5): shift-close cash variance / cash-drop postings. */
+  | 'shift';
 
 export interface JournalLine {
   id: string;

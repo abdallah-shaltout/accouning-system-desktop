@@ -126,7 +126,7 @@ export function seedHistory(now = new Date()): void {
 
   // --- Leave a few open items for the UI --------------------------------------------------------
   const today = new Date(now);
-  const lastConfirmed = [...db.purchaseOrders].reverse().find((p) => p.status === 'CONFIRMED');
+  const lastConfirmed = [...db.purchaseOrders].reverse().find((p) => p.status === 'RECEIVED');
   if (lastConfirmed) {
     const line = lastConfirmed.lines[0];
     const product = db.products.find((p) => p.id === line.productId);
@@ -318,7 +318,7 @@ function collect(time: string, day: Date, rnd: RandomSource) {
 
 function paySuppliers(time: string, day: Date, rnd: RandomSource) {
   const cutoff = new Date(day.getTime() - 4 * 86400_000).toISOString();
-  for (const po of db.purchaseOrders.filter((p) => p.status === 'CONFIRMED' && purchaseOutstanding(p) > 0 && p.date < cutoff)) {
+  for (const po of db.purchaseOrders.filter((p) => p.status === 'RECEIVED' && purchaseOutstanding(p) > 0 && p.date < cutoff)) {
     if (!rnd.chance(0.65)) continue;
     const outstanding = purchaseOutstanding(po);
     const amount = rnd.chance(0.6) ? outstanding : round2(Math.floor((outstanding * 0.5) / 100) * 100 || outstanding);

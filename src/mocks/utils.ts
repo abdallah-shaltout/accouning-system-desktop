@@ -26,7 +26,16 @@ export function getLatencyMode(): LatencyMode | null {
   return latencyOverride;
 }
 
+/**
+ * v2 phase 7 fix (docs/v2/06-sales-and-pos.md §7 "Speed... measured with the mock's latency
+ * switched off"): the dev-menu "0" latency mode now zeroes out an explicit `delay(ms)` call too,
+ * not only the randomized default — a caller's own realistic-latency number (e.g.
+ * `createSale`'s `delay(350)`) previously ignored the switch entirely, which made "latency off"
+ * measurements lie about real checkout speed. `'slow'`/`'realistic'`/unset still honor the
+ * caller's own `ms` exactly, unchanged.
+ */
 export function delay(ms?: number): Promise<void> {
+  if (latencyOverride === 'off') return Promise.resolve();
   if (ms !== undefined) return new Promise((resolve) => setTimeout(resolve, ms));
   const { min, max } = latencyOverride ? LATENCY_PRESETS[latencyOverride] : MOCK_LATENCY;
   const wait = min + Math.random() * (max - min);

@@ -55,6 +55,11 @@ const SOURCE_LABEL: Record<string, string> = {
   purchaseReturn: 'مرتجع مشتريات',
   payment: 'سند',
   stockAdjustment: 'تسوية مخزون',
+  // v2 phase 8 (docs/v2/09-purchases-payments-expenses.md §4-§5, §2).
+  expense: 'مصروف',
+  voucher: 'سند عام',
+  settlement: 'تسوية بطاقات',
+  shift: 'إغلاق وردية',
 };
 const TYPE_LABEL: Record<JournalEntryType, string> = {
   SYSTEM: 'قيد آلي',

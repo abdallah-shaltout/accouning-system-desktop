@@ -17,7 +17,7 @@ import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getPurchaseOrders, type PurchaseRow } from '../services/purchaseService';
 
-type View = 'all' | 'DRAFT' | 'CONFIRMED' | 'open' | 'CANCELED';
+type View = 'all' | 'DRAFT' | 'ORDERED' | 'RECEIVED' | 'open' | 'CANCELED';
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -40,7 +40,8 @@ const viewOptions = computed(() =>
     [
       ['all', 'الكل'],
       ['DRAFT', 'مسودات'],
-      ['CONFIRMED', 'مؤكدة'],
+      ['ORDERED', 'مرسلة'],
+      ['RECEIVED', 'مستلمة'],
       ['open', 'غير مسددة'],
       ['CANCELED', 'ملغاة'],
     ] as [View, string][]
@@ -91,7 +92,7 @@ const columns: Column<PurchaseRow>[] = [
       <template #cell-status="{ row }">
         <StatusBadge :tone="PURCHASE_STATUS[row.status].tone" :label="PURCHASE_STATUS[row.status].label" />
         <StatusBadge
-          v-if="row.status === 'CONFIRMED' && row.paymentStatus !== 'PAID'"
+          v-if="row.status === 'RECEIVED' && row.paymentStatus !== 'PAID'"
           class="ms-1.5"
           :tone="PAYMENT_STATUS[row.paymentStatus].tone"
           :label="PAYMENT_STATUS[row.paymentStatus].label"

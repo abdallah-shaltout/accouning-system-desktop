@@ -44,4 +44,6 @@ export const settingsFixture: StoreSettings = {
   phone: '0112345678',
   commercialRegister: '1010123456',
   receiptFooter: 'شكراً لتسوقكم معنا — الاستبدال خلال 7 أيام مع الفاتورة',
+  pos: { overridePrice: true, sellBelowCost: false, requireOpenShift: true, foreignCashEnabled: false },
+  sales: { refundWithoutReceipt: false },
 };

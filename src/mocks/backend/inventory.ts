@@ -86,8 +86,13 @@ export function isBatchNearExpiry(batch: ProductBatch, alertDays: number, today 
   return days <= alertDays;
 }
 
-/** Receive a batch (STOCK_IN of a tracked product): creates a new lot row. */
-function receiveBatch(productId: string, qty: number, unitCost: number, batchNo: string, expiryDate: string | undefined, date: string, ref: { id: string; number: string }): ProductBatch {
+/**
+ * Receive a batch (STOCK_IN of a tracked product, or a purchase receipt — v2 phase 8 reuses this
+ * for the receiving screen's batch capture, docs/v2/09-purchases-payments-expenses.md §1): creates
+ * a new lot row. Exported for `backend/purchases.ts`; every other caller in this file still goes
+ * through it unqualified (same module).
+ */
+export function receiveBatch(productId: string, qty: number, unitCost: number, batchNo: string, expiryDate: string | undefined, date: string, ref: { id: string; number: string }): ProductBatch {
   const batch: ProductBatch = {
     id: uid('batch'),
     productId,

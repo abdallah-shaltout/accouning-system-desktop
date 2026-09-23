@@ -41,7 +41,7 @@ function openDocumentsFor(targetType: 'customer' | 'supplier', targetId: string)
       }));
   }
   return db.purchaseOrders
-    .filter((p) => p.supplierId === targetId && p.status === 'CONFIRMED' && purchaseOutstanding(p) > 0)
+    .filter((p) => p.supplierId === targetId && p.status === 'RECEIVED' && purchaseOutstanding(p) > 0)
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((p) => ({
       id: p.id,

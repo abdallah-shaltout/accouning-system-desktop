@@ -10,7 +10,11 @@ export type ActivityKind =
   | 'party'
   | 'user'
   | 'settings'
-  | 'auth';
+  | 'auth'
+  | 'shift'
+  /** v2 phase 8 (docs/v2/09-purchases-payments-expenses.md §4-§5): expenses and general vouchers. */
+  | 'expense'
+  | 'voucher';
 
 export interface ActivityEntry {
   id: string;

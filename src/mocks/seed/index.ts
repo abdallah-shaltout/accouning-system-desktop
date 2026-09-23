@@ -12,7 +12,9 @@ import { postOpeningCapital, seedAccounts } from './accounts';
 import { postOpeningStock, seedCatalog } from './catalog';
 import { seedPeople } from './people';
 import { seedSettings } from './settings';
+import { seedShifts } from './shifts';
 import { ADMIN, seedHistory } from './history';
+import { seedPurchases8 } from './purchases8';
 
 /**
  * Full demo seed: fixtures for every area, the opening position, then a deterministic replay of
@@ -35,6 +37,11 @@ export function seedDatabase(now = new Date()): void {
   postOpeningStock(stockDate.toISOString(), ADMIN);
 
   seedHistory(now);
+  seedShifts(now);
+  // v2 phase 8 (docs/v2/09-purchases-payments-expenses.md): purchase v2/landed-cost/expense/voucher/
+  // card-settlement demo data. Runs last — the card settlement needs seedHistory's card tenders.
+  // usr-2/usr-3 are history.ts's MANAGER/ACCOUNTANT seed users (not exported; same fixture ids).
+  seedPurchases8(now, ADMIN, 'usr-3', 'usr-2');
 }
 
 /**

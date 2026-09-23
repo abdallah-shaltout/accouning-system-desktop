@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { Ban, BookOpen, HandCoins, PackageCheck, Pencil, Undo2 } from '@lucide/vue';
+import { AlertTriangle, Ban, BookOpen, HandCoins, PackageCheck, Pencil, Printer, Send, Undo2 } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
@@ -15,7 +15,7 @@ import { useToast } from '@/modules/core/controllers/useToast';
 import { formatDate, formatDateTime, formatNumber } from '@/modules/core/helpers/format';
 import { PAYMENT_METHOD_LABEL, PAYMENT_STATUS, PURCHASE_STATUS } from '@/modules/core/helpers/labels';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
-import { cancelPurchaseOrder, confirmPurchaseOrder, getPurchaseOrder } from '../services/purchaseService';
+import { cancelPurchaseOrder, getPurchaseOrder, sendPurchaseOrderToSupplier } from '../services/purchaseService';
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -26,22 +26,7 @@ const id = String(route.params.id);
 const { data, error, reload } = useAsync(() => getPurchaseOrder(id));
 const po = computed(() => data.value);
 const canWrite = computed(() => auth.can('purchases', 'write'));
-const busy = ref<'confirm' | 'cancel' | null>(null);
-
-async function doConfirm() {
-  const ok = await confirm({ title: `تأكيد ${po.value?.number} واستلام البضاعة؟`, message: 'ستُضاف الكميات للمخزون ويُسجل القيد المحاسبي.', confirmText: 'تأكيد الاستلام' });
-  if (!ok) return;
-  busy.value = 'confirm';
-  try {
-    await confirmPurchaseOrder(id);
-    toast.success('تم استلام البضاعة', po.value?.number);
-    reload();
-  } catch (err) {
-    toast.error(err);
-  } finally {
-    busy.value = null;
-  }
-}
+const busy = ref<'cancel' | 'send' | null>(null);
 
 async function doCancel() {
   const ok = await confirm({ title: `إلغاء ${po.value?.number}؟`, confirmText: 'إلغاء الأمر', cancelText: 'تراجع', danger: true });
@@ -50,6 +35,19 @@ async function doCancel() {
   try {
     await cancelPurchaseOrder(id);
     toast.success('تم إلغاء أمر الشراء');
+    reload();
+  } catch (err) {
+    toast.error(err);
+  } finally {
+    busy.value = null;
+  }
+}
+
+async function doSend() {
+  busy.value = 'send';
+  try {
+    await sendPurchaseOrderToSupplier(id);
+    toast.success('تم إرسال أمر الشراء للمورد');
     reload();
   } catch (err) {
     toast.error(err);
@@ -66,7 +64,7 @@ async function doCancel() {
       <PageHeader :title="po ? `أمر شراء ${po.number}` : '…'" back="/purchases">
         <template v-if="po" #badge>
           <StatusBadge :tone="PURCHASE_STATUS[po.status].tone" :label="PURCHASE_STATUS[po.status].label" />
-          <StatusBadge v-if="po.status === 'CONFIRMED'" :tone="PAYMENT_STATUS[po.paymentStatus].tone" :label="PAYMENT_STATUS[po.paymentStatus].label" />
+          <StatusBadge v-if="po.status === 'RECEIVED'" :tone="PAYMENT_STATUS[po.paymentStatus].tone" :label="PAYMENT_STATUS[po.paymentStatus].label" />
         </template>
         <template v-if="po" #subtitle>
           <RouterLink :to="`/suppliers/${po.supplierId}`" class="hover:text-primary">{{ po.supplierName }}</RouterLink> ·
@@ -76,9 +74,15 @@ async function doCancel() {
           <template v-if="po.status === 'DRAFT'">
             <AppButton variant="danger" :icon="Ban" :loading="busy === 'cancel'" @click="doCancel">إلغاء</AppButton>
             <AppButton :icon="Pencil" :to="`/purchases/${id}/edit`">تعديل</AppButton>
-            <AppButton variant="primary" :icon="PackageCheck" :loading="busy === 'confirm'" @click="doConfirm">تأكيد واستلام</AppButton>
+            <AppButton :icon="Send" :loading="busy === 'send'" @click="doSend">إرسال للمورد</AppButton>
+            <AppButton variant="primary" :icon="PackageCheck" :to="`/purchases/${id}/receive`">استلام</AppButton>
           </template>
-          <template v-else-if="po.status === 'CONFIRMED'">
+          <template v-else-if="po.status === 'ORDERED'">
+            <AppButton variant="danger" :icon="Ban" :loading="busy === 'cancel'" @click="doCancel">إلغاء</AppButton>
+            <AppButton :icon="Printer" :to="`/print/purchases/${id}`">طباعة أمر الشراء</AppButton>
+            <AppButton variant="primary" :icon="PackageCheck" :to="`/purchases/${id}/receive`">استلام</AppButton>
+          </template>
+          <template v-else-if="po.status === 'RECEIVED'">
             <AppButton :icon="Undo2" :to="`/purchases/${id}/return`">مرتجع للمورد</AppButton>
             <AppButton
               v-if="po.outstanding > 0 && auth.can('payments', 'write')"
@@ -91,6 +95,19 @@ async function doCancel() {
           </template>
         </template>
       </PageHeader>
+
+      <div v-if="po?.missingSupplierInvoice" class="mb-4 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-warning">
+        <AlertTriangle class="mt-0.5 size-4 shrink-0" />
+        <span>رقم فاتورة المورد وتاريخها غير مدخلين بعد.</span>
+      </div>
+      <div v-if="po?.duplicateInvoiceWarning" class="mb-4 flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2.5 text-xs text-danger">
+        <AlertTriangle class="mt-0.5 size-4 shrink-0" />
+        <span>{{ po.duplicateInvoiceWarning }}</span>
+      </div>
+      <div v-if="po?.vatNotRecoverable" class="mb-4 flex items-start gap-2 rounded-lg border border-border bg-surface px-3 py-2.5 text-xs text-text-secondary">
+        <AlertTriangle class="mt-0.5 size-4 shrink-0" />
+        <span>المورد بدون رقم ضريبي — لم تُحتسب ضريبة المدخلات مستردة، وأُضيفت إلى تكلفة البضاعة.</span>
+      </div>
 
       <div class="grid items-start gap-5 xl:grid-cols-[1fr_320px]">
         <div class="space-y-5">
@@ -163,6 +180,14 @@ async function doCancel() {
               <div class="flex justify-between font-medium"><dt>المتبقي للمورد</dt><dd><MoneyText :value="po.outstanding" /></dd></div>
             </dl>
             <p v-if="po?.note" class="mt-3 border-t border-border pt-2 text-xs text-text-secondary">{{ po.note }}</p>
+          </AppCard>
+          <AppCard v-if="po?.landedCosts?.length" title="تكاليف إضافية" padding="none">
+            <ul class="divide-y divide-border text-body">
+              <li v-for="lc in po.landedCosts" :key="lc.id" class="flex items-center justify-between px-4 py-2.5">
+                <span>{{ lc.label }}</span>
+                <MoneyText :value="lc.amount" />
+              </li>
+            </ul>
           </AppCard>
           <AppCard v-if="po?.journalEntries.length && auth.can('accounting')" title="القيود المحاسبية" padding="none">
             <ul class="divide-y divide-border text-body">

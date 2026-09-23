@@ -63,7 +63,19 @@ export function run(): Result[] {
   results.push(check(balanceSheetOk, `balance sheet balanced: A (${assets}) = L (${liabilities}) + E incl. current result (${equity})`));
 
   // 7. Every posted document has exactly one active entry (or an entry + reversal pair); every sourceRef resolves.
-  const sourceKinds = new Set(['invoice', 'refund', 'purchaseOrder', 'purchaseReturn', 'payment', 'stockAdjustment']);
+  const sourceKinds = new Set([
+    'invoice',
+    'refund',
+    'purchaseOrder',
+    'purchaseReturn',
+    'payment',
+    'stockAdjustment',
+    // v2 phase 7 (shift close cash variance/drop) + phase 8 (expenses, general vouchers, card settlement).
+    'shift',
+    'expense',
+    'voucher',
+    'settlement',
+  ]);
   const badSourceRefs = db.journalEntries.filter((e) => e.sourceRef && !sourceKinds.has(e.sourceRef.kind));
   results.push(check(badSourceRefs.length === 0, `every entry's sourceRef has a known kind (${badSourceRefs.length} unrecognized)`));
 

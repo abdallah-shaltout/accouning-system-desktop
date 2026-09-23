@@ -207,7 +207,7 @@ export async function writeOffExpiredBatches(batchIds: string[], note?: string):
   return clone(writeOffBatches(batchIds, session.userId, note));
 }
 
-/** TODO(phase 8): draft-only stub — see backend/inventory.ts `draftReturnToSupplier`. */
+/** v2 phase 8: still creates the intermediate DRAFT (backend/inventory.ts `draftReturnToSupplier`) — `ExpiryReportPage.vue` immediately posts it into a real debit note via `purchaseService.postDebitNoteDraft`. */
 export async function returnBatchesToSupplier(
   supplierId: string,
   lines: { productId: string; batchId: string; qty: number; unitCost: number }[],

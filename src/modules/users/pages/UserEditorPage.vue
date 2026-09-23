@@ -83,6 +83,7 @@ const AREA_LABEL: Record<Area, string> = {
   inventory: 'المنتجات والمخزون',
   parties: 'العملاء والموردين',
   purchases: 'المشتريات',
+  expenses: 'المصروفات',
   accounting: 'الحسابات والقيود',
   payments: 'سندات القبض والصرف',
   reports: 'التقارير',

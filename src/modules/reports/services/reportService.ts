@@ -362,13 +362,23 @@ export async function getVatReport(range: DateRangeInput): Promise<VatReport> {
   await delay();
   const invoices = db.invoices.filter((i) => inDateRange(i.date, range.from, range.to));
   const refunds = db.refunds.filter((r) => inDateRange(r.date, range.from, range.to));
-  const pos = db.purchaseOrders.filter((p) => p.status === 'CONFIRMED' && inDateRange(p.date, range.from, range.to));
-  const pReturns = db.purchaseReturns.filter((r) => inDateRange(r.date, range.from, range.to));
+  // v2 phase 8 (docs/v2/09-purchases-payments-expenses.md §1 "VAT", review E3): a non-VAT
+  // supplier's receipt never claims input VAT — it's added to cost instead — so it (and its debit
+  // notes) are excluded here, same as `scripts/verify/sales.ts`'s invariant. Tax-invoice expenses
+  // (§4) also claim input VAT and are added in so this reconciles with the vatInput ledger.
+  const pos = db.purchaseOrders.filter((p) => p.status === 'RECEIVED' && !p.vatNotRecoverable && inDateRange(p.date, range.from, range.to));
+  const recoverablePoIds = new Set(db.purchaseOrders.filter((p) => p.status === 'RECEIVED' && !p.vatNotRecoverable).map((p) => p.id));
+  const pReturns = db.purchaseReturns.filter((r) => recoverablePoIds.has(r.purchaseOrderId) && inDateRange(r.date, range.from, range.to));
+  const expenses = db.expenses.filter((e) => e.isTaxInvoice && inDateRange(e.date, range.from, range.to));
 
   const salesBoxData = salesVatBoxes(invoices, refunds);
   const sales = { taxable: sum(invoices, (i) => i.subTotal - i.discountAmount), vat: sum(invoices, (i) => i.taxAmount), count: invoices.length };
   const salesReturns = { taxable: sum(refunds, (r) => r.subTotal), vat: sum(refunds, (r) => r.taxAmount), count: refunds.length };
-  const purchases = { taxable: sum(pos, (p) => p.subTotal), vat: sum(pos, (p) => p.taxAmount), count: pos.length };
+  const purchases = {
+    taxable: round2(sum(pos, (p) => p.subTotal) + sum(expenses, (e) => e.netAmount)),
+    vat: round2(sum(pos, (p) => p.taxAmount) + sum(expenses, (e) => e.taxAmount)),
+    count: pos.length + expenses.length,
+  };
   const purchaseReturns = { taxable: sum(pReturns, (r) => r.subTotal), vat: sum(pReturns, (r) => r.taxAmount), count: pReturns.length };
   const outputVat = round2(sales.vat - salesReturns.vat);
   const inputVat = round2(purchases.vat - purchaseReturns.vat);

@@ -35,6 +35,9 @@ export type Area =
   | 'inventory'
   | 'parties'
   | 'purchases'
+  /** v2 phase 8 (docs/v2/01-personas.md §5 role matrix "expenses" row) — its own area: cashier gets
+   *  write (pay-out from drawer) despite having no purchases access at all. */
+  | 'expenses'
   | 'accounting'
   | 'payments'
   | 'reports'
