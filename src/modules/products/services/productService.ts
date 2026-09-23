@@ -1,6 +1,8 @@
 import { ApiError, clone, db, delay, includesText, session, uid } from '@/mocks';
 import { logActivity } from '@/mocks/backend/core';
 import { recordStockAdjustment } from '@/mocks/backend/inventory';
+import { emit } from '@/mocks/events';
+import { mutate } from '@/mocks/persist';
 import type { Product, ProductFilter, ProductInput } from '../types';
 
 export function isLowStock(p: Product): boolean {
@@ -67,7 +69,7 @@ export async function createProduct(input: ProductInput): Promise<Product> {
   await delay();
   validate(input);
   const product: Product = { id: uid('prd'), ...normalize(input), stockQty: 0 };
-  db.products.push(product);
+  mutate(() => db.products.push(product));
   // Opening stock goes through a real STOCK_IN adjustment so it has a movement + journal entry.
   if (product.type === 'product' && (input.openingQty ?? 0) > 0) {
     recordStockAdjustment(
@@ -76,6 +78,7 @@ export async function createProduct(input: ProductInput): Promise<Product> {
     );
   }
   logActivity('product', `إضافة المنتج ${product.name}`, session.userId, new Date().toISOString(), `/products/${product.id}`);
+  emit('catalog:changed');
   return clone(product);
 }
 
@@ -87,8 +90,9 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Pr
   if (input.type !== product.type && product.stockQty !== 0) {
     throw new ApiError('لا يمكن تحويل منتج له رصيد مخزون إلى خدمة — صفّر المخزون أولاً');
   }
-  Object.assign(product, normalize(input));
+  mutate(() => Object.assign(product, normalize(input)));
   logActivity('product', `تعديل المنتج ${product.name}`, session.userId, new Date().toISOString(), `/products/${product.id}`);
+  emit('catalog:changed');
   return clone(product);
 }
 

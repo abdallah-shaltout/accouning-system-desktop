@@ -1,5 +1,6 @@
 import type { JournalEntry, JournalEntryInput } from '@/modules/accounting/types';
 import { db } from '../db';
+import { mutate } from '../persist';
 import { ApiError } from '../utils';
 import { logActivity, postJournal } from './core';
 
@@ -37,8 +38,10 @@ export function reverseJournal(id: string, userId: string): JournalEntry {
     lines: original.lines.map((l) => ({ accountId: l.accountId, description: l.description, debit: l.credit, credit: l.debit })),
     createdBy: userId,
   });
-  reversal.reversalOfId = original.id;
-  original.reversed = true;
+  mutate(() => {
+    reversal.reversalOfId = original.id;
+    original.reversed = true;
+  });
   logActivity('journal', `عكس القيد ${original.number}`, userId, reversal.date, `/accounting/journal/${reversal.id}`);
   return reversal;
 }

@@ -1,6 +1,8 @@
 import type { Invoice, JournalPreviewLine, Refund, RefundInput, SaleInput } from '@/modules/invoices/types';
 import { computeSaleTotals, invoiceOutstanding, paymentStatusFor } from '@/modules/invoices/helpers/totals';
 import { db, nextNumber } from '../db';
+import { emit } from '../events';
+import { mutate } from '../persist';
 import { ApiError, round2, sum, uid } from '../utils';
 import {
   accountByCode,
@@ -132,7 +134,7 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
     tenderedAmount: input.paymentMethod === 'cash' ? input.tenderedAmount : undefined,
     note: input.note,
   };
-  db.invoices.push(invoice);
+  mutate(() => db.invoices.push(invoice));
 
   for (const line of invoice.lines) {
     applyStockChange(productById(line.productId), -line.qty, 'sale', invoice, date);
@@ -155,6 +157,7 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
     date,
     `/invoices/${invoice.id}`,
   );
+  if (invoice.customerId) emit('parties:changed');
   return invoice;
 }
 
@@ -222,11 +225,12 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
     settledToReceivable,
     cashBack,
   };
-  db.refunds.push(refund);
-
-  invoice.refundedAmount = round2(invoice.refundedAmount + grandTotal);
-  if (isFinal) invoice.status = 'REFUNDED';
-  invoice.paymentStatus = paymentStatusFor(invoice.grandTotal - invoice.refundedAmount, invoice.paidAmount);
+  mutate(() => {
+    db.refunds.push(refund);
+    invoice.refundedAmount = round2(invoice.refundedAmount + grandTotal);
+    if (isFinal) invoice.status = 'REFUNDED';
+    invoice.paymentStatus = paymentStatusFor(invoice.grandTotal - invoice.refundedAmount, invoice.paidAmount);
+  });
 
   for (const line of lines) {
     const invLine = invoice.lines.find((l) => l.id === line.invoiceLineId)!;
@@ -250,5 +254,6 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
   });
 
   logActivity('refund', `مرتجع ${refund.number} على الفاتورة ${invoice.number} بقيمة ${grandTotal.toFixed(2)}`, userId, date, `/invoices/${invoice.id}`);
+  if (invoice.customerId) emit('parties:changed');
   return refund;
 }

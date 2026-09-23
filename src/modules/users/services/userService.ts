@@ -1,5 +1,6 @@
 import { ApiError, clone, db, delay, session, uid } from '@/mocks';
 import { logActivity } from '@/mocks/backend/core';
+import { mutate } from '@/mocks/persist';
 import type { User, UserInput } from '../types';
 
 export async function getUsers(): Promise<User[]> {
@@ -26,8 +27,10 @@ export async function createUser(input: UserInput): Promise<User> {
   if (!input.password) throw new ApiError('كلمة المرور مطلوبة للمستخدم الجديد');
   const { password, ...fields } = input;
   const user: User = { id: uid('usr'), ...fields, username: fields.username.trim() };
-  db.users.push(user);
-  db.credentials[user.username] = password;
+  mutate(() => {
+    db.users.push(user);
+    db.credentials[user.username] = password;
+  });
   logActivity('user', `إضافة المستخدم ${user.name}`, session.userId, new Date().toISOString(), `/users/${user.id}`);
   return clone(user);
 }
@@ -42,12 +45,14 @@ export async function updateUser(id: string, input: UserInput): Promise<User> {
   }
   const { password, ...fields } = input;
   const oldUsername = user.username;
-  Object.assign(user, fields, { username: fields.username.trim(), priceListId: fields.priceListId || undefined });
-  if (oldUsername !== user.username) {
-    db.credentials[user.username] = db.credentials[oldUsername];
-    delete db.credentials[oldUsername];
-  }
-  if (password) db.credentials[user.username] = password;
+  mutate(() => {
+    Object.assign(user, fields, { username: fields.username.trim(), priceListId: fields.priceListId || undefined });
+    if (oldUsername !== user.username) {
+      db.credentials[user.username] = db.credentials[oldUsername];
+      delete db.credentials[oldUsername];
+    }
+    if (password) db.credentials[user.username] = password;
+  });
   logActivity('user', `تعديل بيانات المستخدم ${user.name}`, session.userId, new Date().toISOString(), `/users/${user.id}`);
   return clone(user);
 }

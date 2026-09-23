@@ -2,6 +2,8 @@ import type { Account, JournalEntry, JournalSourceKind } from '@/modules/account
 import type { ActivityKind } from '@/modules/core/types';
 import type { Product, StockMovementReason } from '@/modules/products/types';
 import { db, nextNumber } from '../db';
+import { emit } from '../events';
+import { mutate } from '../persist';
 import { ApiError, round2, sum, uid } from '../utils';
 
 // ---------------------------------------------------------------------------------------------
@@ -41,6 +43,12 @@ export function resolvePosting(lines: PostingLine[]) {
   return { lines: resolved, totalDebit, totalCredit };
 }
 
+/**
+ * Posts a journal entry. This is the mock backend's single choke point for every ledger posting
+ * (sales, purchases, payments, inventory, manual journal all funnel through it), so it's where
+ * `mutate()` (debounced IndexedDB snapshot) and the `ledger:changed` event are wired in — callers
+ * don't need their own `mutate()` wrapper just for the posting itself.
+ */
 export function postJournal(opts: {
   date: string;
   description: string;
@@ -63,7 +71,8 @@ export function postJournal(opts: {
     totalCredit,
     createdBy: opts.createdBy,
   };
-  db.journalEntries.push(entry);
+  mutate(() => db.journalEntries.push(entry));
+  emit('ledger:changed');
   return entry;
 }
 
@@ -91,16 +100,18 @@ export function applyStockChange(
   date: string,
 ): void {
   if (product.type === 'service' || qtyChange === 0) return;
-  product.stockQty = round2(product.stockQty + qtyChange);
-  db.stockMovements.push({
-    id: uid('mv'),
-    date,
-    productId: product.id,
-    qtyChange,
-    reason,
-    refId: ref.id,
-    refNumber: ref.number,
-    balanceAfter: product.stockQty,
+  mutate(() => {
+    product.stockQty = round2(product.stockQty + qtyChange);
+    db.stockMovements.push({
+      id: uid('mv'),
+      date,
+      productId: product.id,
+      qtyChange,
+      reason,
+      refId: ref.id,
+      refNumber: ref.number,
+      balanceAfter: product.stockQty,
+    });
   });
 }
 
@@ -109,7 +120,7 @@ export function applyStockChange(
 // ---------------------------------------------------------------------------------------------
 
 export function logActivity(kind: ActivityKind, message: string, userId: string, date: string, link?: string): void {
-  db.activity.push({ id: uid('act'), kind, message, userId, date, link });
+  mutate(() => db.activity.push({ id: uid('act'), kind, message, userId, date, link }));
 }
 
 // ---------------------------------------------------------------------------------------------

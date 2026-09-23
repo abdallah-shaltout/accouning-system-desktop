@@ -4,6 +4,12 @@ const section = 'الإدارة';
 
 const routes: RouteRecordRaw[] = [
   {
+    path: '/welcome',
+    name: 'welcome',
+    component: () => import('../pages/WelcomePage.vue'),
+    meta: { public: true, layout: 'blank', title: 'مرحباً بك' },
+  },
+  {
     path: '/login',
     name: 'login',
     component: () => import('../pages/LoginPage.vue'),

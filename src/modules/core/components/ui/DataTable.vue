@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { computed, ref, watch, type Component } from 'vue';
+import { computed, ref, shallowRef, watch, type Component } from 'vue';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from '@lucide/vue';
 import { formatNumber } from '../../helpers/format';
 import EmptyState from './EmptyState.vue';
@@ -19,10 +19,24 @@ export interface Column<R = any> {
   noPrint?: boolean;
 }
 
+export interface ServerPageQuery<F = any> {
+  page: number;
+  pageSize: number;
+  sort: { key: string; dir: 'asc' | 'desc' } | null;
+  filters?: F;
+}
+
+export interface ServerPageResult<R> {
+  rows: R[];
+  total: number;
+  totals?: Record<string, number>;
+}
+
 const props = withDefaults(
   defineProps<{
     columns: Column<T>[];
-    rows: T[] | undefined;
+    /** Plain-array (client) mode: the full row set, sorted/paginated in the browser. Ignored when `fetchPage` is set. */
+    rows?: T[] | undefined;
     rowKey?: string;
     loading?: boolean;
     error?: string | null;
@@ -36,15 +50,26 @@ const props = withDefaults(
     highlightKey?: string;
     skeletonRows?: number;
     sticky?: boolean;
+    /**
+     * Server mode: when provided, the table calls this instead of using `rows` + client-side
+     * sort/paginate. `filters` (any shape the caller's service expects) is passed through
+     * unchanged on every call; the table re-calls whenever page/sort/`filters` change.
+     */
+    fetchPage?: (query: ServerPageQuery) => Promise<ServerPageResult<T>>;
+    filters?: any;
   }>(),
   { rowKey: 'id', pageSize: 25, skeletonRows: 8, emptyTitle: 'لا توجد سجلات' },
 );
 
 const emit = defineEmits<{ 'row-click': [row: T]; retry: [] }>();
 
+const isServerMode = computed(() => !!props.fetchPage);
+
 const sortKey = ref<string | null>(null);
 const sortDir = ref<'asc' | 'desc'>('asc');
 const page = ref(1);
+
+// --- Client (plain-array) mode -----------------------------------------------------------------
 
 const sorted = computed(() => {
   const rows = props.rows ?? [];
@@ -60,12 +85,85 @@ const sorted = computed(() => {
   });
 });
 
-const pageCount = computed(() => (props.pageSize ? Math.max(1, Math.ceil(sorted.value.length / props.pageSize)) : 1));
-const visible = computed(() =>
+const clientPageCount = computed(() => (props.pageSize ? Math.max(1, Math.ceil(sorted.value.length / props.pageSize)) : 1));
+const clientVisible = computed(() =>
   props.pageSize ? sorted.value.slice((page.value - 1) * props.pageSize, page.value * props.pageSize) : sorted.value,
 );
 
-watch(() => props.rows, () => (page.value = 1));
+watch(() => props.rows, () => {
+  if (!isServerMode.value) page.value = 1;
+});
+
+// --- Server mode ----------------------------------------------------------------------------
+
+const serverRows = shallowRef<T[]>([]);
+const serverTotal = ref(0);
+const serverTotals = ref<Record<string, number> | undefined>();
+const serverLoading = ref(false);
+const serverError = ref<string | null>(null);
+let requestId = 0;
+
+async function loadServerPage() {
+  if (!props.fetchPage) return;
+  const id = ++requestId;
+  serverLoading.value = true;
+  serverError.value = null;
+  try {
+    const result = await props.fetchPage({
+      page: page.value,
+      pageSize: props.pageSize || 25,
+      sort: sortKey.value ? { key: sortKey.value, dir: sortDir.value } : null,
+      filters: props.filters,
+    });
+    if (id !== requestId) return;
+    serverRows.value = result.rows;
+    serverTotal.value = result.total;
+    serverTotals.value = result.totals;
+  } catch (err) {
+    if (id !== requestId) return;
+    serverError.value = err instanceof Error ? err.message : 'تعذر تحميل البيانات';
+  } finally {
+    if (id === requestId) serverLoading.value = false;
+  }
+}
+
+watch(
+  () => [props.filters, sortKey.value, sortDir.value],
+  () => {
+    if (isServerMode.value) {
+      page.value = 1;
+      void loadServerPage();
+    }
+  },
+  { deep: true },
+);
+watch(page, () => {
+  if (isServerMode.value) void loadServerPage();
+});
+watch(
+  () => props.fetchPage,
+  (fn) => {
+    if (fn) void loadServerPage();
+  },
+  { immediate: true },
+);
+
+defineExpose({ reload: loadServerPage, serverTotals });
+
+// --- Combined (mode-agnostic) view used by the template ---------------------------------------
+
+const visible = computed(() => (isServerMode.value ? serverRows.value : clientVisible.value));
+const totalRowCount = computed(() => (isServerMode.value ? serverTotal.value : sorted.value.length));
+const pageCount = computed(() =>
+  isServerMode.value ? (props.pageSize ? Math.max(1, Math.ceil(serverTotal.value / props.pageSize)) : 1) : clientPageCount.value,
+);
+const effectiveLoading = computed(() => (isServerMode.value ? serverLoading.value : props.loading));
+const effectiveError = computed(() => (isServerMode.value ? serverError.value : props.error));
+
+function retry() {
+  if (isServerMode.value) void loadServerPage();
+  else emit('retry');
+}
 
 function toggleSort(col: Column<T>) {
   if (!col.sortable) return;
@@ -76,6 +174,10 @@ function toggleSort(col: Column<T>) {
     sortKey.value = col.key;
     sortDir.value = 'asc';
   }
+}
+
+function onRowClick(row: T) {
+  if (props.clickable) emit('row-click', row);
 }
 
 function alignClass(col: Column<T>) {
@@ -110,16 +212,16 @@ function alignClass(col: Column<T>) {
             </th>
           </tr>
         </thead>
-        <tbody v-if="loading && !rows?.length">
+        <tbody v-if="effectiveLoading && !visible.length">
           <tr v-for="i in skeletonRows" :key="i" class="border-b border-border last:border-0">
             <td v-for="col in columns" :key="col.key" class="px-3 py-3">
               <div class="h-3.5 animate-shimmer rounded bg-surface-hover" :style="{ width: `${50 + ((i * 7 + col.key.length * 13) % 45)}%` }" />
             </td>
           </tr>
         </tbody>
-        <tbody v-else-if="error">
+        <tbody v-else-if="effectiveError">
           <tr>
-            <td :colspan="columns.length"><ErrorState :message="error" compact @retry="emit('retry')" /></td>
+            <td :colspan="columns.length"><ErrorState :message="effectiveError" compact @retry="retry" /></td>
           </tr>
         </tbody>
         <tbody v-else-if="!visible.length">
@@ -131,7 +233,7 @@ function alignClass(col: Column<T>) {
             </td>
           </tr>
         </tbody>
-        <tbody v-else :class="loading && 'opacity-60 transition-opacity'">
+        <tbody v-else :class="effectiveLoading && 'opacity-60 transition-opacity'">
           <tr
             v-for="row in visible"
             :key="row[rowKey]"
@@ -140,7 +242,7 @@ function alignClass(col: Column<T>) {
               clickable && 'cursor-pointer hover:bg-surface-hover',
               highlightKey && row[rowKey] === highlightKey && 'bg-primary/8',
             ]"
-            @click="clickable && emit('row-click', row)"
+            @click="onRowClick(row)"
           >
             <td
               v-for="col in columns"
@@ -165,8 +267,8 @@ function alignClass(col: Column<T>) {
       class="no-print flex items-center justify-between border-t border-border bg-surface px-3 py-2 text-xs text-text-secondary"
     >
       <span>
-        عرض <span class="num">{{ formatNumber((page - 1) * pageSize + 1) }}–{{ formatNumber(Math.min(page * pageSize, sorted.length)) }}</span>
-        من <span class="num">{{ formatNumber(sorted.length) }}</span>
+        عرض <span class="num">{{ formatNumber((page - 1) * pageSize + 1) }}–{{ formatNumber(Math.min(page * pageSize, totalRowCount)) }}</span>
+        من <span class="num">{{ formatNumber(totalRowCount) }}</span>
       </span>
       <div class="flex items-center gap-1">
         <button

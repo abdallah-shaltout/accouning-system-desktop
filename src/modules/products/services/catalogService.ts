@@ -1,4 +1,6 @@
 import { ApiError, clone, db, delay, uid } from '@/mocks';
+import { emit } from '@/mocks/events';
+import { mutate } from '@/mocks/persist';
 import type { Category, PriceList, Unit } from '../types';
 
 type Named = { id: string; name: string };
@@ -23,18 +25,21 @@ export async function saveCategory(name: string, id?: string): Promise<Category>
   if (id) {
     const found = db.categories.find((c) => c.id === id);
     if (!found) throw new ApiError('التصنيف غير موجود', 'NOT_FOUND');
-    found.name = clean;
+    mutate(() => (found.name = clean));
+    emit('catalog:changed');
     return clone(found);
   }
   const category = { id: uid('cat'), name: clean };
-  db.categories.push(category);
+  mutate(() => db.categories.push(category));
+  emit('catalog:changed');
   return clone(category);
 }
 
 export async function deleteCategory(id: string): Promise<void> {
   await delay();
   if (db.products.some((p) => p.categoryId === id)) throw new ApiError('لا يمكن حذف تصنيف مرتبط بمنتجات', 'CONFLICT');
-  db.categories = db.categories.filter((c) => c.id !== id);
+  mutate(() => (db.categories = db.categories.filter((c) => c.id !== id)));
+  emit('catalog:changed');
 }
 
 // --- Units ------------------------------------------------------------------------------------
@@ -50,18 +55,21 @@ export async function saveUnit(name: string, id?: string): Promise<Unit> {
   if (id) {
     const found = db.units.find((u) => u.id === id);
     if (!found) throw new ApiError('الوحدة غير موجودة', 'NOT_FOUND');
-    found.name = clean;
+    mutate(() => (found.name = clean));
+    emit('catalog:changed');
     return clone(found);
   }
   const unit = { id: uid('unit'), name: clean };
-  db.units.push(unit);
+  mutate(() => db.units.push(unit));
+  emit('catalog:changed');
   return clone(unit);
 }
 
 export async function deleteUnit(id: string): Promise<void> {
   await delay();
   if (db.products.some((p) => p.unitId === id)) throw new ApiError('لا يمكن حذف وحدة مرتبطة بمنتجات', 'CONFLICT');
-  db.units = db.units.filter((u) => u.id !== id);
+  mutate(() => (db.units = db.units.filter((u) => u.id !== id)));
+  emit('catalog:changed');
 }
 
 // --- Price lists ------------------------------------------------------------------------------
@@ -77,33 +85,41 @@ export async function savePriceList(input: { name: string; active: boolean }, id
   if (id) {
     const found = db.priceLists.find((p) => p.id === id);
     if (!found) throw new ApiError('قائمة الأسعار غير موجودة', 'NOT_FOUND');
-    Object.assign(found, { name, active: input.active });
+    mutate(() => Object.assign(found, { name, active: input.active }));
+    emit('catalog:changed');
     return clone(found);
   }
   const list = { id: uid('pl'), name, active: input.active };
-  db.priceLists.push(list);
+  mutate(() => db.priceLists.push(list));
+  emit('catalog:changed');
   return clone(list);
 }
 
 export async function deletePriceList(id: string): Promise<void> {
   await delay();
   if (db.users.some((u) => u.priceListId === id)) throw new ApiError('قائمة الأسعار مسندة لمستخدمين — أزل الإسناد أولاً', 'CONFLICT');
-  db.priceLists = db.priceLists.filter((p) => p.id !== id);
-  for (const product of db.products) product.prices = product.prices?.filter((x) => x.priceListId !== id);
+  mutate(() => {
+    db.priceLists = db.priceLists.filter((p) => p.id !== id);
+    for (const product of db.products) product.prices = product.prices?.filter((x) => x.priceListId !== id);
+  });
+  emit('catalog:changed');
 }
 
 /** Bulk-update one price list's values: `{ productId: price | null }` (null removes the override). */
 export async function setPriceListValues(priceListId: string, values: Record<string, number | null>): Promise<void> {
   await delay();
   if (!db.priceLists.some((p) => p.id === priceListId)) throw new ApiError('قائمة الأسعار غير موجودة', 'NOT_FOUND');
-  for (const [productId, value] of Object.entries(values)) {
-    const product = db.products.find((p) => p.id === productId);
-    if (!product) continue;
-    const others = (product.prices ?? []).filter((x) => x.priceListId !== priceListId);
-    if (value === null || Number.isNaN(value)) product.prices = others;
-    else {
-      if (value < 0) throw new ApiError(`سعر "${product.name}" لا يمكن أن يكون سالباً`);
-      product.prices = [...others, { priceListId, value }];
+  mutate(() => {
+    for (const [productId, value] of Object.entries(values)) {
+      const product = db.products.find((p) => p.id === productId);
+      if (!product) continue;
+      const others = (product.prices ?? []).filter((x) => x.priceListId !== priceListId);
+      if (value === null || Number.isNaN(value)) product.prices = others;
+      else {
+        if (value < 0) throw new ApiError(`سعر "${product.name}" لا يمكن أن يكون سالباً`);
+        product.prices = [...others, { priceListId, value }];
+      }
     }
-  }
+  });
+  emit('catalog:changed');
 }

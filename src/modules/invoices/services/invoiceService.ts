@@ -2,6 +2,7 @@ import { ApiError, clone, db, delay, inDateRange, includesText, session } from '
 import { previewSaleJournal, recordRefund, recordSale, returnedQtyByLine } from '@/mocks/backend/sales';
 import type { Customer } from '@/modules/parties/types';
 import type { Payment } from '@/modules/payments/types';
+import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
 import type { StoreSettings } from '@/modules/settings/types';
 import { invoiceOutstanding } from '../helpers/totals';
 import type { Invoice, InvoiceFilter, JournalPreviewLine, Refund, RefundInput, SaleInput } from '../types';
@@ -40,6 +41,44 @@ export async function getInvoices(filter: InvoiceFilter & { openOnly?: boolean }
     .map(toRow)
     .filter((r) => includesText([r.number, r.customerName], filter.search))
     .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** Server-mode variant of `getInvoices` for `DataTable`: paged, sorted and totalled server-side. */
+export async function getInvoicesPaged(query: PagedQuery<InvoiceFilter & { openOnly?: boolean }>): Promise<PagedResult<InvoiceRow>> {
+  await delay();
+  const filter = query.filters ?? {};
+  let rows = db.invoices
+    .filter(
+      (i) =>
+        (!filter.status || i.status === filter.status) &&
+        (!filter.paymentStatus || i.paymentStatus === filter.paymentStatus) &&
+        (!filter.customerId || i.customerId === filter.customerId) &&
+        (!filter.openOnly || (i.status === 'COMPLETED' && invoiceOutstanding(i) > 0)) &&
+        inDateRange(i.date, filter.from, filter.to),
+    )
+    .map(toRow)
+    .filter((r) => includesText([r.number, r.customerName], filter.search));
+
+  const total = rows.length;
+  const totals = {
+    grandTotal: rows.reduce((a, r) => a + r.grandTotal - r.refundedAmount, 0),
+    outstanding: rows.reduce((a, r) => a + r.outstanding, 0),
+  };
+
+  const sort = query.sort;
+  rows = [...rows].sort((a, b) => {
+    if (sort) {
+      const va = (a as any)[sort.key];
+      const vb = (b as any)[sort.key];
+      const dir = sort.dir === 'asc' ? 1 : -1;
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va ?? '').localeCompare(String(vb ?? ''), 'ar') * dir;
+    }
+    return b.date.localeCompare(a.date);
+  });
+
+  const start = (query.page - 1) * query.pageSize;
+  return { rows: rows.slice(start, start + query.pageSize), total, totals };
 }
 
 export async function getInvoice(id: string): Promise<InvoiceDetail> {

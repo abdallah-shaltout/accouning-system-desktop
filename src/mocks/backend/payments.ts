@@ -1,6 +1,8 @@
 import type { Payment, PaymentInput } from '@/modules/payments/types';
 import { invoiceOutstanding, paymentStatusFor } from '@/modules/invoices/helpers/totals';
 import { db, nextNumber } from '../db';
+import { emit } from '../events';
+import { mutate } from '../persist';
 import { ApiError, round2, uid } from '../utils';
 import { logActivity, postJournal, settlementAccount } from './core';
 import { purchaseOutstanding } from './purchases';
@@ -21,8 +23,10 @@ export function recordPayment(input: PaymentInput, userId: string): Payment {
     if (!invoice) throw new ApiError('اختر الفاتورة المراد سدادها');
     const outstanding = invoiceOutstanding(invoice);
     if (amount > outstanding + 0.001) throw new ApiError(`المبلغ أكبر من المتبقي على الفاتورة (${outstanding.toFixed(2)})`);
-    invoice.paidAmount = round2(invoice.paidAmount + amount);
-    invoice.paymentStatus = paymentStatusFor(invoice.grandTotal - invoice.refundedAmount, invoice.paidAmount);
+    mutate(() => {
+      invoice.paidAmount = round2(invoice.paidAmount + amount);
+      invoice.paymentStatus = paymentStatusFor(invoice.grandTotal - invoice.refundedAmount, invoice.paidAmount);
+    });
     refNumber = invoice.number;
     partyName = customer.name;
     posting = [
@@ -36,8 +40,10 @@ export function recordPayment(input: PaymentInput, userId: string): Payment {
     if (!po || po.status !== 'CONFIRMED') throw new ApiError('اختر أمر الشراء المراد سداده');
     const outstanding = purchaseOutstanding(po);
     if (amount > outstanding + 0.001) throw new ApiError(`المبلغ أكبر من المتبقي على أمر الشراء (${outstanding.toFixed(2)})`);
-    po.paidAmount = round2(po.paidAmount + amount);
-    po.paymentStatus = paymentStatusFor(po.grandTotal - po.returnedAmount, po.paidAmount);
+    mutate(() => {
+      po.paidAmount = round2(po.paidAmount + amount);
+      po.paymentStatus = paymentStatusFor(po.grandTotal - po.returnedAmount, po.paidAmount);
+    });
     refNumber = po.number;
     partyName = supplier.name;
     posting = [
@@ -59,7 +65,7 @@ export function recordPayment(input: PaymentInput, userId: string): Payment {
     method: input.method,
     note: input.note,
   };
-  db.payments.push(payment);
+  mutate(() => db.payments.push(payment));
 
   postJournal({
     date: input.date,
@@ -77,5 +83,6 @@ export function recordPayment(input: PaymentInput, userId: string): Payment {
     input.date,
     `/payments?highlight=${payment.id}`,
   );
+  emit('parties:changed');
   return payment;
 }

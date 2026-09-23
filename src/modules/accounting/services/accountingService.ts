@@ -1,6 +1,8 @@
 import { ApiError, clone, db, delay, inDateRange, includesText, localDateKey, round2, session, uid } from '@/mocks';
 import { logActivity } from '@/mocks/backend/core';
 import { recordManualJournal, reverseJournal } from '@/mocks/backend/journal';
+import { mutate } from '@/mocks/persist';
+import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
 import type { Account, AccountGroup, AccountInput, FiscalYear, JournalEntry, JournalEntryInput, JournalFilter } from '../types';
 
 export type AccountWithBalance = Account & { balance: number; debitTotal: number; creditTotal: number; hasPostings: boolean };
@@ -59,11 +61,11 @@ export async function saveAccount(input: AccountInput, id?: string): Promise<Acc
     if (!found.canDelete && (input.code !== found.code || input.groupId !== found.groupId)) {
       throw new ApiError('لا يمكن تغيير رمز أو مجموعة حساب أساسي في النظام');
     }
-    Object.assign(found, { ...input, name: input.name.trim(), parentId: input.parentId || undefined });
+    mutate(() => Object.assign(found, { ...input, name: input.name.trim(), parentId: input.parentId || undefined }));
     account = found;
   } else {
     account = { id: uid('acc'), ...input, name: input.name.trim(), parentId: input.parentId || undefined, canDelete: true };
-    db.accounts.push(account);
+    mutate(() => db.accounts.push(account));
   }
   logActivity('journal', `${id ? 'تعديل' : 'إضافة'} الحساب ${account.code} — ${account.name}`, session.userId, new Date().toISOString(), '/accounting/accounts');
   return clone(account);
@@ -76,7 +78,7 @@ export async function deleteAccount(id: string): Promise<void> {
   if (!account.canDelete) throw new ApiError('حساب أساسي في النظام ولا يمكن حذفه');
   if (db.accounts.some((a) => a.parentId === id)) throw new ApiError('للحساب حسابات فرعية — احذفها أولاً', 'CONFLICT');
   if (db.journalEntries.some((e) => e.lines.some((l) => l.accountId === id))) throw new ApiError('للحساب قيود مسجلة — يمكنك إيقافه بدلاً من حذفه', 'CONFLICT');
-  db.accounts = db.accounts.filter((a) => a.id !== id);
+  mutate(() => (db.accounts = db.accounts.filter((a) => a.id !== id)));
 }
 
 export async function renameAccountGroup(id: string, name: string): Promise<AccountGroup> {
@@ -84,7 +86,7 @@ export async function renameAccountGroup(id: string, name: string): Promise<Acco
   const group = db.accountGroups.find((g) => g.id === id);
   if (!group) throw new ApiError('المجموعة غير موجودة', 'NOT_FOUND');
   if (!name.trim()) throw new ApiError('اسم المجموعة مطلوب');
-  group.name = name.trim();
+  mutate(() => (group.name = name.trim()));
   return clone(group);
 }
 
@@ -105,6 +107,39 @@ export async function getJournalEntries(filter: JournalFilter = {}): Promise<Jou
     )
     .sort((a, b) => b.date.localeCompare(a.date) || b.number.localeCompare(a.number))
     .map((e) => ({ ...clone(e), createdByName: db.users.find((u) => u.id === e.createdBy)?.name ?? '—', sourceLink: sourceLink(e) }));
+}
+
+/** Server-mode variant of `getJournalEntries` for `DataTable`: paged, sorted and totalled server-side. */
+export async function getJournalEntriesPaged(query: PagedQuery<JournalFilter>): Promise<PagedResult<JournalRow>> {
+  await delay();
+  const filter = query.filters ?? {};
+  let rows: JournalRow[] = db.journalEntries
+    .filter(
+      (e) =>
+        (!filter.type || e.type === filter.type) &&
+        (!filter.accountId || e.lines.some((l) => l.accountId === filter.accountId)) &&
+        inDateRange(e.date, filter.from, filter.to) &&
+        includesText([e.number, e.description, e.sourceRef?.number], filter.search),
+    )
+    .map((e) => ({ ...clone(e), createdByName: db.users.find((u) => u.id === e.createdBy)?.name ?? '—', sourceLink: sourceLink(e) }));
+
+  const total = rows.length;
+  const totals = { totalDebit: rows.reduce((a, r) => a + r.totalDebit, 0), totalCredit: rows.reduce((a, r) => a + r.totalCredit, 0) };
+
+  const sort = query.sort;
+  rows = [...rows].sort((a, b) => {
+    if (sort) {
+      const va = (a as any)[sort.key];
+      const vb = (b as any)[sort.key];
+      const dir = sort.dir === 'asc' ? 1 : -1;
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va ?? '').localeCompare(String(vb ?? ''), 'ar') * dir;
+    }
+    return b.date.localeCompare(a.date) || b.number.localeCompare(a.number);
+  });
+
+  const start = (query.page - 1) * query.pageSize;
+  return { rows: rows.slice(start, start + query.pageSize), total, totals };
 }
 
 export async function getJournalEntry(id: string): Promise<JournalRow & { reversedById?: string; reversedByNumber?: string }> {
@@ -180,11 +215,11 @@ export async function saveFiscalYear(input: Omit<FiscalYear, 'id'>, id?: string)
   if (id) {
     const found = db.fiscalYears.find((f) => f.id === id);
     if (!found) throw new ApiError('السنة المالية غير موجودة', 'NOT_FOUND');
-    Object.assign(found, input);
+    mutate(() => Object.assign(found, input));
     fy = found;
   } else {
     fy = { id: uid('fy'), ...input };
-    db.fiscalYears.push(fy);
+    mutate(() => db.fiscalYears.push(fy));
   }
   logActivity('settings', `${id ? 'تعديل' : 'إضافة'} السنة المالية ${fy.name}`, session.userId, new Date().toISOString(), '/accounting/fiscal-years');
   return clone(fy);

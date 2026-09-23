@@ -1,6 +1,8 @@
 import type { PurchaseOrder, PurchaseOrderInput, PurchaseReturn, PurchaseReturnInput } from '@/modules/purchases/types';
 import { paymentStatusFor } from '@/modules/invoices/helpers/totals';
 import { db, nextNumber } from '../db';
+import { emit } from '../events';
+import { mutate } from '../persist';
 import { ApiError, round2, sum, uid } from '../utils';
 import { applyStockChange, logActivity, postJournal, productById, purchaseTaxRate } from './core';
 
@@ -36,7 +38,7 @@ export function savePurchase(input: PurchaseOrderInput, userId: string, existing
     const found = db.purchaseOrders.find((p) => p.id === existingId);
     if (!found) throw new ApiError('أمر الشراء غير موجود', 'NOT_FOUND');
     if (found.status !== 'DRAFT') throw new ApiError('لا يمكن تعديل أمر شراء مؤكد أو ملغي');
-    Object.assign(found, { supplierId: input.supplierId, date: input.date, lines: input.lines, note: input.note, taxRate, ...totals });
+    mutate(() => Object.assign(found, { supplierId: input.supplierId, date: input.date, lines: input.lines, note: input.note, taxRate, ...totals }));
     po = found;
   } else {
     po = {
@@ -53,7 +55,7 @@ export function savePurchase(input: PurchaseOrderInput, userId: string, existing
       returnedAmount: 0,
       note: input.note,
     };
-    db.purchaseOrders.push(po);
+    mutate(() => db.purchaseOrders.push(po));
   }
 
   if (input.confirm) confirmPurchase(po.id, userId, input.date);
@@ -78,7 +80,7 @@ export function confirmPurchase(id: string, userId: string, date = new Date().to
     applyStockChange(product, line.qty, 'purchase', po, date);
   }
 
-  po.status = 'CONFIRMED';
+  mutate(() => (po.status = 'CONFIRMED'));
   postJournal({
     date,
     description: `أمر شراء ${po.number}`,
@@ -95,6 +97,7 @@ export function confirmPurchase(id: string, userId: string, date = new Date().to
 
   const supplier = db.suppliers.find((s) => s.id === po.supplierId);
   logActivity('purchase', `استلام أمر الشراء ${po.number} من ${supplier?.name ?? ''} بقيمة ${po.grandTotal.toFixed(2)}`, userId, date, `/purchases/${po.id}`);
+  emit('parties:changed');
   return po;
 }
 
@@ -102,7 +105,7 @@ export function cancelPurchase(id: string, userId: string): PurchaseOrder {
   const po = db.purchaseOrders.find((p) => p.id === id);
   if (!po) throw new ApiError('أمر الشراء غير موجود', 'NOT_FOUND');
   if (po.status !== 'DRAFT') throw new ApiError('يمكن إلغاء المسودات فقط — استخدم مرتجع المشتريات للأوامر المؤكدة');
-  po.status = 'CANCELED';
+  mutate(() => (po.status = 'CANCELED'));
   logActivity('purchase', `إلغاء أمر الشراء ${po.number}`, userId, new Date().toISOString(), `/purchases/${po.id}`);
   return po;
 }
@@ -152,10 +155,11 @@ export function recordPurchaseReturn(input: PurchaseReturnInput, userId: string,
     settledToPayable,
     cashBack,
   };
-  db.purchaseReturns.push(ret);
-
-  po.returnedAmount = round2(po.returnedAmount + totals.grandTotal);
-  po.paymentStatus = paymentStatusFor(po.grandTotal - po.returnedAmount, po.paidAmount);
+  mutate(() => {
+    db.purchaseReturns.push(ret);
+    po.returnedAmount = round2(po.returnedAmount + totals.grandTotal);
+    po.paymentStatus = paymentStatusFor(po.grandTotal - po.returnedAmount, po.paidAmount);
+  });
 
   let inventoryValue = 0;
   for (const line of lines) {
@@ -180,6 +184,7 @@ export function recordPurchaseReturn(input: PurchaseReturnInput, userId: string,
   });
 
   logActivity('purchase_return', `مرتجع مشتريات ${ret.number} بقيمة ${ret.grandTotal.toFixed(2)}`, userId, date, `/purchases/${po.id}`);
+  emit('parties:changed');
   return ret;
 }
 

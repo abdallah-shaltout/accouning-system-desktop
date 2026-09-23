@@ -1,5 +1,7 @@
 import { ApiError, clone, db, delay, inDateRange, session } from '@/mocks';
 import { completeStockAdjustment, recordStockAdjustment } from '@/mocks/backend/inventory';
+import { mutate } from '@/mocks/persist';
+import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
 import type { StockAdjustment, StockAdjustmentInput, StockAdjustmentType, StockMovement, StockMovementReason } from '../types';
 
 export interface AdjustmentFilter {
@@ -51,7 +53,7 @@ export async function deleteDraftAdjustment(id: string): Promise<void> {
   const adj = db.stockAdjustments.find((a) => a.id === id);
   if (!adj) throw new ApiError('التسوية غير موجودة', 'NOT_FOUND');
   if (adj.status !== 'DRAFT') throw new ApiError('لا يمكن حذف تسوية معتمدة — أنشئ تسوية عكسية بدلاً من ذلك');
-  db.stockAdjustments = db.stockAdjustments.filter((a) => a.id !== id);
+  mutate(() => (db.stockAdjustments = db.stockAdjustments.filter((a) => a.id !== id)));
 }
 
 export interface MovementFilter {
@@ -73,6 +75,38 @@ export async function getStockMovements(filter: MovementFilter = {}): Promise<(S
     )
     .sort((a, b) => b.date.localeCompare(a.date))
     .map((m) => ({ ...clone(m), productName: db.products.find((p) => p.id === m.productId)?.name ?? '—', refLink: refLink(m) }));
+}
+
+export type StockMovementRow = StockMovement & { productName: string; refLink?: string };
+
+/** Server-mode variant of `getStockMovements` for `DataTable`: paged and sorted server-side. */
+export async function getStockMovementsPaged(query: PagedQuery<MovementFilter>): Promise<PagedResult<StockMovementRow>> {
+  await delay();
+  const filter = query.filters ?? {};
+  let rows: StockMovementRow[] = db.stockMovements
+    .filter(
+      (m) =>
+        (!filter.productId || m.productId === filter.productId) &&
+        (!filter.reason || m.reason === filter.reason) &&
+        inDateRange(m.date, filter.from, filter.to),
+    )
+    .map((m) => ({ ...clone(m), productName: db.products.find((p) => p.id === m.productId)?.name ?? '—', refLink: refLink(m) }));
+
+  const total = rows.length;
+  const sort = query.sort;
+  rows = [...rows].sort((a, b) => {
+    if (sort) {
+      const va = (a as any)[sort.key];
+      const vb = (b as any)[sort.key];
+      const dir = sort.dir === 'asc' ? 1 : -1;
+      if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+      return String(va ?? '').localeCompare(String(vb ?? ''), 'ar') * dir;
+    }
+    return b.date.localeCompare(a.date);
+  });
+
+  const start = (query.page - 1) * query.pageSize;
+  return { rows: rows.slice(start, start + query.pageSize), total };
 }
 
 function refLink(m: StockMovement): string | undefined {

@@ -1,6 +1,8 @@
 import { ApiError, clone, db, delay, includesText, session, uid } from '@/mocks';
 import { customerBalance, customerStatement, supplierBalance, supplierStatement } from '@/mocks/backend/balances';
 import { logActivity } from '@/mocks/backend/core';
+import { emit } from '@/mocks/events';
+import { mutate } from '@/mocks/persist';
 import type { Customer, CustomerInput, PartyStatementRow, Supplier, SupplierInput } from '../types';
 
 export interface PartyFilter {
@@ -54,13 +56,14 @@ export async function saveCustomer(input: CustomerInput, id?: string): Promise<C
     const found = db.customers.find((c) => c.id === id);
     if (!found) throw new ApiError('العميل غير موجود', 'NOT_FOUND');
     if (!data.active && customerBalance(id) > 0) throw new ApiError('لا يمكن إيقاف عميل عليه رصيد مستحق');
-    Object.assign(found, data);
+    mutate(() => Object.assign(found, data));
     customer = found;
   } else {
     customer = { id: uid('cus'), ...data, balance: 0 };
-    db.customers.push(customer);
+    mutate(() => db.customers.push(customer));
   }
   logActivity('party', `${id ? 'تعديل' : 'إضافة'} العميل ${customer.name}`, session.userId, new Date().toISOString(), `/customers/${customer.id}`);
+  emit('parties:changed');
   return { ...clone(customer), balance: customerBalance(customer.id) };
 }
 
@@ -98,13 +101,14 @@ export async function saveSupplier(input: SupplierInput, id?: string): Promise<S
   if (id) {
     const found = db.suppliers.find((s) => s.id === id);
     if (!found) throw new ApiError('المورد غير موجود', 'NOT_FOUND');
-    Object.assign(found, data);
+    mutate(() => Object.assign(found, data));
     supplier = found;
   } else {
     supplier = { id: uid('sup'), ...data, balance: 0 };
-    db.suppliers.push(supplier);
+    mutate(() => db.suppliers.push(supplier));
   }
   logActivity('party', `${id ? 'تعديل' : 'إضافة'} المورد ${supplier.name}`, session.userId, new Date().toISOString(), `/suppliers/${supplier.id}`);
+  emit('parties:changed');
   return { ...clone(supplier), balance: supplierBalance(supplier.id) };
 }
 

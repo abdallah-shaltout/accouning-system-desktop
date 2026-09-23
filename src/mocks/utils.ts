@@ -6,8 +6,29 @@
 /** Simulated network/IPC latency (ms). Set to 0 for instant responses. */
 export const MOCK_LATENCY = { min: 120, max: 380 };
 
+export type LatencyMode = 'off' | 'realistic' | 'slow';
+
+const LATENCY_PRESETS: Record<LatencyMode, { min: number; max: number }> = {
+  off: { min: 0, max: 0 },
+  realistic: { min: 120, max: 380 },
+  slow: { min: 800, max: 1800 },
+};
+
+/** Dev-menu latency switch. `null` (default) uses `MOCK_LATENCY` unchanged. */
+let latencyOverride: LatencyMode | null = null;
+
+export function setLatencyMode(mode: LatencyMode | null): void {
+  latencyOverride = mode;
+}
+
+export function getLatencyMode(): LatencyMode | null {
+  return latencyOverride;
+}
+
 export function delay(ms?: number): Promise<void> {
-  const wait = ms ?? MOCK_LATENCY.min + Math.random() * (MOCK_LATENCY.max - MOCK_LATENCY.min);
+  if (ms !== undefined) return new Promise((resolve) => setTimeout(resolve, ms));
+  const { min, max } = latencyOverride ? LATENCY_PRESETS[latencyOverride] : MOCK_LATENCY;
+  const wait = min + Math.random() * (max - min);
   return new Promise((resolve) => setTimeout(resolve, wait));
 }
 
@@ -70,6 +91,8 @@ export function includesText(haystack: (string | undefined)[], needle?: string):
   if (!q) return true;
   return haystack.some((h) => h?.toLowerCase().includes(q));
 }
+
+export type RandomSource = ReturnType<typeof createRandom>;
 
 /** Small seeded PRNG (mulberry32) so seed data is reproducible. */
 export function createRandom(seed: number) {

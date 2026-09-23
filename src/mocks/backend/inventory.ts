@@ -1,5 +1,7 @@
 import type { StockAdjustment, StockAdjustmentInput, StockAdjustmentLine } from '@/modules/products/types';
 import { db, nextNumber } from '../db';
+import { emit } from '../events';
+import { mutate } from '../persist';
 import { ApiError, round2, uid } from '../utils';
 import { applyStockChange, logActivity, postJournal, productById, type PostingLine } from './core';
 
@@ -75,9 +77,10 @@ export function recordStockAdjustment(input: StockAdjustmentInput, userId: strin
     lines: buildLines(input),
     note: input.note,
   };
-  db.stockAdjustments.push(adj);
+  mutate(() => db.stockAdjustments.push(adj));
   if (!asDraft) postAdjustment(adj, userId);
   logActivity('stock', `${TYPE_LABEL[adj.type]} ${adj.number}${asDraft ? ' (مسودة)' : ''} — ${adj.lines.length} صنف`, userId, adj.date, `/inventory/adjustments/${adj.id}`);
+  if (!asDraft) emit('catalog:changed');
   return adj;
 }
 
@@ -91,9 +94,12 @@ export function completeStockAdjustment(id: string, userId: string): StockAdjust
     date: adj.date,
     lines: adj.lines.map((l) => ({ productId: l.productId, countedQty: l.countedQty, qtyChange: Math.abs(l.qtyChange) })),
   });
-  adj.date = new Date().toISOString();
-  adj.status = 'COMPLETED';
+  mutate(() => {
+    adj.date = new Date().toISOString();
+    adj.status = 'COMPLETED';
+  });
   postAdjustment(adj, userId);
   logActivity('stock', `اعتماد ${TYPE_LABEL[adj.type]} ${adj.number}`, userId, adj.date, `/inventory/adjustments/${adj.id}`);
+  emit('catalog:changed');
   return adj;
 }

@@ -1,17 +1,17 @@
 """
 Dev helper: log in with a demo account and screenshot app routes (light + optional dark).
 
-    python scripts/screenshot.py <out_dir> <route> [<route> ...] [--dark] [--user admin] [--size 1440x900]
+    python scripts/screenshot.py <out_dir> <route> [<route> ...] [--dark] [--user admin] [--size 1440x900] [--base URL]
 
-Requires `bun run dev` (or `npx vite`) running on http://localhost:1420 and Python Playwright.
-Console errors are printed so broken pages are caught without opening a browser.
+Requires `bun run dev` (or `npx vite`) running on http://localhost:1420 (or wherever --base points)
+and Python Playwright. Console errors are printed so broken pages are caught without opening a browser.
 """
 import sys
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-BASE = "http://localhost:1420/#"
+DEFAULT_BASE = "http://localhost:1420/#"
 PASSWORDS = {"admin": "admin123", "manager": "manager123", "accountant": "acc123", "cashier": "cashier123"}
 
 
@@ -21,6 +21,7 @@ def main() -> None:
     dark = "--dark" in args
     user = "admin"
     size = (1440, 900)
+    base = DEFAULT_BASE
     routes = []
     i = 0
     while i < len(args):
@@ -34,6 +35,9 @@ def main() -> None:
             i += 1
             w, h = args[i].split("x")
             size = (int(w), int(h))
+        elif a == "--base":
+            i += 1
+            base = args[i]
         else:
             routes.append(a)
         i += 1
@@ -46,7 +50,7 @@ def main() -> None:
         page.on("console", lambda m: errors.append(f"[{m.type}] {m.text}") if m.type in ("error", "warning") else None)
         page.on("pageerror", lambda e: errors.append(f"[pageerror] {e}"))
 
-        page.goto(f"{BASE}/login")
+        page.goto(f"{base}/login")
         page.evaluate(f"localStorage.setItem('app_theme', '{'dark' if dark else 'light'}')")
         page.reload()
         page.wait_for_selector("input[type=password]")
@@ -57,7 +61,7 @@ def main() -> None:
 
         for route in routes:
             errors.clear()
-            page.goto(f"{BASE}{route}")
+            page.goto(f"{base}{route}")
             page.wait_for_timeout(1500)
             name = route.strip("/").replace("/", "_").replace("?", "_").replace("=", "-").replace("&", "_") or "home"
             path = out / f"{name}{'_dark' if dark else ''}.png"

@@ -5,10 +5,12 @@ import { Moon, ShoppingCart, Sun } from '@lucide/vue';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { resolvedTheme, toggleTheme } from '../../controllers/useTheme';
 import AppButton from '../ui/AppButton.vue';
+import DevMenu from '../DevMenu.vue';
 import UserMenu from './UserMenu.vue';
 
 const route = useRoute();
 const auth = useAuthStore();
+const isDev = import.meta.env.DEV;
 
 const crumbs = computed(() => {
   const list: string[] = [];
@@ -27,6 +29,7 @@ const crumbs = computed(() => {
       </template>
     </nav>
     <div class="flex items-center gap-1.5">
+      <DevMenu v-if="isDev" />
       <AppButton v-if="auth.can('pos', 'write')" to="/pos" size="sm" :icon="ShoppingCart">نقطة البيع</AppButton>
       <button
         type="button"

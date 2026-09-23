@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "scaffold": "node scripts/scaffold.js",
-    "verify:mocks": "bun run scripts/verify-seed.ts",
+    "verify:mocks": "bun run scripts/verify/run.ts",
     "check": "node scripts/check-text-tokens.js"
   },
   "dependencies": {
