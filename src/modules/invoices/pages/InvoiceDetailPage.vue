@@ -9,21 +9,44 @@ import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import { isTauri } from '@tauri-apps/api/core';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDateTime, formatNumber } from '@/modules/core/helpers/format';
 import { INVOICE_STATUS, PAYMENT_METHOD_LABEL, PAYMENT_STATUS, SALE_METHOD_LABEL } from '@/modules/core/helpers/labels';
+import { renderAndSave } from '@/modules/core/services/pdfService';
+import { useToast } from '@/modules/core/controllers/useToast';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import { useRouter } from 'vue-router';
 import { round2 } from '../helpers/totals';
 import { getInvoice } from '../services/invoiceService';
 
 const route = useRoute();
+const router = useRouter();
 const auth = useAuthStore();
+const toast = useToast();
 const id = String(route.params.id);
 const { data, error, reload } = useAsync(() => getInvoice(id));
 const inv = computed(() => data.value);
 
 const canRefund = computed(() => auth.can('sales', 'write') && inv.value?.status === 'COMPLETED');
 const canPay = computed(() => auth.can('payments', 'write') && !!inv.value?.customerId && (inv.value?.outstanding ?? 0) > 0);
+
+/**
+ * Phase 11a integration point (docs/v2/12-documents-pdf-excel.md §2): in the
+ * desktop app, render a real PDF via the Rust engine, save it and open it.
+ * In browser dev mode `renderAndSave` itself shows the "available in the
+ * desktop app" toast and returns false, so we fall back to the v1 print
+ * route exactly as before.
+ */
+async function print() {
+  if (isTauri()) {
+    const ok = await renderAndSave('invoice', id, `${inv.value?.number ?? id}.pdf`);
+    if (ok) return;
+    toast.error('تعذر إنشاء ملف PDF');
+    return;
+  }
+  router.push(`/print/invoices/${id}`);
+}
 </script>
 
 <template>
@@ -41,7 +64,7 @@ const canPay = computed(() => auth.can('payments', 'write') && !!inv.value?.cust
         <template #actions>
           <AppButton v-if="canRefund" :icon="Undo2" :to="`/invoices/${id}/refund`">إرجاع</AppButton>
           <AppButton v-if="canPay" :icon="HandCoins" :to="{ path: '/payments/new', query: { type: 'RECEIVED', party: inv?.customerId, ref: id } }">تسجيل دفعة</AppButton>
-          <AppButton variant="primary" :icon="Printer" :to="`/print/invoices/${id}`">طباعة</AppButton>
+          <AppButton variant="primary" :icon="Printer" @click="print">طباعة</AppButton>
         </template>
       </PageHeader>
 

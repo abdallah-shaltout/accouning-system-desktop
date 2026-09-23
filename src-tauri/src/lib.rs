@@ -31,7 +31,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             print_receipt_network,
-            pdf::render_pdf_spike
+            pdf::render_pdf_spike,
+            pdf::render::render_pdf,
+            pdf::render::render_preview
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

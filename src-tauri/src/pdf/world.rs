@@ -1,10 +1,14 @@
-//! A minimal `typst::World` implementation for the PDF spike.
+//! `typst::World` implementations for the PDF engine.
 //!
-//! Holds everything Typst needs as in-memory "virtual files": the template
-//! source (`main.typ`), a JSON data file (`data.json`), a QR PNG (`qr.png`),
-//! and embedded fonts. No filesystem access beyond what was baked in via
-//! `include_bytes!` at compile time — matches the "No Typst packages:
-//! everything must work offline" rule in docs/v2/12-documents-pdf-excel.md §2.
+//! `SpikeWorld` is the original Phase 0 gate world (kept as-is so the spike
+//! binary/command still work unchanged). `RenderWorld` is the production
+//! Phase 11a world: it holds a swappable main template (either a built-in
+//! `.typ` file or custom source from the advanced editor), the shared
+//! `lib.typ`, `data.json`/`opts.json`, an optional logo image, an optional
+//! QR SVG, and all embedded font families — as in-memory "virtual files",
+//! matching the spike's "no filesystem access beyond what was baked in"
+//! approach (docs/v2/12-documents-pdf-excel.md §2: "No Typst packages:
+//! everything must work offline").
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -15,6 +19,8 @@ use typst::syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::{Library, LibraryExt};
+
+use super::fonts::FontSpec;
 
 pub struct SpikeWorld {
     library: LazyHash<Library>,
@@ -115,5 +121,143 @@ impl typst::World for SpikeWorld {
 
     fn today(&self, _offset: Option<typst::foundations::Duration>) -> Option<Datetime> {
         Datetime::from_ymd(2026, 9, 23)
+    }
+}
+
+/// One in-memory virtual file: a Typst source file (parsed, reparented on
+/// edit) or a raw byte asset (JSON data, images, fonts don't go through this
+/// map — see `fonts` below).
+enum VirtualFile {
+    Source(Source),
+    Bytes(Bytes),
+}
+
+/// The production Phase 11a world. Holds:
+/// - `main.typ`: either a built-in template's source or custom source from
+///   the advanced editor.
+/// - `lib.typ`: the shared header/party-box/table/totals/QR/footer helpers,
+///   always present so both built-in and custom templates can `#import
+///   "lib.typ": ...`.
+/// - `data.json` / `opts.json`: the `DocumentPayload` / `TemplateOptions`
+///   JSON, passed through opaquely from the TS caller.
+/// - `logo.png` (optional): the company logo, decoded from a data: URL.
+/// - `qr.svg` (optional): the pre-rendered QR SVG markup from `zatcaQr.ts` + `uqr`.
+/// - All embedded font families (Cairo, Noto Naskh Arabic, IBM Plex Sans
+///   Arabic, Tajawal).
+pub struct RenderWorld {
+    library: LazyHash<Library>,
+    book: LazyHash<FontBook>,
+    fonts: Vec<Font>,
+    main_id: FileId,
+    files: HashMap<FileId, VirtualFile>,
+}
+
+impl RenderWorld {
+    pub fn new(
+        main_source: String,
+        lib_source: String,
+        data_json: String,
+        opts_json: String,
+        logo_png: Option<Vec<u8>>,
+        qr_svg: Option<String>,
+        font_specs: Vec<FontSpec>,
+    ) -> Result<Self, String> {
+        let main_path = VirtualPath::new("/main.typ")
+            .map_err(|e| format!("invalid virtual path: {e}"))?;
+        let main_id = RootedPath::new(VirtualRoot::Project, main_path).intern();
+
+        let mut files: HashMap<FileId, VirtualFile> = HashMap::new();
+        files.insert(main_id, VirtualFile::Source(Source::new(main_id, main_source)));
+
+        let lib_id = Self::intern("/lib.typ")?;
+        files.insert(lib_id, VirtualFile::Source(Source::new(lib_id, lib_source)));
+
+        files.insert(Self::intern("/data.json")?, VirtualFile::Bytes(Bytes::from_string(data_json)));
+        files.insert(Self::intern("/opts.json")?, VirtualFile::Bytes(Bytes::from_string(opts_json)));
+
+        if let Some(png) = logo_png {
+            files.insert(Self::intern("/logo.png")?, VirtualFile::Bytes(Bytes::new(png)));
+        }
+        // Always provide qr.svg so templates can reference it unconditionally;
+        // an empty/1x1 transparent SVG when there's no real QR to show.
+        let qr_svg = qr_svg.unwrap_or_else(|| {
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1\" height=\"1\"></svg>".to_string()
+        });
+        files.insert(Self::intern("/qr.svg")?, VirtualFile::Bytes(Bytes::from_string(qr_svg)));
+
+        let mut fonts = Vec::new();
+        for spec in font_specs {
+            let data = Bytes::new(spec.bytes.to_vec());
+            if let Some(font) = Font::new(data, 0) {
+                fonts.push(font);
+            } else {
+                return Err(format!("failed to parse embedded font for family '{}'", spec.family));
+            }
+        }
+        if fonts.is_empty() {
+            return Err("no fonts loaded".to_string());
+        }
+
+        let book = FontBook::from_fonts(&fonts);
+
+        Ok(Self {
+            library: LazyHash::new(Library::default()),
+            book: LazyHash::new(book),
+            fonts,
+            main_id,
+            files,
+        })
+    }
+
+    fn intern(path: &str) -> Result<FileId, String> {
+        let vpath = VirtualPath::new(path).map_err(|e| format!("invalid virtual path: {e}"))?;
+        Ok(RootedPath::new(VirtualRoot::Project, vpath).intern())
+    }
+
+    /// The main source, for inline-compile-error line lookups after a failed
+    /// compile (the advanced editor needs `world.source(world.main())`, but
+    /// callers that already hold the world's main id can use this directly).
+    pub fn main_id(&self) -> FileId {
+        self.main_id
+    }
+}
+
+impl typst::World for RenderWorld {
+    fn library(&self) -> &LazyHash<Library> {
+        &self.library
+    }
+
+    fn book(&self) -> &LazyHash<FontBook> {
+        &self.book
+    }
+
+    fn main(&self) -> FileId {
+        self.main_id
+    }
+
+    fn source(&self, id: FileId) -> FileResult<Source> {
+        match self.files.get(&id) {
+            Some(VirtualFile::Source(s)) => Ok(s.clone()),
+            _ => Err(not_found(id)),
+        }
+    }
+
+    fn file(&self, id: FileId) -> FileResult<Bytes> {
+        match self.files.get(&id) {
+            Some(VirtualFile::Bytes(b)) => Ok(b.clone()),
+            Some(VirtualFile::Source(s)) => Ok(Bytes::from_string(s.text().to_string())),
+            None => Err(not_found(id)),
+        }
+    }
+
+    fn font(&self, index: usize) -> Option<Font> {
+        self.fonts.get(index).cloned()
+    }
+
+    fn today(&self, _offset: Option<typst::foundations::Duration>) -> Option<Datetime> {
+        // Real wall-clock date for production renders (the spike pinned this
+        // for determinism; production documents should show the real date).
+        let now = time::OffsetDateTime::now_utc();
+        Datetime::from_ymd(now.year(), now.month() as u8, now.day())
     }
 }

@@ -12,10 +12,21 @@
 //! replace it.
 
 mod fonts;
+mod payload;
 mod qr;
+pub mod render;
 mod world;
 
-pub use world::SpikeWorld;
+pub use payload::{DocumentMeta, DocumentPayload, PaperSize, RenderRequest, TemplateOptionsPeek};
+pub use render::{CompileDiagnostic, RenderPdfResult, RenderPreviewResult};
+pub use world::{RenderWorld, SpikeWorld};
+
+// NOTE: `render_pdf` / `render_preview` are referenced from `lib.rs` as
+// `pdf::render::render_pdf` / `pdf::render::render_preview` (not re-exported
+// here as plain functions) because `#[tauri::command]` generates sibling
+// items (`__cmd__render_pdf` etc.) in the *defining* module that
+// `tauri::generate_handler!` looks up relative to the path you give it — a
+// `pub use` re-export doesn't bring those along.
 
 use std::time::Instant;
 
@@ -136,7 +147,7 @@ pub fn render_spike(doc: &SpikeDocument) -> Result<RenderResult, String> {
         template_source,
         data_json,
         qr_png,
-        vec![cairo_bytes, naskh_bytes],
+        vec![cairo_bytes.to_vec(), naskh_bytes.to_vec()],
     )?;
 
     let compile_start = Instant::now();
