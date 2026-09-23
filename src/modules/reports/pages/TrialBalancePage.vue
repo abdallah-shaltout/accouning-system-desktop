@@ -1,0 +1,91 @@
+<script setup lang="ts">
+import { computed, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { CircleAlert, CircleCheck } from '@lucide/vue';
+import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
+import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
+import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
+import { useAsync } from '@/modules/core/controllers/useAsync';
+import { round2 } from '@/modules/invoices/helpers/totals';
+import ReportShell from '../components/ReportShell.vue';
+import { useReportRange } from '../controllers/useReportRange';
+import type { ExportTable } from '../helpers/export';
+import { getTrialBalance } from '../services/reportService';
+import type { TrialBalanceRow } from '../types';
+
+const router = useRouter();
+const { from, to, fiscalStart, ready, syncUrl } = useReportRange();
+const { data, loading, error, reload } = useAsync(() => getTrialBalance({ from: from.value || undefined, to: to.value || undefined }), { immediate: false });
+watch([from, to, ready], () => {
+  if (!ready.value) return;
+  syncUrl();
+  reload();
+});
+
+const totals = computed(() => {
+  const rows = data.value ?? [];
+  const s = (f: (r: TrialBalanceRow) => number) => round2(rows.reduce((a, r) => a + f(r), 0));
+  return {
+    opening: s((r) => r.openingBalance),
+    debit: s((r) => r.periodDebit),
+    credit: s((r) => r.periodCredit),
+    closingDebit: s((r) => r.closingDebit),
+    closingCredit: s((r) => r.closingCredit),
+  };
+});
+const balanced = computed(() => Math.abs(totals.value.closingDebit - totals.value.closingCredit) < 0.01);
+
+const columns: Column<TrialBalanceRow>[] = [
+  { key: 'code', label: 'الرمز', width: '80px' },
+  { key: 'name', label: 'الحساب' },
+  { key: 'openingBalance', label: 'رصيد أول المدة', numeric: true },
+  { key: 'periodDebit', label: 'حركة مدينة', numeric: true },
+  { key: 'periodCredit', label: 'حركة دائنة', numeric: true },
+  { key: 'closingDebit', label: 'رصيد مدين', numeric: true },
+  { key: 'closingCredit', label: 'رصيد دائن', numeric: true },
+];
+
+const table = computed<ExportTable | undefined>(() =>
+  data.value && {
+    title: 'ميزان المراجعة',
+    columns: columns.map((c) => c.label),
+    rows: [
+      ...data.value.map((r) => [r.code, r.name, r.openingBalance, r.periodDebit, r.periodCredit, r.closingDebit, r.closingCredit]),
+      ['', 'الإجمالي', totals.value.opening, totals.value.debit, totals.value.credit, totals.value.closingDebit, totals.value.closingCredit],
+    ],
+  },
+);
+</script>
+
+<template>
+  <ReportShell title="ميزان المراجعة" subtitle="أرصدة الحسابات في نهاية الفترة — يجب أن يتساوى المدين والدائن" :from="from" :to="to" :loading="(loading || !ready) && !data" :error="error" :table="table" @retry="reload">
+    <template #filters>
+      <DateRangeFilter v-model:from="from" v-model:to="to" :fiscal-start="fiscalStart" />
+    </template>
+
+    <p class="mb-3 flex items-center gap-1.5 text-[13px]" :class="balanced ? 'text-success' : 'text-danger'">
+      <CircleCheck v-if="balanced" class="size-4" />
+      <CircleAlert v-else class="size-4" />
+      {{ balanced ? 'الميزان متوازن' : 'الميزان غير متوازن!' }}
+    </p>
+
+    <DataTable :columns="columns" :rows="data" :page-size="0" clickable @row-click="(r) => router.push(`/reports/ledger?account=${r.accountId}&from=${from}&to=${to}`)">
+      <template #cell-code="{ row }"><span class="num text-text-secondary">{{ row.code }}</span></template>
+      <template #cell-openingBalance="{ row }"><MoneyText :value="row.openingBalance" plain dash-zero /></template>
+      <template #cell-periodDebit="{ row }"><MoneyText :value="row.periodDebit" plain dash-zero /></template>
+      <template #cell-periodCredit="{ row }"><MoneyText :value="row.periodCredit" plain dash-zero /></template>
+      <template #cell-closingDebit="{ row }"><MoneyText :value="row.closingDebit" plain dash-zero class="font-medium" /></template>
+      <template #cell-closingCredit="{ row }"><MoneyText :value="row.closingCredit" plain dash-zero class="font-medium" /></template>
+      <template #footer>
+        <tr>
+          <td class="px-3 py-3" colspan="2">الإجمالي</td>
+          <td class="px-3 py-3"><MoneyText :value="totals.opening" plain /></td>
+          <td class="px-3 py-3"><MoneyText :value="totals.debit" plain /></td>
+          <td class="px-3 py-3"><MoneyText :value="totals.credit" plain /></td>
+          <td class="px-3 py-3"><MoneyText :value="totals.closingDebit" /></td>
+          <td class="px-3 py-3"><MoneyText :value="totals.closingCredit" /></td>
+        </tr>
+      </template>
+    </DataTable>
+  </ReportShell>
+</template>

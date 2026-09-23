@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+/* Class-based dark mode (`<html class="dark">`), toggled by themeService. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens — see docs/design_system.md.
+ * Light values live in @theme (so Tailwind utilities like `bg-surface` resolve to
+ * `var(--color-surface)`), and `:root.dark` overrides the same variables.
+ * The default Tailwind palette is removed on purpose: only these tokens exist,
+ * which enforces "no extra chromatic accents".
+ */
+@theme {
+  --font-sans: "Cairo Variable", "Cairo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+
+  /* Linear-style weights: never bold. `font-bold` is clamped too. */
+  --font-weight-normal: 400;
+  --font-weight-medium: 510;
+  --font-weight-semibold: 590;
+  --font-weight-bold: 590;
+
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --color-background: #ffffff;
+  --color-surface: #f4f4f5;
+  --color-surface-hover: #e4e4e7;
+  --color-border: #d4d4d8;
+  --color-text-primary: #09090b;
+  --color-text-secondary: #71717a;
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-on-primary: #ffffff;
+  --color-danger: #ef4444;
+  --color-success: #22c55e;
+  --color-warning: #d97706;
+
+  /* Fixed greys for printed documents (invoices, receipts) — identical in light and dark mode. */
+  --color-print-muted: #52525b;
+  --color-print-rule: #d4d4d8;
+  --color-print-fill: #f4f4f5;
+
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+
+  @keyframes shimmer {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+}
+
+:root {
+  color-scheme: light;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+:root.dark {
+  color-scheme: dark;
+  --color-background: #0e0f11;
+  --color-surface: #17181c;
+  --color-surface-hover: #222327;
+  --color-border: #2d2e33;
+  --color-text-primary: #f2f2f2;
+  --color-text-secondary: #8b8d98;
+  --color-primary: #5e6ad2;
+  --color-primary-hover: #6b79e4;
+  --color-on-primary: #ffffff;
+  --color-danger: #e25858;
+  --color-success: #42b883;
+  --color-warning: #f0a33a;
+}
+
+@layer base {
+  body {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.55;
+    background-color: var(--color-background);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  b, strong { font-weight: var(--font-weight-semibold); }
+
+  /* Numbers inside RTL text stay LTR (see .num). */
+  input[type="number"] { direction: ltr; text-align: right; }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+  :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+
+  ::selection { background: color-mix(in oklab, var(--color-primary) 25%, transparent); }
+
+  /* Thin, token-colored scrollbars (desktop app feel). */
+  * { scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }
+}
+
+@layer components {
+  /* Numeric runs: LTR isolate + tabular figures so columns line up. */
+  .num {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-variant-numeric: tabular-nums;
+    /* When used on a block element, keep RTL page alignment (right) instead of LTR's left.
+       Alignment utilities (text-center, …) still override this. */
+    text-align: right;
+  }
+
+  .field-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+  }
+
+  .control {
+    width: 100%;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-background);
+    color: var(--color-text-primary);
+    font-size: 13px;
+    transition: border-color 120ms, box-shadow 120ms;
+  }
+  .control::placeholder { color: var(--color-text-secondary); opacity: 0.8; }
+  .control:hover { border-color: color-mix(in oklab, var(--color-text-secondary) 55%, var(--color-border)); }
+  .control:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 18%, transparent); }
+  .control:disabled { opacity: 0.6; cursor: not-allowed; }
+  .control[aria-invalid="true"] { border-color: var(--color-danger); }
+  textarea.control { height: auto; padding: 8px 10px; resize: vertical; }
+  select.control { padding-inline-end: 28px; }
+}
+
+/* Printing: only the element marked .print-root is rendered. */
+@media print {
+  :root, :root.dark {
+    color-scheme: light;
+    --color-background: #ffffff;
+    --color-surface: #f4f4f5;
+    --color-surface-hover: #e4e4e7;
+    --color-border: #d4d4d8;
+    --color-text-primary: #000000;
+    --color-text-secondary: #52525b;
+  }
+  /* Un-clip the app shell's scroll containers so long documents paginate instead of being cut. */
+  html, body, *:has(.print-root) { height: auto !important; overflow: visible !important; }
+  body * { visibility: hidden; }
+  .print-root, .print-root * { visibility: visible; }
+  .print-root { position: absolute; inset-inline-start: 0; top: 0; width: 100%; }
+  .no-print { display: none !important; }
+}

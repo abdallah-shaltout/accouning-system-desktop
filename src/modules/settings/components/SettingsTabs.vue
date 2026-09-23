@@ -1,0 +1,30 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
+import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+
+const route = useRoute();
+const auth = useAuthStore();
+
+const tabs = computed(() =>
+  [
+    { to: '/settings/general', label: 'عام والضرائب', show: auth.can('settings') },
+    { to: '/settings/printing', label: 'الطباعة والأجهزة', show: auth.can('settings') },
+    { to: '/settings/appearance', label: 'المظهر', show: true },
+  ].filter((t) => t.show),
+);
+</script>
+
+<template>
+  <nav class="mb-5 flex gap-1 border-b border-border" aria-label="أقسام الإعدادات">
+    <RouterLink
+      v-for="t in tabs"
+      :key="t.to"
+      :to="t.to"
+      class="-mb-px border-b-2 px-3 py-2 text-[13px] transition-colors"
+      :class="route.path === t.to ? 'border-primary font-medium text-text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'"
+    >
+      {{ t.label }}
+    </RouterLink>
+  </nav>
+</template>

@@ -1,0 +1,131 @@
+import { ApiError, clone, db, delay, inDateRange, includesText, session } from '@/mocks';
+import { previewSaleJournal, recordRefund, recordSale, returnedQtyByLine } from '@/mocks/backend/sales';
+import type { Customer } from '@/modules/parties/types';
+import type { Payment } from '@/modules/payments/types';
+import type { StoreSettings } from '@/modules/settings/types';
+import { invoiceOutstanding } from '../helpers/totals';
+import type { Invoice, InvoiceFilter, JournalPreviewLine, Refund, RefundInput, SaleInput } from '../types';
+
+export type InvoiceRow = Invoice & { customerName?: string; cashierName: string; outstanding: number };
+
+export interface InvoiceDetail extends InvoiceRow {
+  customer?: Customer;
+  refunds: Refund[];
+  payments: Payment[];
+  journalEntries: { id: string; number: string; description: string }[];
+  /** invoiceLineId → quantity already returned. */
+  returnedQty: Record<string, number>;
+}
+
+function toRow(inv: Invoice): InvoiceRow {
+  return {
+    ...clone(inv),
+    customerName: db.customers.find((c) => c.id === inv.customerId)?.name,
+    cashierName: db.users.find((u) => u.id === inv.cashierId)?.name ?? '—',
+    outstanding: inv.status === 'REFUNDED' ? 0 : invoiceOutstanding(inv),
+  };
+}
+
+export async function getInvoices(filter: InvoiceFilter & { openOnly?: boolean } = {}): Promise<InvoiceRow[]> {
+  await delay();
+  return db.invoices
+    .filter(
+      (i) =>
+        (!filter.status || i.status === filter.status) &&
+        (!filter.paymentStatus || i.paymentStatus === filter.paymentStatus) &&
+        (!filter.customerId || i.customerId === filter.customerId) &&
+        (!filter.openOnly || (i.status === 'COMPLETED' && invoiceOutstanding(i) > 0)) &&
+        inDateRange(i.date, filter.from, filter.to),
+    )
+    .map(toRow)
+    .filter((r) => includesText([r.number, r.customerName], filter.search))
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export async function getInvoice(id: string): Promise<InvoiceDetail> {
+  await delay();
+  const inv = db.invoices.find((i) => i.id === id);
+  if (!inv) throw new ApiError('الفاتورة غير موجودة', 'NOT_FOUND');
+  const refunds = db.refunds.filter((r) => r.invoiceId === id);
+  const payments = db.payments.filter((p) => p.type === 'RECEIVED' && p.targetRef === id);
+  const sourceIds = new Set([id, ...refunds.map((r) => r.id), ...payments.map((p) => p.id)]);
+  return {
+    ...toRow(inv),
+    customer: clone(db.customers.find((c) => c.id === inv.customerId)),
+    refunds: clone(refunds),
+    payments: clone(payments),
+    journalEntries: db.journalEntries
+      .filter((e) => e.sourceRef && sourceIds.has(e.sourceRef.id))
+      .map((e) => ({ id: e.id, number: e.number, description: e.description })),
+    returnedQty: Object.fromEntries(returnedQtyByLine(id)),
+  };
+}
+
+/** The double-entry the sale *would* post — nothing is saved. */
+export async function previewSale(input: SaleInput): Promise<JournalPreviewLine[]> {
+  await delay(120);
+  return previewSaleJournal(input, session.userId);
+}
+
+export async function createSale(input: SaleInput): Promise<Invoice> {
+  await delay(350);
+  return clone(recordSale(input, session.userId));
+}
+
+export async function createRefund(input: RefundInput): Promise<Refund> {
+  await delay();
+  return clone(recordRefund(input, session.userId));
+}
+
+export interface PrintData {
+  invoice: Invoice;
+  customer?: Customer;
+  cashierName: string;
+  settings: StoreSettings;
+  /** true when rendering the settings "test print" sample. */
+  sample?: boolean;
+}
+
+/** Everything a printed invoice needs. `id = 'sample'` returns a demo invoice (not saved) for test prints. */
+export async function getInvoicePrintData(id: string): Promise<PrintData> {
+  await delay(150);
+  if (id === 'sample') {
+    const now = new Date().toISOString();
+    const products = db.products.filter((p) => p.type === 'product').slice(0, 3);
+    const lines = products.map((p, i) => ({ id: `s-${i}`, productId: p.id, name: p.name, qty: i + 1, price: p.price, costPrice: p.costPrice, discount: 0 }));
+    const subTotal = lines.reduce((a, l) => a + l.qty * l.price, 0);
+    const taxAmount = Math.round(subTotal * 15) / 100;
+    return {
+      invoice: {
+        id: 'sample',
+        number: `${db.settings.invoiceNumberPrefix}000000`,
+        date: now,
+        cashierId: session.userId,
+        status: 'COMPLETED',
+        paymentStatus: 'PAID',
+        lines,
+        subTotal,
+        discountRate: 0,
+        discountAmount: 0,
+        taxRate: 15,
+        taxAmount,
+        grandTotal: subTotal + taxAmount,
+        paymentMethod: 'cash',
+        paidAmount: subTotal + taxAmount,
+        refundedAmount: 0,
+        tenderedAmount: Math.ceil((subTotal + taxAmount) / 100) * 100,
+      },
+      cashierName: db.users.find((u) => u.id === session.userId)?.name ?? '—',
+      settings: clone(db.settings),
+      sample: true,
+    };
+  }
+  const inv = db.invoices.find((i) => i.id === id);
+  if (!inv) throw new ApiError('الفاتورة غير موجودة', 'NOT_FOUND');
+  return {
+    invoice: clone(inv),
+    customer: clone(db.customers.find((c) => c.id === inv.customerId)),
+    cashierName: db.users.find((u) => u.id === inv.cashierId)?.name ?? '—',
+    settings: clone(db.settings),
+  };
+}
