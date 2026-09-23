@@ -1,5 +1,6 @@
-import type { Invoice, JournalPreviewLine, Refund, RefundInput, SaleInput } from '@/modules/invoices/types';
-import { computeSaleTotals, invoiceOutstanding, paymentStatusFor } from '@/modules/invoices/helpers/totals';
+import type { Invoice, JournalPreviewLine, Refund, RefundInput, SaleInput, Tender } from '@/modules/invoices/types';
+import { computeInvoiceTotals, invoiceOutstanding, paymentStatusFor, round2 as round2Totals } from '@/modules/invoices/helpers/totals';
+import type { PaymentMethod } from '@/modules/settings/types';
 import { db, nextNumber } from '../db';
 import { emit } from '../events';
 import { mutate } from '../persist';
@@ -22,11 +23,48 @@ const METHOD_LABEL: Record<string, string> = {
   credit: 'آجل',
 };
 
+/**
+ * Resolves a payment method to its settlement account by system role (docs/v2/02-accounting-review.md
+ * C3 fix, docs/v2/09-purchases-payments-expenses.md §2): card/wallet tenders post to their clearing
+ * account, not straight to bank, since the money hasn't arrived yet. `settlementAccountFor` in
+ * `./accounts` stays untouched (payments.ts/purchases.ts still call it for their own methods) — this
+ * is the new, payment-method-aware resolver `sales.ts` uses for tenders.
+ * TODO(phase 8): the card-settlement voucher (Dr bank + Dr cardFees / Cr cardClearing) that clears
+ * this balance when the bank deposit arrives isn't built yet — this phase only gets the initial
+ * posting right, per docs/v2/09 §2 "Card settlement".
+ */
+function tenderAccountId(method: PaymentMethod): string {
+  return accountFor(method.accountRole).id;
+}
+
+function paymentMethodById(id: string): PaymentMethod {
+  const method = db.paymentMethods.find((m) => m.id === id);
+  if (!method) throw new ApiError('طريقة الدفع غير موجودة', 'NOT_FOUND');
+  return method;
+}
+
+/** The legacy `SalePaymentMethod` string mapped onto a seeded v2 payment method, for callers that don't pass `tenders`. */
+const LEGACY_METHOD_ID: Record<SaleInput['paymentMethod'], string> = {
+  cash: 'pm-cash',
+  card: 'pm-mada',
+  bank_transfer: 'pm-bank-transfer',
+  credit: 'pm-credit',
+};
+
+/** `db.taxes` lookup with a store-default fallback, mirroring the pre-v2 `salesTaxRate()` default. */
+function taxForLine(taxId: string | undefined): { rate: number; category: import('@/modules/settings/types').TaxCategory; id?: string } {
+  const tax =
+    (taxId && db.taxes.find((t) => t.id === taxId && t.active)) ??
+    db.taxes.find((t) => t.id === db.settings.defaultTaxId && t.active) ??
+    db.taxes.find((t) => t.type === 'OUTPUT' && t.isDefault && t.active);
+  return tax ? { rate: tax.rate, category: tax.category, id: tax.id } : { rate: salesTaxRate(), category: 'S' };
+}
+
 interface PreparedSale {
-  totals: ReturnType<typeof computeSaleTotals>;
+  totals: ReturnType<typeof computeInvoiceTotals>;
+  tenders: (Tender & { method: PaymentMethod })[];
   paidAmount: number;
   costTotal: number;
-  taxRate: number;
   posting: PostingLine[];
 }
 
@@ -59,32 +97,65 @@ function prepareSale(input: SaleInput, userId: string): PreparedSale {
     costTotal += round2(qty) >= round2(product.stockQty) ? product.stockValue : round2(qty * product.costPrice);
   }
 
-  const taxRate = salesTaxRate();
-  const totals = computeSaleTotals(input.lines, input.discountRate, taxRate);
+  // v2 pricing/discount/VAT engine (docs/v2/06-sales-and-pos.md §3) — per-line tax, inclusive by
+  // default (`company.pricesIncludeTax`), invoice discount spread proportionally with largest-
+  // remainder rounding. `taxForLine` snapshots each line's rate/category at sale time.
+  const pricesIncludeTax = db.settings.pricesIncludeTax !== false;
+  const lineTaxes = input.lines.map((l) => taxForLine(l.taxId));
+  const totals = computeInvoiceTotals(
+    input.lines.map((l, i) => ({ qty: l.qty, unitPrice: l.price, discount: l.discount ?? 0, discountIsPct: l.discountIsPct ?? false, tax: lineTaxes[i] })),
+    input.discountRate > 0 ? { pct: input.discountRate } : undefined,
+    pricesIncludeTax,
+  );
+  const grandTotal = totals.gross;
 
-  let paidAmount: number;
-  if (input.paymentMethod === 'card' || input.paymentMethod === 'bank_transfer') paidAmount = totals.grandTotal;
-  else if (input.paymentMethod === 'credit') paidAmount = 0;
-  else paidAmount = Math.min(round2(input.paidAmount), totals.grandTotal);
+  // Tenders: either the caller passed a v2 split-payment array, or we synthesize one from the
+  // legacy paymentMethod/paidAmount pair so every existing caller (POS cart, CheckoutModal,
+  // Phase 4's createSale) keeps working unchanged.
+  let tenders: Tender[];
+  if (input.tenders?.length) {
+    tenders = input.tenders;
+  } else if (input.paymentMethod === 'card' || input.paymentMethod === 'bank_transfer') {
+    tenders = [{ paymentMethodId: LEGACY_METHOD_ID[input.paymentMethod], amount: grandTotal }];
+  } else if (input.paymentMethod === 'credit') {
+    tenders = [];
+  } else {
+    tenders = [{ paymentMethodId: LEGACY_METHOD_ID.cash, amount: Math.min(round2(input.paidAmount), grandTotal) }];
+  }
+  const resolvedTenders = tenders.map((t) => ({ ...t, method: paymentMethodById(t.paymentMethodId) }));
+  const paidAmount = round2Totals(sum(resolvedTenders, (t) => t.amount));
   if (paidAmount < 0) throw new ApiError('المبلغ المدفوع غير صحيح');
+  if (paidAmount > grandTotal + 0.01) throw new ApiError('مجموع طرق الدفع أكبر من إجمالي الفاتورة');
 
-  if (paidAmount < totals.grandTotal) {
+  if (paidAmount < grandTotal) {
     if (!input.customerId) throw new ApiError('البيع الآجل أو الدفع الجزئي يتطلب اختيار عميل');
     const customer = db.customers.find((c) => c.id === input.customerId);
     if (!customer?.active) throw new ApiError('العميل غير موجود أو غير نشط');
   }
 
   costTotal = round2(costTotal);
-  const receivable = round2(totals.grandTotal - paidAmount);
+  const receivable = round2(grandTotal - paidAmount);
+
+  // One posting line per tender, each to its own method's account (C3 fix: card/wallet tenders go
+  // to their clearing account, not straight to bank — see `tenderAccountId` above).
+  const tenderLines: PostingLine[] = resolvedTenders
+    .filter((t) => t.amount > 0)
+    .map((t) => ({ accountId: tenderAccountId(t.method), debit: t.amount, description: t.reference ? `${t.method.name} — ${t.reference}` : t.method.name }));
+
+  // vatByCategory (docs/v2/06 §3 step 5) posts sales net per category to the same `sales` role for
+  // now — a separate revenue account per category (e.g. 4120 zero-rated sales) is a per-product/
+  // per-category account resolution that belongs to Phase 6's product tax fields; the VAT report
+  // (below) still gets its category breakdown from the invoice lines regardless of which revenue
+  // account the net posts to.
   const posting: PostingLine[] = [
-    { accountId: settlementAccountFor(input.paymentMethod).id, debit: paidAmount },
+    ...tenderLines,
     { role: 'receivable', debit: receivable, partyKind: 'customer', partyId: input.customerId },
-    { role: 'sales', credit: totals.taxable },
-    { role: 'vatOutput', credit: totals.taxAmount },
+    { role: 'sales', credit: totals.net },
+    { role: 'vatOutput', credit: totals.vat },
     { role: 'cogs', debit: costTotal },
     { role: 'inventory', credit: costTotal },
   ];
-  return { totals, paidAmount, costTotal, taxRate, posting };
+  return { totals, tenders: resolvedTenders, paidAmount, costTotal, posting };
 }
 
 export function previewSaleJournal(input: SaleInput, userId: string): JournalPreviewLine[] {
@@ -98,8 +169,14 @@ export function previewSaleJournal(input: SaleInput, userId: string): JournalPre
 }
 
 export function recordSale(input: SaleInput, userId: string, date = new Date().toISOString()): Invoice {
-  const { totals, paidAmount, taxRate, posting } = prepareSale(input, userId);
+  const { totals, tenders, paidAmount, posting } = prepareSale(input, userId);
+  const lineTaxes = input.lines.map((l) => taxForLine(l.taxId));
 
+  // `taxRate`/`taxAmount`/`grandTotal` are kept as a single-rate snapshot for the legacy print/
+  // refund/report code paths (InvoiceA4, InvoiceThermal, recordRefund — outside this phase's
+  // surface): the store's dominant (first-line) rate stands in for what used to be "the" VAT rate.
+  // `lines[].taxRate`/`taxCategory`/`net`/`vat` below carry the real per-line v2 detail the VAT
+  // report reads.
   const id = uid('inv');
   const invoice: Invoice = {
     id,
@@ -108,9 +185,10 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
     customerId: input.customerId,
     cashierId: userId,
     status: 'COMPLETED',
-    paymentStatus: paymentStatusFor(totals.grandTotal, paidAmount),
+    paymentStatus: paymentStatusFor(totals.gross, paidAmount),
     lines: input.lines.map((l, i) => {
       const product = productById(l.productId);
+      const lr = totals.lines[i];
       return {
         id: `${id}-l${i + 1}`,
         productId: product.id,
@@ -119,15 +197,21 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
         price: l.price,
         costPrice: product.costPrice,
         discount: l.discount ?? 0,
+        taxId: lineTaxes[i].id,
+        taxCategory: lineTaxes[i].category,
+        taxRate: lineTaxes[i].rate,
+        net: lr.net,
+        vat: lr.vat,
       };
     }),
-    subTotal: totals.subTotal,
+    subTotal: totals.subTotalAfterLineDiscounts,
     discountRate: input.discountRate,
-    discountAmount: totals.discountAmount,
-    taxRate,
-    taxAmount: totals.taxAmount,
-    grandTotal: totals.grandTotal,
+    discountAmount: totals.invoiceDiscountAmount,
+    taxRate: lineTaxes[0]?.rate ?? 0,
+    taxAmount: totals.vat,
+    grandTotal: totals.gross,
     paymentMethod: input.paymentMethod,
+    tenders: tenders.map((t) => ({ paymentMethodId: t.paymentMethodId, amount: t.amount, reference: t.reference })),
     paidAmount,
     refundedAmount: 0,
     tenderedAmount: input.paymentMethod === 'cash' ? input.tenderedAmount : undefined,

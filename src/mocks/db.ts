@@ -1,7 +1,7 @@
-import type { Account, FiscalYear, JournalEntry } from '@/modules/accounting/types';
+import type { Account, FiscalYear, JournalEntry, JournalTemplate } from '@/modules/accounting/types';
 import type { ActivityEntry } from '@/modules/core/types';
 import type { Invoice, Refund } from '@/modules/invoices/types';
-import type { Customer, Supplier } from '@/modules/parties/types';
+import type { Customer, PartyGroup, PartyHistoryEntry, Supplier } from '@/modules/parties/types';
 import type { Payment } from '@/modules/payments/types';
 import type {
   Category,
@@ -12,7 +12,7 @@ import type {
   Unit,
 } from '@/modules/products/types';
 import type { PurchaseOrder, PurchaseReturn } from '@/modules/purchases/types';
-import type { StoreSettings, Tax } from '@/modules/settings/types';
+import type { PaymentMethod, StoreSettings, Tax } from '@/modules/settings/types';
 import type { User } from '@/modules/users/types';
 
 /**
@@ -26,6 +26,15 @@ export interface MockDb {
   credentials: Record<string, string>;
   accounts: Account[];
   journalEntries: JournalEntry[];
+  /**
+   * v2 phase 2 (docs/v2/11-journal-dashboard-insights.md A2): entries saved without posting.
+   * Kept OUT of `journalEntries` on purpose — every ledger/balance/report reader in the app scans
+   * `journalEntries` expecting only posted GL impact (party balances, trial balance, verify:mocks
+   * invariants…), and none of those readers are this phase's to edit. A draft becomes a real
+   * `journalEntries` row only once `postDraftJournal` posts it.
+   */
+  journalDrafts: JournalEntry[];
+  journalTemplates: JournalTemplate[];
   fiscalYears: FiscalYear[];
   categories: Category[];
   units: Unit[];
@@ -35,12 +44,18 @@ export interface MockDb {
   stockMovements: StockMovement[];
   customers: Customer[];
   suppliers: Supplier[];
+  /** v2 phase 4 (docs/v2/08-customers-and-suppliers.md §5): Settings → Parties groups. */
+  partyGroups: PartyGroup[];
+  /** v2 phase 4 (docs/v2/08 §3 "السجل"): per-party audit trail, separate from the shared `activity` feed. */
+  partyHistory: PartyHistoryEntry[];
   invoices: Invoice[];
   refunds: Refund[];
   purchaseOrders: PurchaseOrder[];
   purchaseReturns: PurchaseReturn[];
   payments: Payment[];
   taxes: Tax[];
+  /** v2 phase 3 (docs/v2/09-purchases-payments-expenses.md §2): payment methods → settlement account by role. */
+  paymentMethods: PaymentMethod[];
   settings: StoreSettings;
   activity: ActivityEntry[];
   counters: Record<DocumentKind, number>;
@@ -60,6 +75,8 @@ export const db: MockDb = {
   credentials: {},
   accounts: [],
   journalEntries: [],
+  journalDrafts: [],
+  journalTemplates: [],
   fiscalYears: [],
   categories: [],
   units: [],
@@ -69,12 +86,15 @@ export const db: MockDb = {
   stockMovements: [],
   customers: [],
   suppliers: [],
+  partyGroups: [],
+  partyHistory: [],
   invoices: [],
   refunds: [],
   purchaseOrders: [],
   purchaseReturns: [],
   payments: [],
   taxes: [],
+  paymentMethods: [],
   settings: {
     storeName: '',
     currency: 'SAR',

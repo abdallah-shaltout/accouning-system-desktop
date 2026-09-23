@@ -105,6 +105,15 @@ export interface InventoryReportRow {
   status: 'ok' | 'low' | 'out';
 }
 
+/** v2 (docs/v2/06-sales-and-pos.md §3 step 5, docs/v2/02-accounting-review.md D1): one VAT-return box per (category, rate). */
+export interface VatCategoryBox {
+  category: 'S' | 'Z' | 'E' | 'O';
+  rate: number;
+  net: number;
+  vat: number;
+  count: number;
+}
+
 export interface VatReport {
   sales: { taxable: number; vat: number; count: number };
   salesReturns: { taxable: number; vat: number; count: number };
@@ -116,4 +125,10 @@ export interface VatReport {
   /** Cross-check against the VAT accounts in the ledger. */
   ledgerOutput: number;
   ledgerInput: number;
+  /**
+   * v2: per-line sales VAT grouped by (category, rate) — docs/v2/02-accounting-review.md D1's
+   * "different VAT-return boxes" for zero-rated vs exempt. Computed from `invoice.lines[].taxCategory`
+   * net of the same lines' share of credit notes, so `Σ salesBoxes[].vat = outputVat` exactly.
+   */
+  salesBoxes: VatCategoryBox[];
 }

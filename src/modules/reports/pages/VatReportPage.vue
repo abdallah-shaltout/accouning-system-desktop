@@ -30,6 +30,10 @@ const rows = computed(() => {
 });
 const reconciled = computed(() => !!data.value && Math.abs(data.value.outputVat - data.value.ledgerOutput) < 0.01 && Math.abs(data.value.inputVat - data.value.ledgerInput) < 0.01);
 
+/** ZATCA return box labels (docs/v2/02-accounting-review.md D1) — one row per (category, rate). */
+const CATEGORY_LABEL: Record<string, string> = { S: 'خاضعة للنسبة الأساسية', Z: 'خاضعة لنسبة الصفر', E: 'معفاة', O: 'خارج نطاق الضريبة' };
+const boxes = computed(() => [...(data.value?.salesBoxes ?? [])].sort((a, b) => a.category.localeCompare(b.category) || b.rate - a.rate));
+
 const table = computed<ExportTable | undefined>(() => {
   const d = data.value;
   if (!d) return undefined;
@@ -41,6 +45,7 @@ const table = computed<ExportTable | undefined>(() => {
       ['ضريبة المخرجات', '', '', d.outputVat],
       ['ضريبة المدخلات', '', '', d.inputVat],
       ['صافي الضريبة المستحقة', '', '', d.netPayable],
+      ...boxes.value.map((b) => [`${CATEGORY_LABEL[b.category] ?? b.category} (${b.rate}%)`, '', b.net, b.vat]),
     ],
   };
 });
@@ -69,6 +74,28 @@ const table = computed<ExportTable | undefined>(() => {
               <td class="px-3 py-2.5"><span class="num">{{ formatNumber(r.count) }}</span></td>
               <td class="px-3 py-2.5"><MoneyText :value="r.sign * r.taxable" plain /></td>
               <td class="px-4 py-2.5"><MoneyText :value="r.sign * r.vat" plain /></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="boxes.length" class="mt-5 overflow-hidden rounded-xl border border-border">
+        <div class="border-b border-border bg-surface px-4 py-2.5 text-xs font-medium text-text-secondary">مربعات إقرار ضريبة القيمة المضافة — المبيعات (حسب الفئة الضريبية)</div>
+        <table class="w-full text-body">
+          <thead class="bg-surface text-xs text-text-secondary">
+            <tr class="border-b border-border">
+              <th class="px-4 py-2.5 text-start font-medium">الفئة</th>
+              <th class="px-3 py-2.5 text-start font-medium">النسبة</th>
+              <th class="px-3 py-2.5 text-start font-medium">صافي المبيعات</th>
+              <th class="px-4 py-2.5 text-start font-medium">الضريبة</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="b in boxes" :key="`${b.category}-${b.rate}`" class="border-b border-border last:border-0">
+              <td class="px-4 py-2.5">{{ CATEGORY_LABEL[b.category] ?? b.category }}</td>
+              <td class="px-3 py-2.5"><span class="num">{{ b.rate }}%</span></td>
+              <td class="px-3 py-2.5"><MoneyText :value="b.net" plain /></td>
+              <td class="px-4 py-2.5"><MoneyText :value="b.vat" plain /></td>
             </tr>
           </tbody>
         </table>

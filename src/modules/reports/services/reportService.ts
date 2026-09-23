@@ -12,6 +12,7 @@ import type {
   SalesReport,
   StatementLine,
   TrialBalanceRow,
+  VatCategoryBox,
   VatReport,
 } from '../types';
 
@@ -306,6 +307,57 @@ export async function getInventoryReport(): Promise<InventoryReportRow[]> {
 
 // --- VAT -------------------------------------------------------------------------------------
 
+/**
+ * v2 (docs/v2/02-accounting-review.md §4 invariant 5): output VAT for a period = Σ VAT on invoice
+ * LINES − Σ VAT on credit-note lines (not the invoice-level `taxAmount` snapshot alone, now that
+ * VAT is computed per line with its own category — docs/v2/06-sales-and-pos.md §3). Grouped by
+ * (category, rate) so zero-rated and exempt land in their own ZATCA return boxes (D1).
+ *
+ * Credit notes (`Refund`) don't carry a per-line category breakdown (that's the invoice's own
+ * `lines[].taxCategory` — a return only ever returns quantities of existing invoice lines), so a
+ * refund's VAT is apportioned back into the *same* invoice's category mix, in proportion to each
+ * category's share of that invoice's total VAT. This keeps `Σ salesBoxes[].vat === outputVat` exact
+ * even when a return spans lines from more than one tax category.
+ */
+function salesVatBoxes(invoices: typeof db.invoices, refunds: typeof db.refunds): { boxes: VatCategoryBox[]; vat: number; taxable: number } {
+  const boxes = new Map<string, VatCategoryBox>();
+  const add = (category: 'S' | 'Z' | 'E' | 'O', rate: number, net: number, vat: number, countDelta: number) => {
+    const key = `${category}:${rate}`;
+    const box = boxes.get(key) ?? { category, rate, net: 0, vat: 0, count: 0 };
+    box.net = round2(box.net + net);
+    box.vat = round2(box.vat + vat);
+    box.count += countDelta;
+    boxes.set(key, box);
+  };
+
+  // `count` per box is document-level noise the report doesn't currently surface per box (the top-
+  // level `sales.count`/`salesReturns.count` cover that) — left at 0 here on purpose.
+  for (const inv of invoices) {
+    for (const line of inv.lines) {
+      add(line.taxCategory ?? 'O', line.taxRate ?? 0, line.net ?? 0, line.vat ?? 0, 0);
+    }
+  }
+
+  for (const refund of refunds) {
+    const inv = db.invoices.find((i) => i.id === refund.invoiceId);
+    if (!inv || !inv.taxAmount) continue;
+    // Apportion this refund's VAT across the invoice's category mix, in proportion to each
+    // category's share of the invoice's total VAT — a return has no per-line category of its own.
+    const invVat = inv.taxAmount;
+    const invNet = inv.subTotal - inv.discountAmount;
+    for (const line of inv.lines) {
+      const lineVat = line.vat ?? 0;
+      const lineNet = line.net ?? 0;
+      const shareOfVat = invVat > 0 ? lineVat / invVat : 0;
+      const shareOfNet = invNet > 0 ? lineNet / invNet : 0;
+      add(line.taxCategory ?? 'O', line.taxRate ?? 0, -round2(refund.subTotal * shareOfNet), -round2(refund.taxAmount * shareOfVat), 0);
+    }
+  }
+
+  const list = [...boxes.values()].filter((b) => b.net !== 0 || b.vat !== 0);
+  return { boxes: list, vat: round2(list.reduce((a, b) => a + b.vat, 0)), taxable: round2(list.reduce((a, b) => a + b.net, 0)) };
+}
+
 export async function getVatReport(range: DateRangeInput): Promise<VatReport> {
   await delay();
   const invoices = db.invoices.filter((i) => inDateRange(i.date, range.from, range.to));
@@ -313,6 +365,7 @@ export async function getVatReport(range: DateRangeInput): Promise<VatReport> {
   const pos = db.purchaseOrders.filter((p) => p.status === 'CONFIRMED' && inDateRange(p.date, range.from, range.to));
   const pReturns = db.purchaseReturns.filter((r) => inDateRange(r.date, range.from, range.to));
 
+  const salesBoxData = salesVatBoxes(invoices, refunds);
   const sales = { taxable: sum(invoices, (i) => i.subTotal - i.discountAmount), vat: sum(invoices, (i) => i.taxAmount), count: invoices.length };
   const salesReturns = { taxable: sum(refunds, (r) => r.subTotal), vat: sum(refunds, (r) => r.taxAmount), count: refunds.length };
   const purchases = { taxable: sum(pos, (p) => p.subTotal), vat: sum(pos, (p) => p.taxAmount), count: pos.length };
@@ -334,6 +387,7 @@ export async function getVatReport(range: DateRangeInput): Promise<VatReport> {
     netPayable: round2(outputVat - inputVat),
     ledgerOutput: round2(out.c - out.d),
     ledgerInput: round2(inp.d - inp.c),
+    salesBoxes: salesBoxData.boxes,
   };
 }
 

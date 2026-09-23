@@ -54,9 +54,15 @@ export function seedEmptyCompany(): void {
   db.products = [];
   db.customers = [];
   db.suppliers = [];
+  // v2 phase 3: category/direction are required on Tax now (docs/v2/06-sales-and-pos.md §3) — kept
+  // inline here rather than importing the demo fixture, since this is the *empty* company shell.
   db.taxes = [
-    { id: 'tax-vat-out', name: 'ضريبة القيمة المضافة (مبيعات)', rate: 15, type: 'OUTPUT', isDefault: true, active: true },
-    { id: 'tax-vat-in', name: 'ضريبة القيمة المضافة (مشتريات)', rate: 15, type: 'INPUT', isDefault: true, active: true },
+    { id: 'tax-vat-out', name: 'ضريبة القيمة المضافة (مبيعات)', rate: 15, type: 'OUTPUT', isDefault: true, active: true, category: 'S', direction: 'sales', accountRole: 'vatOutput' },
+    { id: 'tax-vat-in', name: 'ضريبة القيمة المضافة (مشتريات)', rate: 15, type: 'INPUT', isDefault: true, active: true, category: 'S', direction: 'purchase', accountRole: 'vatInput' },
+  ];
+  db.paymentMethods = [
+    { id: 'pm-cash', name: 'نقداً', type: 'cash', accountRole: 'cash', feePct: 0, showInPos: true, showInPayments: true, sortOrder: 1, active: true, canDelete: false },
+    { id: 'pm-credit', name: 'آجل', type: 'credit', accountRole: 'receivable', feePct: 0, showInPos: true, showInPayments: false, sortOrder: 2, active: true, canDelete: false },
   ];
   db.settings = {
     storeName: 'شركتي',
@@ -65,6 +71,7 @@ export function seedEmptyCompany(): void {
     invoiceNumberPrefix: 'INV-',
     printer: { mode: 'a4', thermalWidthMm: 80 },
     theme: 'light',
+    pricesIncludeTax: true,
   };
   db.users = [{ id: 'usr-1', username: 'admin', name: 'المدير', role: 'admin', maxDiscount: 100, active: true }];
   db.credentials = { admin: 'admin123' };

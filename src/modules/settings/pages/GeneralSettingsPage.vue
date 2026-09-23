@@ -11,12 +11,9 @@ import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
-import { toNum } from '@/modules/core/helpers/numbers';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import SettingsTabs from '../components/SettingsTabs.vue';
 import { useSettingsStore } from '../controllers/useSettingsStore';
-import { saveTax } from '../services/settingsService';
-import type { Tax } from '../types';
 
 const store = useSettingsStore();
 const auth = useAuthStore();
@@ -33,6 +30,8 @@ const form = reactive({
   invoiceNumberPrefix: 'INV-',
   receiptFooter: '',
   defaultTaxId: '',
+  /** v2 (docs/v2/06-sales-and-pos.md §3, README decision 4): default true — Saudi B2C shelf pricing. */
+  pricesIncludeTax: true,
   logo: undefined as string | undefined,
 });
 const errors = ref<Record<string, string>>({});
@@ -53,6 +52,7 @@ onMounted(async () => {
     invoiceNumberPrefix: s.invoiceNumberPrefix,
     receiptFooter: s.receiptFooter ?? '',
     defaultTaxId: s.defaultTaxId ?? '',
+    pricesIncludeTax: s.pricesIncludeTax !== false,
     logo: s.logo,
   });
   loading.value = false;
@@ -85,6 +85,7 @@ async function save() {
       vatNumber: form.vatNumber.trim() || undefined,
       receiptFooter: form.receiptFooter.trim() || undefined,
       defaultTaxId: form.defaultTaxId || undefined,
+      pricesIncludeTax: form.pricesIncludeTax,
     });
     toast.success('تم حفظ الإعدادات');
   } catch (err) {
@@ -94,29 +95,12 @@ async function save() {
   }
 }
 
-// --- taxes ---
-const taxDraft = ref<Record<string, number | undefined>>({});
-async function updateTax(tax: Tax, patch: Partial<Tax>) {
-  try {
-    await saveTax({ name: tax.name, rate: tax.rate, type: tax.type, isDefault: tax.isDefault, active: tax.active, ...patch }, tax.id);
-    await store.reloadTaxes();
-    toast.success('تم تحديث الضريبة', tax.name);
-  } catch (err) {
-    toast.error(err);
-  }
-}
-function commitRate(tax: Tax) {
-  const rate = toNum(taxDraft.value[tax.id]);
-  if (rate === undefined || rate === tax.rate) return;
-  updateTax(tax, { rate });
-}
-
 const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT').map((t) => ({ value: t.id, label: `${t.name} (${t.rate}%)` })));
 </script>
 
 <template>
   <div>
-    <PageHeader title="الإعدادات" subtitle="بيانات المتجر التي تظهر على الفواتير، والضرائب" />
+    <PageHeader title="الإعدادات" subtitle="بيانات المتجر التي تظهر على الفواتير" />
     <SettingsTabs />
 
     <SkeletonBlock v-if="loading" :lines="8" height="h-9" />
@@ -146,45 +130,16 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
         <AppCard title="الفواتير">
           <div class="grid gap-4 sm:grid-cols-2">
             <AppInput v-model="form.invoiceNumberPrefix" label="بادئة رقم الفاتورة" ltr :disabled="!canWrite" :error="errors.invoiceNumberPrefix" hint="مثال: INV- تنتج INV-000123" />
-            <AppSelect v-model="form.defaultTaxId" label="ضريبة المبيعات الافتراضية" :disabled="!canWrite" :options="outputTaxes" />
+            <AppSelect v-model="form.defaultTaxId" label="ضريبة المبيعات الافتراضية" :disabled="!canWrite" :options="outputTaxes" hint="أضف/عدّل الضرائب من تبويب «الضرائب»" />
             <AppInput v-model="form.receiptFooter" class="sm:col-span-2" label="نص أسفل الفاتورة" :disabled="!canWrite" placeholder="مثال: الاستبدال خلال 7 أيام" />
+            <AppSwitch
+              v-model="form.pricesIncludeTax"
+              class="sm:col-span-2"
+              label="الأسعار شاملة الضريبة"
+              description="الأسعار المُدخلة والخصومات تشمل ضريبة القيمة المضافة (الافتراضي للبيع بالتجزئة في السعودية). كل مستند يحفظ نسخته الخاصة من هذا الإعداد."
+              :disabled="!canWrite"
+            />
           </div>
-        </AppCard>
-
-        <AppCard title="الضرائب" padding="none">
-          <table class="w-full text-body">
-            <thead class="text-xs text-text-secondary">
-              <tr class="border-b border-border">
-                <th class="px-4 py-2 text-start font-medium">الضريبة</th>
-                <th class="px-2 py-2 text-start font-medium">النوع</th>
-                <th class="px-2 py-2 text-start font-medium">النسبة</th>
-                <th class="px-4 py-2 text-start font-medium">نشطة</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="t in store.taxes" :key="t.id" class="border-b border-border last:border-0">
-                <td class="px-4 py-2">
-                  {{ t.name }}
-                  <span v-if="t.isDefault" class="ms-1.5 rounded-full bg-primary/10 px-1.5 text-tiny text-primary">افتراضية</span>
-                </td>
-                <td class="px-2 py-2 text-text-secondary">{{ t.type === 'OUTPUT' ? 'مخرجات (مبيعات)' : 'مدخلات (مشتريات)' }}</td>
-                <td class="px-2 py-2">
-                  <input
-                    :value="taxDraft[t.id] ?? t.rate"
-                    type="number"
-                    min="0"
-                    max="100"
-                    :disabled="!canWrite"
-                    class="control h-8 w-20"
-                    @input="taxDraft[t.id] = toNum(($event.target as HTMLInputElement).value)"
-                    @change="commitRate(t)"
-                  />
-                  %
-                </td>
-                <td class="px-4 py-2"><AppSwitch :model-value="t.active" :disabled="!canWrite || t.isDefault" @update:model-value="(v) => updateTax(t, { active: v })" /></td>
-              </tr>
-            </tbody>
-          </table>
         </AppCard>
       </div>
 
