@@ -1,10 +1,24 @@
 import { ApiError, clone, db, delay, inDateRange, includesText, localDateKey, round2, session, uid } from '@/mocks';
-import { logActivity } from '@/mocks/backend/core';
-import { recordManualJournal, reverseJournal } from '@/mocks/backend/journal';
+import { closeFiscalYear, closeYearPreChecks, deleteDraftJournal, logActivity, postDraftJournal, reopenFiscalYear, type CloseYearPreCheck } from '@/mocks/backend/core';
+import {
+  advanceRecurrence,
+  deleteJournalTemplate,
+  editDraftJournal,
+  payVatSettlement,
+  postVatSettlement,
+  recordManualJournal,
+  reverseJournal,
+  saveJournalTemplate,
+  vatTotalsForPeriod,
+  type JournalTemplateInput,
+  type VatPeriodTotals,
+} from '@/mocks/backend/journal';
 import { mutate } from '@/mocks/persist';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
-import type { Account, AccountInput, FiscalYear, JournalEntry, JournalEntryInput, JournalFilter } from '../types';
+import type { Account, AccountInput, FiscalYear, JournalEntry, JournalEntryInput, JournalFilter, JournalTemplate } from '../types';
+
+export type { CloseYearPreCheck, VatPeriodTotals };
 
 export type AccountWithBalance = Account & { balance: number; debitTotal: number; creditTotal: number; hasPostings: boolean };
 
@@ -138,35 +152,74 @@ export async function reparentAccount(id: string, newParentId: string | null): P
 // --- Journal ---------------------------------------------------------------------------------
 
 /** `sourceLink` = app route of the document behind a SYSTEM entry. */
-export type JournalRow = JournalEntry & { createdByName: string; sourceLink?: string };
+export type JournalRow = JournalEntry & { createdByName: string; sourceLink?: string; sourceLabel?: string; attachmentCount: number };
+
+const SOURCE_LABEL: Record<string, string> = {
+  invoice: 'فاتورة مبيعات',
+  refund: 'مرتجع مبيعات',
+  purchaseOrder: 'أمر شراء',
+  purchaseReturn: 'مرتجع مشتريات',
+  payment: 'سند',
+  stockAdjustment: 'تسوية مخزون',
+};
+
+function matchesJournalFilter(e: JournalEntry, filter: JournalFilter): boolean {
+  return (
+    (!filter.type || e.type === filter.type) &&
+    (!filter.status || e.status === filter.status) &&
+    (!filter.accountId || e.lines.some((l) => l.accountId === filter.accountId || accountIsDescendantOf(l.accountId, filter.accountId!))) &&
+    (!filter.partyId || e.lines.some((l) => l.partyId === filter.partyId)) &&
+    (!filter.userId || e.createdBy === filter.userId) &&
+    (!filter.sourceKind || e.sourceRef?.kind === filter.sourceKind) &&
+    (filter.reversed === undefined || !!e.reversed === filter.reversed) &&
+    (filter.hasAttachments === undefined || (e.attachmentIds ?? []).length > 0 === filter.hasAttachments) &&
+    (filter.minAmount === undefined || e.totalDebit >= filter.minAmount) &&
+    (filter.maxAmount === undefined || e.totalDebit <= filter.maxAmount) &&
+    inDateRange(e.date, filter.from, filter.to) &&
+    includesText([e.number, e.description, e.sourceRef?.number], filter.search)
+  );
+}
+
+/** `accountId` filter includes an account's children (A1: "account (includes children)"). */
+function accountIsDescendantOf(accountId: string, ancestorId: string): boolean {
+  let cursor = db.accounts.find((a) => a.id === accountId);
+  while (cursor?.parentId) {
+    if (cursor.parentId === ancestorId) return true;
+    cursor = db.accounts.find((a) => a.id === cursor!.parentId);
+  }
+  return false;
+}
+
+function toRow(e: JournalEntry): JournalRow {
+  return {
+    ...clone(e),
+    createdByName: db.users.find((u) => u.id === e.createdBy)?.name ?? '—',
+    sourceLink: sourceLink(e),
+    sourceLabel: e.sourceRef ? SOURCE_LABEL[e.sourceRef.kind] : undefined,
+    attachmentCount: e.attachmentIds?.length ?? 0,
+  };
+}
+
+/** Posted entries + drafts (drafts live in a separate table — see `db.journalDrafts`'s doc comment). */
+function allEntriesAndDrafts(): JournalEntry[] {
+  return [...db.journalEntries, ...db.journalDrafts];
+}
 
 export async function getJournalEntries(filter: JournalFilter = {}): Promise<JournalRow[]> {
   await delay();
-  return db.journalEntries
-    .filter(
-      (e) =>
-        (!filter.type || e.type === filter.type) &&
-        (!filter.accountId || e.lines.some((l) => l.accountId === filter.accountId)) &&
-        inDateRange(e.date, filter.from, filter.to) &&
-        includesText([e.number, e.description, e.sourceRef?.number], filter.search),
-    )
+  return allEntriesAndDrafts()
+    .filter((e) => matchesJournalFilter(e, filter))
     .sort((a, b) => b.date.localeCompare(a.date) || b.number.localeCompare(a.number))
-    .map((e) => ({ ...clone(e), createdByName: db.users.find((u) => u.id === e.createdBy)?.name ?? '—', sourceLink: sourceLink(e) }));
+    .map(toRow);
 }
 
 /** Server-mode variant of `getJournalEntries` for `DataTable`: paged, sorted and totalled server-side. */
 export async function getJournalEntriesPaged(query: PagedQuery<JournalFilter>): Promise<PagedResult<JournalRow>> {
   await delay();
   const filter = query.filters ?? {};
-  let rows: JournalRow[] = db.journalEntries
-    .filter(
-      (e) =>
-        (!filter.type || e.type === filter.type) &&
-        (!filter.accountId || e.lines.some((l) => l.accountId === filter.accountId)) &&
-        inDateRange(e.date, filter.from, filter.to) &&
-        includesText([e.number, e.description, e.sourceRef?.number], filter.search),
-    )
-    .map((e) => ({ ...clone(e), createdByName: db.users.find((u) => u.id === e.createdBy)?.name ?? '—', sourceLink: sourceLink(e) }));
+  let rows: JournalRow[] = allEntriesAndDrafts()
+    .filter((e) => matchesJournalFilter(e, filter))
+    .map(toRow);
 
   const total = rows.length;
   const totals = { totalDebit: rows.reduce((a, r) => a + r.totalDebit, 0), totalCredit: rows.reduce((a, r) => a + r.totalCredit, 0) };
@@ -187,17 +240,20 @@ export async function getJournalEntriesPaged(query: PagedQuery<JournalFilter>): 
   return { rows: rows.slice(start, start + query.pageSize), total, totals };
 }
 
-export async function getJournalEntry(id: string): Promise<JournalRow & { reversedById?: string; reversedByNumber?: string }> {
+export async function getJournalEntry(id: string): Promise<JournalRow & { reversedById?: string; reversedByNumber?: string; related: JournalRow[] }> {
   await delay();
-  const entry = db.journalEntries.find((e) => e.id === id);
+  const entry = allEntriesAndDrafts().find((e) => e.id === id);
   if (!entry) throw new ApiError('القيد غير موجود', 'NOT_FOUND');
   const reversal = db.journalEntries.find((e) => e.reversalOfId === id);
+  // A3 "القيود المرتبطة": the reversal pair, and any other entry sharing the same source document.
+  const related = entry.sourceRef
+    ? db.journalEntries.filter((e) => e.id !== id && e.sourceRef?.kind === entry.sourceRef!.kind && e.sourceRef?.id === entry.sourceRef!.id)
+    : [];
   return {
-    ...clone(entry),
-    createdByName: db.users.find((u) => u.id === entry.createdBy)?.name ?? '—',
-    sourceLink: sourceLink(entry),
+    ...toRow(entry),
     reversedById: reversal?.id,
     reversedByNumber: reversal?.number,
+    related: related.map(toRow),
   };
 }
 
@@ -206,9 +262,26 @@ export async function createJournalEntry(input: JournalEntryInput): Promise<Jour
   return clone(recordManualJournal(input, session.userId, canPostToClosedPeriod()));
 }
 
-export async function reverseJournalEntry(id: string): Promise<JournalEntry> {
+/** Edit a saved draft in place. */
+export async function updateJournalDraft(id: string, input: JournalEntryInput): Promise<JournalEntry> {
   await delay();
-  return clone(reverseJournal(id, session.userId, canPostToClosedPeriod()));
+  return clone(editDraftJournal(id, input));
+}
+
+/** Posts a previously saved draft. */
+export async function postJournalDraft(id: string): Promise<JournalEntry> {
+  await delay();
+  return clone(postDraftJournal(id, session.userId, canPostToClosedPeriod()));
+}
+
+export async function deleteJournalDraft(id: string): Promise<void> {
+  await delay();
+  deleteDraftJournal(id);
+}
+
+export async function reverseJournalEntry(id: string, date: string, reason: string): Promise<JournalEntry> {
+  await delay();
+  return clone(reverseJournal(id, session.userId, date, reason, canPostToClosedPeriod()));
 }
 
 /** Where the SYSTEM entry came from, as an app route. */
@@ -283,4 +356,97 @@ export async function saveLockDate(lockDate: string | undefined): Promise<void> 
     db.settings.accounting = { ...db.settings.accounting, lockDate: lockDate || undefined };
   });
   logActivity('settings', lockDate ? `تحديد تاريخ القفل ${lockDate}` : 'إزالة تاريخ القفل', session.userId, new Date().toISOString(), '/accounting/fiscal-years');
+}
+
+// --- Fiscal-year closing wizard ----------------------------------------------------------------
+
+export async function getCloseYearPreChecks(fiscalYearId: string): Promise<CloseYearPreCheck[]> {
+  await delay();
+  return closeYearPreChecks(fiscalYearId);
+}
+
+export async function closeYear(fiscalYearId: string): Promise<{ fiscalYear: FiscalYear; closingEntry: JournalEntry; nextYear?: FiscalYear }> {
+  await delay(300);
+  const result = closeFiscalYear(fiscalYearId, session.userId);
+  return clone(result);
+}
+
+/** Admin-only (checked here, same coarse `role === 'admin'` pattern as `canPostToClosedPeriod`). */
+export async function reopenYear(fiscalYearId: string): Promise<FiscalYear> {
+  await delay();
+  if (useAuthStore().user?.role !== 'admin') throw new ApiError('إعادة فتح السنة المالية للمدير فقط', 'FORBIDDEN');
+  return clone(reopenFiscalYear(fiscalYearId, session.userId));
+}
+
+// --- Journal templates & recurring entries (A2/A3) ----------------------------------------------
+
+export async function getJournalTemplates(): Promise<JournalTemplate[]> {
+  await delay(120);
+  return clone([...db.journalTemplates].sort((a, b) => a.name.localeCompare(b.name, 'ar')));
+}
+
+export async function getJournalTemplate(id: string): Promise<JournalTemplate> {
+  await delay();
+  const template = db.journalTemplates.find((t) => t.id === id);
+  if (!template) throw new ApiError('القالب غير موجود', 'NOT_FOUND');
+  return clone(template);
+}
+
+export async function createOrUpdateJournalTemplate(input: JournalTemplateInput, id?: string): Promise<JournalTemplate> {
+  await delay();
+  return clone(saveJournalTemplate(input, session.userId, id));
+}
+
+export async function removeJournalTemplate(id: string): Promise<void> {
+  await delay();
+  deleteJournalTemplate(id);
+}
+
+/** Used by the entry form's "load a template" action: pre-fills the grid from a saved template. */
+export async function loadTemplateIntoEntry(id: string): Promise<JournalTemplate> {
+  await delay(80);
+  return getJournalTemplate(id);
+}
+
+/**
+ * Posts a recurring template's entry for its current `nextDate` and advances the schedule.
+ * There's no scheduler here — this is invoked from the "posted due entries" list action.
+ * TODO(phase 10): surface due recurring entries as a dashboard/insight-engine card instead of
+ * requiring a visit to the templates page (docs/v2/11-journal-dashboard-insights.md D2 "Recurring due").
+ */
+export async function postRecurringTemplate(id: string): Promise<JournalEntry> {
+  await delay();
+  const template = db.journalTemplates.find((t) => t.id === id);
+  if (!template) throw new ApiError('القالب غير موجود', 'NOT_FOUND');
+  if (!template.recurrence) throw new ApiError('القالب ليس متكرراً');
+  const entry = recordManualJournal(
+    {
+      date: template.recurrence.nextDate,
+      description: template.description || template.name,
+      lines: template.lines,
+      templateId: template.id,
+    },
+    session.userId,
+    canPostToClosedPeriod(),
+  );
+  advanceRecurrence(id);
+  return clone(entry);
+}
+
+// --- VAT settlement --------------------------------------------------------------------------
+
+export async function getVatPeriodTotals(from: string, to: string): Promise<VatPeriodTotals> {
+  await delay();
+  return vatTotalsForPeriod(from, to);
+}
+
+export async function submitVatSettlement(from: string, to: string): Promise<JournalEntry> {
+  await delay(300);
+  return clone(postVatSettlement(from, to, session.userId, canPostToClosedPeriod()));
+}
+
+/** Minimal payment-to-the-authority posting — see `payVatSettlement`'s doc comment for why it's kept this small. */
+export async function payVatSettlementNow(amount: number, method: 'cash' | 'bank'): Promise<JournalEntry> {
+  await delay(300);
+  return clone(payVatSettlement(amount, method, session.userId));
 }

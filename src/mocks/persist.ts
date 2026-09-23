@@ -8,7 +8,7 @@
  *   - no snapshot     -> leave `db` empty; the welcome screen decides (demo seed / empty company)
  */
 import { db, type MockDb } from './db';
-import { clone } from './utils';
+import { bumpIdCounter, clone } from './utils';
 
 const DB_NAME = 'mock-db';
 const STORE_NAME = 'snapshot';
@@ -163,11 +163,41 @@ export async function loadSnapshot(): Promise<boolean> {
     if (!snapshot) return false;
     const data = snapshot.version < SCHEMA_VERSION ? runMigrations(snapshot.data, snapshot.version) : snapshot.data;
     Object.assign(db, clone(data));
+    resyncIdCounters(db);
     return true;
   } catch (err) {
     console.error('[mocks/persist] failed to load snapshot', err);
     return false;
   }
+}
+
+/**
+ * `uid()`'s counters live in a module variable, not in the persisted snapshot, so right after
+ * loading one they'd start back at 1 for every prefix while the restored `db` already has ids
+ * like `je-884` — the next `uid('je')` would collide with an existing record (see `bumpIdCounter`'s
+ * doc comment in utils.ts). This walks the whole restored `db` once, finds every `"prefix-123"`
+ * shaped id, and bumps each prefix's counter to at least the highest number found — generic over
+ * every table so no module needs its own resync call.
+ */
+function resyncIdCounters(data: MockDb): void {
+  const idPattern = /^([a-z]+)-(\d+)$/;
+  const visited = new Set<unknown>();
+  function walk(value: unknown): void {
+    if (!value || typeof value !== 'object') return;
+    if (visited.has(value)) return;
+    visited.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value) walk(item);
+      return;
+    }
+    const id = (value as { id?: unknown }).id;
+    if (typeof id === 'string') {
+      const match = idPattern.exec(id);
+      if (match) bumpIdCounter(match[1], Number(match[2]));
+    }
+    for (const key of Object.keys(value)) walk((value as Record<string, unknown>)[key]);
+  }
+  walk(data);
 }
 
 /** Dev-menu "reset data": clears the persisted snapshot. Caller is responsible for reloading the app. */

@@ -102,33 +102,73 @@ export interface JournalLine {
   rate?: number;
 }
 
+/**
+ * v2 (docs/v2/11-journal-dashboard-insights.md Part A, 04-domain-model.md §8). `MANUAL_*` /
+ * `OPENING` / `CLOSING` / `VAT_SETTLEMENT` are still posted through the same `postJournal()`
+ * choke point as `SYSTEM`; `type` is only a label for the list/filters. `status` defaults to
+ * `POSTED` everywhere except drafts saved from the entry form (phase 2 adds draft support —
+ * phase 1's `recordManualJournal` never produced anything but a posted entry).
+ */
+export type JournalEntryType = 'SYSTEM' | 'MANUAL' | 'OPENING' | 'CLOSING' | 'VAT_SETTLEMENT';
+export type JournalEntryStatus = 'DRAFT' | 'POSTED';
+
 export interface JournalEntry {
   id: string;
   number: string;
   date: string;
   description: string;
-  type: 'SYSTEM' | 'MANUAL';
+  type: JournalEntryType;
+  status: JournalEntryStatus;
   sourceRef?: { kind: JournalSourceKind; id: string; number?: string };
   lines: JournalLine[];
   totalDebit: number;
   totalCredit: number;
   reversed?: boolean;
   reversalOfId?: string;
+  /** B3: reversal date + required reason, stored on the reversal entry itself. */
+  reversalReason?: string;
   createdBy: string;
+  createdAt: string;
+  postedBy?: string;
+  postedAt?: string;
+  attachmentIds?: string[];
+  templateId?: string;
 }
 
 export interface JournalEntryInput {
   date: string;
   description: string;
-  lines: { accountId: string; description?: string; debit: number; credit: number; partyKind?: 'customer' | 'supplier'; partyId?: string }[];
+  reference?: string;
+  lines: {
+    accountId: string;
+    description?: string;
+    debit: number;
+    credit: number;
+    partyKind?: 'customer' | 'supplier';
+    partyId?: string;
+    branchId?: string;
+    costCenterId?: string;
+  }[];
+  attachmentIds?: string[];
+  /** Save without posting (drafts-to-post view). */
+  asDraft?: boolean;
+  templateId?: string;
 }
 
 export interface JournalFilter {
-  type?: 'SYSTEM' | 'MANUAL';
+  type?: JournalEntryType;
   from?: string;
   to?: string;
   search?: string;
   accountId?: string;
+  partyId?: string;
+  status?: JournalEntryStatus;
+  hasAttachments?: boolean;
+  reversed?: boolean;
+  userId?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  sourceKind?: JournalSourceKind;
 }
 
 export interface FiscalYear {
@@ -137,4 +177,38 @@ export interface FiscalYear {
   startDate: string;
   endDate: string;
   isClosed: boolean;
+  closingEntryId?: string;
+  closedAt?: string;
+  closedBy?: string;
+}
+
+/** A2/A3 — saved journal template (rent/salaries/depreciation…) and, optionally, its recurrence. */
+export interface JournalTemplate {
+  id: string;
+  name: string;
+  description: string;
+  lines: {
+    accountId: string;
+    description?: string;
+    debit: number;
+    credit: number;
+    partyKind?: 'customer' | 'supplier';
+    partyId?: string;
+  }[];
+  recurrence?: {
+    every: 'month' | 'quarter' | 'year';
+    /** Day of month the entry falls due. */
+    day: number;
+    nextDate: string;
+    autoPost: boolean;
+  };
+  createdAt: string;
+  createdBy: string;
+}
+
+/** A1 — per-user saved filter/column preset for the journal list, stored in localStorage. */
+export interface JournalSavedView {
+  id: string;
+  name: string;
+  filter: JournalFilter;
 }

@@ -65,6 +65,19 @@ export function uid(prefix: string): string {
   return `${prefix}-${idCounters[prefix]}`;
 }
 
+/**
+ * `idCounters` is an in-memory module variable — it does NOT get restored when a persisted
+ * IndexedDB snapshot is loaded (`persist.ts#loadSnapshot`), so on a fresh page load `uid()` starts
+ * back at 1 for every prefix while the loaded `db` already has entries like `je-884`. The next
+ * `uid('je')` call then collides with an existing id instead of getting a fresh one, silently
+ * overwriting/shadowing the old record wherever code does `array.find(x => x.id === id)`.
+ * `bumpIdCounter` lets `persist.ts` resync each prefix's counter to at least the highest numeric
+ * suffix found in the restored snapshot right after loading it — see its call site there.
+ */
+export function bumpIdCounter(prefix: string, atLeast: number): void {
+  if ((idCounters[prefix] ?? 0) < atLeast) idCounters[prefix] = atLeast;
+}
+
 export function padNumber(n: number, width = 6): string {
   return String(n).padStart(width, '0');
 }

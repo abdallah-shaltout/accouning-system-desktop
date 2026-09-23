@@ -1,8 +1,9 @@
-import type { JournalEntry, JournalEntryInput } from '@/modules/accounting/types';
+import type { JournalEntry, JournalEntryInput, JournalTemplate } from '@/modules/accounting/types';
 import { db } from '../db';
 import { mutate } from '../persist';
-import { ApiError } from '../utils';
-import { logActivity, postJournal } from './core';
+import { ApiError, localDateKey, round2, uid } from '../utils';
+import { accountFor } from './accounts';
+import { draftJournal, logActivity, postJournal, updateDraftJournal, type PostingLine } from './core';
 
 /**
  * Manual-entry control-account rules (docs/v2/02-accounting-review.md B1):
@@ -12,8 +13,9 @@ import { logActivity, postJournal } from './core';
  *    adjustment or a VAT settlement instead.
  * Opening balances go through the onboarding wizard (Phase 5), not the manual journal.
  */
-export function recordManualJournal(input: JournalEntryInput, userId: string, isAdmin = false): JournalEntry {
+function validateManualLines(input: JournalEntryInput): void {
   if (!input.description.trim()) throw new ApiError('أدخل بيان القيد');
+  if (input.lines.length < 2) throw new ApiError('يجب أن يحتوي القيد على سطرين على الأقل');
   for (const line of input.lines) {
     const account = db.accounts.find((a) => a.id === line.accountId);
     if (!account) throw new ApiError('اختر الحساب لكل سطر');
@@ -28,27 +30,71 @@ export function recordManualJournal(input: JournalEntryInput, userId: string, is
       throw new ApiError(`السطر على حساب "${account.name}" يتطلب اختيار عميل أو مورد`, 'VALIDATION');
     }
   }
+}
+
+function toPostingLines(input: JournalEntryInput): PostingLine[] {
+  return input.lines.map((l) => ({
+    accountId: l.accountId,
+    description: l.description,
+    debit: l.debit,
+    credit: l.credit,
+    partyKind: l.partyKind,
+    partyId: l.partyId,
+    branchId: l.branchId,
+    costCenterId: l.costCenterId,
+  }));
+}
+
+export function recordManualJournal(input: JournalEntryInput, userId: string, isAdmin = false): JournalEntry {
+  validateManualLines(input);
+  if (input.asDraft) {
+    return draftJournal({
+      date: input.date,
+      description: input.description.trim(),
+      lines: toPostingLines(input),
+      createdBy: userId,
+      attachmentIds: input.attachmentIds,
+      templateId: input.templateId,
+    });
+  }
   const entry = postJournal({
     date: input.date,
     description: input.description.trim(),
     type: 'MANUAL',
-    lines: input.lines,
+    lines: toPostingLines(input),
     createdBy: userId,
     allowClosedPeriod: isAdmin,
+    attachmentIds: input.attachmentIds,
+    templateId: input.templateId,
   });
   logActivity('journal', `قيد يدوي ${entry.number} — ${entry.description}`, userId, entry.date, `/accounting/journal/${entry.id}`);
   return entry;
 }
 
-/** Reversal = a new mirrored entry; the original stays for the audit trail. */
-export function reverseJournal(id: string, userId: string, isAdmin = false): JournalEntry {
+/** Updates a saved draft (edit before posting) — same validation as a fresh manual entry. */
+export function editDraftJournal(id: string, input: JournalEntryInput): JournalEntry {
+  validateManualLines(input);
+  return updateDraftJournal(id, {
+    date: input.date,
+    description: input.description.trim(),
+    lines: toPostingLines(input),
+    attachmentIds: input.attachmentIds,
+  });
+}
+
+/**
+ * Reversal = a new mirrored entry; the original stays for the audit trail (B3 fix: caller-chosen
+ * date + a required reason, stored on both entries).
+ */
+export function reverseJournal(id: string, userId: string, date: string, reason: string, isAdmin = false): JournalEntry {
   const original = db.journalEntries.find((e) => e.id === id);
   if (!original) throw new ApiError('القيد غير موجود', 'NOT_FOUND');
   if (original.type !== 'MANUAL') throw new ApiError('القيود الآلية تُعكس من المستند المصدر (مرتجع/إلغاء)');
   if (original.reversed || original.reversalOfId) throw new ApiError('هذا القيد معكوس بالفعل');
+  if (!reason.trim()) throw new ApiError('سبب العكس مطلوب');
 
   const reversal = postJournal({
-    date: new Date().toISOString(),
+    date,
     description: `عكس القيد ${original.number} — ${original.description}`,
     type: 'MANUAL',
     lines: original.lines.map((l) => ({
@@ -58,14 +104,159 @@ export function reverseJournal(id: string, userId: string, isAdmin = false): Jou
       credit: l.debit,
       partyKind: l.partyKind,
       partyId: l.partyId,
+      branchId: l.branchId,
+      costCenterId: l.costCenterId,
     })),
     createdBy: userId,
     allowClosedPeriod: isAdmin,
   });
   mutate(() => {
     reversal.reversalOfId = original.id;
+    reversal.reversalReason = reason.trim();
     original.reversed = true;
+    original.reversalReason = reason.trim();
   });
   logActivity('journal', `عكس القيد ${original.number}`, userId, reversal.date, `/accounting/journal/${reversal.id}`);
   return reversal;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Templates + recurring entries (A2/A3)
+// ---------------------------------------------------------------------------------------------
+
+export interface JournalTemplateInput {
+  name: string;
+  description: string;
+  lines: JournalTemplate['lines'];
+  recurrence?: JournalTemplate['recurrence'];
+}
+
+function validateTemplateLines(lines: JournalTemplate['lines']): void {
+  if (!lines.length || lines.length < 2) throw new ApiError('يجب أن يحتوي القالب على سطرين على الأقل');
+  for (const line of lines) {
+    const account = db.accounts.find((a) => a.id === line.accountId);
+    if (!account) throw new ApiError('اختر الحساب لكل سطر');
+    if (account.requiresParty && (line.debit > 0 || line.credit > 0) && !line.partyId) {
+      throw new ApiError(`السطر على حساب "${account.name}" يتطلب اختيار عميل أو مورد`, 'VALIDATION');
+    }
+  }
+}
+
+export function saveJournalTemplate(input: JournalTemplateInput, userId: string, id?: string): JournalTemplate {
+  if (!input.name.trim()) throw new ApiError('اسم القالب مطلوب');
+  validateTemplateLines(input.lines);
+  let template: JournalTemplate;
+  if (id) {
+    const found = db.journalTemplates.find((t) => t.id === id);
+    if (!found) throw new ApiError('القالب غير موجود', 'NOT_FOUND');
+    mutate(() => Object.assign(found, { name: input.name.trim(), description: input.description, lines: input.lines, recurrence: input.recurrence }));
+    template = found;
+  } else {
+    template = { id: uid('jtpl'), name: input.name.trim(), description: input.description, lines: input.lines, recurrence: input.recurrence, createdAt: new Date().toISOString(), createdBy: userId };
+    mutate(() => db.journalTemplates.push(template));
+  }
+  return template;
+}
+
+export function deleteJournalTemplate(id: string): void {
+  const template = db.journalTemplates.find((t) => t.id === id);
+  if (!template) throw new ApiError('القالب غير موجود', 'NOT_FOUND');
+  mutate(() => (db.journalTemplates = db.journalTemplates.filter((t) => t.id !== id)));
+}
+
+/** Advances a recurring template's `nextDate` by one period after it's been posted (A3). */
+export function advanceRecurrence(templateId: string): void {
+  const template = db.journalTemplates.find((t) => t.id === templateId);
+  if (!template?.recurrence) return;
+  const next = new Date(template.recurrence.nextDate);
+  if (template.recurrence.every === 'month') next.setMonth(next.getMonth() + 1);
+  else if (template.recurrence.every === 'quarter') next.setMonth(next.getMonth() + 3);
+  else next.setFullYear(next.getFullYear() + 1);
+  mutate(() => {
+    template.recurrence!.nextDate = localDateKey(next);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// VAT settlement (A4 / docs/v2/02-accounting-review.md §3 "VAT settlement" / "VAT payment")
+// ---------------------------------------------------------------------------------------------
+
+export interface VatPeriodTotals {
+  outputVat: number;
+  inputVat: number;
+  net: number; // + payable to the authority, − refundable
+}
+
+/** Output/input VAT posted for the period, straight from the GL (matches the VAT accounts exactly). */
+export function vatTotalsForPeriod(from: string, to: string): VatPeriodTotals {
+  const outputAccount = accountFor('vatOutput');
+  const inputAccount = accountFor('vatInput');
+  let outputVat = 0;
+  let inputVat = 0;
+  for (const e of db.journalEntries) {
+    const key = localDateKey(e.date);
+    if (key < from || key > to) continue;
+    for (const l of e.lines) {
+      if (l.accountId === outputAccount.id) outputVat += l.credit - l.debit;
+      if (l.accountId === inputAccount.id) inputVat += l.debit - l.credit;
+    }
+  }
+  outputVat = round2(outputVat);
+  inputVat = round2(inputVat);
+  return { outputVat, inputVat, net: round2(outputVat - inputVat) };
+}
+
+/**
+ * Posts the settlement entry: Dr output VAT (closes it), Cr input VAT (closes it), the
+ * difference to VAT payable (2155) — a debit there when refundable.
+ */
+export function postVatSettlement(from: string, to: string, userId: string, isAdmin = false): JournalEntry {
+  const totals = vatTotalsForPeriod(from, to);
+  if (totals.outputVat === 0 && totals.inputVat === 0) throw new ApiError('لا توجد حركة ضريبية في هذه الفترة');
+  const outputAccount = accountFor('vatOutput');
+  const inputAccount = accountFor('vatInput');
+  const payableAccount = accountFor('vatPayable');
+
+  const lines: PostingLine[] = [];
+  if (totals.outputVat > 0) lines.push({ accountId: outputAccount.id, debit: totals.outputVat, description: 'إقفال ضريبة المخرجات' });
+  if (totals.inputVat > 0) lines.push({ accountId: inputAccount.id, credit: totals.inputVat, description: 'إقفال ضريبة المدخلات' });
+  if (totals.net > 0) lines.push({ accountId: payableAccount.id, credit: totals.net, description: 'صافي الضريبة المستحقة' });
+  else if (totals.net < 0) lines.push({ accountId: payableAccount.id, debit: -totals.net, description: 'صافي الضريبة القابلة للاسترداد' });
+
+  const entry = postJournal({
+    date: to,
+    description: `تسوية ضريبة القيمة المضافة — من ${from} إلى ${to}`,
+    type: 'VAT_SETTLEMENT',
+    lines,
+    createdBy: userId,
+    allowClosedPeriod: isAdmin,
+  });
+  logActivity('journal', `تسوية ضريبة القيمة المضافة ${entry.number}`, userId, entry.date, `/accounting/journal/${entry.id}`);
+  return entry;
+}
+
+/**
+ * "سداد" (pay) — a minimal payment-to-the-authority posting: Dr VAT payable, Cr cash/bank.
+ * Full payment-method wiring (fees, clearing accounts, references) is Phase 3's territory — this
+ * stays deliberately simple (a straight cash/bank voucher) so it doesn't touch
+ * `modules/settings` (payment methods) or `src/mocks/backend/payments.ts`.
+ * TODO(phase 3): once payment methods post through a shared voucher helper, route this through it
+ * instead of picking `cash`/`bank` directly.
+ */
+export function payVatSettlement(amount: number, method: 'cash' | 'bank', userId: string): JournalEntry {
+  if (amount <= 0) throw new ApiError('لا يوجد مبلغ مستحق للسداد');
+  const payableAccount = accountFor('vatPayable');
+  const methodAccount = accountFor(method);
+  const entry = postJournal({
+    date: new Date().toISOString(),
+    description: 'سداد ضريبة القيمة المضافة لمصلحة الزكاة والضريبة والجمارك',
+    type: 'VAT_SETTLEMENT',
+    lines: [
+      { accountId: payableAccount.id, debit: amount },
+      { accountId: methodAccount.id, credit: amount },
+    ],
+    createdBy: userId,
+  });
+  logActivity('journal', `سداد ضريبة القيمة المضافة ${entry.number}`, userId, entry.date, `/accounting/journal/${entry.id}`);
+  return entry;
 }

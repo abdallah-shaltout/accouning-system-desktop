@@ -9,7 +9,9 @@ import {
   HandCoins,
   House,
   Package,
+  Receipt,
   ReceiptText,
+  Repeat,
   Settings,
   ShoppingBag,
   ShoppingCart,
@@ -71,6 +73,8 @@ export const NAVIGATION: NavGroup[] = [
     items: [
       { label: 'دليل الحسابات', to: '/accounting/accounts', icon: BookOpen, area: 'accounting' },
       { label: 'القيود اليومية', to: '/accounting/journal', icon: Wallet, area: 'accounting' },
+      { label: 'قوالب القيود المتكررة', to: '/accounting/journal-templates', icon: Repeat, area: 'accounting' },
+      { label: 'تسوية ضريبة القيمة المضافة', to: '/accounting/vat-settlement', icon: Receipt, area: 'accounting' },
       { label: 'السنة المالية', to: '/accounting/fiscal-years', icon: CalendarRange, area: 'accounting' },
     ],
   },
