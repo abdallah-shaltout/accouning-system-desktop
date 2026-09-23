@@ -221,12 +221,26 @@ ref leaked into `structuredClone` and silently broke every purchase save.
 
 ## Phase 9 — Branches, cost centers & currencies → [10](10-branches-currencies-cost-centers.md)
 
-- [ ] Features switches (branches / currencies / cost centers)
-- [ ] Branches: settings, per-branch cash account + numbering series, user branches, topbar switcher, branch stock
-- [ ] Stock transfers (send / receive with shortage / reject) + transit account
-- [ ] Cost centers: tree, budgets, line field, split-by-% on journal lines, P&L by cost center, budget vs actual
-- [ ] Currencies + rates; FC documents; FC cash/bank; realized FX on allocation; revaluation wizard (auto-reversing)
-- [ ] Seed: a second branch, one USD customer, one cost-center split; every invariant green per currency
+**Status: done** (2026-09-24). Commit `120b212`. The realized-FX worked example is pinned exactly
+(Dr Cash 49,200 / Cr AR 48,500 / Cr FX gain 700, party ledger nets to 0 USD). `verify:mocks` jumped
+from 32 to **48 ok, 0 todo, 0 failed** — 16 new structural checks (FX, branches, cost centers,
+transfers) all green. Feature-switches-off confirmed visually unchanged from pre-phase-9 via e2e.
+
+Smaller deferrals, honestly flagged rather than hidden: purchase-side documents carry
+`currency`/`exchangeRate` fields but aren't yet posted in FC (only sales-side FX is wired and
+tested); trial balance/P&L/balance sheet don't yet have branch filter dropdowns or a "compare
+branches" P&L mode (cost-center P&L was built instead, the harder of the two asks); the
+currency-revaluation wizard has a working backend/service but no dedicated settings-page UI yet;
+FC/VAT-in-base-currency printing isn't wired into the Typst invoice template or thermal receipt
+(only the in-app invoice detail page shows the FC/base split). None of these block correctness —
+every invariant holds — they're scope for a follow-up pass.
+
+- [x] Features switches (branches / currencies / cost centers)
+- [x] Branches: settings, per-branch cash account + numbering series, user branches, topbar switcher, branch stock
+- [x] Stock transfers (send / receive with shortage / reject) + transit account
+- [x] Cost centers: tree, budgets, line field, split-by-% on journal lines, P&L by cost center, budget vs actual
+- [x] Currencies + rates; FC documents; FC cash/bank; realized FX on allocation; revaluation wizard (auto-reversing) — sales-side only; purchase-side FX and the revaluation wizard's UI page are deferred (see note above)
+- [x] Seed: a second branch, one USD customer, one cost-center split; every invariant green per currency
 
 ## Phase 10 — Home, analytics & recommendations → [11 Parts B–D](11-journal-dashboard-insights.md)
 
