@@ -133,28 +133,39 @@ fiscal-year closing wizard UI is phase 2 (this phase ships the lock-date check o
 
 ## Phase 2 — Journal redesign & period tools → [11 Part A](11-journal-dashboard-insights.md)
 
-- [ ] Journal list v2: day grouping, inline line preview, full filters, saved views, totals, day-book PDF (print route until Phase 11)
-- [ ] Journal form v2: spreadsheet grid, "=" balancing, party/cost-center columns, paste from Excel, attachments, drafts
-- [ ] Templates + recurring entries (due → insight placeholder)
-- [ ] Detail v2: audit trail, related entries, attachments viewer; reversal dialog with date + reason (B3)
-- [ ] Fiscal-year close wizard + reopen; lock-date setting
-- [ ] VAT settlement screen + payment to the authority
+**Status: done** (2026-09-24). Commit `bb93223`. Found and fixed a real latent bug along the way:
+`uid()`'s in-memory id counters never resynced after `loadSnapshot()` restored a persisted DB,
+which could silently collide new record ids with existing ones after a reload.
+
+- [x] Journal list v2: day grouping, inline line preview, full filters, saved views, totals, day-book PDF (print route until Phase 11)
+- [x] Journal form v2: spreadsheet grid, "=" balancing, party/cost-center columns, paste from Excel, attachments, drafts
+- [x] Templates + recurring entries (due → insight placeholder)
+- [x] Detail v2: audit trail, related entries, attachments viewer; reversal dialog with date + reason (B3)
+- [x] Fiscal-year close wizard + reopen; lock-date setting
+- [x] VAT settlement screen + payment to the authority (minimal cash/bank posting; routes through a shared payment-method voucher helper in phase 8)
 
 ## Phase 3 — Taxes, pricing & payment methods → [06 §3](06-sales-and-pos.md), [09 §2](09-purchases-payments-expenses.md)
 
-- [ ] Tax entity v2 (category S/Z/E/O, direction, account, exemption reason) + settings screen; country presets
-- [ ] `totals.ts` rewrite: per-line VAT, inclusive/exclusive, proportional invoice discount; `totals.spec` with the worked example and edge cases
-- [ ] Payment methods entity + settings (type, account, per-branch override, fee %, POS/payment visibility)
-- [ ] Tenders (split payment) in the sale posting; card/wallet clearing; card settlement voucher
-- [ ] VAT report v2 (country boxes) + VAT detail; **invariant 5 and 10 green**
+**Status: done** (2026-09-24). Commit `b5534a9`. `totals.spec.ts` (39 assertions) matches the
+worked example exactly: net 108.53, VAT 12.97, gross 121.50.
+
+- [x] Tax entity v2 (category S/Z/E/O, direction, account, exemption reason) + settings screen; country presets
+- [x] `totals.ts` rewrite: per-line VAT, inclusive/exclusive, proportional invoice discount; `totals.spec` with the worked example and edge cases
+- [x] Payment methods entity + settings (type, account, per-branch override, fee %, POS/payment visibility)
+- [x] Tenders (split payment) in the sale posting; card/wallet clearing; card settlement voucher deferred to phase 8 (`TODO(phase 8)`)
+- [x] VAT report v2 (country boxes) + VAT detail; **invariant 5 and 10 green**
 
 ## Phase 4 — Customers & suppliers v2 → [08](08-customers-and-suppliers.md), [09 §3](09-purchases-payments-expenses.md)
 
-- [ ] Country data + `AppPhoneInput` (E.164, libphonenumber-js/min) replacing every phone field
-- [ ] Party model + form v2 (sections, national address, VAT/CR/IBAN validation, groups, terms, credit limit, contacts)
-- [ ] Party page with tabs (overview, documents, payments, statement, aging, attachments, history)
-- [ ] Payments with allocation grid, unallocated credit, allocate-later from the party page; **invariant 6 green**
-- [ ] Credit-limit enforcement + override permission; due dates from terms
+**Status: done** (2026-09-24). Commit `d78b2a3`. Found and fixed two real bugs in the verify
+script's own invariant-6 logic (purchase-return AP reduction and sales-refund AR reduction were
+checked against the wrong settlement amounts).
+
+- [x] Country data + `AppPhoneInput` (E.164, libphonenumber-js/min) replacing every phone field
+- [x] Party model + form v2 (sections, national address, VAT/CR/IBAN validation, groups, terms, credit limit, contacts)
+- [x] Party page with tabs (overview, documents, payments, statement, aging, attachments, history)
+- [x] Payments with allocation grid, unallocated credit, allocate-later from the party page; **invariant 6 green**
+- [x] Credit-limit enforcement + override permission; due dates from terms
 
 ## Phase 5 — Onboarding, opening balances & Excel import → [05](05-onboarding.md)
 
