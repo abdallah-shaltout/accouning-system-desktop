@@ -1,6 +1,7 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { computed, ref, shallowRef, watch, type Component } from 'vue';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, LoaderCircle } from '@lucide/vue';
+import { rowsPerPage as settingsRowsPerPage, zebraRows } from '../../controllers/useAppearance';
 import { exportXlsx, type ExportColumn } from '../../helpers/exportXlsx';
 import { formatNumber } from '../../helpers/format';
 import EmptyState from './EmptyState.vue';
@@ -42,7 +43,7 @@ const props = withDefaults(
     loading?: boolean;
     error?: string | null;
     clickable?: boolean;
-    /** 0 disables paging. */
+    /** 0 disables paging. Omitted uses the appearance setting (rows per page: 25/50/100). */
     pageSize?: number;
     emptyTitle?: string;
     emptyDescription?: string;
@@ -67,12 +68,17 @@ const props = withDefaults(
     /** Overrides which columns/labels go into the export; defaults to `columns` minus `noPrint` ones. */
     exportColumns?: ExportColumn<T>[];
   }>(),
-  { rowKey: 'id', pageSize: 25, skeletonRows: 8, emptyTitle: 'لا توجد سجلات' },
+  { rowKey: 'id', skeletonRows: 8, emptyTitle: 'لا توجد سجلات' },
 );
 
 const emit = defineEmits<{ 'row-click': [row: T]; retry: [] }>();
 
 const isServerMode = computed(() => !!props.fetchPage);
+
+// `pageSize={number}` (including 0, to disable paging) always wins; omitted follows the appearance
+// setting so changing "rows per page" in Settings → المظهر affects every table that didn't ask
+// for a specific size.
+const effectivePageSize = computed(() => (props.pageSize !== undefined ? props.pageSize : settingsRowsPerPage.value));
 
 const sortKey = ref<string | null>(null);
 const sortDir = ref<'asc' | 'desc'>('asc');
@@ -94,9 +100,9 @@ const sorted = computed(() => {
   });
 });
 
-const clientPageCount = computed(() => (props.pageSize ? Math.max(1, Math.ceil(sorted.value.length / props.pageSize)) : 1));
+const clientPageCount = computed(() => (effectivePageSize.value ? Math.max(1, Math.ceil(sorted.value.length / effectivePageSize.value)) : 1));
 const clientVisible = computed(() =>
-  props.pageSize ? sorted.value.slice((page.value - 1) * props.pageSize, page.value * props.pageSize) : sorted.value,
+  effectivePageSize.value ? sorted.value.slice((page.value - 1) * effectivePageSize.value, page.value * effectivePageSize.value) : sorted.value,
 );
 
 watch(() => props.rows, () => {
@@ -120,7 +126,7 @@ async function loadServerPage() {
   try {
     const result = await props.fetchPage({
       page: page.value,
-      pageSize: props.pageSize || 25,
+      pageSize: effectivePageSize.value || 25,
       sort: sortKey.value ? { key: sortKey.value, dir: sortDir.value } : null,
       filters: props.filters,
     });
@@ -137,11 +143,13 @@ async function loadServerPage() {
 }
 
 watch(
-  () => [props.filters, sortKey.value, sortDir.value],
+  () => [props.filters, sortKey.value, sortDir.value, effectivePageSize.value],
   () => {
     if (isServerMode.value) {
       page.value = 1;
       void loadServerPage();
+    } else {
+      page.value = 1;
     }
   },
   { deep: true },
@@ -164,7 +172,7 @@ defineExpose({ reload: loadServerPage, serverTotals });
 const visible = computed(() => (isServerMode.value ? serverRows.value : clientVisible.value));
 const totalRowCount = computed(() => (isServerMode.value ? serverTotal.value : sorted.value.length));
 const pageCount = computed(() =>
-  isServerMode.value ? (props.pageSize ? Math.max(1, Math.ceil(serverTotal.value / props.pageSize)) : 1) : clientPageCount.value,
+  isServerMode.value ? (effectivePageSize.value ? Math.max(1, Math.ceil(serverTotal.value / effectivePageSize.value)) : 1) : clientPageCount.value,
 );
 const effectiveLoading = computed(() => (isServerMode.value ? serverLoading.value : props.loading));
 const effectiveError = computed(() => (isServerMode.value ? serverError.value : props.error));
@@ -290,19 +298,22 @@ async function exportRows() {
         </tbody>
         <tbody v-else :class="effectiveLoading && 'opacity-60 transition-opacity'">
           <tr
-            v-for="row in visible"
+            v-for="(row, i) in visible"
             :key="row[rowKey]"
             class="border-b border-border transition-colors last:border-0"
+            :style="{ height: 'var(--density-row-h)' }"
             :class="[
               clickable && 'cursor-pointer hover:bg-surface-hover',
               highlightKey && row[rowKey] === highlightKey && 'bg-primary/8',
+              zebraRows && i % 2 === 1 && !(highlightKey && row[rowKey] === highlightKey) && 'bg-surface/60',
             ]"
             @click="onRowClick(row)"
           >
             <td
               v-for="col in columns"
               :key="col.key"
-              class="px-3 py-3 align-middle"
+              class="px-3 align-middle"
+              :style="{ paddingBlock: 'var(--density-padding)' }"
               :class="[alignClass(col), col.class, col.noPrint && 'no-print']"
             >
               <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]">
@@ -318,11 +329,11 @@ async function exportRows() {
       </table>
     </div>
     <div
-      v-if="pageSize && pageCount > 1"
+      v-if="effectivePageSize && pageCount > 1"
       class="no-print flex items-center justify-between border-t border-border bg-surface px-3 py-2 text-xs text-text-secondary"
     >
       <span>
-        عرض <span class="num">{{ formatNumber((page - 1) * pageSize + 1) }}–{{ formatNumber(Math.min(page * pageSize, totalRowCount)) }}</span>
+        عرض <span class="num">{{ formatNumber((page - 1) * effectivePageSize + 1) }}–{{ formatNumber(Math.min(page * effectivePageSize, totalRowCount)) }}</span>
         من <span class="num">{{ formatNumber(totalRowCount) }}</span>
       </span>
       <div class="flex items-center gap-1">

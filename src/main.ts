@@ -8,10 +8,12 @@ import { bootMockDb } from './mocks';
 import { buildActionCommands, buildPageCommands, customersProvider, productsProvider, suppliersProvider } from './modules/core/commandPalette/exampleProviders';
 import { registerCommands, registerSearchProviders } from './modules/core/controllers/useCommandPalette';
 import { useNotificationStore } from './modules/core/controllers/useNotificationStore';
+import { initAppearance } from './modules/core/controllers/useAppearance';
 import { initTheme } from './modules/core/controllers/useTheme';
 import { errorMessage } from './modules/core/controllers/useToast';
 
 initTheme();
+initAppearance();
 
 async function bootstrap() {
   // Load a persisted IndexedDB snapshot if one exists; otherwise `db` stays empty and the router

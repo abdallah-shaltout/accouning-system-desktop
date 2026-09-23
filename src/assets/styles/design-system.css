@@ -65,6 +65,20 @@
   --text-heading-sm:  calc(17px * var(--font-scale));  /* section sub-heading (e.g. invoice doc title) */
   --text-heading:     calc(18px * var(--font-scale));  /* section heading (e.g. invoice store name) */
   --text-stat:        calc(26px * var(--font-scale));  /* big stat/KPI numbers */
+
+  /*
+   * Density tokens (docs/v2/14-platform.md §3). Row height/padding for tables and similar dense
+   * lists, switched by the appearance setting via the `.density-compact` class on <html>. Always
+   * rem/px (never scaled by --font-scale) so density is a spacing choice, independent of text size.
+   */
+  --density-row-h:    2.75rem;   /* comfortable table row height */
+  --density-padding:  0.75rem;   /* comfortable table cell padding (block) */
+}
+
+/* Compact density overrides — set on :root by useAppearance.ts. */
+:root.density-compact {
+  --density-row-h: 2.125rem;
+  --density-padding: 0.375rem;
 }
 
 @utility text-caption {
@@ -119,6 +133,70 @@
   --color-danger: #e25858;
   --color-success: #42b883;
   --color-warning: #f0a33a;
+}
+
+/*
+ * Accent presets (docs/v2/14-platform.md §3) — 4 options, each overriding the primary/accent
+ * tokens for light and dark separately, set via `data-accent` on <html> by useAppearance.ts.
+ * "indigo" matches the tokens above (the previous fixed primary), so it's a no-op visually.
+ * Values are sanity-checked for text-on-accent contrast (buttons/badges): indigo/teal/rose use
+ * white text (~4.6–4.8:1 against their base shade); amber uses dark text (~8:1).
+ */
+:root[data-accent="indigo"] {
+  --color-primary: #4f46e5;
+  --color-primary-hover: #4338ca;
+  --color-on-primary: #ffffff;
+}
+:root.dark[data-accent="indigo"] {
+  --color-primary: #5e6ad2;
+  --color-primary-hover: #6b79e4;
+  --color-on-primary: #ffffff;
+}
+:root[data-accent="teal"] {
+  --color-primary: #0d9488;
+  --color-primary-hover: #0f766e;
+  --color-on-primary: #ffffff;
+}
+:root.dark[data-accent="teal"] {
+  --color-primary: #2dd4bf;
+  --color-primary-hover: #5eead4;
+  --color-on-primary: #ffffff;
+}
+:root[data-accent="rose"] {
+  --color-primary: #e11d48;
+  --color-primary-hover: #be123c;
+  --color-on-primary: #ffffff;
+}
+:root.dark[data-accent="rose"] {
+  --color-primary: #fb7185;
+  --color-primary-hover: #fda4af;
+  --color-on-primary: #ffffff;
+}
+:root[data-accent="amber"] {
+  --color-primary: #b45309;
+  --color-primary-hover: #92400e;
+  --color-on-primary: #1c1400;
+}
+:root.dark[data-accent="amber"] {
+  --color-primary: #f0a33a;
+  --color-primary-hover: #f6b856;
+  --color-on-primary: #1c1400;
+}
+
+/* Reduced motion: OS setting or the in-app toggle (`.motion-reduce` on <html>, set by useAppearance.ts). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+:root.motion-reduce *, :root.motion-reduce *::before, :root.motion-reduce *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
 }
 
 @layer base {

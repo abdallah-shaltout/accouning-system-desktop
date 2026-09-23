@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { sidebarCollapsedDefault } from '../../controllers/useAppearance';
 import AppSidebar from './AppSidebar.vue';
 import AppTopbar from './AppTopbar.vue';
 import ErrorBoundary from '../ErrorBoundary.vue';
 
 const COLLAPSE_KEY = 'app_sidebar_collapsed';
-const collapsed = ref(false);
+// The "القائمة الجانبية: مطوية افتراضياً" appearance setting seeds this session's initial value;
+// once the user toggles it by hand, that per-session choice (below) wins until they clear it.
+const collapsed = ref(sidebarCollapsedDefault.value);
 try {
-  collapsed.value = localStorage.getItem(COLLAPSE_KEY) === '1';
+  const saved = localStorage.getItem(COLLAPSE_KEY);
+  if (saved !== null) collapsed.value = saved === '1';
 } catch {
   /* ignore */
 }

@@ -12,6 +12,17 @@
         if (t === 'system') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         document.documentElement.classList.add(t);
       } catch (e) {}
+      // Same for the other appearance tokens that would otherwise flash to their default before
+      // useAppearance.ts's initAppearance() runs (accent color, density, text scale).
+      try {
+        var root = document.documentElement;
+        root.setAttribute('data-accent', localStorage.getItem('app_accent') || 'indigo');
+        if (localStorage.getItem('app_density') === 'compact') root.classList.add('density-compact');
+        var size = Number(localStorage.getItem('app_text_size')) || 100;
+        root.style.setProperty('--font-scale', String(size / 100));
+        var reduceMotion = localStorage.getItem('app_reduce_motion') === 'true';
+        if (reduceMotion || matchMedia('(prefers-reduced-motion: reduce)').matches) root.classList.add('motion-reduce');
+      } catch (e) {}
     </script>
   </head>
 

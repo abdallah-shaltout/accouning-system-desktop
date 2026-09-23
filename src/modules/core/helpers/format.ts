@@ -1,9 +1,12 @@
 import { ref } from 'vue';
+import { dateFormatStyle, showHijri, weekStart } from '../controllers/useAppearance';
 
 /**
  * Number/date formatting for an Arabic RTL UI.
  * - Digits: Latin (1234) by default, Arabic-Indic (١٢٣٤) optional — a UI preference in localStorage.
  * - Calendar: always Gregorian (`ar-SA` alone would default to the Hijri calendar).
+ * - Date style (dd/mm/yyyy vs yyyy-mm-dd) and the optional Hijri suffix are appearance settings
+ *   (useAppearance.ts); this is the only place in the app that formats dates (docs/v2/14-platform.md §3).
  * Wrap formatted numbers in an element with the `.num` class so they stay LTR inside RTL text.
  */
 export type Numerals = 'latn' | 'arab';
@@ -84,9 +87,39 @@ export function formatDigits(value: string | number | undefined | null): string 
   return s.replace(/[0-9]/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)]);
 }
 
+/**
+ * dd/mm/yyyy or yyyy-mm-dd, per the "التاريخ" appearance setting. `Intl` always gives yyyy-mm-dd
+ * order with `-` separators for `ar-SA`-gregory regardless of options, so dd/mm/yyyy is built by
+ * hand from the formatted parts (keeps the active numeral system, incl. Arabic-Indic digits).
+ */
 export function formatDate(iso: string | undefined | null): string {
   if (!iso) return '—';
-  return clean(dateFormat({ year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso)));
+  const date = new Date(iso);
+  const parts = dateFormat({ year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+  const y = parts.find((p) => p.type === 'year')?.value ?? '';
+  const m = parts.find((p) => p.type === 'month')?.value ?? '';
+  const d = parts.find((p) => p.type === 'day')?.value ?? '';
+  const out = dateFormatStyle.value === 'ymd' ? `${y}-${m}-${d}` : `${d}/${m}/${y}`;
+  return clean(out);
+}
+
+/** hijri-umalqura date (e.g. ١٤ ربيع الآخر ١٤٤٧هـ) for the optional "show Hijri alongside" setting. */
+export function formatHijri(iso: string | undefined | null): string {
+  if (!iso) return '';
+  const key = `h|${locale()}`;
+  let f = cache.get(key) as Intl.DateTimeFormat | undefined;
+  if (!f) {
+    f = new Intl.DateTimeFormat(`ar-SA-u-ca-islamic-umalqura-nu-${numeralSystem.value}`, { year: 'numeric', month: 'long', day: 'numeric' });
+    cache.set(key, f);
+  }
+  return clean(f.format(new Date(iso)));
+}
+
+/** `formatDate`, with the Hijri date appended in parentheses when the "show Hijri" setting is on. */
+export function formatDateWithHijri(iso: string | undefined | null): string {
+  if (!iso) return '—';
+  const g = formatDate(iso);
+  return showHijri.value ? `${g} (${formatHijri(iso)})` : g;
 }
 
 export function formatDateLong(iso: string | undefined | null): string {
@@ -149,4 +182,13 @@ export function dateKeyToIso(key: string): string {
   const now = new Date();
   const [y, m, d] = key.split('-').map(Number);
   return new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+}
+
+/**
+ * The "بداية الأسبوع" appearance setting, as `Date#getDay()`'s convention (0=Sunday…6=Saturday) —
+ * the single place date pickers and weekly reports should read the week-start day from once they
+ * exist (docs/v2/14-platform.md §3; not wired into any picker yet, only the setting itself).
+ */
+export function getWeekStartDay(): 0 | 1 | 6 {
+  return weekStart.value === 'sat' ? 6 : weekStart.value === 'mon' ? 1 : 0;
 }
