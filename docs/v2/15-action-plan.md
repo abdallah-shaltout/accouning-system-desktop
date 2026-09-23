@@ -84,19 +84,30 @@ by number. A phase can start when everything in its "Needs" column is merged and
 
 ## Phase 0 — Foundations → [14](14-platform.md)
 
-- [ ] Parallel-work enablers: seed split into `src/mocks/seed/<area>.ts`; `scripts/verify/<area>.ts` + runner; `scripts/e2e/flows/<area>.py` + runner (`python scripts/e2e/run.py <dir> [--only area] [--base URL]`); `--base` option in `screenshot.py`
+**Status: done** (2026-09-23). Landed as 5 commits on `master`: `5267fa9` (text-token codemod),
+`884f995` (persistence, welcome screen, event bus, paged queries, script splitting), `2c13c27`
+(attachments, xlsx export, command palette, Arabic search), `fe34679` (appearance settings v2),
+`1cc806a` (Typst spike — **passed** every gate criterion, see [12 §1](12-documents-pdf-excel.md)).
+Full gate green on the merged tree: `bun run build`, `bun run verify:mocks` (18 ok / 4 todo — all
+deferred to their owning phase / 0 failed), `bun run check`, all 5 e2e flows + a new Phase 0 smoke
+check (welcome screen, persistence-survives-reload, dev reset, command palette, appearance
+settings) in light and dark, zero console errors. No `TODO(phase` stubs remain except the
+intentional ones pointing at later phases (journal/purchases/parties/products attachments,
+per-module command-palette providers).
 
-- [ ] IndexedDB persistence of the mock DB (`mutate()` wrapper, debounced snapshot, schema version + migrations)
-- [ ] Welcome screen: *start your company* / *demo data*; dev menu (reset, load demo, latency switch)
-- [ ] Event bus: `ledger:changed`, `catalog:changed`, `parties:changed`; Pinia master-data caches use it
-- [ ] Paged query contract `{ page, pageSize, sort, filters } → { rows, total, totals }` + `DataTable` server mode
-- [ ] `normalizeArabic()` search helper, used by every search input
-- [ ] Text tokens with `--font-scale`; codemod the 167 `text-[Npx]` uses; grep check against new ones
-- [ ] Appearance settings v2: font family (4 bundled), text size, density, accent presets, Hijri, week start, table prefs
-- [ ] `AttachmentField` + blob storage (IndexedDB) + viewer (lightbox / PDF)
-- [ ] `exportXlsx()` helper (exceljs, lazy) + "تصدير" menu on `DataTable` (all filtered rows)
-- [ ] Command palette shell: Ctrl+K, pages + actions, recents, prefixes, permission filtering
-- [ ] **Typst spike (gate)**: the [12 §1](12-documents-pdf-excel.md) checklist; record pass/fail in [12](12-documents-pdf-excel.md)
+- [x] Parallel-work enablers: seed split into `src/mocks/seed/<area>.ts`; `scripts/verify/<area>.ts` + runner; `scripts/e2e/flows/<area>.py` + runner (`python scripts/e2e/run.py <dir> [--only area] [--base URL]`); `--base` option in `screenshot.py`
+
+- [x] IndexedDB persistence of the mock DB (`mutate()` wrapper, debounced snapshot, schema version + migrations)
+- [x] Welcome screen: *start your company* / *demo data*; dev menu (reset, load demo, latency switch)
+- [x] Event bus: `ledger:changed`, `catalog:changed`, `parties:changed`; Pinia master-data caches use it
+- [x] Paged query contract `{ page, pageSize, sort, filters } → { rows, total, totals }` + `DataTable` server mode
+- [x] `normalizeArabic()` search helper, used by every search input
+- [x] Text tokens with `--font-scale`; codemod the 167 `text-[Npx]` uses; grep check against new ones
+- [x] Appearance settings v2: font family (4 bundled), text size, density, accent presets, Hijri, week start, table prefs
+- [x] `AttachmentField` + blob storage (IndexedDB) + viewer (lightbox / PDF)
+- [x] `exportXlsx()` helper (exceljs, lazy) + "تصدير" menu on `DataTable` (all filtered rows)
+- [x] Command palette shell: Ctrl+K, pages + actions, recents, prefixes, permission filtering
+- [x] **Typst spike (gate)**: the [12 §1](12-documents-pdf-excel.md) checklist; record pass/fail in [12](12-documents-pdf-excel.md) — **PASS**, 49–63ms steady-state render, PDF/A-3b achieved
 - [ ] `verify:mocks` v2 harness listing every invariant (unmet ones reported as TODO, not failures, until their phase)
 
 ## Phase 1 — Accounting core v2 → [02](02-accounting-review.md), [03](03-chart-of-accounts.md)
