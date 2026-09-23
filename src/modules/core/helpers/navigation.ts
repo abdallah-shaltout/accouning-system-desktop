@@ -1,9 +1,11 @@
 import type { Component } from 'vue';
 import {
+  AlertTriangle,
   ArrowLeftRight,
   BookOpen,
   CalendarRange,
   ChartColumn,
+  ClipboardCheck,
   ClipboardList,
   FolderTree,
   HandCoins,
@@ -54,7 +56,9 @@ export const NAVIGATION: NavGroup[] = [
       { label: 'التصنيفات والوحدات', to: '/catalog/categories', icon: FolderTree, area: 'inventory' },
       { label: 'قوائم الأسعار', to: '/catalog/price-lists', icon: Tags, area: 'inventory' },
       { label: 'تسويات المخزون', to: '/inventory/adjustments', icon: ClipboardList, area: 'inventory' },
+      { label: 'الجرد', to: '/inventory/counts', icon: ClipboardCheck, area: 'inventory' },
       { label: 'حركة المخزون', to: '/inventory/movements', icon: ArrowLeftRight, area: 'inventory' },
+      { label: 'تقرير الصلاحية', to: '/inventory/expiry', icon: AlertTriangle, area: 'inventory' },
     ],
   },
   {

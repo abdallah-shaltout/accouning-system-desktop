@@ -5,9 +5,13 @@ import type { Customer, PartyGroup, PartyHistoryEntry, Supplier } from '@/module
 import type { Payment } from '@/modules/payments/types';
 import type {
   Category,
+  CustomFieldDef,
+  DebitNoteDraft,
   PriceList,
   Product,
+  ProductBatch,
   StockAdjustment,
+  StockCount,
   StockMovement,
   Unit,
 } from '@/modules/products/types';
@@ -42,6 +46,14 @@ export interface MockDb {
   products: Product[];
   stockAdjustments: StockAdjustment[];
   stockMovements: StockMovement[];
+  /** v2 phase 6 (docs/v2/07-products-and-inventory.md §3): batches/lots for batch-tracked products. */
+  productBatches: ProductBatch[];
+  /** v2 phase 6 (Settings → Products): custom field definitions shown on the product form's "إضافي" tab. */
+  customFieldDefs: CustomFieldDef[];
+  /** v2 phase 6 (§5 stocktake v2): scope + snapshot + blind/scan counting sessions, applied into a STOCKTAKE StockAdjustment. */
+  stockCounts: StockCount[];
+  /** v2 phase 6 (§4 expiry report "return to supplier"). TODO(phase 8): superseded by real debit notes. */
+  debitNoteDrafts: DebitNoteDraft[];
   customers: Customer[];
   suppliers: Supplier[];
   /** v2 phase 4 (docs/v2/08-customers-and-suppliers.md §5): Settings → Parties groups. */
@@ -68,7 +80,9 @@ export type DocumentKind =
   | 'purchaseReturn'
   | 'payment'
   | 'journal'
-  | 'adjustment';
+  | 'adjustment'
+  | 'stockCount'
+  | 'debitNoteDraft';
 
 export const db: MockDb = {
   users: [],
@@ -84,6 +98,10 @@ export const db: MockDb = {
   products: [],
   stockAdjustments: [],
   stockMovements: [],
+  productBatches: [],
+  customFieldDefs: [],
+  stockCounts: [],
+  debitNoteDrafts: [],
   customers: [],
   suppliers: [],
   partyGroups: [],
@@ -111,6 +129,8 @@ export const db: MockDb = {
     payment: 0,
     journal: 0,
     adjustment: 0,
+    stockCount: 0,
+    debitNoteDraft: 0,
   },
 };
 
@@ -121,6 +141,8 @@ const PREFIX: Record<Exclude<DocumentKind, 'invoice'>, string> = {
   payment: 'PAY-',
   journal: 'JE-',
   adjustment: 'ADJ-',
+  stockCount: 'CNT-',
+  debitNoteDraft: 'DN-',
 };
 
 /** Next human-readable document number, e.g. "INV-000457". */

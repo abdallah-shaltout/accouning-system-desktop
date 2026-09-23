@@ -1,4 +1,6 @@
-export type Role = 'admin' | 'manager' | 'accountant' | 'cashier';
+/** v2 (docs/v2/01-personas.md §5, README decision 10): "أمين مخزن" (storekeeper) — inventory write,
+ * purchase receiving, transfers, labels; no accounting, no purchase prices visible unless allowed. */
+export type Role = 'admin' | 'manager' | 'accountant' | 'cashier' | 'storekeeper';
 
 /** domain_model.md §10 — plus `username` (needed for the mock login screen). */
 export interface User {

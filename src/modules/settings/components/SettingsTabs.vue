@@ -11,6 +11,8 @@ const tabs = computed(() =>
     { to: '/settings/general', label: 'عام', show: auth.can('settings') },
     { to: '/settings/taxes', label: 'الضرائب', show: auth.can('settings') },
     { to: '/settings/payment-methods', label: 'طرق الدفع', show: auth.can('settings') },
+    { to: '/settings/products', label: 'المنتجات', show: auth.can('inventory', 'write') },
+    { to: '/settings/roles', label: 'المستخدمون والأدوار', show: auth.can('users') },
     { to: '/settings/printing', label: 'الطباعة والأجهزة', show: auth.can('settings') },
     { to: '/settings/appearance', label: 'المظهر', show: true },
     { to: '/settings/backup', label: 'النسخ الاحتياطي', show: auth.can('settings') },

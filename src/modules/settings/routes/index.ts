@@ -10,6 +10,10 @@ const routes: RouteRecordRaw[] = [
   { path: '/settings/taxes', name: 'settings-taxes', component: () => import('../pages/TaxesSettingsPage.vue'), meta: { title: 'الضرائب', section, area: 'settings' } },
   { path: '/settings/payment-methods', name: 'settings-payment-methods', component: () => import('../pages/PaymentMethodsSettingsPage.vue'), meta: { title: 'طرق الدفع', section, area: 'settings' } },
   { path: '/settings/printing', name: 'settings-printing', component: () => import('../pages/PrintingSettingsPage.vue'), meta: { title: 'الطباعة', section, area: 'settings' } },
+  // v2 phase 6 §7: custom product fields + unit presets.
+  { path: '/settings/products', name: 'settings-products', component: () => import('../pages/ProductsSettingsPage.vue'), meta: { title: 'المنتجات', section, area: 'inventory', access: 'write' } },
+  // v2 phase 6 §6: role matrix editor. Gated on `users` (only admins manage users/roles today).
+  { path: '/settings/roles', name: 'settings-roles', component: () => import('../pages/RoleMatrixSettingsPage.vue'), meta: { title: 'المستخدمون والأدوار', section, area: 'users' } },
   // Appearance is a per-device preference, open to every signed-in user.
   { path: '/settings/appearance', name: 'settings-appearance', component: () => import('../pages/AppearanceSettingsPage.vue'), meta: { title: 'المظهر', section } },
   // Phase 13a: backup & restore (docs/v2/14-platform.md §4).

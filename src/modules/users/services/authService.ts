@@ -29,6 +29,24 @@ export async function logout(): Promise<void> {
   session.userId = '';
 }
 
+/**
+ * v2 phase 6 §5 (docs/v2/07-products-and-inventory.md, docs/v2/01-personas.md storekeeper): checks
+ * a manager/admin's password WITHOUT switching the active session — used by the inventory
+ * approval-threshold PIN dialog (a stock-in/write-off above the configured value needs a manager to
+ * type their own password to approve it, then the original user's session continues unchanged).
+ * Returns the approving user on success so the caller can stamp `approvedBy`.
+ */
+export async function verifyManagerPin(username: string, password: string): Promise<User> {
+  await delay(300);
+  const user = db.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
+  if (!user || db.credentials[user.username] !== password) {
+    throw new ApiError('اسم المستخدم أو كلمة المرور غير صحيحة', 'UNAUTHORIZED');
+  }
+  if (!user.active) throw new ApiError('هذا الحساب موقوف', 'FORBIDDEN');
+  if (user.role !== 'admin' && user.role !== 'manager') throw new ApiError('هذا المستخدم ليس مديراً — الاعتماد يتطلب صلاحية مدير', 'FORBIDDEN');
+  return clone(user);
+}
+
 /** Demo accounts listed on the login screen (mock only). */
 export async function getDemoAccounts(): Promise<{ id: string; username: string; password: string; name: string; role: User['role'] }[]> {
   await delay(50);

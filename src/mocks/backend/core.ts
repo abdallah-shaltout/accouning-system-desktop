@@ -231,7 +231,7 @@ export function applyStockChange(
   ref: { id: string; number: string },
   date: string,
 ): void {
-  if (product.type === 'service' || (qtyChange === 0 && valueChange === 0)) return;
+  if (product.type === 'service' || product.stockMode === 'none' || (qtyChange === 0 && valueChange === 0)) return;
   mutate(() => {
     product.stockQty = round2(product.stockQty + qtyChange);
     product.stockValue = round2(product.stockValue + valueChange);

@@ -12,6 +12,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   manager: 'مدير المتجر',
   accountant: 'محاسب',
   cashier: 'كاشير',
+  storekeeper: 'أمين مخزن',
 };
 
 export const INVOICE_STATUS: Record<InvoiceStatus, { label: string; tone: Tone }> = {

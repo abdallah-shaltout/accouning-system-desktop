@@ -35,7 +35,7 @@ const rows = computed(() =>
 
 const roleOptions = computed(() => [
   { value: 'all' as const, label: 'الكل', count: data.value?.users.length },
-  ...(['admin', 'manager', 'accountant', 'cashier'] as Role[]).map((r) => ({
+  ...(['admin', 'manager', 'accountant', 'cashier', 'storekeeper'] as Role[]).map((r) => ({
     value: r,
     label: ROLE_LABEL[r],
     count: data.value?.users.filter((u) => u.role === r).length,

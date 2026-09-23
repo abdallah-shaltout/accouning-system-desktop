@@ -7,13 +7,18 @@ export const categoriesFixture: Category[] = [
   { id: 'cat-shoes', name: 'أحذية' },
   { id: 'cat-acc', name: 'إكسسوارات' },
   { id: 'cat-services', name: 'خدمات' },
+  // v2 §2/§3 — a pharmacy-style category to demonstrate multi-unit products with batch/expiry tracking.
+  { id: 'cat-pharma', name: 'مستلزمات صيدلية' },
 ];
 
 export const unitsFixture: Unit[] = [
-  { id: 'unit-piece', name: 'قطعة' },
-  { id: 'unit-pair', name: 'زوج' },
-  { id: 'unit-set', name: 'طقم' },
+  { id: 'unit-piece', name: 'قطعة', symbol: 'pc' },
+  { id: 'unit-pair', name: 'زوج', symbol: 'pair' },
+  { id: 'unit-set', name: 'طقم', symbol: 'set' },
   { id: 'unit-service', name: 'خدمة' },
+  // v2 §2 pharmacy example (box → strip → tablet) — demonstrates the multi-unit + batch/expiry case.
+  { id: 'unit-box', name: 'علبة', symbol: 'box' },
+  { id: 'unit-strip', name: 'شريط', symbol: 'strip' },
 ];
 
 export const priceListsFixture: PriceList[] = [
@@ -125,4 +130,35 @@ export const productsFixture: (Product & { openingQty: number })[] = [
     active: true,
     openingQty: 0,
   },
+  // v2 §2/§3 demo: base unit شريط (strip), with علبة (box, factor 3) as the default purchase unit —
+  // stock/cost stay in strips throughout; batch/expiry tracking on, alert 60 days (§3).
+  {
+    id: 'prd-panadol',
+    name: 'بانادول 500 مجم',
+    nameEn: 'Panadol 500mg',
+    sku: 'PHR-001',
+    barcode: ean13(9001),
+    categoryId: 'cat-pharma',
+    unitId: 'unit-strip',
+    type: 'product',
+    costPrice: 6.5,
+    price: 8.5,
+    stockQty: 0,
+    stockValue: 0,
+    minStock: 20,
+    active: true,
+    trackBatches: true,
+    expiryAlertDays: 60,
+    units: [
+      { id: 'pu-panadol-box', unitId: 'unit-box', factor: 3, barcodes: [ean13(9002)], price: 24, priceIsAuto: false, defaultForSale: false, defaultForPurchase: true, active: true },
+      { id: 'pu-panadol-strip', unitId: 'unit-strip', factor: 1, barcodes: [ean13(9001)], price: 8.5, priceIsAuto: false, defaultForSale: true, defaultForPurchase: false, active: true },
+    ],
+    openingQty: 0,
+  },
+];
+
+/** v2 §3 seed batches for the پanadol demo product — one near-expiry, one further out (both after opening stock is posted, see seed/catalog.ts). */
+export const pharmaBatchesFixture = [
+  { batchNo: 'PND-24A', daysUntilExpiry: 45, qty: 60, unitCost: 6.5 },
+  { batchNo: 'PND-24B', daysUntilExpiry: 240, qty: 90, unitCost: 6.6 },
 ];

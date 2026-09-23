@@ -2,13 +2,14 @@ import { defineStore } from 'pinia';
 import { computed, onScopeDispose, ref } from 'vue';
 import { on } from '@/mocks/events';
 import * as catalog from '../services/catalogService';
-import type { Category, PriceList, Unit } from '../types';
+import type { Category, CustomFieldDef, PriceList, Unit } from '../types';
 
-/** Categories, units and price lists — small lookup tables shared by many screens. */
+/** Categories, units, price lists and custom field defs — small lookup tables shared by many screens. */
 export const useCatalogStore = defineStore('catalog', () => {
   const categories = ref<(Category & { productCount: number })[]>([]);
   const units = ref<(Unit & { productCount: number })[]>([]);
   const priceLists = ref<PriceList[]>([]);
+  const customFieldDefs = ref<CustomFieldDef[]>([]);
   const loaded = ref(false);
   let pending: Promise<void> | null = null;
 
@@ -25,10 +26,16 @@ export const useCatalogStore = defineStore('catalog', () => {
     if (loaded.value && !force) return;
     if (pending && !force) return pending;
     pending = (async () => {
-      const [c, u, p] = await Promise.all([catalog.getCategories(), catalog.getUnits(), catalog.getPriceLists()]);
+      const [c, u, p, cf] = await Promise.all([
+        catalog.getCategories(),
+        catalog.getUnits(),
+        catalog.getPriceLists(),
+        catalog.getCustomFieldDefs(),
+      ]);
       categories.value = c;
       units.value = u;
       priceLists.value = p;
+      customFieldDefs.value = cf;
       loaded.value = true;
     })();
     try {
@@ -45,5 +52,5 @@ export const useCatalogStore = defineStore('catalog', () => {
   });
   onScopeDispose(unsubscribe);
 
-  return { categories, units, priceLists, loaded, categoryName, unitName, load };
+  return { categories, units, priceLists, customFieldDefs, loaded, categoryName, unitName, load };
 });

@@ -33,6 +33,8 @@ const form = reactive({
   /** v2 (docs/v2/06-sales-and-pos.md §3, README decision 4): default true — Saudi B2C shelf pricing. */
   pricesIncludeTax: true,
   logo: undefined as string | undefined,
+  /** v2 phase 6 §5 — stock-in/write-off at/above this value needs a manager PIN. 0/empty = off. */
+  inventoryApprovalThreshold: undefined as number | undefined,
 });
 const errors = ref<Record<string, string>>({});
 const saving = ref(false);
@@ -54,6 +56,7 @@ onMounted(async () => {
     defaultTaxId: s.defaultTaxId ?? '',
     pricesIncludeTax: s.pricesIncludeTax !== false,
     logo: s.logo,
+    inventoryApprovalThreshold: s.inventoryApprovalThreshold,
   });
   loading.value = false;
 });
@@ -86,6 +89,7 @@ async function save() {
       receiptFooter: form.receiptFooter.trim() || undefined,
       defaultTaxId: form.defaultTaxId || undefined,
       pricesIncludeTax: form.pricesIncludeTax,
+      inventoryApprovalThreshold: form.inventoryApprovalThreshold || undefined,
     });
     toast.success('تم حفظ الإعدادات');
   } catch (err) {
@@ -140,6 +144,17 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
               :disabled="!canWrite"
             />
           </div>
+        </AppCard>
+
+        <AppCard title="المخزون">
+          <AppInput
+            v-model="form.inventoryApprovalThreshold"
+            label="حد اعتماد المدير لحركات المخزون"
+            type="number"
+            min="0"
+            :disabled="!canWrite"
+            hint="إدخال مخزون أو إتلاف بقيمة تساوي أو تتجاوز هذا المبلغ يتطلب تأكيد مدير. اتركه فارغاً لتعطيل هذا الشرط."
+          />
         </AppCard>
       </div>
 

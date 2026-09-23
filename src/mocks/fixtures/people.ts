@@ -8,6 +8,7 @@ export const usersFixture: User[] = [
   { id: 'usr-4', username: 'cashier', name: 'نورة الشهري', phone: '+966544567890', role: 'cashier', maxDiscount: 10, active: true },
   { id: 'usr-5', username: 'cashier2', name: 'خالد الزهراني', phone: '+966565678901', role: 'cashier', maxDiscount: 5, priceListId: 'pl-wholesale', active: true },
   { id: 'usr-6', username: 'fahad', name: 'فهد الدوسري', role: 'cashier', maxDiscount: 5, active: false },
+  { id: 'usr-7', username: 'storekeeper', name: 'بندر السبيعي', phone: '+966576789012', role: 'storekeeper', maxDiscount: 0, active: true },
 ];
 
 /** Demo credentials shown on the login screen. */
@@ -18,6 +19,7 @@ export const credentialsFixture: Record<string, string> = {
   cashier: 'cashier123',
   cashier2: 'cashier123',
   fahad: 'fahad123',
+  storekeeper: 'store123',
 };
 
 /** Settings → Parties groups (docs/v2/08-customers-and-suppliers.md §5). */

@@ -18,6 +18,8 @@ import { getAccounts, type AccountWithBalance } from '@/modules/accounting/servi
 import { useToast } from '@/modules/core/controllers/useToast';
 import { dateKeyToIso, formatNumber, todayKey } from '@/modules/core/helpers/format';
 import { num0, toNum } from '@/modules/core/helpers/numbers';
+import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
+import ApprovalPinDialog from '../components/ApprovalPinDialog.vue';
 import { useCatalogStore } from '../controllers/useCatalogStore';
 import { createStockAdjustment } from '../services/inventoryService';
 import { getProducts } from '../services/productService';
@@ -36,12 +38,15 @@ interface Line {
   productId?: string;
   qty?: number;
   counted?: number;
+  batchNo?: string;
+  expiryDate?: string;
 }
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const catalog = useCatalogStore();
+const settingsStore = useSettingsStore();
 
 const initialType = String(route.query.type ?? 'STOCK_IN');
 const type = ref<StockAdjustmentType>(['STOCK_IN', 'LOSS', 'STOCKTAKE'].includes(initialType) ? (initialType as StockAdjustmentType) : 'STOCK_IN');
@@ -58,6 +63,9 @@ const lineErrors = ref<Record<number, string>>({});
 // A3: every STOCK_IN needs a reason — it decides the credit account (see backend/inventory.ts).
 const stockInReason = ref<StockInReason>('opening');
 const offsetAccountId = ref('');
+// v2 §5: stock-in/write-off above settings.inventoryApprovalThreshold needs a manager PIN.
+const approvalOpen = ref(false);
+const approvedBy = ref('');
 let seq = 0;
 
 const offsetAccountOptions = computed(() =>
@@ -78,7 +86,9 @@ const productOptions = computed(() =>
 
 onMounted(async () => {
   await catalog.load();
-  [products.value, accounts.value] = await Promise.all([getProducts({ type: 'product' }), getAccounts()]);
+  const [prods, accs] = await Promise.all([getProducts({ type: 'product' }), getAccounts(), settingsStore.load()]);
+  products.value = prods.filter((p) => p.stockMode !== 'none');
+  accounts.value = accs;
   loading.value = false;
   const pre = typeof route.query.product === 'string' ? route.query.product : undefined;
   if (type.value === 'STOCKTAKE') loadStocktake();
@@ -200,6 +210,7 @@ function validateLines(): boolean {
       if (counted === undefined || counted < 0) errs[l.key] = 'أدخل الكمية المعدودة';
     } else if (!(num0(l.qty) > 0)) errs[l.key] = 'أدخل كمية صحيحة';
     else if (type.value === 'LOSS' && num0(l.qty) > p.stockQty) errs[l.key] = `المتوفر ${p.stockQty} فقط`;
+    else if (type.value === 'STOCK_IN' && p.trackBatches && !l.batchNo?.trim()) errs[l.key] = 'أدخل رقم التشغيلة';
   }
   const ids = filled.map((l) => l.productId);
   filled.forEach((l) => {
@@ -214,8 +225,18 @@ function validateLines(): boolean {
   return filled.length > 0 && !Object.keys(errs).length;
 }
 
+const pendingValue = computed(() => (type.value === 'STOCK_IN' ? gains.value : type.value === 'LOSS' ? losses.value : 0));
+const approvalThreshold = computed(() => settingsStore.settings?.inventoryApprovalThreshold ?? 0);
+const needsApproval = computed(
+  () => type.value !== 'STOCKTAKE' && approvalThreshold.value > 0 && pendingValue.value >= approvalThreshold.value && !approvedBy.value,
+);
+
 async function submit(asDraft: boolean) {
   if (!validateLines()) return;
+  if (!asDraft && needsApproval.value) {
+    approvalOpen.value = true;
+    return;
+  }
   saving.value = asDraft ? 'draft' : 'complete';
   try {
     // A stocktake keeps every counted line (zero differences included) as the record of the count.
@@ -227,7 +248,12 @@ async function submit(asDraft: boolean) {
         note: note.value.trim() || undefined,
         reason: type.value === 'STOCK_IN' ? stockInReason.value : undefined,
         offsetAccountId: type.value === 'STOCK_IN' && stockInReason.value === 'other' ? offsetAccountId.value : undefined,
-        lines: filled.map((l) => (type.value === 'STOCKTAKE' ? { productId: l.productId!, countedQty: toNum(l.counted) } : { productId: l.productId!, qtyChange: toNum(l.qty) })),
+        lines: filled.map((l) =>
+          type.value === 'STOCKTAKE'
+            ? { productId: l.productId!, countedQty: toNum(l.counted) }
+            : { productId: l.productId!, qtyChange: toNum(l.qty), batchNo: l.batchNo, expiryDate: l.expiryDate },
+        ),
+        approvedBy: asDraft ? undefined : approvedBy.value || undefined,
       },
       asDraft,
     );
@@ -238,6 +264,11 @@ async function submit(asDraft: boolean) {
   } finally {
     saving.value = null;
   }
+}
+
+function onApproved(userId: string) {
+  approvedBy.value = userId;
+  submit(false);
 }
 </script>
 
@@ -294,6 +325,7 @@ async function submit(asDraft: boolean) {
                   <th class="px-2 py-2 text-start font-medium">{{ type === 'STOCKTAKE' ? 'رصيد النظام' : 'المتوفر' }}</th>
                   <th class="px-2 py-2 text-start font-medium">{{ type === 'STOCKTAKE' ? 'المعدود' : 'الكمية' }}</th>
                   <th v-if="type === 'STOCKTAKE'" class="px-2 py-2 text-start font-medium">الفرق</th>
+                  <th v-if="type === 'STOCK_IN'" class="px-2 py-2 text-start font-medium">التشغيلة / الصلاحية</th>
                   <th class="px-2 py-2 text-start font-medium">التكلفة</th>
                   <th class="px-2 py-2 text-start font-medium">القيمة</th>
                   <th v-if="type !== 'STOCKTAKE'" class="w-10" />
@@ -340,6 +372,13 @@ async function submit(asDraft: boolean) {
                     <span class="num font-medium" :class="change(line) > 0 ? 'text-success' : change(line) < 0 ? 'text-danger' : 'text-text-secondary'">
                       {{ change(line) > 0 ? '+' : '' }}{{ formatNumber(change(line)) }}
                     </span>
+                  </td>
+                  <td v-if="type === 'STOCK_IN'" class="px-2 py-1.5">
+                    <template v-if="line.productId && byId.get(line.productId)?.trackBatches">
+                      <input v-model="line.batchNo" class="control mb-1 h-8 w-32" placeholder="رقم التشغيلة" dir="ltr" />
+                      <input v-model="line.expiryDate" type="date" class="control h-8 w-32" />
+                    </template>
+                    <span v-else class="text-xs text-text-secondary">—</span>
                   </td>
                   <td class="px-2 py-1.5"><MoneyText v-if="line.productId" :value="byId.get(line.productId)?.costPrice" plain class="text-text-secondary" /></td>
                   <td class="px-2 py-1.5"><MoneyText :value="value(line)" plain :signed="type === 'STOCKTAKE'" dash-zero /></td>
@@ -392,5 +431,7 @@ async function submit(asDraft: boolean) {
         </div>
       </div>
     </div>
+
+    <ApprovalPinDialog v-model:open="approvalOpen" :value="pendingValue" :threshold="approvalThreshold" @approved="onApproved" />
   </div>
 </template>

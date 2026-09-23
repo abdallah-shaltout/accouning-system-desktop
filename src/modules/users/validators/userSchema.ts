@@ -16,7 +16,7 @@ export const userSchema = (isNew: boolean) =>
     // Stored as E.164 by AppPhoneInput (docs/v2/08-customers-and-suppliers.md §2); the component
     // itself validates per-country, this just guards the shape.
     phone: z.string().trim().regex(/^(\+\d{6,15})?$/, 'رقم جوال غير صحيح').optional(),
-    role: z.enum(['admin', 'manager', 'accountant', 'cashier']),
+    role: z.enum(['admin', 'manager', 'accountant', 'cashier', 'storekeeper']),
     maxDiscount: z.number({ error: 'أدخل رقماً' }).min(0, 'لا يقل عن 0').max(100, 'لا يزيد عن 100'),
     password: isNew
       ? z.string().min(6, 'كلمة المرور 6 أحرف على الأقل')

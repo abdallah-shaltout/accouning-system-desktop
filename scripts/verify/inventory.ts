@@ -38,5 +38,11 @@ export function run(): Result[] {
   const lowStock = db.products.filter((p) => p.type === 'product' && p.stockQty <= (p.minStock ?? 0)).length;
   results.push(ok(`${db.products.length} products, ${lowStock} at/under min stock, ${db.stockMovements.length} movements, ${db.stockAdjustments.length} adjustments`));
 
+  // v2 phase 6 §3: no batch ever goes negative (FEFO consumption in `consumeFefo`/write-off must
+  // never take more than a batch holds).
+  const negativeBatches = db.productBatches.filter((b) => b.qty < -0.001);
+  results.push(check(negativeBatches.length === 0, `no batch has negative qty (${negativeBatches.length})`));
+  results.push(ok(`${db.productBatches.length} batches on ${new Set(db.productBatches.map((b) => b.productId)).size} tracked product(s)`));
+
   return results;
 }

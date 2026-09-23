@@ -34,7 +34,7 @@ async function submit() {
   try {
     await auth.login(form.username, form.password);
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/';
-    // Cashiers land on the POS directly.
+    // Cashiers land on the POS directly; the dashboard itself branches per role otherwise (storekeeper home, etc).
     router.replace(redirect === '/' && auth.role === 'cashier' ? '/pos' : redirect);
   } catch (err) {
     serverError.value = errorMessage(err);

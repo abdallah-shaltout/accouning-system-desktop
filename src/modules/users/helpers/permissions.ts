@@ -2,10 +2,14 @@ import type { Access, Area, Role } from '../types';
 
 /**
  * Role presets (domain_model.md §10) — replaces the reference system's 100+ permission strings.
- *   admin      everything
- *   manager    everything except user management
- *   accountant accounting, reports, payments (write); sales/purchases/inventory/parties read-only
- *   cashier    POS/sales only, read-only inventory & customers, no accounting/reports
+ *   admin       everything
+ *   manager     everything except user management
+ *   accountant  accounting, reports, payments (write); sales/purchases/inventory/parties read-only
+ *   cashier     POS/sales only, read-only inventory & customers, no accounting/reports
+ *   storekeeper v2 (docs/v2/01-personas.md §5, README decision 10): inventory + receiving write,
+ *               read-only catalog (except units/barcodes — see `roleCanEditUnits`), no accounting/
+ *               payments/analytics. `dashboard: 'read'` gets them their stock-panel home; POS stays
+ *               `none` (selling isn't their job, per the role matrix table).
  */
 export const ROLE_ACCESS: Record<Role, Record<Area, Access>> = {
   admin: {
@@ -24,13 +28,57 @@ export const ROLE_ACCESS: Record<Role, Record<Area, Access>> = {
     dashboard: 'read', pos: 'write', sales: 'write', inventory: 'read', parties: 'read',
     purchases: 'none', accounting: 'none', payments: 'none', reports: 'none', users: 'none', settings: 'none',
   },
+  storekeeper: {
+    dashboard: 'read', pos: 'none', sales: 'none', inventory: 'write', parties: 'read',
+    purchases: 'write', accounting: 'none', payments: 'none', reports: 'read', users: 'none', settings: 'none',
+  },
 };
 
 const RANK: Record<Access, number> = { none: 0, read: 1, write: 2 };
 
+/**
+ * v2 (docs/v2/07-products-and-inventory.md §6 "Role matrix editor"): `Settings → Users & roles`
+ * lets an admin adjust a preset's area access on top of `ROLE_ACCESS`. Overrides are sparse — only
+ * the (role, area) cells an admin actually changed — and live in `db.settings.roleAccessOverrides`
+ * so they persist and survive a reload like any other setting. `roleCan` below is the only reader;
+ * everything else (route guards, sidebar, `auth.can()`) keeps calling `roleCan`/`auth.can()`
+ * unchanged, so the override layer is invisible to the rest of the app.
+ */
+export type RoleAccessOverrides = Partial<Record<Role, Partial<Record<Area, Access>>>>;
+
+let overrides: RoleAccessOverrides = {};
+
+/** Set once after settings load (see useSettingsStore) and again whenever the matrix is saved. */
+export function setRoleAccessOverrides(next: RoleAccessOverrides | undefined): void {
+  overrides = next ?? {};
+}
+
+export function effectiveAccess(role: Role, area: Area): Access {
+  return overrides[role]?.[area] ?? ROLE_ACCESS[role][area];
+}
+
 export function roleCan(role: Role | undefined, area: Area, access: Exclude<Access, 'none'> = 'read'): boolean {
   if (!role) return false;
-  return RANK[ROLE_ACCESS[role][area]] >= RANK[access];
+  return RANK[effectiveAccess(role, area)] >= RANK[access];
+}
+
+/**
+ * v2 (docs/v2/01-personas.md storekeeper row: "R (W on units/barcodes)"): a storekeeper's
+ * `inventory`/`catalog` access is write on stock, but the product form's pricing/tax/accounts tabs
+ * stay read-only for them — only the units & barcodes tab is editable. Admin/manager always can.
+ */
+export function roleCanEditUnitsOnly(role: Role | undefined): boolean {
+  return role === 'storekeeper';
+}
+
+/**
+ * v2 (docs/v2/01-personas.md storekeeper: "Receiving is the same action as posting the supplier
+ * bill... can't be done without seeing or entering prices" is the *old* v1 problem; v2 gives a
+ * price-hidden receiving mode for storekeepers). Purchase prices/costs are hidden from anyone
+ * without pricing visibility — admins, managers and accountants can always see them.
+ */
+export function roleCanSeePurchasePrices(role: Role | undefined): boolean {
+  return role !== 'storekeeper' && role !== 'cashier';
 }
 
 /**

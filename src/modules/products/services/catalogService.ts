@@ -1,7 +1,7 @@
 import { ApiError, clone, db, delay, uid } from '@/mocks';
 import { emit } from '@/mocks/events';
 import { mutate } from '@/mocks/persist';
-import type { Category, PriceList, Unit } from '../types';
+import type { Category, CustomFieldDef, PriceList, Unit, UnitPresetKind } from '../types';
 
 type Named = { id: string; name: string };
 
@@ -19,17 +19,17 @@ export async function getCategories(): Promise<(Category & { productCount: numbe
   return db.categories.map((c) => ({ ...clone(c), productCount: db.products.filter((p) => p.categoryId === c.id).length }));
 }
 
-export async function saveCategory(name: string, id?: string): Promise<Category> {
+export async function saveCategory(name: string, id?: string, defaults?: Partial<Pick<Category, 'purchaseAccountId' | 'revenueAccountId' | 'cogsAccountId' | 'saleTaxId' | 'purchaseTaxId'>>): Promise<Category> {
   await delay();
   const clean = assertName(db.categories, name, id);
   if (id) {
     const found = db.categories.find((c) => c.id === id);
     if (!found) throw new ApiError('التصنيف غير موجود', 'NOT_FOUND');
-    mutate(() => (found.name = clean));
+    mutate(() => Object.assign(found, { name: clean, ...defaults }));
     emit('catalog:changed');
     return clone(found);
   }
-  const category = { id: uid('cat'), name: clean };
+  const category = { id: uid('cat'), name: clean, ...defaults };
   mutate(() => db.categories.push(category));
   emit('catalog:changed');
   return clone(category);
@@ -49,20 +49,59 @@ export async function getUnits(): Promise<(Unit & { productCount: number })[]> {
   return db.units.map((u) => ({ ...clone(u), productCount: db.products.filter((p) => p.unitId === u.id).length }));
 }
 
-export async function saveUnit(name: string, id?: string): Promise<Unit> {
+export async function saveUnit(name: string, id?: string, extra?: Partial<Pick<Unit, 'symbol' | 'allowsDecimals'>>): Promise<Unit> {
   await delay();
   const clean = assertName(db.units, name, id);
   if (id) {
     const found = db.units.find((u) => u.id === id);
     if (!found) throw new ApiError('الوحدة غير موجودة', 'NOT_FOUND');
-    mutate(() => (found.name = clean));
+    mutate(() => Object.assign(found, { name: clean, ...extra }));
     emit('catalog:changed');
     return clone(found);
   }
-  const unit = { id: uid('unit'), name: clean };
+  const unit = { id: uid('unit'), name: clean, ...extra };
   mutate(() => db.units.push(unit));
   emit('catalog:changed');
   return clone(unit);
+}
+
+/** §2 "Presets by business type" — selectable starting sets of units, not enforced. Creates any that don't already exist by name. */
+const UNIT_PRESETS: Record<UnitPresetKind, { name: string; symbol: string; allowsDecimals?: boolean }[]> = {
+  pharmacy: [
+    { name: 'علبة', symbol: 'box' },
+    { name: 'شريط', symbol: 'strip' },
+    { name: 'قرص', symbol: 'tab' },
+    { name: 'زجاجة', symbol: 'btl' },
+    { name: 'أمبول', symbol: 'amp' },
+  ],
+  clothing: [
+    { name: 'قطعة', symbol: 'pc' },
+    { name: 'طقم', symbol: 'set' },
+    { name: 'درزن', symbol: 'dz' },
+  ],
+  supermarket: [
+    { name: 'حبة', symbol: 'pc' },
+    { name: 'كرتون', symbol: 'ctn' },
+    { name: 'كيلو', symbol: 'kg', allowsDecimals: true },
+    { name: 'جرام', symbol: 'g', allowsDecimals: true },
+    { name: 'لتر', symbol: 'l', allowsDecimals: true },
+  ],
+};
+
+export async function applyUnitPreset(kind: UnitPresetKind): Promise<Unit[]> {
+  await delay();
+  const existingNames = new Set(db.units.map((u) => u.name));
+  const created: Unit[] = [];
+  mutate(() => {
+    for (const preset of UNIT_PRESETS[kind]) {
+      if (existingNames.has(preset.name)) continue;
+      const unit: Unit = { id: uid('unit'), ...preset };
+      db.units.push(unit);
+      created.push(unit);
+    }
+  });
+  if (created.length) emit('catalog:changed');
+  return clone(created);
 }
 
 export async function deleteUnit(id: string): Promise<void> {
@@ -121,5 +160,51 @@ export async function setPriceListValues(priceListId: string, values: Record<str
       }
     }
   });
+  emit('catalog:changed');
+}
+
+// ---------------------------------------------------------------------------------------------
+// v2 phase 6 §7 (Settings → Products) — custom field definitions for the product form's "إضافي" tab.
+// ---------------------------------------------------------------------------------------------
+
+export async function getCustomFieldDefs(): Promise<CustomFieldDef[]> {
+  await delay(100);
+  return clone([...db.customFieldDefs].sort((a, b) => a.sortOrder - b.sortOrder));
+}
+
+export type CustomFieldDefInput = Omit<CustomFieldDef, 'id' | 'sortOrder'>;
+
+export async function saveCustomFieldDef(input: CustomFieldDefInput, id?: string): Promise<CustomFieldDef> {
+  await delay();
+  if (!input.name.trim()) throw new ApiError('اسم الحقل مطلوب');
+  if (input.type === 'list' && !(input.options?.length)) throw new ApiError('أضف خيارات لحقل من نوع قائمة');
+  let def: CustomFieldDef;
+  mutate(() => {
+    if (id) {
+      const found = db.customFieldDefs.find((f) => f.id === id);
+      if (!found) throw new ApiError('الحقل غير موجود', 'NOT_FOUND');
+      Object.assign(found, input, { name: input.name.trim() });
+      def = found;
+    } else {
+      def = { id: uid('cf'), sortOrder: db.customFieldDefs.length + 1, ...input, name: input.name.trim() };
+      db.customFieldDefs.push(def);
+    }
+  });
+  emit('catalog:changed');
+  return clone(def!);
+}
+
+export async function deleteCustomFieldDef(id: string): Promise<void> {
+  await delay();
+  mutate(() => (db.customFieldDefs = db.customFieldDefs.filter((f) => f.id !== id)));
+  emit('catalog:changed');
+}
+
+export async function reorderCustomFieldDefs(orderedIds: string[]): Promise<void> {
+  await delay(60);
+  mutate(() => orderedIds.forEach((id, i) => {
+    const def = db.customFieldDefs.find((f) => f.id === id);
+    if (def) def.sortOrder = i + 1;
+  }));
   emit('catalog:changed');
 }

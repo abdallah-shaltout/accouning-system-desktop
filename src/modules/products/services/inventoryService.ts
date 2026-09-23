@@ -1,8 +1,31 @@
 import { ApiError, clone, db, delay, inDateRange, session } from '@/mocks';
-import { completeStockAdjustment, recordStockAdjustment } from '@/mocks/backend/inventory';
+import {
+  activeBatchesFor,
+  applyStockCount,
+  backToCounting,
+  completeStockAdjustment,
+  draftReturnToSupplier,
+  isBatchExpired,
+  isBatchNearExpiry,
+  recordStockAdjustment,
+  setStockCountLine,
+  startStockCount,
+  submitStockCountForReview,
+  writeOffBatches,
+} from '@/mocks/backend/inventory';
 import { mutate } from '@/mocks/persist';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
-import type { StockAdjustment, StockAdjustmentInput, StockAdjustmentType, StockMovement, StockMovementReason } from '../types';
+import type {
+  DebitNoteDraft,
+  ProductBatch,
+  StockAdjustment,
+  StockAdjustmentInput,
+  StockAdjustmentType,
+  StockCount,
+  StockCountInput,
+  StockMovement,
+  StockMovementReason,
+} from '../types';
 
 export interface AdjustmentFilter {
   type?: StockAdjustmentType;
@@ -126,4 +149,116 @@ function refLink(m: StockMovement): string | undefined {
     default:
       return `/inventory/adjustments/${m.refId}`;
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// v2 phase 6 §3 — Batches & expiry
+// ---------------------------------------------------------------------------------------------
+
+export async function getBatches(productId: string): Promise<ProductBatch[]> {
+  await delay();
+  return clone(activeBatchesFor(productId));
+}
+
+export type ExpiryBucket = 'expired' | 'within30' | 'within60' | 'within90' | 'ok';
+
+export interface ExpiryRow extends ProductBatch {
+  productName: string;
+  productSku: string;
+  supplierName?: string;
+  bucket: ExpiryBucket;
+  daysLeft: number | null;
+}
+
+function expiryBucket(batch: ProductBatch, today: string): { bucket: ExpiryBucket; daysLeft: number | null } {
+  if (!batch.expiryDate) return { bucket: 'ok', daysLeft: null };
+  const days = Math.floor((new Date(batch.expiryDate).getTime() - new Date(today).getTime()) / 86400_000);
+  if (days < 0) return { bucket: 'expired', daysLeft: days };
+  if (days <= 30) return { bucket: 'within30', daysLeft: days };
+  if (days <= 60) return { bucket: 'within60', daysLeft: days };
+  if (days <= 90) return { bucket: 'within90', daysLeft: days };
+  return { bucket: 'ok', daysLeft: days };
+}
+
+/** §4 expiry report: expired / ≤30 / ≤60 / ≤90, grouped by supplier (grouping done client-side by the page). */
+export async function getExpiryReport(): Promise<ExpiryRow[]> {
+  await delay();
+  const today = new Date().toISOString().slice(0, 10);
+  return db.productBatches
+    .filter((b) => b.qty > 0.0001 && b.expiryDate)
+    .map((b) => {
+      const product = db.products.find((p) => p.id === b.productId);
+      const supplier = b.supplierId ? db.suppliers.find((s) => s.id === b.supplierId) : undefined;
+      const { bucket, daysLeft } = expiryBucket(b, today);
+      return { ...clone(b), productName: product?.name ?? '—', productSku: product?.sku ?? '', supplierName: supplier?.name, bucket, daysLeft };
+    })
+    .filter((r) => r.bucket !== 'ok')
+    .sort((a, b) => (a.daysLeft ?? 0) - (b.daysLeft ?? 0));
+}
+
+export function batchAlertTone(batch: ProductBatch, alertDays: number): 'danger' | 'warning' | undefined {
+  if (isBatchExpired(batch)) return 'danger';
+  if (isBatchNearExpiry(batch, alertDays)) return 'warning';
+  return undefined;
+}
+
+export async function writeOffExpiredBatches(batchIds: string[], note?: string): Promise<StockAdjustment> {
+  await delay();
+  return clone(writeOffBatches(batchIds, session.userId, note));
+}
+
+/** TODO(phase 8): draft-only stub — see backend/inventory.ts `draftReturnToSupplier`. */
+export async function returnBatchesToSupplier(
+  supplierId: string,
+  lines: { productId: string; batchId: string; qty: number; unitCost: number }[],
+  note?: string,
+): Promise<DebitNoteDraft> {
+  await delay();
+  return clone(draftReturnToSupplier(supplierId, lines, session.userId, note));
+}
+
+export async function getDebitNoteDrafts(): Promise<DebitNoteDraft[]> {
+  await delay();
+  return clone(db.debitNoteDrafts);
+}
+
+// ---------------------------------------------------------------------------------------------
+// v2 phase 6 §5 — Stocktake v2
+// ---------------------------------------------------------------------------------------------
+
+export async function getStockCounts(): Promise<StockCount[]> {
+  await delay();
+  return clone([...db.stockCounts].sort((a, b) => b.startedAt.localeCompare(a.startedAt)));
+}
+
+export async function getStockCount(id: string): Promise<StockCount> {
+  await delay();
+  const count = db.stockCounts.find((c) => c.id === id);
+  if (!count) throw new ApiError('الجرد غير موجود', 'NOT_FOUND');
+  return clone(count);
+}
+
+export async function createStockCount(input: StockCountInput): Promise<StockCount> {
+  await delay();
+  return clone(startStockCount(input, session.userId));
+}
+
+export async function updateStockCountLine(countId: string, productId: string, qty: number, delta = false): Promise<StockCount> {
+  await delay(30);
+  return clone(setStockCountLine(countId, productId, qty, delta));
+}
+
+export async function submitCountForReview(countId: string): Promise<StockCount> {
+  await delay();
+  return clone(submitStockCountForReview(countId));
+}
+
+export async function resumeCounting(countId: string): Promise<StockCount> {
+  await delay();
+  return clone(backToCounting(countId));
+}
+
+export async function completeStockCount(countId: string): Promise<StockAdjustment> {
+  await delay();
+  return clone(applyStockCount(countId, session.userId));
 }

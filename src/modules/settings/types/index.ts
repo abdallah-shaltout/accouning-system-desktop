@@ -69,6 +69,28 @@ export type PaymentMethodInput = Omit<PaymentMethod, 'id' | 'canDelete'>;
 export type PrinterMode = 'a4' | 'thermal';
 export type ThermalWidth = 58 | 80;
 
+/**
+ * v2 Phase 14 (docs/v2/12-documents-pdf-excel.md §5): native thermal printing
+ * settings, additive to the existing `mode`/`thermalWidthMm` mock-phase
+ * fields (kept for the browser fallback / test-print preview). Mirrors
+ * `src-tauri/src/print/payload.rs`'s `ThermalPrinterConfig` — field names are
+ * intentionally the same shape (snake/camel differences aside) so
+ * `printService.ts` can pass this through close to verbatim.
+ */
+export type PrinterConnectionType = 'windows' | 'network';
+
+export interface ThermalPrinterSettings {
+  /** Windows queue name from `list_printers`, when `connection === 'windows'`. */
+  printerName?: string;
+  connection: PrinterConnectionType;
+  /** Host/IP, when `connection === 'network'` (always port 9100). */
+  host?: string;
+  dpi: number;
+  cut: boolean;
+  openDrawer: boolean;
+  copies: number;
+}
+
 export interface StoreSettings {
   storeName: string;
   logo?: string;
@@ -79,6 +101,12 @@ export interface StoreSettings {
   printer: {
     mode: PrinterMode;
     thermalWidthMm: ThermalWidth;
+    /** Phase 14: native transport settings for the receipt printer. Optional — absent until the printer settings page is saved once (mirrors `backup?`'s lazy-init pattern). */
+    thermal?: ThermalPrinterSettings;
+    /** Phase 14: A4 printer is informational-only (system default is used; no printer_name override yet). */
+    a4PrinterName?: string;
+    /** Phase 14: label printer is a placeholder field — label printing itself is Phase 11b's job. */
+    labelPrinterName?: string;
   };
   theme: 'light' | 'dark';
   /**
@@ -106,4 +134,13 @@ export interface StoreSettings {
   };
   /** Phase 13a — docs/v2/14-platform.md §4. Absent until the backup settings page is opened once. */
   backup?: import('./backup').BackupSettings;
+  /**
+   * v2 phase 6 (docs/v2/07-products-and-inventory.md §5, docs/v2/01-personas.md storekeeper):
+   * stock-in / write-off / stocktake-loss adjustments whose absolute value is at or above this
+   * amount need a manager PIN confirmation before they post. `undefined`/0 = no threshold (always
+   * allowed). A simple settings value + PIN dialog, not a full approvals inbox (that's Phase 13b).
+   */
+  inventoryApprovalThreshold?: number;
+  /** v2 phase 6 (§6 "Role matrix editor") — sparse per-role area-access overrides on top of the presets. */
+  roleAccessOverrides?: import('@/modules/users/helpers/permissions').RoleAccessOverrides;
 }

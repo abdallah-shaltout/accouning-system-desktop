@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
+import { setRoleAccessOverrides } from '@/modules/users/helpers/permissions';
 import * as settingsService from '../services/settingsService';
 import type { PaymentMethod, StoreSettings, Tax } from '../types';
 
@@ -27,10 +28,12 @@ export const useSettingsStore = defineStore('settings', () => {
     taxes.value = t;
     paymentMethods.value = pm;
     loaded.value = true;
+    setRoleAccessOverrides(s.roleAccessOverrides);
   }
 
   async function update(patch: Partial<StoreSettings>) {
     settings.value = await settingsService.updateSettings(patch);
+    setRoleAccessOverrides(settings.value.roleAccessOverrides);
   }
 
   async function reloadTaxes() {

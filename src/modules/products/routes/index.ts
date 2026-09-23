@@ -13,6 +13,12 @@ const routes: RouteRecordRaw[] = [
   { path: '/inventory/adjustments/new', name: 'adjustment-new', component: () => import('../pages/StockAdjustmentFormPage.vue'), meta: { title: 'تسوية جديدة', section, area: 'inventory', access: 'write' } },
   { path: '/inventory/adjustments/:id', name: 'adjustment', component: () => import('../pages/StockAdjustmentDetailPage.vue'), meta: { title: 'تفاصيل التسوية', section, area: 'inventory' } },
   { path: '/inventory/movements', name: 'movements', component: () => import('../pages/StockMovementsPage.vue'), meta: { title: 'حركة المخزون', section, area: 'inventory' } },
+  // v2 phase 6 §5 — Stocktake v2 (scope, snapshot, blind count, scan counting, review).
+  { path: '/inventory/counts', name: 'counts', component: () => import('../pages/StockCountListPage.vue'), meta: { title: 'الجرد', section, area: 'inventory' } },
+  { path: '/inventory/counts/new', name: 'count-new', component: () => import('../pages/StockCountNewPage.vue'), meta: { title: 'جرد جديد', section, area: 'inventory', access: 'write' } },
+  { path: '/inventory/counts/:id', name: 'count', component: () => import('../pages/StockCountDetailPage.vue'), meta: { title: 'تفاصيل الجرد', section, area: 'inventory' } },
+  // v2 phase 6 §4 — Expiry report (expired/≤30/≤60/≤90, grouped by supplier).
+  { path: '/inventory/expiry', name: 'expiry', component: () => import('../pages/ExpiryReportPage.vue'), meta: { title: 'تقرير الصلاحية', section, area: 'inventory' } },
 ];
 
 export default routes;

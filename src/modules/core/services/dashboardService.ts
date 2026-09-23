@@ -48,7 +48,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 }
 
 function lowStock(): Product[] {
-  return db.products.filter((p) => p.active && p.type === 'product' && p.stockQty <= (p.minStock ?? 0));
+  return db.products.filter((p) => p.active && p.type === 'product' && p.stockMode !== 'none' && p.stockQty <= (p.minStock ?? 0));
 }
 
 export async function getLowStockProducts(limit = 6): Promise<Product[]> {

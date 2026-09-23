@@ -14,7 +14,7 @@ from pathlib import Path
 from playwright.sync_api import Page
 
 DEFAULT_BASE = "http://localhost:1420/#"
-PASSWORDS = {"admin": "admin123", "manager": "manager123", "accountant": "acc123", "cashier": "cashier123"}
+PASSWORDS = {"admin": "admin123", "manager": "manager123", "accountant": "acc123", "cashier": "cashier123", "storekeeper": "store123"}
 
 
 def add_common_args(parser: argparse.ArgumentParser) -> None:

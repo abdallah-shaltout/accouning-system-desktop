@@ -14,6 +14,7 @@ import SkeletonBlock from '../components/ui/SkeletonBlock.vue';
 import StatusBadge from '../components/ui/StatusBadge.vue';
 import KpiCard from '../components/dashboard/KpiCard.vue';
 import SalesTrendChart from '../components/dashboard/SalesTrendChart.vue';
+import StorekeeperHome from '../components/dashboard/StorekeeperHome.vue';
 import { useAsync } from '../controllers/useAsync';
 import { formatDateLong, formatMoney, formatNumber, formatRelative, formatTime } from '../helpers/format';
 import { INVOICE_STATUS, PAYMENT_STATUS } from '../helpers/labels';
@@ -21,6 +22,9 @@ import { getDashboardSummary, getLowStockProducts, getRecentActivity, getRecentI
 
 const auth = useAuthStore();
 const router = useRouter();
+// v2 (docs/v2/01-personas.md §2, §6 "storekeeper home"): a minimal, separate landing page — the
+// full insight-driven home below isn't this role's job (no accounting/sales visibility for them).
+const isStorekeeper = computed(() => auth.role === 'storekeeper');
 
 const summary = useAsync(getDashboardSummary);
 const recent = useAsync(() => getRecentInvoices(8));
@@ -44,7 +48,8 @@ function retryAll() {
 </script>
 
 <template>
-  <div>
+  <StorekeeperHome v-if="isStorekeeper" />
+  <div v-else>
     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-lg font-semibold tracking-tight">{{ greeting }}، {{ auth.user?.name.split(' ')[0] }}</h1>

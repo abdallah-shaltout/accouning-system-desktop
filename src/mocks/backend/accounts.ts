@@ -55,3 +55,44 @@ export function accountById(id: string): Account {
 export function settlementAccountFor(method: string, ctx: AccountCtx = {}): Account {
   return method === 'cash' ? accountFor('cash', ctx) : accountFor('bank', ctx);
 }
+
+// ---------------------------------------------------------------------------------------------
+// v2 phase 6 (docs/v2/07-products-and-inventory.md "Account resolution"): product → category →
+// settings default, for the product form's "الضريبة والحسابات" tab and for Phase 7/8 postings that
+// want a per-product revenue/COGS/purchase account instead of the flat `accountFor(role)` default.
+// Every resolver here degrades gracefully to the role account when nothing overrides it, so callers
+// that don't care about per-product accounts (Phase 3's sales posting today) are unaffected.
+// ---------------------------------------------------------------------------------------------
+
+import type { Category, Product } from '@/modules/products/types';
+
+/** Revenue account: product override → category override → `sales`/`serviceRevenue` role default. */
+export function revenueAccountFor(product: Product, category: Category | undefined): Account {
+  if (product.revenueAccountId) return accountById(product.revenueAccountId);
+  if (category?.revenueAccountId) return accountById(category.revenueAccountId);
+  return accountFor(product.type === 'service' ? 'serviceRevenue' : 'sales');
+}
+
+/** COGS account: product override → category override → `cogs` role default. */
+export function cogsAccountFor(product: Product, category: Category | undefined): Account {
+  if (product.cogsAccountId) return accountById(product.cogsAccountId);
+  if (category?.cogsAccountId) return accountById(category.cogsAccountId);
+  return accountFor('cogs');
+}
+
+/** Purchase/expense account for a non-stock or service line: product → category → settings default → `freightIn` fallback. */
+export function purchaseAccountFor(product: Product, category: Category | undefined, defaultPurchaseAccountId?: string): Account {
+  if (product.purchaseAccountId) return accountById(product.purchaseAccountId);
+  if (category?.purchaseAccountId) return accountById(category.purchaseAccountId);
+  if (defaultPurchaseAccountId) return accountById(defaultPurchaseAccountId);
+  return accountFor('freightIn');
+}
+
+/** Sale/purchase tax id: product override → category override → undefined (caller falls back to the store default tax). */
+export function saleTaxIdFor(product: Product, category: Category | undefined): string | undefined {
+  return product.saleTaxId ?? category?.saleTaxId;
+}
+
+export function purchaseTaxIdFor(product: Product, category: Category | undefined): string | undefined {
+  return product.purchaseTaxId ?? category?.purchaseTaxId;
+}

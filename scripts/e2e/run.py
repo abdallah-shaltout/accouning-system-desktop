@@ -19,7 +19,7 @@ FLOWS_DIR = Path(__file__).resolve().parent / "flows"
 
 # Explicit order: later flows assume state left by earlier ones (e.g. role-gating and
 # refund-payment both read the invoice list that cashier-pos just created into).
-ORDER = ["cashier_pos", "role_gating", "accountant_journal", "refund_payment", "reports"]
+ORDER = ["cashier_pos", "role_gating", "accountant_journal", "refund_payment", "products", "reports"]
 
 
 def area_name(module_name: str) -> str:

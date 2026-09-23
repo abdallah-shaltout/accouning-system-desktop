@@ -1,21 +1,22 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowLeftRight, PackagePlus, Pencil } from '@lucide/vue';
+import { ArrowLeftRight, Beaker, PackagePlus, Pencil } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
-import { formatDateTime, formatNumber } from '@/modules/core/helpers/format';
+import { formatDate, formatDateTime, formatNumber } from '@/modules/core/helpers/format';
 import { MOVEMENT_REASON } from '@/modules/core/helpers/labels';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { useCatalogStore } from '../controllers/useCatalogStore';
-import { getStockMovements } from '../services/inventoryService';
+import { batchAlertTone, getBatches, getStockMovements } from '../services/inventoryService';
 import { getProduct, isLowStock } from '../services/productService';
 
 const route = useRoute();
@@ -26,7 +27,10 @@ const id = String(route.params.id);
 
 const product = useAsync(() => getProduct(id));
 const movements = useAsync(() => getStockMovements({ productId: id }));
+const batches = useAsync(() => getBatches(id));
 onMounted(() => catalog.load());
+
+const section = ref<'movements' | 'batches'>('movements');
 
 const p = computed(() => product.data.value);
 const soldLast30 = computed(() => {
@@ -97,8 +101,21 @@ const columns: Column<Movement>[] = [
 
       <div class="mt-5 grid items-start gap-5 xl:grid-cols-[1fr_300px]">
         <div>
-          <h2 class="mb-2 flex items-center gap-2 text-body font-semibold"><ArrowLeftRight class="size-4 text-text-secondary" /> حركة المخزون</h2>
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <h2 class="flex items-center gap-2 text-body font-semibold">
+              <component :is="section === 'batches' ? Beaker : ArrowLeftRight" class="size-4 text-text-secondary" />
+              {{ section === 'batches' ? 'التشغيلات' : 'حركة المخزون' }}
+            </h2>
+            <SegmentedControl
+              v-if="p?.trackBatches"
+              v-model="section"
+              size="sm"
+              :options="[{ value: 'movements', label: 'الحركات' }, { value: 'batches', label: 'التشغيلات' }]"
+            />
+          </div>
+
           <DataTable
+            v-if="section === 'movements'"
             :columns="columns"
             :rows="p?.type === 'service' ? [] : movements.data.value"
             :loading="movements.loading.value"
@@ -119,6 +136,37 @@ const columns: Column<Movement>[] = [
             </template>
             <template #cell-balanceAfter="{ row }"><span class="num">{{ formatNumber(row.balanceAfter) }}</span></template>
           </DataTable>
+
+          <AppCard v-else padding="none">
+            <div v-if="batches.loading.value" class="p-4"><SkeletonBlock :lines="4" /></div>
+            <table v-else-if="batches.data.value?.length" class="w-full text-body">
+              <thead class="bg-surface text-xs text-text-secondary">
+                <tr class="border-b border-border">
+                  <th class="px-4 py-2 text-start font-medium">رقم التشغيلة</th>
+                  <th class="px-3 py-2 text-start font-medium">تاريخ الصلاحية</th>
+                  <th class="px-3 py-2 text-start font-medium">الكمية المتبقية</th>
+                  <th class="px-4 py-2 text-start font-medium">التكلفة</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="b in batches.data.value" :key="b.id" class="border-b border-border last:border-0">
+                  <td class="px-4 py-2.5 num">{{ b.batchNo }}</td>
+                  <td class="px-3 py-2.5">
+                    <span
+                      class="num inline-flex items-center gap-1.5"
+                      :class="{ 'text-danger': batchAlertTone(b, p?.expiryAlertDays ?? 30) === 'danger', 'text-warning': batchAlertTone(b, p?.expiryAlertDays ?? 30) === 'warning' }"
+                    >
+                      <span v-if="batchAlertTone(b, p?.expiryAlertDays ?? 30)" class="size-1.5 rounded-full bg-current" />
+                      {{ formatDate(b.expiryDate) }}
+                    </span>
+                  </td>
+                  <td class="px-3 py-2.5 num">{{ formatNumber(b.qty) }}</td>
+                  <td class="px-4 py-2.5"><MoneyText :value="b.unitCost" plain class="text-text-secondary" /></td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-else class="p-4 text-body text-text-secondary">لا توجد تشغيلات حالياً</p>
+          </AppCard>
         </div>
 
         <AppCard title="قوائم الأسعار" padding="none">
