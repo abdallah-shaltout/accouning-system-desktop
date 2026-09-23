@@ -189,22 +189,35 @@ to phase 9. `verify:mocks` gained 2 new batch invariants, both green: **31 ok, 0
 
 ## Phase 7 — Sales v2 → [06](06-sales-and-pos.md)
 
-- [ ] POS: unit picker + barcode → unit, `n*` qty, custom price (floor, reason), line + invoice discounts, manager PIN approval
-- [ ] POS: held sales (F6), split tender dialog, foreign cash tender, return by receipt scan (F7), reprint (Ctrl+P)
-- [ ] Shifts: open/close, pay-in/pay-out (→ expense), X/Z reports, manager shifts screen; **invariant 11 green**
-- [ ] Desk invoice form (grid, B2B/B2C type, due date, terms, tafqit, journal preview, pay now) + quotations → invoice
-- [ ] Credit notes v2 (reason, refund method incl. customer credit, restock toggle → write-off)
-- [ ] Invoice list v2 (filters, saved views, totals, bulk export)
-- [ ] Speed: barcode index, virtualized grid, POS preload; targets met with latency switched off
+**Status: done** (2026-09-24). Commit `1561155`. Speed targets met with real measurements (latency
+off): scan→cart avg 18.2ms (target <50ms), checkout→receipt 70.3ms (target <300ms). Weighted-barcode
+(`2x`+code+weight/price) prefix parsing was skipped as a time-budget cut — `n*` qty multiplier
+works, weighted does not. Found and fixed two real bugs: the dev latency-off switch wasn't
+respected by explicit-ms `delay()` calls (was silently padding every sale by 350ms), and
+`accountant.sales` permission was stuck at read-only, blocking the desk invoice form for that role.
+
+- [x] POS: unit picker + barcode → unit, `n*` qty, custom price (floor, reason), line + invoice discounts, manager PIN approval
+- [x] POS: held sales (F6), split tender dialog, foreign cash tender, return by receipt scan (F7), reprint (Ctrl+P)
+- [x] Shifts: open/close, pay-in/pay-out (→ expense), X/Z reports, manager shifts screen; **invariant 11 green**
+- [x] Desk invoice form (grid, B2B/B2C type, due date, terms, tafqit, journal preview, pay now) + quotations → invoice
+- [x] Credit notes v2 (reason, refund method incl. customer credit, restock toggle → write-off)
+- [x] Invoice list v2 (filters, saved views, totals, bulk export)
+- [x] Speed: barcode index, virtualized grid, POS preload; targets met with latency switched off
 
 ## Phase 8 — Purchases, expenses & vouchers → [09](09-purchases-payments-expenses.md)
 
-- [ ] Purchase v2: units, discounts, tax per line, supplier invoice no/date (+ duplicate warning), non-VAT supplier handling
-- [ ] Receiving flow (price-hidden for storekeepers, batch/expiry capture, backorder draft) + "print labels for received qty" hook
-- [ ] Landed costs (allocation by value/qty, other-supplier AP)
-- [ ] Debit notes v2 (reason, refund method, batch pick)
-- [ ] Expenses module + categories + recurring expenses
-- [ ] General vouchers: receipt, payment, transfer (drawer → bank), owner drawings/contribution
+**Status: done** (2026-09-24). Commit `86ce50c`. Closes Phase 3's card/wallet settlement TODO and
+Phase 6's return-to-supplier draft stub. Found and fixed three real bugs: non-recoverable VAT was
+double-booked (posted to cost while AP stayed short by that amount), a partial receipt left the
+PO's total at the full order amount instead of what was actually posted to AP, and a reactive Vue
+ref leaked into `structuredClone` and silently broke every purchase save.
+
+- [x] Purchase v2: units, discounts, tax per line, supplier invoice no/date (+ duplicate warning), non-VAT supplier handling
+- [x] Receiving flow (price-hidden for storekeepers, batch/expiry capture, backorder draft) + "print labels for received qty" hook (stubbed `TODO(phase 11b)`)
+- [x] Landed costs (allocation by value/qty, other-supplier AP)
+- [x] Debit notes v2 (reason, refund method, batch pick)
+- [x] Expenses module + categories + recurring expenses
+- [x] General vouchers: receipt, payment, transfer (drawer → bank), owner drawings/contribution
 
 ## Phase 9 — Branches, cost centers & currencies → [10](10-branches-currencies-cost-centers.md)
 
