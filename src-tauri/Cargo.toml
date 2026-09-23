@@ -42,6 +42,26 @@ ecow = "0.2"
 time = "0.3"
 lopdf = { version = "0.45", default-features = false, features = ["chrono-clock"] }
 
+# Thermal printing (Phase 14, docs/v2/12-documents-pdf-excel.md §5):
+# Typst SVG -> PNG rasterization (resvg/tiny-skia were already transitive
+# deps of this dependency tree; promoted to direct here for
+# src-tauri/src/pdf/raster.rs) -> 1-bit dither -> ESC/POS raster bytes.
+resvg = "0.47"
+usvg = "0.47"
+tiny-skia = "0.12"
+
+# Windows printer enumeration + raw-mode spooling (OpenPrinter/StartDocPrinter/
+# WritePrinter/EndDocPrinter) for src-tauri/src/print/{printers,transport}.rs.
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+    "Win32_Graphics_Printing",
+    "Win32_Graphics_Gdi",
+    "Win32_Security",
+    "Win32_Storage_Xps",
+    "Win32_System_SystemServices",
+    "Win32_Foundation",
+] }
+
 [[bin]]
 name = "typst_spike"
 path = "src/bin/typst_spike.rs"
@@ -49,6 +69,10 @@ path = "src/bin/typst_spike.rs"
 [[bin]]
 name = "pdf_smoke"
 path = "src/bin/pdf_smoke.rs"
+
+[[bin]]
+name = "thermal_smoke"
+path = "src/bin/thermal_smoke.rs"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

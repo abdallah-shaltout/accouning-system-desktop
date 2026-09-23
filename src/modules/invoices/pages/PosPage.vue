@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { isTauri } from '@tauri-apps/api/core';
 import {
   ArrowRight,
   CircleCheck,
@@ -29,6 +30,7 @@ import { resolvedTheme, toggleTheme } from '@/modules/core/controllers/useTheme'
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
 import { formatNumber, formatTime } from '@/modules/core/helpers/format';
 import { matchesSearch } from '@/modules/core/helpers/search';
+import * as printService from '@/modules/core/services/printService';
 import { getCustomers } from '@/modules/parties/services/partyService';
 import type { Customer } from '@/modules/parties/types';
 import { useCatalogStore } from '@/modules/products/controllers/useCatalogStore';
@@ -182,8 +184,20 @@ async function newSale() {
   searchInput.value?.focus();
 }
 
-function printReceipt() {
+/**
+ * Phase 14 (docs/v2/12-documents-pdf-excel.md §5): in the desktop app with a
+ * thermal printer configured, prints natively (async — never blocks the next
+ * sale, per §5) instead of opening the browser print-preview route. Falls
+ * back to the existing `/print/invoices/:id` browser route in dev mode, or
+ * when the store is still set to A4/no thermal config yet.
+ */
+async function printReceipt() {
   if (!completed.value) return;
+  const printerSettings = settings.settings?.printer;
+  if (isTauri() && printerSettings?.mode === 'thermal') {
+    const outcome = await printService.printReceipt(completed.value.invoice.id, completed.value.invoice.paymentMethod === 'cash');
+    if (outcome.ok) return;
+  }
   router.push({ path: `/print/invoices/${completed.value.invoice.id}`, query: { auto: '1', back: '/pos' } });
 }
 
@@ -210,7 +224,7 @@ useHotkeys({
   '+': () => bumpActive(1),
   '-': () => bumpActive(-1),
   // After a completed sale: P prints the receipt, Enter starts the next sale.
-  p: () => (completed.value ? printReceipt() : false),
+  p: () => (completed.value ? (void printReceipt(), true) : false),
   Enter: () => (completed.value ? void newSale() : false),
 });
 

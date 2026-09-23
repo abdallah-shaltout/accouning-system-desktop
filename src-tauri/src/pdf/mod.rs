@@ -11,15 +11,23 @@
 //! embedded fonts) — Phase 11a should be able to grow this file rather than
 //! replace it.
 
-mod fonts;
+pub mod fonts;
 mod payload;
 mod qr;
+pub mod raster;
 pub mod render;
 mod world;
 
 pub use payload::{DocumentMeta, DocumentPayload, PaperSize, RenderRequest, TemplateOptionsPeek};
 pub use render::{CompileDiagnostic, RenderPdfResult, RenderPreviewResult};
 pub use world::{RenderWorld, SpikeWorld};
+
+// `raster` and `fonts` are `pub mod` (rather than `pub use`-only) so Phase
+// 14's `src-tauri/src/print/` can reach `pdf::raster::rasterize_page` and
+// `pdf::fonts::all_fonts` directly — the same embedded font set and PNG
+// rasterization the PDF/preview pipeline uses, reused rather than duplicated
+// for thermal rendering (docs/v2/12-documents-pdf-excel.md §5: "thermal
+// printing renders through Typst too").
 
 // NOTE: `render_pdf` / `render_preview` are referenced from `lib.rs` as
 // `pdf::render::render_pdf` / `pdf::render::render_preview` (not re-exported

@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface ToastNotification {
   id: string;
   type: 'success' | 'error' | 'info' | 'warning';
@@ -8,6 +13,13 @@ export interface ToastNotification {
   message?: string;
   /** ms; 0 = sticky. */
   duration?: number;
+  /**
+   * Phase 14 (docs/v2/12-documents-pdf-excel.md §5): up to two inline actions
+   * on the toast itself, e.g. "إعادة الطباعة" (reprint) + a PDF fallback
+   * offer when native thermal printing fails. Optional — every other toast
+   * call in the app keeps working unchanged.
+   */
+  actions?: ToastAction[];
 }
 
 export const useNotificationStore = defineStore('notification', () => {

@@ -29,6 +29,20 @@ const tones = { success: 'text-success', error: 'text-danger', warning: 'text-wa
         <div class="min-w-0 flex-1">
           <p class="text-body font-medium">{{ toast.title }}</p>
           <p v-if="toast.message" class="mt-0.5 text-xs leading-5 text-text-secondary">{{ toast.message }}</p>
+          <div v-if="toast.actions?.length" class="mt-2 flex flex-wrap gap-2">
+            <button
+              v-for="(action, i) in toast.actions"
+              :key="i"
+              type="button"
+              class="rounded-md border border-border px-2 py-1 text-xs font-medium text-text-primary hover:bg-surface-hover"
+              @click="
+                action.onClick();
+                store.removeNotification(toast.id);
+              "
+            >
+              {{ action.label }}
+            </button>
+          </div>
         </div>
         <button
           type="button"

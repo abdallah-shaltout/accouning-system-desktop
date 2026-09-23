@@ -10,6 +10,7 @@ dependencies = [
  "image",
  "lopdf",
  "qrcode",
+ "resvg",
  "serde",
  "serde_json",
  "tauri",
@@ -19,6 +20,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-sql",
  "time",
+ "tiny-skia",
  "typst",
  "typst-layout",
  "typst-library",
@@ -26,6 +28,8 @@ dependencies = [
  "typst-svg",
  "typst-syntax",
  "typst-utils",
+ "usvg",
+ "windows",
 ]
 
 [[package]]
