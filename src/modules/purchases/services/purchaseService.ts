@@ -52,7 +52,7 @@ export async function getPurchaseOrder(id: string): Promise<PurchaseDetail> {
   const po = db.purchaseOrders.find((p) => p.id === id);
   if (!po) throw new ApiError('أمر الشراء غير موجود', 'NOT_FOUND');
   const returns = db.purchaseReturns.filter((r) => r.purchaseOrderId === id);
-  const payments = db.payments.filter((p) => p.type === 'PAID' && p.targetRef === id);
+  const payments = db.payments.filter((p) => p.type === 'PAID' && p.allocations.some((a) => a.targetKind === 'purchaseOrder' && a.targetId === id));
   const sourceIds = new Set([id, ...returns.map((r) => r.id), ...payments.map((p) => p.id)]);
   const products: PurchaseDetail['products'] = {};
   for (const line of po.lines) {

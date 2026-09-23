@@ -45,6 +45,12 @@ export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
   bank_transfer: 'تحويل بنكي',
 };
 
+export const PHONE_LABEL: Record<'mobile' | 'work' | 'whatsapp', string> = {
+  mobile: 'جوال',
+  work: 'عمل',
+  whatsapp: 'واتساب',
+};
+
 export const ADJUSTMENT_TYPE: Record<StockAdjustmentType, { label: string; tone: Tone }> = {
   STOCK_IN: { label: 'إدخال مخزون', tone: 'success' },
   LOSS: { label: 'إتلاف / فقد', tone: 'danger' },

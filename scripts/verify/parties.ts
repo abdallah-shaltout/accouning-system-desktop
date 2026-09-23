@@ -3,6 +3,7 @@
  */
 import { db } from '../../src/mocks/db';
 import { customerBalance, customerStatement, supplierBalance, supplierStatement } from '../../src/mocks/backend/balances';
+import { unallocatedCreditFor } from '../../src/mocks/backend/payments';
 import { check, closeEnough, glBalance, ok, round2, type Result } from './shared';
 
 export function run(): Result[] {
@@ -37,7 +38,55 @@ export function run(): Result[] {
   });
   results.push(check(supMismatch.length === 0, `every supplier statement's running balance matches supplierBalance() (${supMismatch.length} mismatched)`));
 
-  results.push(ok(`${db.customers.length} customers, ${db.suppliers.length} suppliers, ${db.payments.length} payments`));
+  // 6 (docs/v2/02-accounting-review.md §4 item 6, C1's allocation fix — Phase 4): for every party,
+  // Σ document outstanding − unallocated credit ± opening balance = sub-ledger balance. Opening
+  // balances aren't posted yet (Phase 5's wizard), so that term is 0 here; unallocated credit now
+  // comes from `payments.ts`'s allocation sub-ledger (Σ amount − Σ allocations per payment).
+  //
+  // Outstanding is summed *unclamped* here (total − AR-reducing credit notes − paid, without the
+  // `Math.max(0, …)` that `invoiceOutstanding`/`purchaseOutstanding` apply for display/"open
+  // documents" purposes): a document that a credit note pushed below zero (e.g. a purchase return
+  // posted as a supplier credit after the PO was already paid in full) is a real AP/AR reduction
+  // the ledger already reflects, and clamping it to 0 here would make this invariant fail even
+  // though `Σ debit − Σ credit` on the control account is exactly right. Only COMPLETED/CONFIRMED
+  // documents carry a receivable/payable balance at all (drafts/cancels never posted).
+  //
+  // A sales refund's AR impact is `settledToReceivable`, not its full `grandTotal`/`refundedAmount`
+  // — the rest (`cashBack`) never touched AR, so it must not be subtracted here either (mirrors
+  // `sales.ts`'s posting: `receivable credit settledToReceivable`, not `refund.grandTotal`).
+  const arReducedByRefunds = (invoiceId: string) => db.refunds.filter((r) => r.invoiceId === invoiceId).reduce((a, r) => a + r.settledToReceivable, 0);
+  const custAllocationMismatch = db.customers.filter((c) => {
+    const outstanding = round2(
+      db.invoices
+        .filter((i) => i.customerId === c.id && i.status !== 'DRAFT')
+        .reduce((a, i) => a + (i.grandTotal - arReducedByRefunds(i.id) - i.paidAmount), 0),
+    );
+    const credit = unallocatedCreditFor('customer', c.id);
+    return !closeEnough(round2(outstanding - credit), customerBalance(c.id));
+  });
+  results.push(check(custAllocationMismatch.length === 0, `every customer: Σoutstanding − unallocated credit = customerBalance() (${custAllocationMismatch.length} mismatched)`));
+
+  // Unlike a sales refund's cashBack (always paid through the settlement account), a purchase
+  // return's cashBack with `refundMethod: 'credit'` is ALSO posted as a payable debit
+  // (src/mocks/backend/purchases.ts's `recordPurchaseReturn`: `payable debit settledToPayable` +
+  // `payable debit cashBack` when credit) — so the AP reduction is the return's full `grandTotal`
+  // in that case, not just `settledToPayable`.
+  const apReducedByReturns = (poId: string) =>
+    db.purchaseReturns.filter((r) => r.purchaseOrderId === poId).reduce((a, r) => a + (r.refundMethod === 'credit' ? r.grandTotal : r.settledToPayable), 0);
+  const supAllocationMismatch = db.suppliers.filter((s) => {
+    const outstanding = round2(
+      db.purchaseOrders
+        .filter((p) => p.supplierId === s.id && p.status === 'CONFIRMED')
+        .reduce((a, p) => a + (p.grandTotal - apReducedByReturns(p.id) - p.paidAmount), 0),
+    );
+    const credit = unallocatedCreditFor('supplier', s.id);
+    return !closeEnough(round2(outstanding - credit), supplierBalance(s.id));
+  });
+  results.push(check(supAllocationMismatch.length === 0, `every supplier: Σoutstanding − unallocated credit = supplierBalance() (${supAllocationMismatch.length} mismatched)`));
+
+  const totalAllocated = round2(db.payments.reduce((a, p) => a + p.allocations.reduce((b, al) => b + al.amount, 0), 0));
+  const multiAllocation = db.payments.filter((p) => p.allocations.length > 1).length;
+  results.push(ok(`${db.customers.length} customers, ${db.suppliers.length} suppliers, ${db.payments.length} payments (${multiAllocation} multi-document, Σallocated ${totalAllocated})`));
 
   return results;
 }

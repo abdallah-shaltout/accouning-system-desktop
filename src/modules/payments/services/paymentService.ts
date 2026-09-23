@@ -1,14 +1,17 @@
 import { clone, db, delay, inDateRange, includesText, session } from '@/mocks';
-import { recordPayment } from '@/mocks/backend/payments';
-import { purchaseOutstanding } from '@/mocks/backend/purchases';
-import { invoiceOutstanding } from '@/modules/invoices/helpers/totals';
+import { allocatePayment, allocatedTotal, getOpenDocumentsFor, recordPayment, unallocatedAmount, unallocatePayment } from '@/mocks/backend/payments';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
-import type { OpenDocument, Payment, PaymentFilter, PaymentInput } from '../types';
+import { allocationStatusFor, type AllocationStatus, type OpenDocument, type Payment, type PaymentAllocationInput, type PaymentFilter, type PaymentInput } from '../types';
 
-export type PaymentRow = Payment & { partyName: string };
+export type PaymentRow = Payment & { partyName: string; allocated: number; unallocated: number; allocationStatus: AllocationStatus };
 
 function partyName(p: Payment): string {
   return (p.targetType === 'customer' ? db.customers : db.suppliers).find((x) => x.id === p.targetId)?.name ?? '—';
+}
+
+function toRow(p: Payment): PaymentRow {
+  const allocated = allocatedTotal(p);
+  return { ...clone(p), partyName: partyName(p), allocated, unallocated: unallocatedAmount(p), allocationStatus: allocationStatusFor(p.amount, allocated) };
 }
 
 export async function getPayments(filter: PaymentFilter = {}): Promise<PaymentRow[]> {
@@ -21,8 +24,8 @@ export async function getPayments(filter: PaymentFilter = {}): Promise<PaymentRo
         (!filter.targetId || p.targetId === filter.targetId) &&
         inDateRange(p.date, filter.from, filter.to),
     )
-    .map((p) => ({ ...clone(p), partyName: partyName(p) }))
-    .filter((p) => includesText([p.number, p.partyName, p.targetRefNumber, p.note], filter.search))
+    .map(toRow)
+    .filter((p) => (!filter.unallocatedOnly || p.unallocated > 0.005) && includesText([p.number, p.partyName, p.targetRefNumber, p.note], filter.search))
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 
@@ -38,8 +41,8 @@ export async function getPaymentsPaged(query: PagedQuery<PaymentFilter>): Promis
         (!filter.targetId || p.targetId === filter.targetId) &&
         inDateRange(p.date, filter.from, filter.to),
     )
-    .map((p) => ({ ...clone(p), partyName: partyName(p) }))
-    .filter((p) => includesText([p.number, p.partyName, p.targetRefNumber, p.note], filter.search));
+    .map(toRow)
+    .filter((p) => (!filter.unallocatedOnly || p.unallocated > 0.005) && includesText([p.number, p.partyName, p.targetRefNumber, p.note], filter.search));
 
   const total = rows.length;
   const totals = { amount: rows.reduce((a, r) => a + r.amount, 0) };
@@ -60,22 +63,31 @@ export async function getPaymentsPaged(query: PagedQuery<PaymentFilter>): Promis
   return { rows: rows.slice(start, start + query.pageSize), total, totals };
 }
 
+export async function getPayment(id: string): Promise<PaymentRow> {
+  await delay(100);
+  const p = db.payments.find((x) => x.id === id);
+  if (!p) throw new Error('السند غير موجود');
+  return toRow(p);
+}
+
 export async function createPayment(input: PaymentInput): Promise<Payment> {
   await delay();
   return clone(recordPayment(input, session.userId));
 }
 
+/** Allocate more of an already-saved payment's unallocated money — "allocate later" (docs/v2/08 §3, 09 §3). */
+export async function allocateExistingPayment(paymentId: string, allocations: PaymentAllocationInput[]): Promise<Payment> {
+  await delay();
+  return clone(allocatePayment(paymentId, allocations, session.userId));
+}
+
+export async function removeAllocation(paymentId: string, allocationId: string): Promise<Payment> {
+  await delay();
+  return clone(unallocatePayment(paymentId, allocationId, session.userId));
+}
+
 /** Invoices (customer) or confirmed POs (supplier) that still have something outstanding. */
 export async function getOpenDocuments(targetType: 'customer' | 'supplier', targetId: string): Promise<OpenDocument[]> {
   await delay(150);
-  if (targetType === 'customer') {
-    return db.invoices
-      .filter((i) => i.customerId === targetId && i.status === 'COMPLETED' && invoiceOutstanding(i) > 0)
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .map((i) => ({ id: i.id, number: i.number, date: i.date, total: i.grandTotal - i.refundedAmount, outstanding: invoiceOutstanding(i) }));
-  }
-  return db.purchaseOrders
-    .filter((p) => p.supplierId === targetId && p.status === 'CONFIRMED' && purchaseOutstanding(p) > 0)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((p) => ({ id: p.id, number: p.number, date: p.date, total: p.grandTotal - p.returnedAmount, outstanding: purchaseOutstanding(p) }));
+  return getOpenDocumentsFor(targetType, targetId);
 }

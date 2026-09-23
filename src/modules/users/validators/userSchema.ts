@@ -13,7 +13,9 @@ export const userSchema = (isNew: boolean) =>
       .trim()
       .min(3, 'اسم المستخدم 3 أحرف على الأقل')
       .regex(/^[a-zA-Z0-9._-]+$/, 'أحرف إنجليزية وأرقام فقط'),
-    phone: z.string().trim().regex(/^(05\d{8})?$/, 'رقم جوال سعودي يبدأ بـ 05 (10 أرقام)').optional(),
+    // Stored as E.164 by AppPhoneInput (docs/v2/08-customers-and-suppliers.md §2); the component
+    // itself validates per-country, this just guards the shape.
+    phone: z.string().trim().regex(/^(\+\d{6,15})?$/, 'رقم جوال غير صحيح').optional(),
     role: z.enum(['admin', 'manager', 'accountant', 'cashier']),
     maxDiscount: z.number({ error: 'أدخل رقماً' }).min(0, 'لا يقل عن 0').max(100, 'لا يزيد عن 100'),
     password: isNew

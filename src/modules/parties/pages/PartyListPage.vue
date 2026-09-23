@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Building, Plus, Truck, Users } from '@lucide/vue';
+import { Building, FileText, Plus, Truck, Users } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
@@ -69,6 +69,7 @@ const columns = computed<Column<Party>[]>(() => [
       :subtitle="isCustomer ? 'بيانات العملاء وأرصدتهم المستحقة (الذمم المدينة)' : 'بيانات الموردين والمبالغ المستحقة لهم (الذمم الدائنة)'"
     >
       <template #actions>
+        <AppButton v-if="canWrite" :icon="FileText" :to="isCustomer ? '/customers/new' : '/suppliers/new'">نموذج كامل</AppButton>
         <AppButton v-if="canWrite" variant="primary" :icon="Plus" @click="formOpen = true">{{ isCustomer ? 'عميل جديد' : 'مورد جديد' }}</AppButton>
       </template>
     </PageHeader>

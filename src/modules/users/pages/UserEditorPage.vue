@@ -5,6 +5,7 @@ import { Check, Eye, Minus, Pencil, Save } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
+import AppPhoneInput from '@/modules/core/components/ui/AppPhoneInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
@@ -132,7 +133,7 @@ async function save() {
         <AppCard title="البيانات الأساسية">
           <div class="grid gap-4 sm:grid-cols-2">
             <AppInput v-model="form.name" label="الاسم الكامل" required :error="errors.name" />
-            <AppInput v-model="form.phone" label="الجوال" type="tel" ltr placeholder="05xxxxxxxx" :error="errors.phone" />
+            <AppPhoneInput v-model="form.phone" label="الجوال" :error="errors.phone" />
             <AppInput v-model="form.username" label="اسم المستخدم" required ltr :error="errors.username" hint="يستخدم لتسجيل الدخول" />
             <AppInput
               v-model="form.password"

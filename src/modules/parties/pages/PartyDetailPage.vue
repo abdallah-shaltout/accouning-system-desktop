@@ -1,7 +1,25 @@
 <script setup lang="ts">
+/**
+ * Party page (docs/v2/08-customers-and-suppliers.md §3): header card (balance, credit-limit bar,
+ * actions) + tabs — overview / documents / payments / statement / aging / attachments / history.
+ * The attachments tab (Phase 0 demo usage) is kept as-is; the rest are new for Phase 4.
+ */
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { FileText, HandCoins, MapPin, Pencil, Phone, ReceiptText, UserRound } from '@lucide/vue';
+import {
+  ClipboardList,
+  Clock,
+  FileText,
+  HandCoins,
+  History as HistoryIcon,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Pencil,
+  Phone,
+  ReceiptText,
+  UserRound,
+} from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
@@ -14,12 +32,16 @@ import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDate, formatDateTime, formatNumber } from '@/modules/core/helpers/format';
+import { INVOICE_STATUS, PHONE_LABEL, PURCHASE_STATUS } from '@/modules/core/helpers/labels';
+import { getInvoices } from '@/modules/invoices/services/invoiceService';
 import { getOpenDocuments } from '@/modules/payments/services/paymentService';
-import type { OpenDocument } from '@/modules/payments/types';
+import type { AllocationStatus, OpenDocument } from '@/modules/payments/types';
+import { getPayments } from '@/modules/payments/services/paymentService';
+import { getPurchaseOrders } from '@/modules/purchases/services/purchaseService';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
-import PartyFormModal from '../components/PartyFormModal.vue';
+import { getPartyAging, getPartyHistory } from '../services/partyService';
 import { getCustomer, getCustomerStatement, getSupplier, getSupplierStatement } from '../services/partyService';
-import type { Customer, PartyStatementRow, Supplier } from '../types';
+import type { AgingBucket, Customer, PartyStatementRow, Supplier } from '../types';
 
 const props = defineProps<{ kind: 'customer' | 'supplier' }>();
 
@@ -33,17 +55,21 @@ const base = computed(() => (isCustomer.value ? '/customers' : '/suppliers'));
 const party = useAsync<Customer | Supplier>(() => (isCustomer.value ? getCustomer(id) : getSupplier(id)));
 const statement = useAsync(() => (isCustomer.value ? getCustomerStatement(id) : getSupplierStatement(id)));
 const open = useAsync(() => getOpenDocuments(props.kind, id));
+const documents = useAsync<any[]>(() => (isCustomer.value ? getInvoices({ customerId: id }) : getPurchaseOrders({ supplierId: id })));
+const payments = useAsync(() => getPayments({ targetId: id }));
+const aging = useAsync<AgingBucket[]>(() => getPartyAging(props.kind, id));
+const history = useAsync(() => getPartyHistory(id));
 
-const tab = ref<'statement' | 'open' | 'attachments'>('statement');
-/**
- * Demo usage of `AttachmentField` for this Phase 0 track (docs/v2/14-platform.md §5) — proves the
- * component + IndexedDB blob store + viewer end-to-end. Full wiring of attachments onto the party
- * *form* (national address docs, CR/VAT certs, contact photos) is Phase 4's job — see the TODO
- * there in `PartyFormModal.vue`.
- */
+const tab = ref<'overview' | 'documents' | 'payments' | 'statement' | 'aging' | 'attachments' | 'history'>('overview');
 const ownerRef = computed(() => `${props.kind}:${id}`);
-const formOpen = ref(false);
 const p = computed(() => party.data.value);
+
+const ALLOCATION_LABEL: Record<AllocationStatus, string> = { full: 'مخصص بالكامل', partial: 'مخصص جزئياً', unallocated: 'غير مخصص' };
+const ALLOCATION_TONE: Record<AllocationStatus, 'success' | 'warning' | 'neutral'> = { full: 'success', partial: 'warning', unallocated: 'neutral' };
+
+function docStatus(status: string) {
+  return isCustomer.value ? INVOICE_STATUS[status as keyof typeof INVOICE_STATUS] : PURCHASE_STATUS[status as keyof typeof PURCHASE_STATUS];
+}
 
 const totals = computed(() => {
   const rows = statement.data.value ?? [];
@@ -55,16 +81,15 @@ const totals = computed(() => {
   };
 });
 
+const overdueAmount = computed(() => (aging.data.value ?? []).filter((b) => b.key !== 'current').reduce((a, b) => a + b.total, 0));
+const creditLimit = computed(() => (isCustomer.value ? (p.value as Customer | undefined)?.creditLimit ?? 0 : 0));
+const creditPct = computed(() => (creditLimit.value > 0 ? Math.min(100, Math.round(((p.value?.balance ?? 0) / creditLimit.value) * 100)) : 0));
+const overLimit = computed(() => creditLimit.value > 0 && (p.value?.balance ?? 0) > creditLimit.value);
+
 function docLink(row: PartyStatementRow) {
   if (row.kind === 'invoice' || row.kind === 'refund') return `/invoices/${row.refId}`;
   if (row.kind === 'purchaseOrder' || row.kind === 'purchaseReturn') return `/purchases/${row.refId}`;
-  return `/payments?highlight=${row.refId}`;
-}
-
-function refresh() {
-  party.reload();
-  statement.reload();
-  open.reload();
+  return `/payments/${row.refId}`;
 }
 
 const statementColumns: Column<PartyStatementRow>[] = [
@@ -79,15 +104,36 @@ const statementColumns: Column<PartyStatementRow>[] = [
 const openColumns: Column<OpenDocument>[] = [
   { key: 'number', label: 'المستند' },
   { key: 'date', label: 'التاريخ' },
+  { key: 'dueDate', label: 'الاستحقاق' },
   { key: 'total', label: 'الإجمالي', numeric: true },
   { key: 'outstanding', label: 'المتبقي', numeric: true },
   { key: 'actions', label: '', noPrint: true, align: 'end' },
+];
+
+const documentColumns: Column<any>[] = [
+  { key: 'number', label: 'رقم المستند', sortable: true },
+  { key: 'date', label: 'التاريخ', sortable: true },
+  { key: 'status', label: 'الحالة' },
+  { key: 'grandTotal', label: 'الإجمالي', numeric: true },
+  { key: 'outstanding', label: 'المتبقي', numeric: true },
+];
+
+const paymentColumns: Column<any>[] = [
+  { key: 'number', label: 'رقم السند', sortable: true },
+  { key: 'date', label: 'التاريخ', sortable: true },
+  { key: 'allocationStatus', label: 'التخصيص' },
+  { key: 'amount', label: 'المبلغ', numeric: true },
 ];
 
 const payLink = (docId?: string) => ({
   path: '/payments/new',
   query: { type: isCustomer.value ? 'RECEIVED' : 'PAID', party: id, ref: docId },
 });
+
+const phones = computed(() => p.value?.phones?.length ? p.value.phones : p.value?.phone ? [{ id: 'legacy', label: 'mobile' as const, number: p.value.phone }] : []);
+function whatsappHref(number: string) {
+  return `https://wa.me/${number.replace(/\D/g, '')}`;
+}
 </script>
 
 <template>
@@ -96,10 +142,13 @@ const payLink = (docId?: string) => ({
     <template v-else>
       <PageHeader :title="p?.name ?? '…'" :back="base">
         <template v-if="p && !p.active" #badge><StatusBadge label="موقوف" /></template>
-        <template #subtitle>{{ isCustomer ? ((p as Customer)?.type === 'company' ? 'عميل — منشأة' : 'عميل — فرد') : 'مورد' }}</template>
+        <template #subtitle>
+          {{ isCustomer ? ((p as Customer)?.type === 'company' ? 'عميل — منشأة' : 'عميل — فرد') : 'مورد' }}
+          <span v-if="p?.code" class="num text-text-secondary"> · {{ p.code }}</span>
+        </template>
         <template #actions>
           <AppButton v-if="auth.can('reports')" :icon="FileText" :to="`/reports/ledger?${isCustomer ? 'customer' : 'supplier'}=${id}`">كشف حساب للطباعة</AppButton>
-          <AppButton v-if="auth.can('parties', 'write')" :icon="Pencil" @click="formOpen = true">تعديل</AppButton>
+          <AppButton v-if="auth.can('parties', 'write')" :icon="Pencil" :to="`${base}/${id}/edit`">تعديل</AppButton>
           <AppButton v-if="auth.can('payments', 'write') && (p?.balance ?? 0) > 0" variant="primary" :icon="HandCoins" :to="payLink()">
             {{ isCustomer ? 'تحصيل دفعة' : 'سداد دفعة' }}
           </AppButton>
@@ -114,6 +163,26 @@ const payLink = (docId?: string) => ({
             <p v-else class="mt-1 text-2xl font-semibold" :class="p.balance > 0 && isCustomer ? 'text-warning' : ''">
               <MoneyText :value="p.balance" />
             </p>
+            <p v-if="p && (p.unallocatedCredit ?? 0) > 0.005" class="mt-1 text-xs text-success">
+              + <span class="num">{{ p.unallocatedCredit!.toFixed(2) }}</span> رصيد غير مخصص (دفعة مقدمة)
+            </p>
+
+            <template v-if="isCustomer && p && creditLimit > 0">
+              <div class="mt-3 border-t border-border pt-3">
+                <div class="mb-1 flex items-center justify-between text-xs">
+                  <span class="text-text-secondary">الحد الائتماني</span>
+                  <span class="num" :class="overLimit && 'text-danger'">{{ p.balance.toFixed(0) }} / {{ creditLimit.toFixed(0) }}</span>
+                </div>
+                <div class="h-1.5 overflow-hidden rounded-full bg-surface-hover">
+                  <div class="h-full rounded-full" :class="overLimit ? 'bg-danger' : creditPct > 80 ? 'bg-warning' : 'bg-primary'" :style="{ width: `${creditPct}%` }" />
+                </div>
+              </div>
+            </template>
+
+            <div v-if="overdueAmount > 0.005" class="mt-3 flex items-center gap-1.5 border-t border-border pt-3 text-xs text-danger">
+              <Clock class="size-3.5" /> متأخر <MoneyText :value="overdueAmount" plain class="font-medium" />
+            </div>
+
             <div class="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 text-xs">
               <div>
                 <p class="text-text-secondary">{{ isCustomer ? 'عدد الفواتير' : 'أوامر الشراء' }}</p>
@@ -125,13 +194,31 @@ const payLink = (docId?: string) => ({
               </div>
             </div>
           </AppCard>
+
           <AppCard title="بيانات التواصل" padding="sm">
             <SkeletonBlock v-if="!p" :lines="3" />
             <ul v-else class="space-y-2.5 text-body">
-              <li class="flex items-center gap-2"><Phone class="size-3.5 text-text-secondary" /><span class="num">{{ p.phone ?? '—' }}</span></li>
+              <li v-for="ph in phones" :key="ph.id" class="flex items-center justify-between gap-2">
+                <span class="flex items-center gap-2">
+                  <Phone class="size-3.5 shrink-0 text-text-secondary" />
+                  <span class="num">{{ ph.number }}</span>
+                  <span class="text-tiny text-text-secondary">({{ PHONE_LABEL[ph.label] }})</span>
+                </span>
+                <a :href="whatsappHref(ph.number)" target="_blank" rel="noopener" class="shrink-0 text-success hover:opacity-80" title="واتساب">
+                  <MessageCircle class="size-3.5" />
+                </a>
+              </li>
+              <li v-if="!phones.length" class="flex items-center gap-2 text-text-secondary"><Phone class="size-3.5" />—</li>
+              <li v-if="p.email" class="flex items-center gap-2"><Mail class="size-3.5 text-text-secondary" />{{ p.email }}</li>
               <li v-if="!isCustomer" class="flex items-center gap-2"><UserRound class="size-3.5 text-text-secondary" />{{ (p as Supplier).contactPerson ?? '—' }}</li>
               <li class="flex items-center gap-2"><MapPin class="size-3.5 text-text-secondary" />{{ p.address ?? '—' }}</li>
               <li class="flex items-center gap-2"><ReceiptText class="size-3.5 text-text-secondary" />الرقم الضريبي: <span class="num">{{ p.vatNumber ?? '—' }}</span></li>
+              <li v-if="p.linkedPartyId" class="flex items-center gap-2">
+                <ClipboardList class="size-3.5 text-text-secondary" />
+                <RouterLink :to="`/${isCustomer ? 'suppliers' : 'customers'}/${p.linkedPartyId}`" class="text-primary hover:underline">
+                  مرتبط بسجل {{ isCustomer ? 'مورد' : 'عميل' }}
+                </RouterLink>
+              </li>
             </ul>
           </AppCard>
         </div>
@@ -141,15 +228,96 @@ const payLink = (docId?: string) => ({
             <SegmentedControl
               v-model="tab"
               :options="[
+                { value: 'overview', label: 'نظرة عامة' },
+                { value: 'documents', label: 'المستندات', count: documents.data.value?.length },
+                { value: 'payments', label: 'المدفوعات', count: payments.data.value?.length },
                 { value: 'statement', label: 'كشف الحساب', count: statement.data.value?.length },
-                { value: 'open', label: isCustomer ? 'فواتير مفتوحة' : 'أوامر غير مسددة', count: open.data.value?.length },
+                { value: 'aging', label: 'الأعمار' },
                 { value: 'attachments', label: 'المرفقات' },
+                { value: 'history', label: 'السجل', count: history.data.value?.length },
               ]"
             />
           </div>
 
+          <!-- نظرة عامة -->
+          <div v-if="tab === 'overview'" class="space-y-4">
+            <AppCard title="آخر المستندات" padding="none">
+              <DataTable
+                :columns="documentColumns"
+                :rows="(documents.data.value ?? []).slice(0, 5)"
+                :loading="documents.loading.value"
+                :error="documents.error.value"
+                :page-size="0"
+                clickable
+                empty-title="لا توجد مستندات بعد"
+                @retry="documents.reload"
+                @row-click="(r: any) => router.push(isCustomer ? `/invoices/${r.id}` : `/purchases/${r.id}`)"
+              >
+                <template #cell-number="{ row }"><span class="num text-primary">{{ row.number }}</span></template>
+                <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDate(row.date) }}</span></template>
+                <template #cell-status="{ row }"><StatusBadge :tone="docStatus(row.status)?.tone ?? 'neutral'" :label="docStatus(row.status)?.label ?? row.status" /></template>
+                <template #cell-grandTotal="{ row }"><MoneyText :value="row.grandTotal" plain /></template>
+                <template #cell-outstanding="{ row }"><MoneyText :value="row.outstanding" plain class="font-medium text-warning" /></template>
+              </DataTable>
+            </AppCard>
+            <AppCard v-if="open.data.value?.length" title="مستندات مفتوحة" padding="none">
+              <DataTable :columns="openColumns" :rows="open.data.value" :page-size="0" empty-title="لا توجد">
+                <template #cell-number="{ row }">
+                  <RouterLink :to="isCustomer ? `/invoices/${row.id}` : `/purchases/${row.id}`" class="num text-primary hover:underline">{{ row.number }}</RouterLink>
+                </template>
+                <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDate(row.date) }}</span></template>
+                <template #cell-dueDate="{ row }"><span class="num text-text-secondary">{{ row.dueDate ? formatDate(row.dueDate) : '—' }}</span></template>
+                <template #cell-total="{ row }"><MoneyText :value="row.total" plain /></template>
+                <template #cell-outstanding="{ row }"><MoneyText :value="row.outstanding" class="font-medium text-warning" /></template>
+                <template #cell-actions="{ row }">
+                  <AppButton v-if="auth.can('payments', 'write')" size="sm" :icon="HandCoins" :to="payLink(row.id)">{{ isCustomer ? 'تحصيل' : 'سداد' }}</AppButton>
+                </template>
+              </DataTable>
+            </AppCard>
+          </div>
+
+          <!-- المستندات -->
           <DataTable
-            v-if="tab === 'statement'"
+            v-else-if="tab === 'documents'"
+            :columns="documentColumns"
+            :rows="documents.data.value"
+            :loading="documents.loading.value"
+            :error="documents.error.value"
+            :page-size="20"
+            clickable
+            empty-title="لا توجد مستندات"
+            @retry="documents.reload"
+            @row-click="(r: any) => router.push(isCustomer ? `/invoices/${r.id}` : `/purchases/${r.id}`)"
+          >
+            <template #cell-number="{ row }"><span class="num text-primary">{{ row.number }}</span></template>
+            <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDate(row.date) }}</span></template>
+            <template #cell-status="{ row }"><StatusBadge :tone="docStatus(row.status)?.tone ?? 'neutral'" :label="docStatus(row.status)?.label ?? row.status" /></template>
+            <template #cell-grandTotal="{ row }"><MoneyText :value="row.grandTotal" plain /></template>
+            <template #cell-outstanding="{ row }"><MoneyText :value="row.outstanding" plain class="font-medium text-warning" /></template>
+          </DataTable>
+
+          <!-- المدفوعات -->
+          <DataTable
+            v-else-if="tab === 'payments'"
+            :columns="paymentColumns"
+            :rows="payments.data.value"
+            :loading="payments.loading.value"
+            :error="payments.error.value"
+            :page-size="20"
+            clickable
+            empty-title="لا توجد مدفوعات"
+            @retry="payments.reload"
+            @row-click="(r: any) => router.push(`/payments/${r.id}`)"
+          >
+            <template #cell-number="{ row }"><span class="num font-medium">{{ row.number }}</span></template>
+            <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDateTime(row.date) }}</span></template>
+            <template #cell-allocationStatus="{ row }"><StatusBadge :tone="ALLOCATION_TONE[row.allocationStatus]" :label="ALLOCATION_LABEL[row.allocationStatus]" /></template>
+            <template #cell-amount="{ row }"><MoneyText :value="row.amount" /></template>
+          </DataTable>
+
+          <!-- كشف الحساب -->
+          <DataTable
+            v-else-if="tab === 'statement'"
             :columns="statementColumns"
             :rows="statement.data.value ? [...statement.data.value].reverse() : undefined"
             :loading="statement.loading.value"
@@ -168,35 +336,62 @@ const payLink = (docId?: string) => ({
             <template #cell-balance="{ row }"><MoneyText :value="row.balance" plain class="font-medium" /></template>
           </DataTable>
 
+          <!-- الأعمار -->
+          <div v-else-if="tab === 'aging'" class="space-y-3">
+            <div v-if="aging.loading.value"><SkeletonBlock :lines="4" height="h-12" /></div>
+            <template v-else>
+              <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <AppCard v-for="b in aging.data.value" :key="b.key" padding="sm">
+                  <p class="text-xs text-text-secondary">{{ b.label }}</p>
+                  <p class="mt-1 text-lg font-semibold" :class="b.key !== 'current' && b.total > 0 && 'text-danger'"><MoneyText :value="b.total" /></p>
+                </AppCard>
+              </div>
+              <AppCard v-for="b in (aging.data.value ?? []).filter((x) => x.documents.length)" :key="`docs-${b.key}`" :title="b.label" padding="none">
+                <table class="w-full text-body">
+                  <thead class="border-b border-border text-xs text-text-secondary">
+                    <tr>
+                      <th class="px-3 py-2 text-start">المستند</th>
+                      <th class="px-2 py-2 text-start">التاريخ</th>
+                      <th class="px-2 py-2 text-start">الاستحقاق</th>
+                      <th class="px-2 py-2 text-end">المتبقي</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-border">
+                    <tr v-for="d in b.documents" :key="d.id">
+                      <td class="px-3 py-2">
+                        <RouterLink :to="isCustomer ? `/invoices/${d.id}` : `/purchases/${d.id}`" class="num text-primary hover:underline">{{ d.number }}</RouterLink>
+                      </td>
+                      <td class="num px-2 py-2 text-text-secondary">{{ formatDate(d.date) }}</td>
+                      <td class="num px-2 py-2 text-text-secondary">{{ d.dueDate ? formatDate(d.dueDate) : '—' }}</td>
+                      <td class="px-2 py-2 text-end"><MoneyText :value="d.outstanding" plain class="font-medium text-warning" /></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </AppCard>
+            </template>
+          </div>
+
+          <!-- المرفقات -->
           <AppCard v-else-if="tab === 'attachments'" padding="sm">
             <AttachmentField :owner-ref="ownerRef" />
           </AppCard>
 
-          <DataTable
-            v-else
-            :columns="openColumns"
-            :rows="open.data.value"
-            :loading="open.loading.value"
-            :error="open.error.value"
-            :page-size="0"
-            empty-title="لا توجد مستندات مفتوحة"
-            empty-description="كل المستندات مسددة بالكامل"
-            @retry="open.reload"
-          >
-            <template #cell-number="{ row }">
-              <RouterLink :to="isCustomer ? `/invoices/${row.id}` : `/purchases/${row.id}`" class="num text-primary hover:underline">{{ row.number }}</RouterLink>
-            </template>
-            <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDate(row.date) }}</span></template>
-            <template #cell-total="{ row }"><MoneyText :value="row.total" plain /></template>
-            <template #cell-outstanding="{ row }"><MoneyText :value="row.outstanding" class="font-medium text-warning" /></template>
-            <template #cell-actions="{ row }">
-              <AppButton v-if="auth.can('payments', 'write')" size="sm" :icon="HandCoins" :to="payLink(row.id)">{{ isCustomer ? 'تحصيل' : 'سداد' }}</AppButton>
-            </template>
-          </DataTable>
+          <!-- السجل -->
+          <AppCard v-else-if="tab === 'history'" padding="none">
+            <SkeletonBlock v-if="history.loading.value" :lines="4" class="p-4" />
+            <ul v-else-if="history.data.value?.length" class="divide-y divide-border">
+              <li v-for="h in history.data.value" :key="h.id" class="flex items-start gap-2.5 px-4 py-3 text-body">
+                <HistoryIcon class="mt-0.5 size-3.5 shrink-0 text-text-secondary" />
+                <div class="min-w-0">
+                  <p>{{ h.message }}</p>
+                  <p class="num mt-0.5 text-xs text-text-secondary">{{ formatDateTime(h.date) }}</p>
+                </div>
+              </li>
+            </ul>
+            <p v-else class="p-4 text-center text-xs text-text-secondary">لا يوجد سجل بعد</p>
+          </AppCard>
         </div>
       </div>
-
-      <PartyFormModal v-model:open="formOpen" :kind="kind" :party="p" @saved="refresh" />
     </template>
   </div>
 </template>

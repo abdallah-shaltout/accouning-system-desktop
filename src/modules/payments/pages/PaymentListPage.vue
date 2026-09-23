@@ -18,7 +18,10 @@ import { PAYMENT_METHOD_LABEL } from '@/modules/core/helpers/labels';
 import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getPayments, type PaymentRow } from '../services/paymentService';
-import type { PaymentMethod, PaymentType } from '../types';
+import type { AllocationStatus, PaymentMethod, PaymentType } from '../types';
+
+const ALLOCATION_LABEL: Record<AllocationStatus, string> = { full: 'مخصص بالكامل', partial: 'مخصص جزئياً', unallocated: 'غير مخصص' };
+const ALLOCATION_TONE: Record<AllocationStatus, 'success' | 'warning' | 'neutral'> = { full: 'success', partial: 'warning', unallocated: 'neutral' };
 
 const route = useRoute();
 const router = useRouter();
@@ -56,16 +59,12 @@ const typeOptions = computed(() => [
   { value: 'PAID' as const, label: 'سندات صرف', count: data.value?.filter((p) => p.type === 'PAID').length },
 ]);
 
-function openRef(p: PaymentRow) {
-  router.push(p.targetType === 'customer' ? `/invoices/${p.targetRef}` : `/purchases/${p.targetRef}`);
-}
-
 const columns: Column<PaymentRow>[] = [
   { key: 'number', label: 'رقم السند', sortable: true },
   { key: 'date', label: 'التاريخ', sortable: true },
   { key: 'type', label: 'النوع' },
   { key: 'partyName', label: 'الطرف', sortable: true },
-  { key: 'targetRefNumber', label: 'المستند' },
+  { key: 'allocationStatus', label: 'التخصيص' },
   { key: 'method', label: 'الطريقة' },
   { key: 'amount', label: 'المبلغ', numeric: true, sortable: true },
 ];
@@ -73,7 +72,7 @@ const columns: Column<PaymentRow>[] = [
 
 <template>
   <div>
-    <PageHeader title="سندات القبض والصرف" subtitle="تحصيل مستحقات العملاء وسداد الموردين — كل سند يسدد فاتورة أو أمر شراء واحد">
+    <PageHeader title="سندات القبض والصرف" subtitle="تحصيل مستحقات العملاء وسداد الموردين — يمكن للسند الواحد تسوية عدة مستندات، والباقي يظهر رصيداً على الطرف">
       <template v-if="auth.can('payments', 'write')" #actions>
         <AppButton :icon="Plus" :to="{ path: '/payments/new', query: { type: 'PAID' } }">سند صرف</AppButton>
         <AppButton variant="primary" :icon="Plus" :to="{ path: '/payments/new', query: { type: 'RECEIVED' } }">سند قبض</AppButton>
@@ -117,7 +116,9 @@ const columns: Column<PaymentRow>[] = [
       :highlight-key="highlight"
       :empty-icon="HandCoins"
       empty-title="لا توجد سندات في هذه الفترة"
+      clickable
       @retry="reload"
+      @row-click="(p) => router.push(`/payments/${p.id}`)"
     >
       <template #cell-number="{ row }"><span class="num font-medium">{{ row.number }}</span></template>
       <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDateTime(row.date) }}</span></template>
@@ -125,10 +126,10 @@ const columns: Column<PaymentRow>[] = [
         <StatusBadge :tone="row.type === 'RECEIVED' ? 'success' : 'neutral'" :label="row.type === 'RECEIVED' ? 'قبض' : 'صرف'" />
       </template>
       <template #cell-partyName="{ row }">
-        <RouterLink :to="`/${row.targetType === 'customer' ? 'customers' : 'suppliers'}/${row.targetId}`" class="hover:text-primary">{{ row.partyName }}</RouterLink>
+        <RouterLink :to="`/${row.targetType === 'customer' ? 'customers' : 'suppliers'}/${row.targetId}`" class="hover:text-primary" @click.stop>{{ row.partyName }}</RouterLink>
       </template>
-      <template #cell-targetRefNumber="{ row }">
-        <button type="button" class="num text-primary hover:underline" @click="openRef(row)">{{ row.targetRefNumber }}</button>
+      <template #cell-allocationStatus="{ row }">
+        <StatusBadge :tone="ALLOCATION_TONE[row.allocationStatus]" :label="ALLOCATION_LABEL[row.allocationStatus]" />
       </template>
       <template #cell-method="{ row }"><span class="text-text-secondary">{{ PAYMENT_METHOD_LABEL[row.method] }}</span></template>
       <template #cell-amount="{ row }">

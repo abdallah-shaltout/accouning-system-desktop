@@ -42,18 +42,36 @@ def run(base: str, shots_dir: Path) -> int:
         check("المرتجعات" in page.inner_text("body"), "invoice shows the refund")
         shot(page, shots_dir, "4_invoice_after_refund")
 
+        # v2 phase 4: the payment form's allocation grid uses a checkbox per open document (a
+        # single receipt can now settle several), not the old one-document radio picker.
         page.goto(f"{base}/payments/new?type=PAID")
         page.wait_for_timeout(800)
         pick_combobox(page, page.locator("button[aria-haspopup=listbox]").first, "مصنع")
         page.wait_for_timeout(600)
-        has_docs = page.locator("input[type=radio]").count() > 0
+        has_docs = page.locator("table tbody tr input[type=checkbox]").count() > 0
         if has_docs:
+            # Enter an amount first so "تخصيص تلقائي" (auto-allocate, oldest first) has something
+            # to spread across the open purchase orders.
+            amount_field = page.locator("label:has-text('المبلغ') + div input[type=number]")
+            amount_field.first.fill("500")
+            page.wait_for_timeout(200)
+            page.get_by_role("button", name=re.compile("تخصيص تلقائي")).click()
+            page.wait_for_timeout(300)
             page.get_by_role("button", name=re.compile("حفظ السند")).click()
             page.wait_for_timeout(1000)
             check("/payments" in page.url and "highlight" in page.url, "supplier payment saved")
         else:
             print("  skip supplier has no open POs")
         shot(page, shots_dir, "5_payments")
+
+        # Open the just-saved payment's detail page and confirm the allocation grid renders
+        # (docs/v2/09-purchases-payments-expenses.md §3 "allocation status").
+        if has_docs and "highlight" in page.url:
+            highlight_id = page.url.split("highlight=")[-1]
+            page.goto(f"{base}/payments/{highlight_id}")
+            page.wait_for_timeout(700)
+            check("مخصص" in page.inner_text("body"), "payment detail shows its allocation status")
+            shot(page, shots_dir, "6_payment_detail")
 
         browser.close()
 

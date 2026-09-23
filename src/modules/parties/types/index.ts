@@ -1,36 +1,125 @@
-export interface Customer {
+/** A labeled phone number — mobile / work / WhatsApp (docs/v2/08-customers-and-suppliers.md §1). */
+export interface PartyPhone {
+  id: string;
+  label: 'mobile' | 'work' | 'whatsapp';
+  /** E.164, via AppPhoneInput. */
+  number: string;
+}
+
+/** A contact person at a company party. */
+export interface PartyContact {
   id: string;
   name: string;
+  role?: string;
   phone?: string;
-  address?: string;
+  email?: string;
+}
+
+/** National address (docs/v2/08 §1 "العنوان الوطني"). */
+export interface NationalAddress {
+  country?: string;
+  city?: string;
+  district?: string;
+  street?: string;
+  buildingNo?: string;
+  additionalNo?: string;
+  postalCode?: string;
+  unitNo?: string;
+  /** e.g. "RRRD2929". */
+  shortAddress?: string;
+}
+
+/** "Balance from an old system" stub — captured now, posted by the opening-balance wizard (Phase 5). */
+export interface OpeningBalanceStub {
+  amount?: number;
+  side?: 'debit' | 'credit';
+  asOfDate?: string;
+}
+
+export interface PartyBankInfo {
+  bankName?: string;
+  iban?: string;
+  accountName?: string;
+}
+
+interface PartyCommon {
+  id: string;
+  /** Individual / company (customers only distinguish this today; suppliers are mostly companies). */
   type: 'individual' | 'company';
-  vatNumber?: string;
-  /** Computed on read: positive = the customer owes us. */
-  balance: number;
-  active: boolean;
-}
-
-export type CustomerInput = Omit<Customer, 'id' | 'balance'>;
-
-export interface Supplier {
-  id: string;
   name: string;
-  phone?: string;
-  contactPerson?: string;
-  address?: string;
-  vatNumber?: string;
-  /** Computed on read: positive = we owe the supplier. */
-  balance: number;
+  nameEn?: string;
+  /** Auto "C-0001" / "S-0001". */
+  code: string;
+  groupId?: string;
+  tags?: string[];
   active: boolean;
+
+  /** Legacy single phone, kept for backward compatibility with old data/search; prefer `phones`. */
+  phone?: string;
+  phones?: PartyPhone[];
+  email?: string;
+  contacts?: PartyContact[];
+
+  address?: string;
+  nationalAddress?: NationalAddress;
+
+  vatNumber?: string;
+  crNumber?: string;
+  nationalId?: string;
+
+  currency?: string;
+  priceListId?: string;
+  paymentTermsDays?: number;
+  salespersonId?: string;
+  branchId?: string;
+
+  bank?: PartyBankInfo;
+
+  openingBalance?: OpeningBalanceStub;
+
+  notes?: string;
+
+  /** "Both roles" (docs/v2/08 §1 "Both roles"): link to the counterpart party record. */
+  linkedPartyId?: string;
+
+  /** Computed on read: positive = the customer owes us (customer) / we owe the supplier (supplier). */
+  balance: number;
+  /** Computed on read: Σ unallocated payment credit sitting on this party (customerAdvances-style). */
+  unallocatedCredit?: number;
+
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-export type SupplierInput = Omit<Supplier, 'id' | 'balance'>;
+export interface Customer extends PartyCommon {
+  creditLimit?: number;
+}
+
+export type CustomerInput = Omit<Customer, 'id' | 'balance' | 'code' | 'unallocatedCredit' | 'createdAt' | 'updatedAt'>;
+
+export interface Supplier extends PartyCommon {
+  contactPerson?: string;
+  /** Default expense account id for suppliers billed to a fixed account (e.g. the electricity company). */
+  defaultExpenseAccountId?: string;
+}
+
+export type SupplierInput = Omit<Supplier, 'id' | 'balance' | 'code' | 'unallocatedCredit' | 'createdAt' | 'updatedAt'>;
+
+/** Settings → Parties: customer/supplier groups (docs/v2/08 §5). */
+export interface PartyGroup {
+  id: string;
+  kind: 'customer' | 'supplier';
+  name: string;
+  priceListId?: string;
+  paymentTermsDays?: number;
+  discountPercent?: number;
+}
 
 /** One row of a customer/supplier statement (كشف حساب). */
 export interface PartyStatementRow {
   id: string;
   date: string;
-  kind: 'invoice' | 'refund' | 'payment' | 'purchaseOrder' | 'purchaseReturn';
+  kind: 'invoice' | 'refund' | 'payment' | 'purchaseOrder' | 'purchaseReturn' | 'opening';
   refId: string;
   number: string;
   description: string;
@@ -38,4 +127,23 @@ export interface PartyStatementRow {
   debit: number;
   credit: number;
   balance: number;
+}
+
+/** Party activity/history entry (docs/v2/08 §3 "السجل"). */
+export interface PartyHistoryEntry {
+  id: string;
+  partyId: string;
+  partyKind: 'customer' | 'supplier';
+  date: string;
+  message: string;
+  userId: string;
+}
+
+export type AgingBucketKey = 'current' | '30' | '60' | '90plus';
+
+export interface AgingBucket {
+  key: AgingBucketKey;
+  label: string;
+  total: number;
+  documents: { id: string; number: string; date: string; dueDate?: string; outstanding: number }[];
 }

@@ -264,14 +264,55 @@ function sale(
 function collect(time: string, day: Date, rnd: RandomSource) {
   const cutoff = new Date(day.getTime() - 3 * 86400_000).toISOString();
   const open = db.invoices.filter((i) => i.customerId && i.status === 'COMPLETED' && invoiceOutstanding(i) > 0 && i.date < cutoff);
+  // Group by customer so a collection round can settle several invoices with one receipt
+  // (docs/v2/09-purchases-payments-expenses.md §3 "one payment can settle several invoices") —
+  // exercises the multi-document allocation path, not just the 1:1 legacy shape.
+  const byCustomer = new Map<string, typeof open>();
   for (const inv of open) {
     if (!rnd.chance(0.6)) continue;
-    const outstanding = invoiceOutstanding(inv);
-    const amount = rnd.chance(0.7) ? outstanding : round2(Math.max(10, Math.floor((outstanding * rnd.int(40, 80)) / 100)));
-    recordPayment(
-      { date: time, type: 'RECEIVED', targetType: 'customer', targetId: inv.customerId!, targetRef: inv.id, amount: Math.min(amount, outstanding), method: rnd.chance(0.5) ? 'cash' : 'bank_transfer' },
-      ACCOUNTANT,
-    );
+    const list = byCustomer.get(inv.customerId!) ?? [];
+    list.push(inv);
+    byCustomer.set(inv.customerId!, list);
+  }
+  for (const [customerId, invoices] of byCustomer) {
+    const method = rnd.chance(0.5) ? 'cash' : 'bank_transfer';
+    if (invoices.length > 1 && rnd.chance(0.4)) {
+      // One receipt, several invoices, oldest first — sometimes leaves a bit unallocated (a
+      // deliberate small overpayment) so the party page's "unallocated credit" path gets exercised.
+      const sorted = [...invoices].sort((a, b) => a.date.localeCompare(b.date));
+      const overpay = rnd.chance(0.25) ? round2(rnd.int(20, 80)) : 0;
+      const total = round2(sorted.reduce((a, i) => a + invoiceOutstanding(i), 0) + overpay);
+      recordPayment(
+        {
+          date: time,
+          type: 'RECEIVED',
+          targetType: 'customer',
+          targetId: customerId,
+          amount: total,
+          method,
+          allocations: sorted.map((i) => ({ targetKind: 'invoice', targetId: i.id, amount: invoiceOutstanding(i) })),
+        },
+        ACCOUNTANT,
+      );
+      continue;
+    }
+    for (const inv of invoices) {
+      const outstanding = invoiceOutstanding(inv);
+      const amount = rnd.chance(0.7) ? outstanding : round2(Math.max(10, Math.floor((outstanding * rnd.int(40, 80)) / 100)));
+      const applied = Math.min(amount, outstanding);
+      recordPayment(
+        {
+          date: time,
+          type: 'RECEIVED',
+          targetType: 'customer',
+          targetId: customerId,
+          amount: applied,
+          method,
+          allocations: [{ targetKind: 'invoice', targetId: inv.id, amount: applied }],
+        },
+        ACCOUNTANT,
+      );
+    }
   }
 }
 
@@ -281,8 +322,18 @@ function paySuppliers(time: string, day: Date, rnd: RandomSource) {
     if (!rnd.chance(0.65)) continue;
     const outstanding = purchaseOutstanding(po);
     const amount = rnd.chance(0.6) ? outstanding : round2(Math.floor((outstanding * 0.5) / 100) * 100 || outstanding);
+    const applied = Math.min(amount, outstanding);
     recordPayment(
-      { date: time, type: 'PAID', targetType: 'supplier', targetId: po.supplierId, targetRef: po.id, amount: Math.min(amount, outstanding), method: 'bank_transfer', note: 'دفعة من الحساب' },
+      {
+        date: time,
+        type: 'PAID',
+        targetType: 'supplier',
+        targetId: po.supplierId,
+        amount: applied,
+        method: 'bank_transfer',
+        note: 'دفعة من الحساب',
+        allocations: [{ targetKind: 'purchaseOrder', targetId: po.id, amount: applied }],
+      },
       ACCOUNTANT,
     );
   }

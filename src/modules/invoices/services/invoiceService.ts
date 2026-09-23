@@ -1,9 +1,14 @@
 import { ApiError, clone, db, delay, inDateRange, includesText, session } from '@/mocks';
+import { accountFor } from '@/mocks/backend/accounts';
+import { customerBalance } from '@/mocks/backend/balances';
 import { previewSaleJournal, recordRefund, recordSale, returnedQtyByLine } from '@/mocks/backend/sales';
+import { assertWithinCreditLimit, computeDueDate } from '@/modules/parties/helpers/creditLimit';
 import type { Customer } from '@/modules/parties/types';
 import type { Payment } from '@/modules/payments/types';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
+import { mutate } from '@/mocks/persist';
 import type { StoreSettings } from '@/modules/settings/types';
+import { roleCanOverrideCreditLimit } from '@/modules/users/helpers/permissions';
 import { invoiceOutstanding } from '../helpers/totals';
 import type { Invoice, InvoiceFilter, JournalPreviewLine, Refund, RefundInput, SaleInput } from '../types';
 
@@ -86,7 +91,7 @@ export async function getInvoice(id: string): Promise<InvoiceDetail> {
   const inv = db.invoices.find((i) => i.id === id);
   if (!inv) throw new ApiError('الفاتورة غير موجودة', 'NOT_FOUND');
   const refunds = db.refunds.filter((r) => r.invoiceId === id);
-  const payments = db.payments.filter((p) => p.type === 'RECEIVED' && p.targetRef === id);
+  const payments = db.payments.filter((p) => p.type === 'RECEIVED' && p.allocations.some((a) => a.targetKind === 'invoice' && a.targetId === id));
   const sourceIds = new Set([id, ...refunds.map((r) => r.id), ...payments.map((p) => p.id)]);
   return {
     ...toRow(inv),
@@ -106,9 +111,37 @@ export async function previewSale(input: SaleInput): Promise<JournalPreviewLine[
   return previewSaleJournal(input, session.userId);
 }
 
+/**
+ * Credit-limit check (docs/v2/02-accounting-review.md D3, Phase 4's item) runs here, in front of
+ * `recordSale` — `src/mocks/backend/sales.ts` is Phase 3's file and isn't touched. The would-be
+ * receivable is read off `previewSaleJournal`'s `receivable`-account line (same totals math Phase 3
+ * owns; we just read its result). `dueDate` is stamped the same way: computed from the customer's
+ * `paymentTermsDays` and written onto the invoice object already pushed into `db.invoices` by
+ * `recordSale`.
+ */
 export async function createSale(input: SaleInput): Promise<Invoice> {
   await delay(350);
-  return clone(recordSale(input, session.userId));
+  if (input.customerId) {
+    const customer = db.customers.find((c) => c.id === input.customerId);
+    if (customer && (customer.creditLimit ?? 0) > 0) {
+      const receivableCode = accountFor('receivable').code;
+      const preview = previewSaleJournal(input, session.userId);
+      const newReceivable = preview.find((l) => l.accountCode === receivableCode)?.debit ?? 0;
+      assertWithinCreditLimit({
+        customer,
+        currentBalance: customerBalance(customer.id),
+        newReceivable,
+        canOverride: roleCanOverrideCreditLimit(db.users.find((u) => u.id === session.userId)?.role),
+      });
+    }
+  }
+  const invoice = recordSale(input, session.userId);
+  if (invoice.customerId && invoiceOutstanding(invoice) > 0) {
+    const customer = db.customers.find((c) => c.id === invoice.customerId);
+    const dueDate = computeDueDate(invoice.date, customer?.paymentTermsDays);
+    if (dueDate) mutate(() => (invoice.dueDate = dueDate));
+  }
+  return clone(invoice);
 }
 
 export async function createRefund(input: RefundInput): Promise<Refund> {

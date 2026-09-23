@@ -42,3 +42,13 @@ export function roleCan(role: Role | undefined, area: Area, access: Exclude<Acce
 export function roleCanRestoreBackup(role: Role | undefined): boolean {
   return roleCan(role, 'settings', 'write');
 }
+
+/**
+ * `sales.overrideCreditLimit` (docs/v2/02-accounting-review.md D3). Same modeling approach as
+ * `roleCanRestoreBackup`: no fine-grained permission matrix yet, so this is "write access to
+ * accounting" — i.e. admin/manager/accountant, who can already see and adjust a customer's
+ * account. A cashier (POS-only) can never override it.
+ */
+export function roleCanOverrideCreditLimit(role: Role | undefined): boolean {
+  return roleCan(role, 'accounting', 'write') || roleCan(role, 'parties', 'write');
+}
