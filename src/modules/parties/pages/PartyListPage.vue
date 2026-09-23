@@ -11,6 +11,7 @@ import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue'
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatNumber } from '@/modules/core/helpers/format';
+import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import PartyFormModal from '../components/PartyFormModal.vue';
 import { getCustomers, getSuppliers } from '../services/partyService';
@@ -37,11 +38,10 @@ const { data, loading, error, reload } = useAsync<Party[]>(() =>
 watch(() => props.kind, reload);
 
 const rows = computed(() => {
-  const q = search.value.trim().toLowerCase();
   return (data.value ?? []).filter((p) => {
     if (view.value === 'inactive' ? p.active : !p.active) return false;
     if (view.value === 'balance' && p.balance <= 0) return false;
-    return !q || `${p.name} ${p.phone ?? ''} ${p.vatNumber ?? ''} ${(p as Supplier).contactPerson ?? ''}`.toLowerCase().includes(q);
+    return matchesSearch([p.name, p.phone, p.vatNumber, (p as Supplier).contactPerson], search.value);
   });
 });
 
@@ -84,6 +84,7 @@ const columns = computed<Column<Party>[]>(() => [
       :loading="loading"
       :error="error"
       clickable
+      :export-file-name="isCustomer ? 'العملاء' : 'الموردين'"
       :empty-icon="isCustomer ? Users : Truck"
       :empty-title="isCustomer ? 'لا يوجد عملاء' : 'لا يوجد موردون'"
       @retry="reload"

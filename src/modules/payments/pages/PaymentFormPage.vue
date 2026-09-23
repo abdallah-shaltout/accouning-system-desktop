@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO(phase 8): wire <AttachmentField> onto payments/vouchers (docs/v2/14-platform.md §5).
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Banknote, CircleCheck, CreditCard, Landmark, Save } from '@lucide/vue';

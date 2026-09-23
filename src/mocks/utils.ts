@@ -2,6 +2,7 @@
  * Helpers shared by the mock backend. Nothing here should be imported by pages/components —
  * they talk to module `services/`, which are the only layer that knows data is mocked.
  */
+import { matchesSearch } from '@/modules/core/helpers/search';
 
 /** Simulated network/IPC latency (ms). Set to 0 for instant responses. */
 export const MOCK_LATENCY = { min: 120, max: 380 };
@@ -86,10 +87,7 @@ export function inDateRange(iso: string, from?: string, to?: string): boolean {
 }
 
 export function includesText(haystack: (string | undefined)[], needle?: string): boolean {
-  if (!needle) return true;
-  const q = needle.trim().toLowerCase();
-  if (!q) return true;
-  return haystack.some((h) => h?.toLowerCase().includes(q));
+  return matchesSearch(haystack, needle);
 }
 
 export type RandomSource = ReturnType<typeof createRandom>;

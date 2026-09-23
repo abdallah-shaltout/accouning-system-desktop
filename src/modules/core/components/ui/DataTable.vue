@@ -1,6 +1,7 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { computed, ref, shallowRef, watch, type Component } from 'vue';
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight } from '@lucide/vue';
+import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, LoaderCircle } from '@lucide/vue';
+import { exportXlsx, type ExportColumn } from '../../helpers/exportXlsx';
 import { formatNumber } from '../../helpers/format';
 import EmptyState from './EmptyState.vue';
 import ErrorState from './ErrorState.vue';
@@ -57,6 +58,14 @@ const props = withDefaults(
      */
     fetchPage?: (query: ServerPageQuery) => Promise<ServerPageResult<T>>;
     filters?: any;
+    /**
+     * File name (without extension) that enables the "تصدير" export button. Exports every
+     * filtered row — in server mode this pages through `fetchPage` (ignoring the on-screen page),
+     * in plain mode it uses the full `rows` array, not just the current page.
+     */
+    exportFileName?: string;
+    /** Overrides which columns/labels go into the export; defaults to `columns` minus `noPrint` ones. */
+    exportColumns?: ExportColumn<T>[];
   }>(),
   { rowKey: 'id', pageSize: 25, skeletonRows: 8, emptyTitle: 'لا توجد سجلات' },
 );
@@ -185,10 +194,56 @@ function alignClass(col: Column<T>) {
   if (col.align === 'end') return 'text-end';
   return 'text-start';
 }
+
+// --- Excel export -------------------------------------------------------------------------------
+
+const exporting = ref(false);
+
+// Columns with a `sortValue` (computed/derived cells like a resolved name or a percentage that
+// isn't stored directly on the row) export through it too, so the export matches what's on screen
+// rather than a raw id or `undefined`.
+const defaultExportColumns = computed<ExportColumn<T>[]>(() =>
+  props.columns
+    .filter((c) => !c.noPrint)
+    .map((c) => ({ key: c.key, label: c.label, numeric: c.numeric, value: c.sortValue })),
+);
+
+async function exportRows() {
+  if (!props.exportFileName || exporting.value) return;
+  exporting.value = true;
+  try {
+    await exportXlsx<T>({
+      fileName: props.exportFileName,
+      columns: props.exportColumns ?? defaultExportColumns.value,
+      ...(isServerMode.value
+        ? {
+            fetchAll: async ({ page, pageSize }) => {
+              const result = await props.fetchPage!({ page, pageSize, sort: sortKey.value ? { key: sortKey.value, dir: sortDir.value } : null, filters: props.filters });
+              return { rows: result.rows, total: result.total };
+            },
+          }
+        : { rows: sorted.value }),
+    });
+  } finally {
+    exporting.value = false;
+  }
+}
 </script>
 
 <template>
   <div class="overflow-hidden rounded-xl border border-border">
+    <div v-if="exportFileName" class="no-print flex items-center justify-end border-b border-border bg-surface px-3 py-1.5">
+      <button
+        type="button"
+        class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary disabled:opacity-50"
+        :disabled="exporting"
+        @click="exportRows"
+      >
+        <LoaderCircle v-if="exporting" class="size-3.5 animate-spin" />
+        <Download v-else class="size-3.5" />
+        تصدير
+      </button>
+    </div>
     <div class="overflow-x-auto">
       <table class="w-full border-collapse text-body">
         <thead :class="sticky && 'sticky top-0 z-10'">

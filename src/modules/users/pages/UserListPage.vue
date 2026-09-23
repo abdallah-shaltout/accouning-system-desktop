@@ -11,6 +11,7 @@ import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatPercent } from '@/modules/core/helpers/format';
 import { ROLE_LABEL } from '@/modules/core/helpers/labels';
+import { matchesSearch } from '@/modules/core/helpers/search';
 import { getPriceLists } from '@/modules/products/services/catalogService';
 import { useAuthStore } from '../controllers/useAuthStore';
 import { getUsers } from '../services/userService';
@@ -28,9 +29,7 @@ const { data, loading, error, reload } = useAsync(async () => {
 
 const rows = computed(() =>
   (data.value?.users ?? []).filter(
-    (u) =>
-      (role.value === 'all' || u.role === role.value) &&
-      (!search.value || `${u.name} ${u.username} ${u.phone ?? ''}`.toLowerCase().includes(search.value.toLowerCase())),
+    (u) => (role.value === 'all' || u.role === role.value) && matchesSearch([u.name, u.username, u.phone], search.value),
   ),
 );
 

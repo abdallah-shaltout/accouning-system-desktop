@@ -13,6 +13,7 @@ import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { daysAgoKey, formatDateTime, formatNumber, todayKey } from '@/modules/core/helpers/format';
 import { INVOICE_STATUS, PAYMENT_STATUS, SALE_METHOD_LABEL } from '@/modules/core/helpers/labels';
+import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getInvoices, type InvoiceRow } from '../services/invoiceService';
 
@@ -40,10 +41,9 @@ function matches(r: InvoiceRow, v: View) {
   return r.status !== 'REFUNDED' && r.paymentStatus === v;
 }
 
-const rows = computed(() => {
-  const q = search.value.trim().toLowerCase();
-  return (data.value ?? []).filter((r) => matches(r, view.value) && (!q || `${r.number} ${r.customerName ?? ''}`.toLowerCase().includes(q)));
-});
+const rows = computed(() =>
+  (data.value ?? []).filter((r) => matches(r, view.value) && matchesSearch([r.number, r.customerName], search.value)),
+);
 
 const viewOptions = computed(() =>
   (

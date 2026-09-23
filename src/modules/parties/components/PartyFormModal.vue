@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// TODO(phase 4): wire <AttachmentField> onto this form (national address docs, CR/VAT certs — docs/v2/14-platform.md §5).
+// The AttachmentField component + blob storage + viewer already exist and are demoed on PartyDetailPage's "المرفقات" tab.
 import { reactive, ref, watch } from 'vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO(phase 6): wire <AttachmentField> onto the product image gallery (docs/v2/14-platform.md §5).
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Box, Save, Wrench } from '@lucide/vue';

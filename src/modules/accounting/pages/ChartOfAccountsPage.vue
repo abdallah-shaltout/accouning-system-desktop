@@ -12,6 +12,7 @@ import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
+import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import AccountFormModal from '../components/AccountFormModal.vue';
 import { deleteAccount, getAccountGroups, getAccounts, type AccountWithBalance } from '../services/accountingService';
@@ -56,11 +57,11 @@ function rolledBalance(account: AccountWithBalance, all: AccountWithBalance[]): 
 const rows = computed<TreeRow[]>(() => {
   if (!data.value) return [];
   const { groups, accounts } = data.value;
-  const q = search.value.trim().toLowerCase();
+  const q = search.value.trim();
   const out: TreeRow[] = [];
 
   const matches = (a: AccountWithBalance): boolean =>
-    !q || `${a.code} ${a.name}`.toLowerCase().includes(q) || accounts.some((c) => c.parentId === a.id && matches(c));
+    matchesSearch([a.code, a.name], q) || accounts.some((c) => c.parentId === a.id && matches(c));
 
   const walk = (parentId: string | undefined, groupId: string, depth: number) => {
     for (const a of accounts.filter((x) => x.groupId === groupId && (x.parentId ?? undefined) === parentId && matches(x))) {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO(phase 2): wire <AttachmentField> onto this form (docs/v2/14-platform.md §5 — journal entry attachments).
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { CircleAlert, CircleCheck, Plus, Save, Trash } from '@lucide/vue';

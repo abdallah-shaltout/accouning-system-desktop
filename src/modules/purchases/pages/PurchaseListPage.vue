@@ -13,6 +13,7 @@ import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDate, formatNumber } from '@/modules/core/helpers/format';
 import { PAYMENT_STATUS, PURCHASE_STATUS } from '@/modules/core/helpers/labels';
+import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getPurchaseOrders, type PurchaseRow } from '../services/purchaseService';
 
@@ -30,10 +31,9 @@ watch([from, to], reload);
 
 const matches = (r: PurchaseRow, v: View) => v === 'all' || (v === 'open' ? r.outstanding > 0 : r.status === v);
 
-const rows = computed(() => {
-  const q = search.value.trim().toLowerCase();
-  return (data.value ?? []).filter((r) => matches(r, view.value) && (!q || `${r.number} ${r.supplierName}`.toLowerCase().includes(q)));
-});
+const rows = computed(() =>
+  (data.value ?? []).filter((r) => matches(r, view.value) && matchesSearch([r.number, r.supplierName], search.value)),
+);
 
 const viewOptions = computed(() =>
   (

@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { Moon, ShoppingCart, Sun } from '@lucide/vue';
+import { Moon, Search, ShoppingCart, Sun } from '@lucide/vue';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import { useCommandPalette } from '../../controllers/useCommandPalette';
 import { resolvedTheme, toggleTheme } from '../../controllers/useTheme';
 import AppButton from '../ui/AppButton.vue';
 import DevMenu from '../DevMenu.vue';
 import UserMenu from './UserMenu.vue';
+
+const palette = useCommandPalette();
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -29,6 +32,15 @@ const crumbs = computed(() => {
       </template>
     </nav>
     <div class="flex items-center gap-1.5">
+      <button
+        type="button"
+        class="hidden items-center gap-2 rounded-md border border-border px-2.5 py-1.5 text-xs text-text-secondary hover:bg-surface-hover hover:text-text-primary sm:flex"
+        @click="palette.show()"
+      >
+        <Search class="size-3.5" />
+        ابحث أو نفّذ أمراً…
+        <kbd class="num rounded border border-border px-1">Ctrl K</kbd>
+      </button>
       <DevMenu v-if="isDev" />
       <AppButton v-if="auth.can('pos', 'write')" to="/pos" size="sm" :icon="ShoppingCart">نقطة البيع</AppButton>
       <button

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
 import { Check, ChevronDown, Search, X } from '@lucide/vue';
+import { matchesSearch } from '../../helpers/search';
 
 export interface ComboOption {
   value: string;
@@ -43,9 +44,8 @@ const panelStyle = ref<Record<string, string>>({});
 const selected = computed(() => props.options.find((o) => o.value === model.value));
 
 const filtered = computed(() => {
-  const q = query.value.trim().toLowerCase();
-  const items = q
-    ? props.options.filter((o) => `${o.label} ${o.sublabel ?? ''} ${o.keywords ?? ''}`.toLowerCase().includes(q))
+  const items = query.value.trim()
+    ? props.options.filter((o) => matchesSearch([o.label, o.sublabel, o.keywords], query.value))
     : props.options;
   return items.slice(0, 200);
 });

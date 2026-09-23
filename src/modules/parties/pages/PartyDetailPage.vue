@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { FileText, HandCoins, MapPin, Pencil, Phone, ReceiptText, UserRound } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
+import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
@@ -33,7 +34,14 @@ const party = useAsync<Customer | Supplier>(() => (isCustomer.value ? getCustome
 const statement = useAsync(() => (isCustomer.value ? getCustomerStatement(id) : getSupplierStatement(id)));
 const open = useAsync(() => getOpenDocuments(props.kind, id));
 
-const tab = ref<'statement' | 'open'>('statement');
+const tab = ref<'statement' | 'open' | 'attachments'>('statement');
+/**
+ * Demo usage of `AttachmentField` for this Phase 0 track (docs/v2/14-platform.md §5) — proves the
+ * component + IndexedDB blob store + viewer end-to-end. Full wiring of attachments onto the party
+ * *form* (national address docs, CR/VAT certs, contact photos) is Phase 4's job — see the TODO
+ * there in `PartyFormModal.vue`.
+ */
+const ownerRef = computed(() => `${props.kind}:${id}`);
 const formOpen = ref(false);
 const p = computed(() => party.data.value);
 
@@ -135,6 +143,7 @@ const payLink = (docId?: string) => ({
               :options="[
                 { value: 'statement', label: 'كشف الحساب', count: statement.data.value?.length },
                 { value: 'open', label: isCustomer ? 'فواتير مفتوحة' : 'أوامر غير مسددة', count: open.data.value?.length },
+                { value: 'attachments', label: 'المرفقات' },
               ]"
             />
           </div>
@@ -158,6 +167,10 @@ const payLink = (docId?: string) => ({
             <template #cell-credit="{ row }"><MoneyText :value="row.credit" plain dash-zero /></template>
             <template #cell-balance="{ row }"><MoneyText :value="row.balance" plain class="font-medium" /></template>
           </DataTable>
+
+          <AppCard v-else-if="tab === 'attachments'" padding="sm">
+            <AttachmentField :owner-ref="ownerRef" />
+          </AppCard>
 
           <DataTable
             v-else

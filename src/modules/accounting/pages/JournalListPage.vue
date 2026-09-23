@@ -12,6 +12,7 @@ import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue'
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { daysAgoKey, formatDateTime, formatNumber, todayKey } from '@/modules/core/helpers/format';
+import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getJournalEntries, type JournalRow } from '../services/accountingService';
 
@@ -28,14 +29,11 @@ const { data, loading, error, reload } = useAsync(() =>
 );
 watch([from, to], reload);
 
-const rows = computed(() => {
-  const q = search.value.trim().toLowerCase();
-  return (data.value ?? []).filter(
-    (e) =>
-      (type.value === 'all' || e.type === type.value) &&
-      (!q || `${e.number} ${e.description} ${e.sourceRef?.number ?? ''}`.toLowerCase().includes(q)),
-  );
-});
+const rows = computed(() =>
+  (data.value ?? []).filter(
+    (e) => (type.value === 'all' || e.type === type.value) && matchesSearch([e.number, e.description, e.sourceRef?.number], search.value),
+  ),
+);
 
 const typeOptions = computed(() => [
   { value: 'all' as const, label: 'الكل', count: data.value?.length },

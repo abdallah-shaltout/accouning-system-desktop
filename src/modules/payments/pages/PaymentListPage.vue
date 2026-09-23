@@ -15,6 +15,7 @@ import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { daysAgoKey, formatDateTime, todayKey } from '@/modules/core/helpers/format';
 import { PAYMENT_METHOD_LABEL } from '@/modules/core/helpers/labels';
+import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getPayments, type PaymentRow } from '../services/paymentService';
 import type { PaymentMethod, PaymentType } from '../types';
@@ -36,12 +37,11 @@ const { data, loading, error, reload } = useAsync(() =>
 );
 watch([method, from, to], reload);
 
-const rows = computed(() => {
-  const q = search.value.trim().toLowerCase();
-  return (data.value ?? []).filter(
-    (p) => (type.value === 'all' || p.type === type.value) && (!q || `${p.number} ${p.partyName} ${p.targetRefNumber ?? ''}`.toLowerCase().includes(q)),
-  );
-});
+const rows = computed(() =>
+  (data.value ?? []).filter(
+    (p) => (type.value === 'all' || p.type === type.value) && matchesSearch([p.number, p.partyName, p.targetRefNumber], search.value),
+  ),
+);
 
 const totals = computed(() => {
   const list = data.value ?? [];

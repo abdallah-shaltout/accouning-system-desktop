@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO(phase 6): wire <AttachmentField> onto stock adjustments/transfers/counts (docs/v2/14-platform.md §5).
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ClipboardCheck, PackageMinus, PackagePlus, Plus, ScanBarcode, Trash } from '@lucide/vue';

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// TODO(phase 13a, backup track): wire <AttachmentField> onto company logo/stamp/signature uploads
+// (docs/v2/14-platform.md §5 — "company settings" branding row).
 import { computed, onMounted, reactive, ref } from 'vue';
 import { ImagePlus, Save, Trash } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';

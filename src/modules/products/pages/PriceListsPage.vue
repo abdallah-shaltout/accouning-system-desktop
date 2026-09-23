@@ -17,6 +17,7 @@ import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
 import { formatNumber } from '@/modules/core/helpers/format';
 import { toNum } from '@/modules/core/helpers/numbers';
+import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { useCatalogStore } from '../controllers/useCatalogStore';
 import { deletePriceList, savePriceList, setPriceListValues } from '../services/catalogService';
@@ -76,10 +77,7 @@ watch(selectedId, async (_next, prev) => {
   hydrate();
 });
 
-const rows = computed(() => {
-  const q = search.value.trim().toLowerCase();
-  return products.value.filter((p) => !q || `${p.name} ${p.sku}`.toLowerCase().includes(q));
-});
+const rows = computed(() => products.value.filter((p) => matchesSearch([p.name, p.sku], search.value)));
 
 function diffPct(p: Product) {
   const v = values.value[p.id];

@@ -5,8 +5,10 @@ import './assets/styles/design-system.css';
 import App from './App.vue';
 import router from './router';
 import { bootMockDb } from './mocks';
-import { initTheme } from './modules/core/controllers/useTheme';
+import { buildActionCommands, buildPageCommands, customersProvider, productsProvider, suppliersProvider } from './modules/core/commandPalette/exampleProviders';
+import { registerCommands, registerSearchProviders } from './modules/core/controllers/useCommandPalette';
 import { useNotificationStore } from './modules/core/controllers/useNotificationStore';
+import { initTheme } from './modules/core/controllers/useTheme';
 import { errorMessage } from './modules/core/controllers/useToast';
 
 initTheme();
@@ -20,6 +22,11 @@ async function bootstrap() {
   const pinia = createPinia();
   app.use(pinia);
   app.use(router);
+
+  // Command palette example providers (docs/v2/14-platform.md §2) — later phases add each
+  // module's own `commands.ts` here (or via a plugin-install convention) instead.
+  registerCommands([...buildPageCommands(router), ...buildActionCommands(router)]);
+  registerSearchProviders([customersProvider, suppliersProvider, productsProvider]);
 
   // Last-resort handler: anything not caught by a page's ErrorBoundary becomes a toast, never a blank screen.
   app.config.errorHandler = (err, _instance, info) => {

@@ -12,6 +12,7 @@ import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue'
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatNumber } from '@/modules/core/helpers/format';
+import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { useCatalogStore } from '../controllers/useCatalogStore';
 import { getProducts, isLowStock } from '../services/productService';
@@ -44,14 +45,13 @@ watch([search, categoryId, view], () => {
 if (route.query.view && ['product', 'service', 'inactive'].includes(String(route.query.view))) view.value = route.query.view as typeof view.value;
 
 const rows = computed(() => {
-  const q = search.value.trim().toLowerCase();
   return (data.value ?? []).filter((p) => {
     if (view.value === 'inactive' ? p.active : !p.active) return false;
     if (view.value === 'product' && p.type !== 'product') return false;
     if (view.value === 'service' && p.type !== 'service') return false;
     if (view.value === 'low' && !isLowStock(p)) return false;
     if (categoryId.value && p.categoryId !== categoryId.value) return false;
-    return !q || `${p.name} ${p.sku} ${p.barcode ?? ''}`.toLowerCase().includes(q);
+    return matchesSearch([p.name, p.sku, p.barcode], search.value);
   });
 });
 
@@ -118,6 +118,7 @@ function margin(p: Product) {
       :loading="loading"
       :error="error"
       clickable
+      export-file-name="المنتجات"
       :empty-icon="Package"
       empty-title="لا توجد منتجات مطابقة"
       empty-description="جرّب تغيير الفلاتر أو البحث بكلمة أخرى"

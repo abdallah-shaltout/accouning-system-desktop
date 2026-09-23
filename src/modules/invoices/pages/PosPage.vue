@@ -28,6 +28,7 @@ import { useHotkeys } from '@/modules/core/controllers/useHotkeys';
 import { resolvedTheme, toggleTheme } from '@/modules/core/controllers/useTheme';
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
 import { formatNumber, formatTime } from '@/modules/core/helpers/format';
+import { matchesSearch } from '@/modules/core/helpers/search';
 import { getCustomers } from '@/modules/parties/services/partyService';
 import type { Customer } from '@/modules/parties/types';
 import { useCatalogStore } from '@/modules/products/controllers/useCatalogStore';
@@ -93,12 +94,11 @@ function priceOf(p: Product): number {
 const maxDiscount = computed(() => auth.user?.maxDiscount ?? 0);
 const categories = computed(() => [{ id: 'all', name: 'الكل' }, ...catalog.categories.filter((c) => c.productCount > 0)]);
 
-const visible = computed(() => {
-  const q = search.value.trim().toLowerCase();
-  return products.value.filter(
-    (p) => (category.value === 'all' || p.categoryId === category.value) && (!q || `${p.name} ${p.sku} ${p.barcode ?? ''}`.toLowerCase().includes(q)),
-  );
-});
+const visible = computed(() =>
+  products.value.filter(
+    (p) => (category.value === 'all' || p.categoryId === category.value) && matchesSearch([p.name, p.sku, p.barcode], search.value),
+  ),
+);
 
 function remaining(p: Product) {
   return p.type === 'service' ? Infinity : p.stockQty - cart.qtyInCart(p.id);
