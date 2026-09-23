@@ -1,4 +1,4 @@
-import type { Invoice, JournalPreviewLine, Refund, RefundInput, SaleInput, Tender } from '@/modules/invoices/types';
+import type { Invoice, JournalPreviewLine, Refund, RefundInput, RefundMethod, SaleInput, Tender } from '@/modules/invoices/types';
 import { computeInvoiceTotals, invoiceOutstanding, paymentStatusFor, round2 as round2Totals } from '@/modules/invoices/helpers/totals';
 import type { PaymentMethod } from '@/modules/settings/types';
 import { db, nextNumber } from '../db';
@@ -15,6 +15,8 @@ import {
   userById,
   type PostingLine,
 } from './core';
+import { consumeFefo } from './inventory';
+import { recordShiftMovement } from './shifts';
 
 const METHOD_LABEL: Record<string, string> = {
   cash: 'نقداً',
@@ -28,10 +30,9 @@ const METHOD_LABEL: Record<string, string> = {
  * C3 fix, docs/v2/09-purchases-payments-expenses.md §2): card/wallet tenders post to their clearing
  * account, not straight to bank, since the money hasn't arrived yet. `settlementAccountFor` in
  * `./accounts` stays untouched (payments.ts/purchases.ts still call it for their own methods) — this
- * is the new, payment-method-aware resolver `sales.ts` uses for tenders.
- * TODO(phase 8): the card-settlement voucher (Dr bank + Dr cardFees / Cr cardClearing) that clears
- * this balance when the bank deposit arrives isn't built yet — this phase only gets the initial
- * posting right, per docs/v2/09 §2 "Card settlement".
+ * is the new, payment-method-aware resolver `sales.ts` uses for tenders. Phase 8's
+ * `src/mocks/backend/settlements.ts` now closes the loop: its card-settlement voucher (Dr bank +
+ * Dr cardFees / Cr cardClearing-or-walletClearing) clears this balance once the bank deposit arrives.
  */
 function tenderAccountId(method: PaymentMethod): string {
   return accountFor(method.accountRole).id;
@@ -68,23 +69,39 @@ interface PreparedSale {
   posting: PostingLine[];
 }
 
+/**
+ * Base-unit quantity for a line: `qty × unitFactor` (Phase 6's `ProductUnit.factor` — stock is kept
+ * in the smallest unit, README decision 8). `unitFactor` defaults to 1 (base unit / legacy callers).
+ */
+function baseQty(line: { qty: number; unitFactor?: number }): number {
+  return round2(line.qty * (line.unitFactor ?? 1));
+}
+
 /** Validate a sale and build its posting without saving anything (used by preview + record). */
 function prepareSale(input: SaleInput, userId: string): PreparedSale {
   if (!input.lines.length) throw new ApiError('السلة فارغة');
   const user = userById(userId);
-  if (user && input.discountRate > user.maxDiscount) {
+  // v2 phase 7 (docs/v2/06-sales-and-pos.md §1 "manager PIN approval overlay"): a discount above the
+  // cashier's `maxDiscount` is allowed once a manager has approved it (`managerApprovedBy` set by
+  // the caller after `verifyManagerPin` — modules/products/components/ApprovalPinDialog.vue's pattern).
+  if (user && input.discountRate > user.maxDiscount && !input.managerApprovedBy) {
     throw new ApiError(`الخصم يتجاوز الحد المسموح لك (${user.maxDiscount}%)`, 'FORBIDDEN');
   }
   if (input.discountRate < 0 || input.discountRate > 100) throw new ApiError('نسبة الخصم غير صحيحة');
 
-  // Aggregate quantities per product so two cart rows of the same item are checked together.
+  // Aggregate quantities per product (in the BASE unit) so two cart rows of the same item — even
+  // sold in different units (علبة + شريط) — are checked together.
   const qtyByProduct = new Map<string, number>();
   for (const line of input.lines) {
     if (!(line.qty > 0)) throw new ApiError('الكمية يجب أن تكون أكبر من صفر');
     if (line.price < 0) throw new ApiError('السعر لا يمكن أن يكون سالباً');
+    if (line.isFreeText) {
+      if (!line.revenueAccountId) throw new ApiError('السطر النصي الحر يحتاج حساب إيراد');
+      continue;
+    }
     const product = productById(line.productId);
     if (!product.active) throw new ApiError(`المنتج "${product.name}" غير نشط`);
-    if (product.type === 'product') qtyByProduct.set(product.id, (qtyByProduct.get(product.id) ?? 0) + line.qty);
+    if (product.type === 'product') qtyByProduct.set(product.id, round2((qtyByProduct.get(product.id) ?? 0) + baseQty(line)));
   }
   // COGS per product (A1/A2): round2(qty × avgCost); if the sale empties the stock, use the exact
   // remaining stockValue instead, so nothing is left stranded in the GL.
@@ -102,9 +119,16 @@ function prepareSale(input: SaleInput, userId: string): PreparedSale {
   // remainder rounding. `taxForLine` snapshots each line's rate/category at sale time.
   const pricesIncludeTax = db.settings.pricesIncludeTax !== false;
   const lineTaxes = input.lines.map((l) => taxForLine(l.taxId));
+  // Shift+F8 "invoice discount" can be a flat amount (`discountAmount`) instead of `discountRate`'s %.
+  const invoiceDiscount =
+    input.discountAmount && input.discountAmount > 0
+      ? { amount: input.discountAmount }
+      : input.discountRate > 0
+        ? { pct: input.discountRate }
+        : undefined;
   const totals = computeInvoiceTotals(
     input.lines.map((l, i) => ({ qty: l.qty, unitPrice: l.price, discount: l.discount ?? 0, discountIsPct: l.discountIsPct ?? false, tax: lineTaxes[i] })),
-    input.discountRate > 0 ? { pct: input.discountRate } : undefined,
+    invoiceDiscount,
     pricesIncludeTax,
   );
   const grandTotal = totals.gross;
@@ -147,10 +171,22 @@ function prepareSale(input: SaleInput, userId: string): PreparedSale {
   // per-category account resolution that belongs to Phase 6's product tax fields; the VAT report
   // (below) still gets its category breakdown from the invoice lines regardless of which revenue
   // account the net posts to.
+  //
+  // Free-text lines (desk form, docs/v2/06 §2 "Free-text lines... need a revenue account") post
+  // their net to the line's own chosen account instead of the flat `sales` role.
+  let stockedNet = 0;
+  const freeTextRevenue = new Map<string, number>();
+  input.lines.forEach((l, i) => {
+    const lr = totals.lines[i];
+    if (l.isFreeText && l.revenueAccountId) freeTextRevenue.set(l.revenueAccountId, round2((freeTextRevenue.get(l.revenueAccountId) ?? 0) + lr.net));
+    else stockedNet = round2(stockedNet + lr.net);
+  });
+
   const posting: PostingLine[] = [
     ...tenderLines,
     { role: 'receivable', debit: receivable, partyKind: 'customer', partyId: input.customerId },
-    { role: 'sales', credit: totals.net },
+    { role: 'sales', credit: stockedNet },
+    ...[...freeTextRevenue.entries()].map(([accountId, credit]): PostingLine => ({ accountId, credit })),
     { role: 'vatOutput', credit: totals.vat },
     { role: 'cogs', debit: costTotal },
     { role: 'inventory', credit: costTotal },
@@ -187,8 +223,26 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
     status: 'COMPLETED',
     paymentStatus: paymentStatusFor(totals.gross, paidAmount),
     lines: input.lines.map((l, i) => {
-      const product = productById(l.productId);
       const lr = totals.lines[i];
+      if (l.isFreeText) {
+        return {
+          id: `${id}-l${i + 1}`,
+          productId: `freetext-${i}`,
+          name: l.name ?? 'سطر حر',
+          qty: l.qty,
+          price: l.price,
+          costPrice: 0,
+          discount: l.discount ?? 0,
+          taxId: lineTaxes[i].id,
+          taxCategory: lineTaxes[i].category,
+          taxRate: lineTaxes[i].rate,
+          net: lr.net,
+          vat: lr.vat,
+          isFreeText: true,
+          revenueAccountId: l.revenueAccountId,
+        };
+      }
+      const product = productById(l.productId);
       return {
         id: `${id}-l${i + 1}`,
         productId: product.id,
@@ -202,6 +256,12 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
         taxRate: lineTaxes[i].rate,
         net: lr.net,
         vat: lr.vat,
+        unitId: l.unitId,
+        unitFactor: l.unitFactor,
+        listPrice: l.listPrice,
+        priceOverrideReason: l.priceOverrideReason,
+        batchId: l.batchId,
+        batchNo: l.batchNo,
       };
     }),
     subTotal: totals.subTotalAfterLineDiscounts,
@@ -216,20 +276,47 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
     refundedAmount: 0,
     tenderedAmount: input.paymentMethod === 'cash' ? input.tenderedAmount : undefined,
     note: input.note,
+    source: input.source ?? 'POS',
+    shiftId: input.shiftId,
+    invoiceType: input.invoiceType,
+    poReference: input.poReference,
+    terms: input.terms,
+    attachmentIds: input.attachmentIds,
   };
   mutate(() => db.invoices.push(invoice));
 
   // Apply stock/value changes per product (not per line): two cart rows of the same item must
-  // share one "does this empty the stock" decision, matching prepareSale's COGS aggregation.
+  // share one "does this empty the stock" decision, matching prepareSale's COGS aggregation. Free-
+  // text lines carry no stock. Quantities are converted to the BASE unit (unitFactor) before this
+  // point (see `baseQty` in `prepareSale`) — batches are drawn in the same base unit.
   const qtyByProduct = new Map<string, number>();
-  for (const line of invoice.lines) {
+  for (let i = 0; i < invoice.lines.length; i++) {
+    const line = invoice.lines[i];
+    if (line.isFreeText) continue;
     const product = productById(line.productId);
-    if (product.type === 'product') qtyByProduct.set(product.id, (qtyByProduct.get(product.id) ?? 0) + line.qty);
+    if (product.type === 'product') qtyByProduct.set(product.id, round2((qtyByProduct.get(product.id) ?? 0) + baseQty({ qty: line.qty, unitFactor: line.unitFactor })));
   }
   for (const [productId, qty] of qtyByProduct) {
     const product = productById(productId);
     const valueOut = round2(qty) >= round2(product.stockQty) ? product.stockValue : round2(qty * product.costPrice);
     applyStockChange(product, -qty, -valueOut, 'sale', invoice, date);
+    // §3 FEFO (docs/v2/06 §1 "Batch: auto-picked first-expiry-first-out... can be changed"): draw
+    // from the manually-picked batch first (its exact qty), then FEFO for the rest of this product's
+    // total base-unit qty across every cart line.
+    if (product.trackBatches) {
+      const manualDraws = invoice.lines.filter((l) => !l.isFreeText && l.productId === productId && l.batchId);
+      let remaining = qty;
+      for (const l of manualDraws) {
+        const batch = db.productBatches.find((b) => b.id === l.batchId);
+        if (!batch) continue;
+        const take = Math.min(batch.qty, baseQty({ qty: l.qty, unitFactor: l.unitFactor }));
+        if (take > 0) {
+          mutate(() => (batch.qty = round2(batch.qty - take)));
+          remaining = round2(remaining - take);
+        }
+      }
+      if (remaining > 0.0001) consumeFefo(productId, remaining);
+    }
   }
 
   postJournal({
@@ -240,6 +327,18 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
     lines: posting,
     createdBy: userId,
   });
+
+  // Shift movement log (docs/v2/06 §5 "Every cash tender... is recorded as a shift movement") — only
+  // the cash portion; card/bank tenders don't touch the drawer. No-op if no shift is open (desk sales).
+  const cashMethodIds = new Set(db.paymentMethods.filter((m) => m.accountRole === 'cash').map((m) => m.id));
+  const cashTendered = sum(tenders.filter((t) => cashMethodIds.has(t.paymentMethodId)), (t) => t.amount);
+  if (input.shiftId && cashTendered > 0) {
+    recordShiftMovement(db.shifts.find((s) => s.id === input.shiftId)?.terminalId ?? '', 'SALE_CASH', cashTendered, userId, {
+      refId: invoice.id,
+      refNumber: invoice.number,
+      at: date,
+    });
+  }
 
   const customer = db.customers.find((c) => c.id === invoice.customerId);
   logActivity(
@@ -269,6 +368,10 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
 
   const lines = input.lines.filter((l) => l.qty > 0);
   if (!lines.length) throw new ApiError('اختر صنفاً واحداً على الأقل للإرجاع');
+  // v2 phase 7 (docs/v2/06-sales-and-pos.md §4 "refund method"): customer credit needs a customer.
+  if (input.refundMethod === 'customer_credit' && !invoice.customerId) {
+    throw new ApiError('رصيد العميل يتطلب فاتورة مرتبطة بعميل');
+  }
 
   const returned = returnedQtyByLine(invoice.id);
   let net = 0;
@@ -303,6 +406,10 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
   const cashBack = round2(grandTotal - settledToReceivable);
   cost = round2(cost);
 
+  const refundMethod: RefundMethod = input.refundMethod ?? (invoice.paymentMethod === 'credit' ? 'cash' : (invoice.paymentMethod as RefundMethod));
+  const creditedToAccount = refundMethod === 'customer_credit' ? cashBack : 0;
+  const paidOut = refundMethod === 'customer_credit' ? 0 : cashBack;
+
   const id = uid('ref');
   const refund: Refund = {
     id,
@@ -316,6 +423,8 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
     grandTotal,
     settledToReceivable,
     cashBack,
+    refundMethod,
+    creditedToAccount: creditedToAccount || undefined,
   };
   mutate(() => {
     db.refunds.push(refund);
@@ -324,15 +433,39 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
     invoice.paymentStatus = paymentStatusFor(invoice.grandTotal - invoice.refundedAmount, invoice.paidAmount);
   });
 
+  // v2 phase 7 (§4 "Restock toggle per line: default on. Off = the item is damaged, so it's written
+  // off (5120) instead of going back to stock"). A1/A2's re-averaging applies on restock (the value
+  // moves the same way it hit the GL); a write-off removes the line's cost from inventory instead.
+  let restockValue = 0;
+  let writeOffValue = 0;
   for (const line of lines) {
     const invLine = invoice.lines.find((l) => l.id === line.invoiceLineId)!;
+    if (invLine.isFreeText) continue;
     const product = productById(invLine.productId);
-    if (product.type === 'product') {
-      // A1/A2: returned units come back at the original line cost, and re-average automatically
-      // because the value moves the same way it hit the GL (value += posted amount).
-      applyStockChange(product, line.qty, round2(line.qty * invLine.costPrice), 'refund', refund, date);
+    if (product.type !== 'product') continue;
+    const value = round2(line.qty * invLine.costPrice);
+    if (line.restock === false) {
+      writeOffValue = round2(writeOffValue + value);
+      // Written-off returns never re-enter stock — no applyStockChange call, only the write-off
+      // journal line below moves value out of `cogs`'s reversal into `inventoryWriteOff`.
+    } else {
+      restockValue = round2(restockValue + value);
+      applyStockChange(product, line.qty, value, 'refund', refund, date);
     }
   }
+
+  // Refund-method settlement (docs/v2/06 §4 "Default: against the invoice's outstanding amount
+  // first. Then the rest goes to cash, the original card, a bank transfer, or customer credit"):
+  // customer credit posts the leftover as an extra credit to the customer's receivable sub-ledger
+  // (an unallocated balance, same shape Phase 4's payments/allocation reads — see
+  // `src/mocks/backend/balances.ts`'s `customerBalance`), instead of paying out a settlement account.
+  const settlementLines: PostingLine[] =
+    creditedToAccount > 0
+      ? [{ role: 'receivable', credit: round2(settledToReceivable + creditedToAccount), partyKind: 'customer', partyId: invoice.customerId }]
+      : [
+          { role: 'receivable', credit: settledToReceivable, partyKind: 'customer', partyId: invoice.customerId },
+          { accountId: settlementAccountFor(refundMethod === 'cash' ? 'cash' : refundMethod === 'card' ? 'card' : 'bank_transfer').id, credit: paidOut },
+        ];
 
   postJournal({
     date,
@@ -342,13 +475,20 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
     lines: [
       { role: 'salesReturns', debit: subTotal },
       { role: 'vatOutput', debit: taxAmount },
-      { role: 'receivable', credit: settledToReceivable, partyKind: 'customer', partyId: invoice.customerId },
-      { accountId: settlementAccountFor(invoice.paymentMethod).id, credit: cashBack },
-      { role: 'inventory', debit: cost },
-      { role: 'cogs', credit: cost },
+      ...settlementLines,
+      { role: 'inventory', debit: restockValue },
+      { role: 'inventoryWriteOff', debit: writeOffValue },
+      { role: 'cogs', credit: round2(restockValue + writeOffValue) },
     ],
     createdBy: userId,
   });
+
+  // Cash refunds reduce the shift drawer (docs/v2/06 §5 "Every cash tender, cash refund... is
+  // recorded as a shift movement") when returned from the till with an open shift.
+  if (refundMethod === 'cash' && paidOut > 0) {
+    const shift = db.shifts.find((s) => s.status === 'OPEN' && db.invoices.find((i) => i.id === invoice.id)?.shiftId === s.id) ?? db.shifts.find((s) => s.status === 'OPEN');
+    if (shift) recordShiftMovement(shift.terminalId, 'REFUND_CASH', paidOut, userId, { refId: refund.id, refNumber: refund.number, at: date });
+  }
 
   logActivity('refund', `مرتجع ${refund.number} على الفاتورة ${invoice.number} بقيمة ${grandTotal.toFixed(2)}`, userId, date, `/invoices/${invoice.id}`);
   if (invoice.customerId) emit('parties:changed');

@@ -23,6 +23,21 @@ export interface InvoiceLine {
   /** v2: this line's VAT, computed by `computeInvoiceTotals` (net + vat = the line's gross). */
   net?: number;
   vat?: number;
+  /** v2 phase 7 (docs/v2/06-sales-and-pos.md §1 "Unit picker"): the unit this line was sold in (Phase 6's `ProductUnit.id`), when the product has more than one unit. Undefined = the product's base unit. */
+  unitId?: string;
+  /** v2 phase 7: how many base units one of `unitId` contains, snapshotted at sale time (audit/receipt display; `qty` stays in the sold unit). */
+  unitFactor?: number;
+  /** v2 phase 7 (§1 "Custom price"): the catalog/list price before any override, kept for audit. Present only when `price` was hand-edited below it. */
+  listPrice?: number;
+  /** v2 phase 7: reason typed by the cashier when `price < listPrice` (required by the doc). */
+  priceOverrideReason?: string;
+  /** v2 phase 7 (§1 "Batch: auto-picked FEFO... can be changed"): the batch this line drew from, for batch-tracked products. */
+  batchId?: string;
+  batchNo?: string;
+  /** Free-text service line not tied to a catalog product (desk invoice form) — `productId` is a synthetic id in this case. */
+  isFreeText?: boolean;
+  /** Free-text line's revenue account (required when `isFreeText`). */
+  revenueAccountId?: string;
 }
 
 /**
@@ -74,6 +89,144 @@ export interface Invoice {
    */
   dueDate?: string;
   note?: string;
+  /** v2 phase 7: 'POS' (till) or 'DESK' (accountant's full invoice form) — drives the invoice-list source filter. */
+  source?: 'POS' | 'DESK';
+  /** v2 phase 7 (§5 shifts): the shift this sale's cash/tenders were recorded against, when sold from the till. */
+  shiftId?: string;
+  /** v2 phase 7: branch id (inert single-branch value until Phase 9 — kept for the invoice-list filter's shape). */
+  branchId?: string;
+  /** v2 phase 7 (§2 desk form "Invoice type is automatic"). */
+  invoiceType?: 'STANDARD' | 'SIMPLIFIED';
+  /** v2 phase 7 (§2): buyer PO reference, notes/terms text. */
+  poReference?: string;
+  terms?: string;
+  attachmentIds?: string[];
+}
+
+/**
+ * v2 phase 7 (§2 "Quotations"): same shape as `Invoice` but never posts to the ledger or touches
+ * stock until converted. Kept as its own entity (not an `Invoice` with a DRAFT-like status) so the
+ * invoice list's invariants (every posted document has one journal entry) never have to special-case it.
+ */
+export type QuotationStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
+
+export interface Quotation {
+  id: string;
+  number: string;
+  date: string;
+  expiryDate?: string;
+  customerId?: string;
+  salespersonId: string;
+  status: QuotationStatus;
+  lines: InvoiceLine[];
+  discountRate: number;
+  discountAmount: number;
+  taxAmount: number;
+  subTotal: number;
+  grandTotal: number;
+  note?: string;
+  terms?: string;
+  poReference?: string;
+  attachmentIds?: string[];
+  /** Set once "Convert → invoice" runs. */
+  convertedInvoiceId?: string;
+}
+
+export interface QuotationInput {
+  customerId?: string;
+  expiryDate?: string;
+  lines: SaleInput['lines'];
+  discountRate: number;
+  note?: string;
+  terms?: string;
+  poReference?: string;
+}
+
+// =================================================================================================
+// v2 phase 7 §1/§5 — Held sales (POS "F6") and shifts (docs/v2/06-sales-and-pos.md §5)
+// =================================================================================================
+
+/** A parked POS cart, per terminal, surviving a reload (persist.ts snapshots `db.heldSales` like any other table). */
+export interface HeldSale {
+  id: string;
+  label?: string;
+  terminalId: string;
+  heldAt: string;
+  heldBy: string;
+  customerId?: string;
+  discountRate: number;
+  discountIsPct: boolean;
+  note?: string;
+  lines: {
+    productId: string;
+    unitId?: string;
+    qty: number;
+    price: number;
+    listPrice?: number;
+    priceOverrideReason?: string;
+    discount?: number;
+    discountIsPct?: boolean;
+    batchId?: string;
+    taxId?: string;
+  }[];
+}
+
+export type ShiftStatus = 'OPEN' | 'CLOSED';
+
+export interface DenominationCount {
+  value: number;
+  count: number;
+}
+
+/** One cash/tender event during a shift (docs/v2/06 §5 "Every cash tender, cash refund, pay-in, pay-out and bank drop"). */
+export type ShiftMovementKind = 'SALE_CASH' | 'REFUND_CASH' | 'PAY_IN' | 'PAY_OUT' | 'BANK_DROP';
+
+export interface ShiftMovement {
+  id: string;
+  kind: ShiftMovementKind;
+  amount: number;
+  note?: string;
+  refId?: string;
+  refNumber?: string;
+  at: string;
+  by: string;
+}
+
+export interface Shift {
+  id: string;
+  number: string;
+  terminalId: string;
+  branchId?: string;
+  status: ShiftStatus;
+  openedBy: string;
+  openedAt: string;
+  openingFloat: number;
+  openingDenominations?: DenominationCount[];
+  movements: ShiftMovement[];
+  closedBy?: string;
+  closedAt?: string;
+  countedCash?: number;
+  closingDenominations?: DenominationCount[];
+  expectedCash?: number;
+  variance?: number;
+  /** 'HANDOVER' (default, no posting) or 'DROP' (posts a cash-drawer → safe/bank transfer). */
+  handoverMode?: 'HANDOVER' | 'DROP';
+  forceClosedBy?: string;
+  note?: string;
+}
+
+export interface OpenShiftInput {
+  terminalId: string;
+  branchId?: string;
+  openingFloat: number;
+  openingDenominations?: DenominationCount[];
+}
+
+export interface CloseShiftInput {
+  countedCash: number;
+  closingDenominations?: DenominationCount[];
+  handoverMode?: 'HANDOVER' | 'DROP';
+  note?: string;
 }
 
 export interface InvoiceFilter {
@@ -83,6 +236,13 @@ export interface InvoiceFilter {
   customerId?: string;
   from?: string;
   to?: string;
+  /** v2 phase 7 (§6 "Invoice list v2" filters). */
+  source?: 'POS' | 'DESK';
+  invoiceType?: 'STANDARD' | 'SIMPLIFIED';
+  cashierId?: string;
+  overdueOnly?: boolean;
+  minAmount?: number;
+  maxAmount?: number;
 }
 
 export interface SaleInput {
@@ -93,8 +253,29 @@ export interface SaleInput {
    * `discountIsPct`: line discount is a % of the line when true, a flat amount otherwise (defaults
    * to flat amount, matching the pre-existing `discount` field's meaning).
    */
-  lines: { productId: string; qty: number; price: number; discount?: number; discountIsPct?: boolean; taxId?: string }[];
+  lines: {
+    productId: string;
+    qty: number;
+    price: number;
+    discount?: number;
+    discountIsPct?: boolean;
+    taxId?: string;
+    /** v2 phase 7: unit sold in + its base-unit factor (Phase 6's `ProductUnit`). */
+    unitId?: string;
+    unitFactor?: number;
+    /** v2 phase 7: catalog/list price before an override, and the required reason when priced below it. */
+    listPrice?: number;
+    priceOverrideReason?: string;
+    /** v2 phase 7: batch drawn from (FEFO auto-pick or manual override). */
+    batchId?: string;
+    batchNo?: string;
+    isFreeText?: boolean;
+    revenueAccountId?: string;
+    name?: string;
+  }[];
   discountRate: number;
+  /** v2 phase 7: flat invoice-discount amount, used instead of `discountRate` when set (POS Shift+F8 "amount"). */
+  discountAmount?: number;
   paymentMethod: SalePaymentMethod;
   /** Cash tendered / amount paid now. Ignored for card & bank transfer (paid in full). */
   paidAmount: number;
@@ -107,7 +288,19 @@ export interface SaleInput {
    */
   tenders?: import('.').Tender[];
   note?: string;
+  /** v2 phase 7: 'POS' vs 'DESK' — see `Invoice.source`. Defaults to 'POS' in `sales.ts` when omitted. */
+  source?: 'POS' | 'DESK';
+  shiftId?: string;
+  invoiceType?: 'STANDARD' | 'SIMPLIFIED';
+  dueDateOverride?: string;
+  poReference?: string;
+  terms?: string;
+  attachmentIds?: string[];
+  managerApprovedBy?: string;
 }
+
+/** v2 phase 7 (§4): refund method after the outstanding balance is settled first. */
+export type RefundMethod = 'cash' | 'card' | 'bank_transfer' | 'customer_credit';
 
 export interface Refund {
   id: string;
@@ -115,7 +308,7 @@ export interface Refund {
   invoiceId: string;
   date: string;
   reason?: string;
-  lines: { invoiceLineId: string; qty: number }[];
+  lines: { invoiceLineId: string; qty: number; restock?: boolean }[];
   /** Extension: net (before VAT) and VAT portions of the refund. */
   subTotal: number;
   taxAmount: number;
@@ -123,12 +316,17 @@ export interface Refund {
   /** Extension: how much reduced the customer's receivable vs. was paid back. */
   settledToReceivable: number;
   cashBack: number;
+  /** v2 phase 7: how `cashBack` was paid out — defaults to the original invoice's method when omitted (legacy callers). */
+  refundMethod?: RefundMethod;
+  /** v2 phase 7: portion of `cashBack` that went to customer_credit (unallocated, usable on a future invoice) instead of a cash/card/bank payout. */
+  creditedToAccount?: number;
 }
 
 export interface RefundInput {
   invoiceId: string;
   reason?: string;
-  lines: { invoiceLineId: string; qty: number }[];
+  lines: { invoiceLineId: string; qty: number; restock?: boolean }[];
+  refundMethod?: RefundMethod;
 }
 
 /** Preview of the double-entry posting a sale will produce. */

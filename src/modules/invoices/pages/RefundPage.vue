@@ -16,6 +16,7 @@ import { formatNumber } from '@/modules/core/helpers/format';
 import { num0 } from '@/modules/core/helpers/numbers';
 import { invoiceOutstanding, round2 } from '../helpers/totals';
 import { createRefund, getInvoice } from '../services/invoiceService';
+import type { RefundMethod } from '../types';
 
 const route = useRoute();
 const router = useRouter();
@@ -25,14 +26,21 @@ const id = String(route.params.id);
 
 const { data, error, reload } = useAsync(() => getInvoice(id));
 const qty = ref<Record<string, number>>({});
+const restock = ref<Record<string, boolean>>({});
 const reason = ref('المقاس غير مناسب');
 const customReason = ref('');
+const refundMethod = ref<RefundMethod>('cash');
 const saving = ref(false);
 
-const reasons = ['المقاس غير مناسب', 'عيب في المنتج', 'تغيير رأي العميل', 'اللون مختلف عن المتوقع', 'أخرى'];
+// v2 phase 7 (docs/v2/06-sales-and-pos.md §4 "Reason: required, from a list... or free text").
+const reasons = ['عيب مصنعي', 'مقاس غير مناسب', 'رغبة العميل', 'خطأ في الفاتورة', 'أخرى'];
 
 watch(data, (d) => {
-  if (d) qty.value = Object.fromEntries(d.lines.map((l) => [l.id, 0]));
+  if (d) {
+    qty.value = Object.fromEntries(d.lines.map((l) => [l.id, 0]));
+    restock.value = Object.fromEntries(d.lines.map((l) => [l.id, true]));
+    refundMethod.value = d.paymentMethod === 'card' ? 'card' : d.paymentMethod === 'bank_transfer' ? 'bank_transfer' : 'cash';
+  }
 });
 
 const returnable = (lineId: string, sold: number) => sold - (data.value?.returnedQty[lineId] ?? 0);
@@ -70,7 +78,10 @@ async function submit() {
     const refund = await createRefund({
       invoiceId: id,
       reason: reason.value === 'أخرى' ? customReason.value.trim() || undefined : reason.value,
-      lines: d.lines.filter((l) => num0(qty.value[l.id]) > 0).map((l) => ({ invoiceLineId: l.id, qty: num0(qty.value[l.id]) })),
+      refundMethod: refundMethod.value,
+      lines: d.lines
+        .filter((l) => num0(qty.value[l.id]) > 0)
+        .map((l) => ({ invoiceLineId: l.id, qty: num0(qty.value[l.id]), restock: restock.value[l.id] })),
     });
     toast.success('تم تسجيل المرتجع', `${refund.number} — ${refund.cashBack > 0 ? `يُرد للعميل ${refund.cashBack.toFixed(2)}` : 'خُصم من حساب العميل'}`);
     router.push(`/invoices/${id}`);
@@ -99,6 +110,7 @@ async function submit() {
               <th class="px-3 py-2.5 text-start font-medium">المرتجع سابقاً</th>
               <th class="px-3 py-2.5 text-start font-medium">السعر</th>
               <th class="px-4 py-2.5 text-start font-medium">كمية الإرجاع</th>
+              <th class="px-3 py-2.5 text-start font-medium">إعادة للمخزون</th>
             </tr>
           </thead>
           <tbody class="bg-background">
@@ -120,6 +132,9 @@ async function submit() {
                 />
                 <span class="ms-2 text-xs text-text-secondary">من <span class="num">{{ formatNumber(returnable(l.id, l.qty)) }}</span></span>
               </td>
+              <td class="px-3 py-2 text-center">
+                <input v-model="restock[l.id]" type="checkbox" class="size-4" :title="restock[l.id] ? 'سيعود للمخزون' : 'سيُشطب كتالف (5120)'" />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -129,6 +144,17 @@ async function submit() {
         <AppCard title="سبب الإرجاع" padding="sm">
           <AppSelect v-model="reason" :options="reasons.map((r) => ({ value: r, label: r }))" />
           <input v-if="reason === 'أخرى'" v-model="customReason" class="control mt-2" placeholder="اكتب السبب" />
+        </AppCard>
+        <AppCard title="طريقة الاسترداد" padding="sm">
+          <AppSelect
+            v-model="refundMethod"
+            :options="[
+              { value: 'cash', label: 'نقداً' },
+              { value: 'card', label: 'بطاقة' },
+              { value: 'bank_transfer', label: 'تحويل بنكي' },
+              { value: 'customer_credit', label: 'رصيد للعميل', disabled: !data?.customerId },
+            ]"
+          />
         </AppCard>
         <AppCard title="المبلغ المسترد" padding="sm">
           <dl class="space-y-1.5 text-body">

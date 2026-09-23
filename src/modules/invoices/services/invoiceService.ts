@@ -1,16 +1,32 @@
-import { ApiError, clone, db, delay, inDateRange, includesText, session } from '@/mocks';
+import { ApiError, clone, db, delay, inDateRange, includesText, session, uid } from '@/mocks';
 import { accountFor } from '@/mocks/backend/accounts';
 import { customerBalance } from '@/mocks/backend/balances';
 import { previewSaleJournal, recordRefund, recordSale, returnedQtyByLine } from '@/mocks/backend/sales';
+import { closeShift, currentOpenShift, forceCloseShift, openShift, recordShiftMovement, shiftSummary } from '@/mocks/backend/shifts';
+import { nextNumber } from '@/mocks/db';
 import { assertWithinCreditLimit, computeDueDate } from '@/modules/parties/helpers/creditLimit';
 import type { Customer } from '@/modules/parties/types';
 import type { Payment } from '@/modules/payments/types';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
 import { mutate } from '@/mocks/persist';
+import { emit } from '@/mocks/events';
 import type { StoreSettings } from '@/modules/settings/types';
 import { roleCanOverrideCreditLimit } from '@/modules/users/helpers/permissions';
 import { invoiceOutstanding } from '../helpers/totals';
-import type { Invoice, InvoiceFilter, JournalPreviewLine, Refund, RefundInput, SaleInput } from '../types';
+import type {
+  CloseShiftInput,
+  HeldSale,
+  Invoice,
+  InvoiceFilter,
+  JournalPreviewLine,
+  OpenShiftInput,
+  Quotation,
+  QuotationStatus,
+  Refund,
+  RefundInput,
+  SaleInput,
+  Shift,
+} from '../types';
 
 export type InvoiceRow = Invoice & { customerName?: string; cashierName: string; outstanding: number };
 
@@ -32,17 +48,33 @@ function toRow(inv: Invoice): InvoiceRow {
   };
 }
 
+/** True when an invoice has an outstanding balance past its due date — drives the "overdue" list-v2 filter. */
+export function isOverdue(inv: Pick<Invoice, 'status' | 'dueDate' | 'grandTotal' | 'refundedAmount' | 'paidAmount'>): boolean {
+  if (inv.status === 'REFUNDED' || !inv.dueDate) return false;
+  return invoiceOutstanding(inv) > 0 && inv.dueDate < new Date().toISOString();
+}
+
+/** Shared predicate for `getInvoices`/`getInvoicesPaged` (docs/v2/06 §6 "Invoice list v2" filters). */
+function matchesFilter(i: Invoice, filter: InvoiceFilter & { openOnly?: boolean }): boolean {
+  return (
+    (!filter.status || i.status === filter.status) &&
+    (!filter.paymentStatus || i.paymentStatus === filter.paymentStatus) &&
+    (!filter.customerId || i.customerId === filter.customerId) &&
+    (!filter.openOnly || (i.status === 'COMPLETED' && invoiceOutstanding(i) > 0)) &&
+    (!filter.source || (i.source ?? 'POS') === filter.source) &&
+    (!filter.invoiceType || i.invoiceType === filter.invoiceType) &&
+    (!filter.cashierId || i.cashierId === filter.cashierId) &&
+    (!filter.overdueOnly || isOverdue(i)) &&
+    (filter.minAmount === undefined || i.grandTotal >= filter.minAmount) &&
+    (filter.maxAmount === undefined || i.grandTotal <= filter.maxAmount) &&
+    inDateRange(i.date, filter.from, filter.to)
+  );
+}
+
 export async function getInvoices(filter: InvoiceFilter & { openOnly?: boolean } = {}): Promise<InvoiceRow[]> {
   await delay();
   return db.invoices
-    .filter(
-      (i) =>
-        (!filter.status || i.status === filter.status) &&
-        (!filter.paymentStatus || i.paymentStatus === filter.paymentStatus) &&
-        (!filter.customerId || i.customerId === filter.customerId) &&
-        (!filter.openOnly || (i.status === 'COMPLETED' && invoiceOutstanding(i) > 0)) &&
-        inDateRange(i.date, filter.from, filter.to),
-    )
+    .filter((i) => matchesFilter(i, filter))
     .map(toRow)
     .filter((r) => includesText([r.number, r.customerName], filter.search))
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -53,14 +85,7 @@ export async function getInvoicesPaged(query: PagedQuery<InvoiceFilter & { openO
   await delay();
   const filter = query.filters ?? {};
   let rows = db.invoices
-    .filter(
-      (i) =>
-        (!filter.status || i.status === filter.status) &&
-        (!filter.paymentStatus || i.paymentStatus === filter.paymentStatus) &&
-        (!filter.customerId || i.customerId === filter.customerId) &&
-        (!filter.openOnly || (i.status === 'COMPLETED' && invoiceOutstanding(i) > 0)) &&
-        inDateRange(i.date, filter.from, filter.to),
-    )
+    .filter((i) => matchesFilter(i, filter))
     .map(toRow)
     .filter((r) => includesText([r.number, r.customerName], filter.search));
 
@@ -138,7 +163,9 @@ export async function createSale(input: SaleInput): Promise<Invoice> {
   const invoice = recordSale(input, session.userId);
   if (invoice.customerId && invoiceOutstanding(invoice) > 0) {
     const customer = db.customers.find((c) => c.id === invoice.customerId);
-    const dueDate = computeDueDate(invoice.date, customer?.paymentTermsDays);
+    // v2 phase 7 (§2 desk form "due date (date + customer terms)... editable"): an explicit override
+    // from the form wins over the computed customer-terms date.
+    const dueDate = input.dueDateOverride ?? computeDueDate(invoice.date, customer?.paymentTermsDays);
     if (dueDate) mutate(() => (invoice.dueDate = dueDate));
   }
   return clone(invoice);
@@ -200,4 +227,232 @@ export async function getInvoicePrintData(id: string): Promise<PrintData> {
     cashierName: db.users.find((u) => u.id === inv.cashierId)?.name ?? '—',
     settings: clone(db.settings),
   };
+}
+
+// =================================================================================================
+// v2 phase 7 §5 — Shifts (docs/v2/06-sales-and-pos.md §5)
+// =================================================================================================
+
+export type ShiftRow = Shift & ReturnType<typeof shiftSummary> & { openedByName: string; closedByName?: string };
+
+function toShiftRow(s: Shift): ShiftRow {
+  return {
+    ...clone(s),
+    ...shiftSummary(s),
+    openedByName: db.users.find((u) => u.id === s.openedBy)?.name ?? '—',
+    closedByName: s.closedBy ? db.users.find((u) => u.id === s.closedBy)?.name : undefined,
+  };
+}
+
+/** The currently-open shift for a terminal, or undefined. Used by the POS shift bar to decide whether to show "open shift" or the running totals. */
+export async function getCurrentShift(terminalId: string): Promise<ShiftRow | undefined> {
+  await delay(80);
+  const shift = currentOpenShift(terminalId);
+  return shift ? toShiftRow(shift) : undefined;
+}
+
+export async function getShifts(filter: { status?: 'OPEN' | 'CLOSED' } = {}): Promise<ShiftRow[]> {
+  await delay();
+  return db.shifts
+    .filter((s) => !filter.status || s.status === filter.status)
+    .map(toShiftRow)
+    .sort((a, b) => b.openedAt.localeCompare(a.openedAt));
+}
+
+export async function getShift(id: string): Promise<ShiftRow> {
+  await delay();
+  const shift = db.shifts.find((s) => s.id === id);
+  if (!shift) throw new ApiError('الوردية غير موجودة', 'NOT_FOUND');
+  return toShiftRow(shift);
+}
+
+export async function openPosShift(input: OpenShiftInput): Promise<Shift> {
+  await delay(200);
+  return clone(openShift(input, session.userId));
+}
+
+/** Mid-shift snapshot (§5 "X-report"): same shape as the close screen, just without closing anything. */
+export async function getXReport(shiftId: string): Promise<ShiftRow> {
+  await delay(120);
+  return getShift(shiftId);
+}
+
+export async function closePosShift(shiftId: string, input: CloseShiftInput): Promise<Shift> {
+  await delay(250);
+  return clone(closeShift(shiftId, input, session.userId));
+}
+
+/** Manager screen (§5 "/pos/shifts"): force-close an open shift left behind by a cashier. */
+export async function forceClosePosShift(shiftId: string, countedCash?: number): Promise<Shift> {
+  await delay(250);
+  return clone(forceCloseShift(shiftId, session.userId, countedCash));
+}
+
+/**
+ * Pay-in/pay-out from the shift bar (F10). docs/v2/06-sales-and-pos.md §1 says a pay-out for a
+ * small expense should also create an expense voucher paid from the drawer — Phase 8's
+ * `modules/expenses/services/expenseService.ts::recordExpense` now exists and could post that
+ * voucher, but it requires picking an expense category (a full form field this quick F10 dialog
+ * intentionally doesn't have — it's a one-amount-and-a-note drawer log, not the expense form).
+ * Left as a follow-up UX decision rather than wired in here: this call still records the shift's
+ * own cash movement, so the X/Z report and close-screen expected-cash math are correct either way
+ * — only the *separate* expense-side journal entry (for reporting a pay-out as a categorized
+ * expense) is the still-missing piece, not the drawer accounting itself.
+ */
+export async function recordCashInOut(terminalId: string, kind: 'PAY_IN' | 'PAY_OUT' | 'BANK_DROP', amount: number, note?: string): Promise<void> {
+  await delay(150);
+  const shift = currentOpenShift(terminalId);
+  if (!shift) throw new ApiError('لا توجد وردية مفتوحة', 'CONFLICT');
+  if (!(amount > 0)) throw new ApiError('المبلغ يجب أن يكون أكبر من صفر');
+  recordShiftMovement(terminalId, kind, amount, session.userId, { note });
+  emit('ledger:changed');
+}
+
+// =================================================================================================
+// v2 phase 7 §1 — Held sales (POS "F6")
+// =================================================================================================
+
+export async function getHeldSales(terminalId: string): Promise<HeldSale[]> {
+  await delay(80);
+  return clone(db.heldSales.filter((h) => h.terminalId === terminalId)).sort((a, b) => b.heldAt.localeCompare(a.heldAt));
+}
+
+export async function holdSale(input: Omit<HeldSale, 'id' | 'heldAt' | 'heldBy'>): Promise<HeldSale> {
+  await delay(120);
+  const held: HeldSale = { ...input, id: uid('hold'), heldAt: new Date().toISOString(), heldBy: session.userId };
+  mutate(() => db.heldSales.push(held));
+  return clone(held);
+}
+
+export async function resumeHeldSale(id: string): Promise<HeldSale> {
+  await delay(80);
+  const held = db.heldSales.find((h) => h.id === id);
+  if (!held) throw new ApiError('لا يوجد بيع معلّق بهذا المعرف', 'NOT_FOUND');
+  mutate(() => (db.heldSales = db.heldSales.filter((h) => h.id !== id)));
+  return clone(held);
+}
+
+export async function discardHeldSale(id: string): Promise<void> {
+  await delay(80);
+  mutate(() => (db.heldSales = db.heldSales.filter((h) => h.id !== id)));
+}
+
+// =================================================================================================
+// v2 phase 7 §2 — Quotations (docs/v2/06-sales-and-pos.md §2 "Quotations")
+// =================================================================================================
+
+export type QuotationRow = Quotation & { customerName?: string };
+
+function toQuotationRow(q: Quotation): QuotationRow {
+  return { ...clone(q), customerName: db.customers.find((c) => c.id === q.customerId)?.name };
+}
+
+export async function getQuotations(filter: { status?: QuotationStatus; search?: string } = {}): Promise<QuotationRow[]> {
+  await delay();
+  return db.quotations
+    .filter((q) => !filter.status || q.status === filter.status)
+    .map(toQuotationRow)
+    .filter((r) => includesText([r.number, r.customerName], filter.search))
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+export async function getQuotation(id: string): Promise<QuotationRow> {
+  await delay();
+  const q = db.quotations.find((x) => x.id === id);
+  if (!q) throw new ApiError('عرض السعر غير موجود', 'NOT_FOUND');
+  return toQuotationRow(q);
+}
+
+/** Never posts to the ledger or touches stock — see the `Quotation` type's doc comment. */
+export async function saveQuotation(input: {
+  customerId?: string;
+  expiryDate?: string;
+  lines: SaleInput['lines'];
+  discountRate: number;
+  note?: string;
+  terms?: string;
+  poReference?: string;
+}): Promise<Quotation> {
+  await delay(250);
+  if (!input.lines.length) throw new ApiError('أضف صنفاً واحداً على الأقل');
+  const pricesIncludeTax = db.settings.pricesIncludeTax !== false;
+  const { computeInvoiceTotals } = await import('../helpers/totals');
+  const lineTaxes = input.lines.map((l) => {
+    const tax = (l.taxId && db.taxes.find((t) => t.id === l.taxId && t.active)) ?? db.taxes.find((t) => t.id === db.settings.defaultTaxId && t.active);
+    return tax ? { rate: tax.rate, category: tax.category, id: tax.id } : { rate: 0, category: 'O' as const };
+  });
+  const totals = computeInvoiceTotals(
+    input.lines.map((l, i) => ({ qty: l.qty, unitPrice: l.price, discount: l.discount ?? 0, discountIsPct: l.discountIsPct ?? false, tax: lineTaxes[i] })),
+    input.discountRate > 0 ? { pct: input.discountRate } : undefined,
+    pricesIncludeTax,
+  );
+  const id = uid('quo');
+  const quotation: Quotation = {
+    id,
+    number: nextNumber('quotation'),
+    date: new Date().toISOString(),
+    expiryDate: input.expiryDate,
+    customerId: input.customerId,
+    salespersonId: session.userId,
+    status: 'DRAFT',
+    lines: input.lines.map((l, i) => {
+      const lr = totals.lines[i];
+      const product = db.products.find((p) => p.id === l.productId);
+      return {
+        id: `${id}-l${i + 1}`,
+        productId: l.productId,
+        name: l.name ?? product?.name ?? '—',
+        qty: l.qty,
+        price: l.price,
+        costPrice: product?.costPrice ?? 0,
+        discount: l.discount ?? 0,
+        taxId: lineTaxes[i].id,
+        taxCategory: lineTaxes[i].category,
+        taxRate: lineTaxes[i].rate,
+        net: lr.net,
+        vat: lr.vat,
+      };
+    }),
+    discountRate: input.discountRate,
+    discountAmount: totals.invoiceDiscountAmount,
+    taxAmount: totals.vat,
+    subTotal: totals.subTotalAfterLineDiscounts,
+    grandTotal: totals.gross,
+    note: input.note,
+    terms: input.terms,
+    poReference: input.poReference,
+  };
+  mutate(() => db.quotations.push(quotation));
+  return clone(quotation);
+}
+
+export async function setQuotationStatus(id: string, status: QuotationStatus): Promise<Quotation> {
+  await delay(150);
+  const q = db.quotations.find((x) => x.id === id);
+  if (!q) throw new ApiError('عرض السعر غير موجود', 'NOT_FOUND');
+  mutate(() => (q.status = status));
+  return clone(q);
+}
+
+/** "Convert → invoice" (§2): copies every line as-is into a real sale; the quotation is marked ACCEPTED and linked. */
+export async function convertQuotationToInvoice(id: string, payment: { paymentMethod: SaleInput['paymentMethod']; paidAmount: number; tenderedAmount?: number }): Promise<Invoice> {
+  await delay(300);
+  const q = db.quotations.find((x) => x.id === id);
+  if (!q) throw new ApiError('عرض السعر غير موجود', 'NOT_FOUND');
+  if (q.convertedInvoiceId) throw new ApiError('تم تحويل عرض السعر إلى فاتورة بالفعل', 'CONFLICT');
+  const invoice = await createSale({
+    customerId: q.customerId,
+    lines: q.lines.map((l) => ({ productId: l.productId, qty: l.qty, price: l.price, discount: l.discount, taxId: l.taxId })),
+    discountRate: q.discountRate,
+    note: q.note,
+    terms: q.terms,
+    poReference: q.poReference,
+    source: 'DESK',
+    ...payment,
+  });
+  mutate(() => {
+    q.status = 'ACCEPTED';
+    q.convertedInvoiceId = invoice.id;
+  });
+  return invoice;
 }
