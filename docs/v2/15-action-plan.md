@@ -212,12 +212,15 @@ fiscal-year closing wizard UI is phase 2 (this phase ships the lock-date check o
 
 ## Phase 11 — Documents: PDF engine, templates, labels → [12](12-documents-pdf-excel.md)
 
-- [ ] Rust `pdf` module: `render_pdf`, `render_preview` (SVG), embedded fonts, virtual files; capabilities
-- [ ] `pdfService` + `PdfPreview`; browser fallback to the print route
-- [ ] Typst templates: invoice (standard/simplified), quotation, credit/debit note, PO, vouchers, statement, Z-report, transfer note, generic report
-- [ ] Template designer (options, live preview, defaults per branch, import/export, advanced source editor)
-- [ ] Label builder + label templates (sheets and thermal sizes) with bwip-js barcodes and QR
-- [ ] Every "print/PDF" button in the app goes through `pdfService`; documents can attach their PDF
+**Phase 11a done** (2026-09-23, commit `aab8e04`), built on the Typst spike's PASS. 11b (remaining
+templates + labels) waits on phases 6/7/8 per the wave table.
+
+- [x] Rust `pdf` module: `render_pdf`, `render_preview` (SVG), embedded fonts (all 4 bundled families), virtual files; capabilities
+- [x] `pdfService` + `PdfPreview`; browser fallback to the print route
+- [x] Typst templates: invoice (standard/simplified) — 11a scope. Quotation, credit/debit note, PO, vouchers, statement, Z-report, transfer note, generic report → **11b**
+- [x] Template designer (options, live preview, import/export, advanced source editor with real compile-error feedback) — 11a proved this against the invoice template; defaults-per-branch waits on phase 9
+- [ ] Label builder + label templates (sheets and thermal sizes) with bwip-js barcodes and QR → **11b**
+- [ ] Every "print/PDF" button in the app goes through `pdfService`; documents can attach their PDF → invoice's print button does this now; the rest land with their own document kind in 11b
 
 ## Phase 12 — Reports v2 → [13](13-reports.md)
 
@@ -228,11 +231,14 @@ fiscal-year closing wizard UI is phase 2 (this phase ships the lock-date check o
 
 ## Phase 13 — Backup, approvals, notifications & polish → [14](14-platform.md)
 
-- [ ] Backup now / automatic (daily + on close, retention) / history / verify / restore with pre-restore backup; optional password encryption
-- [ ] Notifications drawer (insights + events); approvals page
-- [ ] Command palette: every module's search provider + context commands
-- [ ] Keyboard shortcuts sheet (F1 / ?) per page
-- [ ] Full e2e pass for all personas ([01](01-personas.md)); README and docs updated
+**Phase 13a done** (2026-09-23, commit `bcf4823`). 13b (notifications, approvals, remaining palette
+providers, shortcuts, final e2e) waits on everything, per the wave table.
+
+- [x] Backup now / automatic (daily + on close, retention) / history / verify / restore with pre-restore backup; optional password encryption
+- [ ] Notifications drawer (insights + events); approvals page → **13b**
+- [ ] Command palette: every module's search provider + context commands → **13b** (Phase 0 built the shell + 3 example providers)
+- [ ] Keyboard shortcuts sheet (F1 / ?) per page → **13b**
+- [ ] Full e2e pass for all personas ([01](01-personas.md)); README and docs updated → **13b**
 
 ## Phase 14 (optional) — Native thermal printing → [12 §5](12-documents-pdf-excel.md)
 
