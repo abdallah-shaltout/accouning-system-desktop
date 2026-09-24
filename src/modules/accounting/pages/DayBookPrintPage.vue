@@ -1,13 +1,15 @@
 <script setup lang="ts">
 /**
- * Day book (دفتر اليومية) print preview (docs/v2/11-journal-dashboard-insights.md A1). `pdfService`
- * only builds an `invoice` payload so far (Phase 11a scope — see its doc comment); a real Typst
- * day-book template is Phase 11b/12 territory. This is the same browser-print fallback
- * `InvoicePrintPage` already uses for non-Tauri, applied here directly rather than through
- * `pdfService` — a documented shortcut, not a silent gap (see the phase 2 report).
+ * Day book (دفتر اليومية) print preview (docs/v2/11-journal-dashboard-insights.md A1). Phase 2 left
+ * this on the v1 browser-print fallback because `pdfService` only built an `invoice` payload at
+ * the time. Phase 11b adds the generic report template (docs/v2/12-documents-pdf-excel.md §3
+ * "Reports: a generic report template"), which fits this page's data shape exactly (title, filter
+ * line, repeating-header table, totals) — `print()` now renders through `pdfService` in the
+ * desktop app, keeping the same browser print route as the non-Tauri fallback.
  */
 import { computed, onBeforeUnmount, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { isTauri } from '@tauri-apps/api/core';
 import { ArrowRight, Printer } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
@@ -16,12 +18,15 @@ import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { useHotkeys } from '@/modules/core/controllers/useHotkeys';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
-import { formatDate, formatDateTime, todayKey } from '@/modules/core/helpers/format';
+import { formatDate, formatDateTime, formatMoney, todayKey } from '@/modules/core/helpers/format';
+import { renderGenericReportAndSave } from '@/modules/core/services/pdfService';
+import { useToast } from '@/modules/core/controllers/useToast';
 import { getAccounts, getJournalEntries, type AccountWithBalance } from '../services/accountingService';
 
 const route = useRoute();
 const router = useRouter();
 const settings = useSettingsStore();
+const toast = useToast();
 
 const from = computed(() => (typeof route.query.from === 'string' ? route.query.from : todayKey()));
 const to = computed(() => (typeof route.query.to === 'string' ? route.query.to : todayKey()));
@@ -45,13 +50,46 @@ document.head.appendChild(pageStyle);
 pageStyle.textContent = '@page { size: A4; margin: 12mm; }';
 onBeforeUnmount(() => pageStyle.remove());
 
-function print() {
+async function print() {
+  if (isTauri()) {
+    const rows = (entries.value ?? []).flatMap((e) =>
+      e.lines.map((l, i) => ({
+        number: i === 0 ? e.number : '',
+        date: i === 0 ? formatDateTime(e.date) : '',
+        description: i === 0 ? e.description : '',
+        account: accountLabel(l.accountId),
+        debit: l.debit ? formatMoney(l.debit) : '',
+        credit: l.credit ? formatMoney(l.credit) : '',
+      })),
+    );
+    const ok = await renderGenericReportAndSave(
+      {
+        titleAr: 'دفتر اليومية',
+        titleEn: 'DAY BOOK',
+        filterLine: `${formatDate(from.value)} — ${formatDate(to.value)}`,
+        columns: [
+          { key: 'number', label: 'رقم القيد' },
+          { key: 'date', label: 'التاريخ' },
+          { key: 'description', label: 'البيان' },
+          { key: 'account', label: 'الحساب' },
+          { key: 'debit', label: 'مدين' },
+          { key: 'credit', label: 'دائن' },
+        ],
+        rows,
+        totalText: `مدين ${formatMoney(totals.value.debit)} / دائن ${formatMoney(totals.value.credit)}`,
+      },
+      `day-book-${from.value}-${to.value}.pdf`,
+    );
+    if (ok) return;
+    toast.error('تعذر إنشاء ملف PDF');
+    return;
+  }
   window.print();
 }
 function close() {
   router.push('/accounting/journal');
 }
-useHotkeys({ 'ctrl+p': print, Escape: close });
+useHotkeys({ 'ctrl+p': () => void print(), Escape: close });
 </script>
 
 <template>

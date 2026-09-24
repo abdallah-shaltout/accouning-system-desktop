@@ -21,6 +21,9 @@ const routes: RouteRecordRaw[] = [
   { path: '/inventory/expiry', name: 'expiry', component: () => import('../pages/ExpiryReportPage.vue'), meta: { title: 'تقرير الصلاحية', section, area: 'inventory' } },
   // v2 phase 9 (docs/v2/07-products-and-inventory.md §4, deferred from phase 6): branch transfers.
   { path: '/inventory/transfers', name: 'transfers', component: () => import('../pages/StockTransferListPage.vue'), meta: { title: 'تحويلات الفروع', section, area: 'inventory' } },
+  // v2 phase 11b (docs/v2/07-products-and-inventory.md §6, docs/v2/12-documents-pdf-excel.md §4):
+  // label builder — pick products, choose a sheet/thermal label template, live preview, print.
+  { path: '/catalog/labels', name: 'labels', component: () => import('../pages/LabelBuilderPage.vue'), meta: { title: 'منشئ الملصقات', section, area: 'inventory' } },
 ];
 
 export default routes;

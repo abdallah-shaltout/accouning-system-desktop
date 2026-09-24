@@ -14,6 +14,15 @@
 //! breaks the Typst source and confirms `render_pdf` returns a structured
 //! compile error with a real line number, and confirms it recovers once the
 //! syntax is fixed again.
+//!
+//! Phase 11b appends one `render_pdf` smoke test per new document kind added
+//! in this phase (docs/v2/12-documents-pdf-excel.md §3's document-kinds
+//! table): quotation, credit note, debit note, purchase order, voucher,
+//! party statement, Z-report, transfer note, the generic report template,
+//! and both label layouts (sheet grid + one-per-page thermal) — each with a
+//! realistic payload shaped the way that kind's `pdfService.ts` builder
+//! (`src/modules/core/services/pdfService.ts`) actually produces it, sanity
+//! checked the same structural way with `lopdf`.
 
 use accounting_app_lib::pdf::render::{render_pdf, render_preview};
 use accounting_app_lib::pdf::RenderRequest;
@@ -296,8 +305,227 @@ fn main() {
         }
     }
 
+    // --- 6+. Phase 11b: one render_pdf smoke test per new document kind -----------------------
+    failures += run_new_kind_tests();
+
     println!("\n=== pdf_smoke summary: {} failure(s) ===", failures);
     if failures > 0 {
         std::process::exit(1);
     }
+}
+
+/// Renders one realistic payload through `render_pdf` for the given built-in template id and
+/// sanity-checks the PDF structurally with `lopdf`, printing OK/FAIL like the numbered tests
+/// above. Returns 1 on failure, 0 on success, so callers can just sum results.
+fn smoke_one(label: &str, template_id: &str, payload: serde_json::Value, options: serde_json::Value) -> usize {
+    println!("\n=== {label}: render_pdf, template_id={template_id} ===");
+    let req = RenderRequest { template_source: None, template_id: Some(template_id.to_string()), payload, options };
+    match render_pdf(req) {
+        Ok(result) => {
+            let bytes = base64::Std.decode(&result.pdf_base64);
+            match sanity_check_pdf(&bytes) {
+                Ok(pages) => {
+                    println!("  OK: {} bytes, standard={}, {} page(s) (lopdf-verified)", bytes.len(), result.achieved_standard, pages);
+                    0
+                }
+                Err(e) => {
+                    println!("  FAIL: {e}");
+                    1
+                }
+            }
+        }
+        Err(diags) => {
+            println!("  FAIL: compile/export errors: {diags:?}");
+            1
+        }
+    }
+}
+
+fn run_new_kind_tests() -> usize {
+    let mut failures = 0;
+    let opts = default_options();
+
+    let document_meta = |kind: &str, title_ar: &str, title_en: &str| {
+        serde_json::json!({ "kind": kind, "number": "DOC-000123", "date": "2026-09-24 10:00", "titleAr": title_ar, "titleEn": title_en })
+    };
+    let company = || serde_json::json!({ "name": "مؤسسة الفاتورة النموذجية للتجارة", "address": "الرياض", "phone": "0112345678", "vatNumber": "311111111100003", "commercialRegister": "1010123456", "logo": null });
+    let party = || serde_json::json!({ "name": "شركة العميل النموذجي المحدودة", "vatNumber": null, "address": "جدة", "phone": "0509876543" });
+    let lines = || {
+        serde_json::json!([
+            { "name": "منتج تجريبي أول", "sku": "SKU-1", "qty": "٢", "price": "100.00", "discount": "0.00", "net": "200.00", "vatRate": 15, "vat": "30.00", "total": "230.00" },
+            { "name": "منتج تجريبي ثانٍ", "sku": "SKU-2", "qty": "١", "price": "50.00", "discount": "0.00", "net": "50.00", "vatRate": 15, "vat": "7.50", "total": "57.50" },
+        ])
+    };
+    let totals = || serde_json::json!({ "subtotal": "250.00", "discount": null, "vat": "37.50", "grand": "287.50", "paid": null, "remaining": null, "amountInWords": "فقط لا غير: مئتان وسبعة وثمانون ريالاً سعودياً وخمسون هللة", "previousBalance": null, "currentBalance": null });
+
+    // quotation
+    {
+        let mut doc = document_meta("quotation", "عرض سعر", "QUOTATION");
+        doc["validUntil"] = serde_json::json!("2026-10-24");
+        let payload = serde_json::json!({ "document": doc, "company": company(), "party": party(), "lines": lines(), "totals": totals(), "qr": null, "logo": null });
+        failures += smoke_one("quotation", "quotation", payload, opts.clone());
+    }
+
+    // credit note
+    {
+        let mut doc = document_meta("creditNote", "إشعار دائن", "CREDIT NOTE");
+        doc["refNumber"] = serde_json::json!("INV-000512");
+        doc["refDate"] = serde_json::json!("2026-09-20");
+        doc["reason"] = serde_json::json!("رجوع بضاعة تالفة");
+        let payload = serde_json::json!({ "document": doc, "company": company(), "party": party(), "lines": lines(), "totals": totals(), "qr": null, "logo": null });
+        failures += smoke_one("credit_note", "credit_note", payload, opts.clone());
+    }
+
+    // debit note
+    {
+        let mut doc = document_meta("debitNote", "إشعار مدين", "DEBIT NOTE");
+        doc["refNumber"] = serde_json::json!("PO-000077");
+        doc["refDate"] = serde_json::json!("2026-09-18");
+        doc["reason"] = serde_json::json!("بضاعة منتهية الصلاحية");
+        let payload = serde_json::json!({ "document": doc, "company": company(), "party": party(), "lines": lines(), "totals": totals(), "qr": null, "logo": null });
+        failures += smoke_one("debit_note", "debit_note", payload, opts.clone());
+    }
+
+    // purchase order
+    {
+        let doc = document_meta("purchaseOrder", "أمر شراء", "PURCHASE ORDER");
+        let payload = serde_json::json!({ "document": doc, "company": company(), "party": party(), "lines": lines(), "totals": totals(), "qr": null, "logo": null });
+        failures += smoke_one("purchase_order", "purchase_order", payload, opts.clone());
+    }
+
+    // voucher
+    {
+        let mut doc = document_meta("voucher", "سند قبض", "RECEIPT VOUCHER");
+        doc["description"] = serde_json::json!("تحصيل دفعة نقدية من العميل");
+        doc["accountsLine"] = serde_json::json!("من: الصندوق — إلى: العملاء");
+        doc["note"] = serde_json::json!(null);
+        let payload = serde_json::json!({
+            "document": doc, "company": company(), "party": null, "lines": [],
+            "totals": { "subtotal": null, "discount": null, "vat": null, "grand": "1,000.00", "paid": null, "remaining": null, "amountInWords": "فقط لا غير: ألف ريال سعودي", "previousBalance": null, "currentBalance": null },
+            "qr": null, "logo": null,
+        });
+        failures += smoke_one("voucher", "voucher", payload, opts.clone());
+    }
+
+    // party statement
+    {
+        let doc = document_meta("statement", "كشف حساب", "STATEMENT OF ACCOUNT");
+        let statement_lines = serde_json::json!([
+            { "date": "2026-09-01", "description": "رصيد افتتاحي", "number": "OPEN-1", "debit": "", "credit": "", "balance": "0.00" },
+            { "date": "2026-09-10", "description": "فاتورة مبيعات", "number": "INV-000512", "debit": "287.50", "credit": "", "balance": "287.50" },
+            { "date": "2026-09-20", "description": "سند قبض", "number": "RCV-000031", "debit": "", "credit": "200.00", "balance": "87.50" },
+        ]);
+        let payload = serde_json::json!({
+            "document": doc, "company": company(),
+            "party": { "name": "شركة العميل النموذجي المحدودة", "code": "CUST-0042", "vatNumber": null, "address": "جدة", "phone": "0509876543" },
+            "lines": statement_lines,
+            "totals": { "subtotal": null, "discount": null, "vat": null, "grand": "87.50", "paid": null, "remaining": null, "amountInWords": null, "previousBalance": null, "currentBalance": null },
+            "qr": null, "logo": null,
+        });
+        failures += smoke_one("statement", "statement", payload, opts.clone());
+    }
+
+    // Z-report
+    {
+        let mut doc = document_meta("zReport", "تقرير إغلاق الوردية (Z)", "Z-REPORT");
+        doc["cashierName"] = serde_json::json!("محمد الكاشير");
+        doc["openedAt"] = serde_json::json!("2026-09-24 08:00");
+        doc["closedAt"] = serde_json::json!("2026-09-24 16:00");
+        let movements = serde_json::json!([
+            { "time": "2026-09-24 09:15", "kind": "SALE_CASH", "ref": "INV-000510", "amount": "230.00" },
+            { "time": "2026-09-24 12:40", "kind": "PAY_OUT", "ref": "", "amount": "50.00" },
+        ]);
+        let payload = serde_json::json!({
+            "document": doc, "company": company(), "party": null, "lines": movements,
+            "totals": {
+                "openingFloat": "500.00", "cashSales": "230.00", "cashRefunds": "0.00", "payIns": "0.00",
+                "payOuts": "50.00", "bankDrops": "0.00", "expectedCash": "680.00", "countedCash": "678.00",
+                "grand": "-2.00",
+            },
+            "qr": null, "logo": null,
+        });
+        failures += smoke_one("z_report", "z_report", payload, opts.clone());
+    }
+
+    // transfer note
+    {
+        let mut doc = document_meta("transferNote", "إذن تحويل مخزون", "STOCK TRANSFER NOTE");
+        doc["fromBranch"] = serde_json::json!("الفرع الرئيسي");
+        doc["toBranch"] = serde_json::json!("فرع جدة");
+        doc["note"] = serde_json::json!(null);
+        let transfer_lines = serde_json::json!([
+            { "name": "منتج تجريبي أول", "qty": "٥", "price": "", "discount": "", "net": "", "vatRate": 0, "vat": "", "total": "٥" },
+            { "name": "منتج تجريبي ثانٍ", "qty": "٣", "price": "", "discount": "", "net": "", "vatRate": 0, "vat": "", "total": "٣" },
+        ]);
+        let payload = serde_json::json!({
+            "document": doc, "company": company(), "party": null, "lines": transfer_lines,
+            "totals": { "subtotal": null, "discount": null, "vat": null, "grand": null, "paid": null, "remaining": null, "amountInWords": null, "previousBalance": null, "currentBalance": null },
+            "qr": null, "logo": null,
+        });
+        failures += smoke_one("transfer_note", "transfer_note", payload, opts.clone());
+    }
+
+    // generic report
+    {
+        let doc = document_meta("report", "تقرير المبيعات اليومي", "DAILY SALES REPORT");
+        let report_opts = serde_json::json!({
+            "accentColor": "#4f46e5", "fontFamily": "Cairo", "fontSize": 10, "paper": "a4",
+            "columns": [
+                { "key": "number", "label": "الرقم", "visible": true },
+                { "key": "customer", "label": "العميل", "visible": true },
+                { "key": "total", "label": "الإجمالي", "visible": true },
+            ],
+        });
+        let report_rows = serde_json::json!([
+            { "number": "INV-000510", "customer": "عميل نقدي", "total": "230.00" },
+            { "number": "INV-000511", "customer": "شركة العميل النموذجي", "total": "287.50" },
+        ]);
+        let mut payload_doc = doc.clone();
+        payload_doc["filterLine"] = serde_json::json!("من 2026-09-24 إلى 2026-09-24");
+        let payload = serde_json::json!({
+            "document": payload_doc, "company": company(), "party": null, "lines": report_rows,
+            "totals": { "grand": "517.50" },
+            "qr": null, "logo": null,
+        });
+        failures += smoke_one("generic_report", "generic_report", payload, report_opts);
+    }
+
+    // label sheet (A4 grid)
+    {
+        let label_opts = serde_json::json!({
+            "accentColor": "#4f46e5", "fontFamily": "Cairo", "paper": "a4",
+            "label": { "widthMm": 70.0, "heightMm": 37.0, "cols": 3, "rows": 8, "marginTopMm": 10.0, "marginLeftMm": 8.0, "gutterXMm": 2.0, "gutterYMm": 0.0, "startCell": 1, "showStoreName": true, "showPrice": true, "showSku": false, "showBatch": false, "showBarcode": false, "showQr": false },
+        });
+        let label_items = serde_json::json!([
+            { "name": "منتج تجريبي أول", "priceText": "100.00", "sku": "SKU-1" },
+            { "name": "منتج تجريبي ثانٍ", "priceText": "50.00", "sku": "SKU-2" },
+        ]);
+        let payload = serde_json::json!({
+            "document": { "kind": "label", "number": "", "date": "2026-09-24", "titleAr": "ملصقات", "titleEn": "LABELS" },
+            "company": { "name": "مؤسسة الفاتورة النموذجية للتجارة", "logo": null },
+            "party": null, "lines": [], "totals": {}, "qr": null, "logo": null,
+            "labels": label_items,
+        });
+        failures += smoke_one("label_sheet", "label_sheet", payload, label_opts);
+    }
+
+    // label thermal (one per page)
+    {
+        let label_opts = serde_json::json!({
+            "accentColor": "#4f46e5", "fontFamily": "Cairo", "paper": "58mm",
+            "label": { "widthMm": 50.0, "heightMm": 30.0, "cols": 1, "rows": 1, "marginTopMm": 2.0, "marginLeftMm": 2.0, "gutterXMm": 0.0, "gutterYMm": 0.0, "startCell": 1, "showStoreName": true, "showPrice": true, "showSku": true, "showBatch": true, "showBarcode": false, "showQr": false },
+        });
+        let label_items = serde_json::json!([
+            { "name": "منتج تجريبي أول", "priceText": "100.00", "sku": "SKU-1", "batchNo": "B-2026-01", "expiryText": "2027-01-01" },
+        ]);
+        let payload = serde_json::json!({
+            "document": { "kind": "label", "number": "", "date": "2026-09-24", "titleAr": "ملصق", "titleEn": "LABEL" },
+            "company": { "name": "مؤسسة الفاتورة النموذجية للتجارة", "logo": null },
+            "party": null, "lines": [], "totals": {}, "qr": null, "logo": null,
+            "labels": label_items,
+        });
+        failures += smoke_one("label_thermal", "label_thermal", payload, label_opts);
+    }
+
+    failures
 }

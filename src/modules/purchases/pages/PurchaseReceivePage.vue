@@ -94,10 +94,23 @@ async function confirmReceipt() {
   }
 }
 
+/**
+ * v2 phase 11b (docs/v2/07-products-and-inventory.md §6 "طباعة ملصقات للكميات المستلمة"): opens
+ * the label builder pre-filled with every line that has a received qty entered, one `productId`
+ * query param per line with its received quantity as the starting copy count ("حسب الكمية
+ * المستلمة" — the storekeeper's most common copy mode per the doc). Phase 8 only wired the button;
+ * this finishes the TODO it left.
+ */
 function printLabels() {
-  // TODO(phase 11b): wire to the label builder (docs/v2/07-products-and-inventory.md §6 "طباعة
-  // ملصقات للكميات المستلمة"). Phase 8 only wires the button; the builder itself is Phase 11b's job.
-  toast.info('طباعة الملصقات ستتوفر مع منشئ الملصقات (المرحلة 11ب)');
+  const toReceive = (data.value?.lines ?? []).filter((l) => num0(receivedQty.value[l.productId]) > 0);
+  if (!toReceive.length) {
+    toast.error('أدخل كمية استلام واحدة على الأقل أولاً');
+    return;
+  }
+  router.push({
+    path: '/catalog/labels',
+    query: { productId: toReceive.map((l) => l.productId), qty: toReceive.map((l) => String(num0(receivedQty.value[l.productId]))) },
+  });
 }
 </script>
 

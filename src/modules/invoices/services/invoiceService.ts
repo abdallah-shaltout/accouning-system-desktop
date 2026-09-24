@@ -176,6 +176,16 @@ export async function createRefund(input: RefundInput): Promise<Refund> {
   return clone(recordRefund(input, session.userId));
 }
 
+/** v2 phase 11b (docs/v2/12-documents-pdf-excel.md §3 "credit note"): looks up a single refund by
+ * id for `pdfService`'s credit-note payload — refunds don't have their own detail route/page
+ * (shown inline on the invoice they belong to), so this is the first standalone getter. */
+export async function getRefund(id: string): Promise<Refund> {
+  await delay();
+  const refund = db.refunds.find((r) => r.id === id);
+  if (!refund) throw new ApiError('إشعار الدائن غير موجود', 'NOT_FOUND');
+  return clone(refund);
+}
+
 export interface PrintData {
   invoice: Invoice;
   customer?: Customer;

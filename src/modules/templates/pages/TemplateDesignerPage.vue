@@ -199,9 +199,27 @@ function backToGenerated() {
   activeTab.value = 'options';
 }
 
+// v2 phase 11b: the 9 new document kinds' built-in templates aren't a single reusable function
+// call the way `invoice-document` is (each has its own bespoke layout in
+// src-tauri/templates/<id>.typ, built from lib.typ's smaller pieces). The kinds built from
+// lib.typ's shared header/party-box/lines-table/totals/footer pieces (quotation, credit/debit
+// note, purchase order, transfer note) get an equivalent reconstruction here; the kinds with a
+// fully bespoke layout (voucher, statement, Z-report, generic report, both label layouts) get a
+// short stub pointing at the real file instead of a stale near-copy that could drift from it.
 const BUILTIN_SOURCE: Record<PdfTemplate['baseTemplateId'], string> = {
   invoice_standard: '#import "lib.typ": invoice-document\n\n#let data = json("data.json")\n#let opts = json("opts.json")\n\n#invoice-document(data, opts, simplified: false)\n',
   invoice_simplified: '#import "lib.typ": invoice-document\n\n#let data = json("data.json")\n#let opts = json("opts.json")\n\n#invoice-document(data, opts, simplified: true)\n',
+  quotation: '#import "lib.typ": header, party-box, lines-table, totals-block, footer-block, page-margin, page-typst-size, font-family, font-size\n\n#let data = json("data.json")\n#let opts = json("opts.json")\n\n#set page(paper: page-typst-size(opts), margin: page-margin(opts))\n#set text(font: font-family(opts), lang: "ar", region: "sa", size: font-size(opts), dir: rtl)\n\n#header(data, opts)\n#party-box(data, opts)\n#lines-table(data, opts)\n#totals-block(data, opts)\n#footer-block(data, opts)\n',
+  credit_note: '#import "lib.typ": header, party-box, lines-table, totals-block, qr-block, footer-block, page-margin, page-typst-size, font-family, font-size\n\n#let data = json("data.json")\n#let opts = json("opts.json")\n\n#set page(paper: page-typst-size(opts), margin: page-margin(opts))\n#set text(font: font-family(opts), lang: "ar", region: "sa", size: font-size(opts), dir: rtl)\n\n#header(data, opts)\n#party-box(data, opts)\n#lines-table(data, opts)\n#totals-block(data, opts)\n#footer-block(data, opts)\n',
+  debit_note: '#import "lib.typ": header, party-box, lines-table, totals-block, footer-block, page-margin, page-typst-size, font-family, font-size\n\n#let data = json("data.json")\n#let opts = json("opts.json")\n\n#set page(paper: page-typst-size(opts), margin: page-margin(opts))\n#set text(font: font-family(opts), lang: "ar", region: "sa", size: font-size(opts), dir: rtl)\n\n#header(data, opts)\n#party-box(data, opts)\n#lines-table(data, opts)\n#totals-block(data, opts)\n#footer-block(data, opts)\n',
+  purchase_order: '#import "lib.typ": header, party-box, lines-table, totals-block, footer-block, page-margin, page-typst-size, font-family, font-size\n\n#let data = json("data.json")\n#let opts = json("opts.json")\n\n#set page(paper: page-typst-size(opts), margin: page-margin(opts))\n#set text(font: font-family(opts), lang: "ar", region: "sa", size: font-size(opts), dir: rtl)\n\n#header(data, opts)\n#party-box(data, opts)\n#lines-table(data, opts)\n#totals-block(data, opts)\n#footer-block(data, opts)\n',
+  voucher: '// The voucher template (src-tauri/templates/voucher.typ) has its own header/amount-box\n// layout rather than reusing lib.typ\'s invoice header — open that file for the full source.\n#let data = json("data.json")\n#let opts = json("opts.json")\n',
+  statement: '// The statement template (src-tauri/templates/statement.typ) has its own running-balance\n// ledger table rather than lib.typ\'s invoice lines-table — open that file for the full source.\n#let data = json("data.json")\n#let opts = json("opts.json")\n',
+  z_report: '// The Z-report template (src-tauri/templates/z_report.typ) has its own key/value summary\n// grid — open that file for the full source.\n#let data = json("data.json")\n#let opts = json("opts.json")\n',
+  transfer_note: '#import "lib.typ": header, lines-table, footer-block, page-margin, page-typst-size, font-family, font-size\n\n#let data = json("data.json")\n#let opts = json("opts.json")\n\n#set page(paper: page-typst-size(opts), margin: page-margin(opts))\n#set text(font: font-family(opts), lang: "ar", region: "sa", size: font-size(opts), dir: rtl)\n\n#header(data, opts)\n#lines-table(data, opts)\n#footer-block(data, opts)\n',
+  generic_report: '// The generic report template (src-tauri/templates/generic_report.typ) reads arbitrary\n// row/column data rather than the invoice line shape — open that file for the full source.\n#let data = json("data.json")\n#let opts = json("opts.json")\n',
+  label_sheet: '// The label sheet template (src-tauri/templates/label_sheet.typ) lays out a grid of labels,\n// not a single document body — open that file for the full source.\n#let data = json("data.json")\n#let opts = json("opts.json")\n',
+  label_thermal: '// The thermal label template (src-tauri/templates/label_thermal.typ) is one label per page —\n// open that file for the full source.\n#let data = json("data.json")\n#let opts = json("opts.json")\n',
 };
 
 // --- Options helpers -------------------------------------------------------------------------------

@@ -1,7 +1,12 @@
 <script setup lang="ts">
-/** v2 phase 7 (docs/v2/06-sales-and-pos.md §5 "Z-report is printed (thermal or A4)"). Reuses the browser print flow like every other document until 11b adds a dedicated Typst template. */
+/**
+ * v2 phase 7 (docs/v2/06-sales-and-pos.md §5 "Z-report is printed (thermal or A4)"). Phase 11b
+ * adds the Z-report Typst template (docs/v2/12-documents-pdf-excel.md §3), so `print()` now goes
+ * through `pdfService` in the desktop app; the browser print route stays as the non-Tauri fallback.
+ */
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
+import { isTauri } from '@tauri-apps/api/core';
 import { Printer } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
@@ -11,14 +16,23 @@ import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDateTime } from '@/modules/core/helpers/format';
+import { renderAndSave } from '@/modules/core/services/pdfService';
+import { useToast } from '@/modules/core/controllers/useToast';
 import { getShift } from '../services/invoiceService';
 
 const route = useRoute();
+const toast = useToast();
 const id = String(route.params.id);
 const { data, error, reload } = useAsync(() => getShift(id));
 const shift = computed(() => data.value);
 
-function print() {
+async function print() {
+  if (isTauri()) {
+    const ok = await renderAndSave('zReport', id, `${shift.value?.number ?? id}.pdf`);
+    if (ok) return;
+    toast.error('تعذر إنشاء ملف PDF');
+    return;
+  }
   window.print();
 }
 </script>

@@ -9,15 +9,19 @@ import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import { isTauri } from '@tauri-apps/api/core';
+import { useRouter } from 'vue-router';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { formatDate, formatDateTime, formatNumber } from '@/modules/core/helpers/format';
 import { PAYMENT_METHOD_LABEL, PAYMENT_STATUS, PURCHASE_STATUS } from '@/modules/core/helpers/labels';
+import { renderAndSave } from '@/modules/core/services/pdfService';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { cancelPurchaseOrder, getPurchaseOrder, sendPurchaseOrderToSupplier } from '../services/purchaseService';
 
 const route = useRoute();
+const router = useRouter();
 const auth = useAuthStore();
 const toast = useToast();
 const confirm = useConfirm();
@@ -27,6 +31,21 @@ const { data, error, reload } = useAsync(() => getPurchaseOrder(id));
 const po = computed(() => data.value);
 const canWrite = computed(() => auth.can('purchases', 'write'));
 const busy = ref<'cancel' | 'send' | null>(null);
+
+/**
+ * v2 phase 11b (docs/v2/12-documents-pdf-excel.md §3 "purchase order" now has a real template):
+ * renders through `pdfService` in the desktop app, falling back to the v1 browser print route
+ * only outside Tauri — same pattern `InvoiceDetailPage.vue`'s `print()` uses.
+ */
+async function printPurchaseOrder() {
+  if (isTauri()) {
+    const ok = await renderAndSave('purchaseOrder', id, `${po.value?.number ?? id}.pdf`);
+    if (ok) return;
+    toast.error('تعذر إنشاء ملف PDF');
+    return;
+  }
+  router.push(`/print/purchases/${id}`);
+}
 
 async function doCancel() {
   const ok = await confirm({ title: `إلغاء ${po.value?.number}؟`, confirmText: 'إلغاء الأمر', cancelText: 'تراجع', danger: true });
@@ -79,7 +98,7 @@ async function doSend() {
           </template>
           <template v-else-if="po.status === 'ORDERED'">
             <AppButton variant="danger" :icon="Ban" :loading="busy === 'cancel'" @click="doCancel">إلغاء</AppButton>
-            <AppButton :icon="Printer" :to="`/print/purchases/${id}`">طباعة أمر الشراء</AppButton>
+            <AppButton :icon="Printer" @click="printPurchaseOrder">طباعة أمر الشراء</AppButton>
             <AppButton variant="primary" :icon="PackageCheck" :to="`/purchases/${id}/receive`">استلام</AppButton>
           </template>
           <template v-else-if="po.status === 'RECEIVED'">

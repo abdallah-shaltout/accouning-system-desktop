@@ -5,7 +5,7 @@
  * modal + a receive modal, since the flow is short enough not to need separate routes.
  */
 import { computed, onMounted, reactive, ref } from 'vue';
-import { ArrowLeftRight, Check, Plus, Trash2, Truck } from '@lucide/vue';
+import { ArrowLeftRight, Check, Plus, Printer, Trash2, Truck } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
@@ -18,9 +18,11 @@ import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import { isTauri } from '@tauri-apps/api/core';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { formatDateTime, formatNumber } from '@/modules/core/helpers/format';
 import { toNum } from '@/modules/core/helpers/numbers';
+import { renderAndSave } from '@/modules/core/services/pdfService';
 import { getBranches } from '@/modules/settings/services/branchesService';
 import type { Branch } from '@/modules/settings/types';
 import { getProducts } from '../services/productService';
@@ -158,6 +160,21 @@ async function doReject(t: StockTransfer) {
     toast.error(err);
   }
 }
+
+/**
+ * v2 phase 11b (docs/v2/12-documents-pdf-excel.md §3 "transfer note" now has a real template).
+ * Phase 9 never added a print action for transfers at all (no browser-print fallback route
+ * existed either) — this is a new entry point, desktop-only like every other `pdfService.render`
+ * call, since there's no v1 print route to fall back to here.
+ */
+async function printTransferNote(t: StockTransfer) {
+  if (!isTauri()) {
+    toast.info('ملف PDF الفعلي متاح في نسخة سطح المكتب');
+    return;
+  }
+  const ok = await renderAndSave('transferNote', t.id, `${t.number}.pdf`);
+  if (!ok) toast.error('تعذر إنشاء ملف PDF');
+}
 </script>
 
 <template>
@@ -196,6 +213,7 @@ async function doReject(t: StockTransfer) {
                 <AppButton v-if="t.status === 'DRAFT'" size="sm" variant="ghost" :icon="Truck" @click="doSend(t)">إرسال</AppButton>
                 <AppButton v-if="t.status === 'SENT'" size="sm" variant="primary" :icon="Check" @click="openReceive(t)">استلام</AppButton>
                 <AppButton v-if="t.status === 'SENT'" size="sm" variant="ghost" :icon="Trash2" @click="doReject(t)">رفض</AppButton>
+                <AppButton v-if="t.status === 'SENT' || t.status === 'RECEIVED'" size="sm" variant="ghost" :icon="Printer" @click="printTransferNote(t)">طباعة</AppButton>
               </div>
             </td>
           </tr>

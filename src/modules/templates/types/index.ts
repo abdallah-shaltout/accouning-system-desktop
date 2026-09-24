@@ -125,12 +125,32 @@ export function defaultTemplateOptions(): TemplateOptions {
   };
 }
 
+/**
+ * Which built-in `.typ` file (src-tauri/src/pdf/render.rs's `builtin_template_source`) this
+ * template starts from. Phase 11a shipped the two invoice variants; Phase 11b adds one per new
+ * document kind (docs/v2/12-documents-pdf-excel.md §3's document-kinds table) plus the two label
+ * layouts (sheet grid / one-per-page thermal — §4).
+ */
+export type BaseTemplateId =
+  | 'invoice_standard'
+  | 'invoice_simplified'
+  | 'quotation'
+  | 'credit_note'
+  | 'debit_note'
+  | 'purchase_order'
+  | 'voucher'
+  | 'statement'
+  | 'z_report'
+  | 'transfer_note'
+  | 'generic_report'
+  | 'label_sheet'
+  | 'label_thermal';
+
 export interface PdfTemplate {
   id: string;
   name: string;
   kind: DocumentKind;
-  /** 'invoice_standard' | 'invoice_simplified' — which built-in .typ this template starts from. */
-  baseTemplateId: 'invoice_standard' | 'invoice_simplified';
+  baseTemplateId: BaseTemplateId;
   options: TemplateOptions;
   /** Present once the user opens the advanced tab and edits the raw source; null = use the built-in template + options. */
   customSource: string | null;
@@ -142,4 +162,73 @@ export interface PdfTemplate {
 export interface TemplateExport {
   schema: 'pdf-template-v1';
   template: Omit<PdfTemplate, 'id' | 'isDefault' | 'createdAt' | 'updatedAt'>;
+}
+
+// =================================================================================================
+// Labels (Phase 11b, docs/v2/07-products-and-inventory.md §6 / docs/v2/12-documents-pdf-excel.md
+// §3-4). Mirrors `lib.typ`'s `opts.label` dict read by `label_sheet.typ`/`label_thermal.typ`
+// (src-tauri/templates/label_sheet.typ's top-of-file comment documents the exact keys).
+// =================================================================================================
+
+export type LabelLayoutKind = 'sheet' | 'thermal';
+
+export interface LabelOptions {
+  layout: LabelLayoutKind;
+  widthMm: number;
+  heightMm: number;
+  /** Sheet layout only — ignored (both stay 1) for a thermal one-per-page layout. */
+  cols: number;
+  rows: number;
+  marginTopMm: number;
+  marginLeftMm: number;
+  gutterXMm: number;
+  gutterYMm: number;
+  /** 1-based, row-major — lets a half-used A4 sheet be reused by skipping already-printed cells. */
+  startCell: number;
+  showStoreName: boolean;
+  showPrice: boolean;
+  showSku: boolean;
+  showBatch: boolean;
+  showBarcode: boolean;
+  showQr: boolean;
+  fontFamily: FontFamilyOption;
+}
+
+/** A named starting point in the builder's "label template" picker (docs/v2/07 §6 "Label templates: Sheets ... Thermal label printers"). */
+export interface LabelPreset {
+  id: string;
+  name: string;
+  options: LabelOptions;
+}
+
+export const LABEL_PRESETS: LabelPreset[] = [
+  {
+    id: 'a4_3x8_70x37',
+    name: 'A4 — 3×8 (70×37 مم)',
+    options: { layout: 'sheet', widthMm: 70, heightMm: 37, cols: 3, rows: 8, marginTopMm: 10, marginLeftMm: 8, gutterXMm: 2, gutterYMm: 0, startCell: 1, showStoreName: true, showPrice: true, showSku: false, showBatch: false, showBarcode: true, showQr: false, fontFamily: 'Cairo' },
+  },
+  {
+    id: 'a4_4x10_48x25',
+    name: 'A4 — 4×10 (48.5×25.4 مم)',
+    options: { layout: 'sheet', widthMm: 48.5, heightMm: 25.4, cols: 4, rows: 10, marginTopMm: 8, marginLeftMm: 6, gutterXMm: 2, gutterYMm: 0, startCell: 1, showStoreName: false, showPrice: true, showSku: false, showBatch: false, showBarcode: true, showQr: false, fontFamily: 'Cairo' },
+  },
+  {
+    id: 'thermal_40x25',
+    name: 'حراري — 40×25 مم',
+    options: { layout: 'thermal', widthMm: 40, heightMm: 25, cols: 1, rows: 1, marginTopMm: 2, marginLeftMm: 2, gutterXMm: 0, gutterYMm: 0, startCell: 1, showStoreName: false, showPrice: true, showSku: false, showBatch: false, showBarcode: true, showQr: false, fontFamily: 'Cairo' },
+  },
+  {
+    id: 'thermal_50x30',
+    name: 'حراري — 50×30 مم',
+    options: { layout: 'thermal', widthMm: 50, heightMm: 30, cols: 1, rows: 1, marginTopMm: 2, marginLeftMm: 2, gutterXMm: 0, gutterYMm: 0, startCell: 1, showStoreName: true, showPrice: true, showSku: false, showBatch: false, showBarcode: true, showQr: false, fontFamily: 'Cairo' },
+  },
+  {
+    id: 'thermal_58x40',
+    name: 'حراري — 58×40 مم',
+    options: { layout: 'thermal', widthMm: 58, heightMm: 40, cols: 1, rows: 1, marginTopMm: 2, marginLeftMm: 2, gutterXMm: 0, gutterYMm: 0, startCell: 1, showStoreName: true, showPrice: true, showSku: true, showBatch: true, showBarcode: true, showQr: false, fontFamily: 'Cairo' },
+  },
+];
+
+export function defaultLabelOptions(): LabelOptions {
+  return { ...LABEL_PRESETS[0].options };
 }

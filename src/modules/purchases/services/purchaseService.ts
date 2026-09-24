@@ -125,6 +125,16 @@ export async function createPurchaseReturn(input: PurchaseReturnInput): Promise<
   return clone(recordPurchaseReturn(input, session.userId));
 }
 
+/** v2 phase 11b (docs/v2/12-documents-pdf-excel.md §3 "debit note"): looks up a single purchase
+ * return by id for `pdfService`'s debit-note payload — returns don't have their own detail
+ * route/page (shown inline on the purchase order they belong to). */
+export async function getPurchaseReturn(id: string): Promise<PurchaseReturn> {
+  await delay();
+  const ret = db.purchaseReturns.find((r) => r.id === id);
+  if (!ret) throw new ApiError('إشعار المدين غير موجود', 'NOT_FOUND');
+  return clone(ret);
+}
+
 /** Batches remaining for a tracked product — the debit-note form's batch picker (v2 §4). */
 export async function getActiveBatches(productId: string): Promise<ProductBatch[]> {
   await delay();

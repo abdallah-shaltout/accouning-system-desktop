@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { BookOpen, Printer } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
@@ -8,21 +8,38 @@ import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
+import { isTauri } from '@tauri-apps/api/core';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDateTime } from '@/modules/core/helpers/format';
 import { db } from '@/mocks';
+import { renderAndSave } from '@/modules/core/services/pdfService';
+import { useToast } from '@/modules/core/controllers/useToast';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getVoucher } from '../services/voucherService';
 import type { VoucherKind } from '../types';
 
 const route = useRoute();
+const router = useRouter();
 const auth = useAuthStore();
+const toast = useToast();
 const id = String(route.params.id);
 const { data, error, reload } = useAsync(() => getVoucher(id));
 
 const KIND_LABEL: Record<VoucherKind, string> = { RECEIPT: 'سند قبض عام', PAYMENT: 'سند صرف عام', TRANSFER: 'تحويل بين الحسابات', OWNER: 'سند مالك' };
 
 const journalEntries = computed(() => db.journalEntries.filter((e) => e.sourceRef?.kind === 'voucher' && e.sourceRef.id === id).map((e) => ({ id: e.id, number: e.number, description: e.description })));
+
+/** v2 phase 11b (docs/v2/12-documents-pdf-excel.md §3 "voucher" now has a real template): renders
+ * through `pdfService` in the desktop app, falling back to the v1 browser print route outside Tauri. */
+async function print() {
+  if (isTauri()) {
+    const ok = await renderAndSave('voucher', id, `${data.value?.number ?? id}.pdf`);
+    if (ok) return;
+    toast.error('تعذر إنشاء ملف PDF');
+    return;
+  }
+  router.push(`/print/vouchers/${id}`);
+}
 </script>
 
 <template>
@@ -31,7 +48,7 @@ const journalEntries = computed(() => db.journalEntries.filter((e) => e.sourceRe
     <template v-else>
       <PageHeader :title="data ? `${KIND_LABEL[data.kind]} ${data.number}` : '…'" back="/vouchers">
         <template v-if="data" #actions>
-          <AppButton :icon="Printer" :to="`/print/vouchers/${id}`">طباعة</AppButton>
+          <AppButton :icon="Printer" @click="print">طباعة</AppButton>
         </template>
       </PageHeader>
       <div class="grid items-start gap-5 xl:grid-cols-[1fr_320px]">

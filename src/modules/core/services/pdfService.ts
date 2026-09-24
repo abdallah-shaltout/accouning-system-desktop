@@ -1,9 +1,13 @@
 /**
  * `pdfService`: builds a `DocumentPayload` (docs/v2/12-documents-pdf-excel.md
  * §2) from a real document and drives the Rust `render_pdf` / `render_preview`
- * commands. Phase 11a wires up `kind: 'invoice'` only — the other 9 kinds are
- * Phase 11b (they'd each need their own `buildXPayload`, but reuse this same
- * `render`/`renderPreview`/`open` machinery).
+ * commands. Phase 11a wired up `kind: 'invoice'` only. Phase 11b (this file's
+ * additions below `buildInvoicePayload`) adds the other 9 document kinds —
+ * quotation, credit/debit note, purchase order, voucher, party statement,
+ * Z-report, transfer note and the generic report template — each with its
+ * own `buildXPayload`, reusing this same `render`/`renderPreview`/`open`
+ * machinery. Labels are a separate entry point (`renderLabels` below) since
+ * they don't map to one existing document id the way the other kinds do.
  *
  * Browser dev-mode fallback: `@tauri-apps/api/core`'s `isTauri()` is already
  * how this codebase detects Tauri (see `src/modules/reports/helpers/export.ts`).
@@ -15,17 +19,57 @@ import { encode as uqrEncode } from 'uqr';
 import { formatDate, formatDateTime, formatMoney, formatNumber } from '@/modules/core/helpers/format';
 import { tafqit } from '@/modules/core/helpers/tafqit';
 import { useToast } from '@/modules/core/controllers/useToast';
-import { getInvoicePrintData } from '@/modules/invoices/services/invoiceService';
+import { getInvoicePrintData, getQuotation, getRefund, getShift } from '@/modules/invoices/services/invoiceService';
 import { round2 } from '@/modules/invoices/helpers/totals';
 import { zatcaQrBase64 } from '@/modules/invoices/helpers/zatcaQr';
+import { getPurchaseOrder, getPurchaseReturn } from '@/modules/purchases/services/purchaseService';
+import { getVoucher } from '@/modules/vouchers/services/voucherService';
+import type { Voucher } from '@/modules/vouchers/types';
+import { getAccounts } from '@/modules/accounting/services/accountingService';
+import { getPaymentMethods } from '@/modules/settings/services/settingsService';
+import { getCustomer, getCustomerStatement, getSupplier, getSupplierStatement } from '@/modules/parties/services/partyService';
+import { getTransfer } from '@/modules/products/services/transferService';
+import { getProducts } from '@/modules/products/services/productService';
+import { getBranches } from '@/modules/settings/services/branchesService';
+import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
 import { getDefaultTemplate, getTemplate } from '@/modules/templates/services/templateService';
-import { defaultTemplateOptions, type DocumentKind, type PdfTemplate, type TemplateOptions } from '@/modules/templates/types';
+import { defaultTemplateOptions, type BaseTemplateId, type DocumentKind, type LabelOptions, type PdfTemplate, type TemplateOptions } from '@/modules/templates/types';
+import { barcodeSvg, looksLikeEan13 } from '@/modules/products/helpers/labelBarcode';
 
-export type PdfDocumentKind = 'invoice';
+export type PdfDocumentKind =
+  | 'invoice'
+  | 'quotation'
+  | 'creditNote'
+  | 'debitNote'
+  | 'purchaseOrder'
+  | 'voucher'
+  | 'statement'
+  | 'zReport'
+  | 'transferNote';
 
-/** Mirrors src-tauri/src/pdf/payload.rs's `DocumentPayload` shape. */
+/** Maps a document kind to the built-in `.typ` template id `render.rs` knows (src-tauri/src/pdf/render.rs's `builtin_template_source`). */
+const BUILTIN_TEMPLATE_ID: Record<PdfDocumentKind, BaseTemplateId> = {
+  invoice: 'invoice_standard',
+  quotation: 'quotation',
+  creditNote: 'credit_note',
+  debitNote: 'debit_note',
+  purchaseOrder: 'purchase_order',
+  voucher: 'voucher',
+  statement: 'statement',
+  zReport: 'z_report',
+  transferNote: 'transfer_note',
+};
+
+/**
+ * Mirrors src-tauri/src/pdf/payload.rs's `DocumentPayload` shape. `document` carries a handful of
+ * required fields plus an open-ended bag of per-kind extras (e.g. a credit note's `refNumber`, a
+ * voucher's `accountsLine`, a Z-report's `openedAt`) — Rust's `DocumentMeta` only reads the fixed
+ * fields itself and the Typst templates read the rest by key with `.at(..., default: ...)`, same
+ * "unknown fields pass through opaquely" contract `lib.typ`'s top-of-file comment documents for
+ * `opts`.
+ */
 export interface DocumentPayload {
-  document: { kind: string; number: string; date: string; titleAr: string; titleEn: string };
+  document: { kind: string; number: string; date: string; titleAr: string; titleEn: string } & Record<string, unknown>;
   company: Record<string, unknown>;
   party: Record<string, unknown> | null;
   lines: Record<string, unknown>[];
@@ -116,9 +160,296 @@ async function buildInvoicePayload(id: string): Promise<DocumentPayload> {
   };
 }
 
+/** Shared company block — every non-invoice builder below reads it the same way `buildInvoicePayload` does. */
+function companyBlock() {
+  const s = useSettingsStore().settings;
+  return {
+    name: s?.storeName ?? '',
+    address: s?.address ?? null,
+    phone: s?.phone ?? null,
+    email: null,
+    website: null,
+    vatNumber: s?.vatNumber ?? null,
+    commercialRegister: s?.commercialRegister ?? null,
+    logo: s?.logo ?? null,
+  };
+}
+
+async function buildQuotationPayload(id: string): Promise<DocumentPayload> {
+  const q = await getQuotation(id);
+  const customer = q.customerId ? await getCustomer(q.customerId).catch(() => undefined) : undefined;
+
+  const lines = q.lines.map((l) => {
+    const net = round2(l.qty * l.price - l.discount);
+    const vatRate = l.taxRate ?? 0;
+    const vat = round2((net * (1 - q.discountRate / 100) * vatRate) / 100);
+    const total = round2(net * (1 - q.discountRate / 100) * (1 + vatRate / 100));
+    return { name: l.name, qty: formatNumber(l.qty), price: formatMoney(l.price), discount: formatMoney(l.discount), net: formatMoney(net), vatRate, vat: formatMoney(vat), total: formatMoney(total) };
+  });
+
+  return {
+    document: { kind: 'quotation', number: q.number, date: formatDate(q.date), titleAr: 'عرض سعر', titleEn: 'QUOTATION', validUntil: q.expiryDate ? formatDate(q.expiryDate) : null },
+    company: companyBlock(),
+    party: customer ? { name: customer.name, vatNumber: customer.vatNumber ?? null, address: customer.address ?? null, phone: customer.phone ?? null } : null,
+    lines,
+    totals: { subtotal: formatMoney(q.subTotal), discount: q.discountAmount > 0 ? formatMoney(q.discountAmount) : null, vat: formatMoney(q.taxAmount), grand: formatMoney(q.grandTotal), paid: null, remaining: null, amountInWords: tafqit(q.grandTotal), previousBalance: null, currentBalance: null },
+    qr: null,
+    logo: companyBlock().logo,
+  };
+}
+
+async function buildCreditNotePayload(id: string): Promise<DocumentPayload> {
+  const refund = await getRefund(id);
+  const data = await getInvoicePrintData(refund.invoiceId);
+  const inv = data.invoice;
+  const customer = data.customer;
+
+  const refundLines = refund.lines
+    .map((rl) => {
+      const src = inv.lines.find((l) => l.id === rl.invoiceLineId);
+      if (!src) return null;
+      const net = round2(rl.qty * src.price - src.discount * (rl.qty / Math.max(1, src.qty)));
+      const vatRate = src.taxRate ?? inv.taxRate;
+      const vat = round2((net * vatRate) / 100);
+      return { name: src.name, qty: formatNumber(rl.qty), price: formatMoney(src.price), discount: '0.00', net: formatMoney(net), vatRate, vat: formatMoney(vat), total: formatMoney(net + vat) };
+    })
+    .filter((l): l is NonNullable<typeof l> => l !== null);
+
+  return {
+    document: {
+      kind: 'creditNote',
+      number: refund.number,
+      date: formatDate(refund.date),
+      titleAr: 'إشعار دائن',
+      titleEn: 'CREDIT NOTE',
+      refNumber: inv.number,
+      refDate: formatDate(inv.date),
+      reason: refund.reason ?? null,
+    },
+    company: companyBlock(),
+    party: customer ? { name: customer.name, vatNumber: customer.vatNumber ?? null, address: customer.address ?? null, phone: customer.phone ?? null } : null,
+    lines: refundLines,
+    totals: { subtotal: formatMoney(refund.subTotal), discount: null, vat: formatMoney(refund.taxAmount), grand: formatMoney(refund.grandTotal), paid: null, remaining: null, amountInWords: tafqit(refund.grandTotal), previousBalance: null, currentBalance: null },
+    qr: null,
+    logo: companyBlock().logo,
+  };
+}
+
+async function buildDebitNotePayload(id: string): Promise<DocumentPayload> {
+  const ret = await getPurchaseReturn(id);
+  const po = await getPurchaseOrder(ret.purchaseOrderId);
+  const supplier = po.supplier;
+
+  const lines = ret.lines.map((rl) => {
+    const product = po.products[rl.productId];
+    const net = round2(rl.qty * rl.costPrice);
+    return { name: product?.name ?? rl.productId, sku: product?.sku ?? '', qty: formatNumber(rl.qty), price: formatMoney(rl.costPrice), discount: '0.00', net: formatMoney(net), vatRate: 0, vat: '0.00', total: formatMoney(net) };
+  });
+
+  return {
+    document: {
+      kind: 'debitNote',
+      number: ret.number,
+      date: formatDate(ret.date),
+      titleAr: 'إشعار مدين',
+      titleEn: 'DEBIT NOTE',
+      refNumber: po.number,
+      refDate: formatDate(po.date),
+      reason: ret.reason ?? null,
+    },
+    company: companyBlock(),
+    party: supplier ? { name: supplier.name, vatNumber: supplier.vatNumber ?? null, address: supplier.address ?? null, phone: supplier.phone ?? null } : null,
+    lines,
+    totals: { subtotal: formatMoney(ret.subTotal), discount: null, vat: formatMoney(ret.taxAmount), grand: formatMoney(ret.grandTotal), paid: null, remaining: null, amountInWords: tafqit(ret.grandTotal), previousBalance: null, currentBalance: null },
+    qr: null,
+    logo: companyBlock().logo,
+  };
+}
+
+async function buildPurchaseOrderPayload(id: string): Promise<DocumentPayload> {
+  const po = await getPurchaseOrder(id);
+  const supplier = po.supplier;
+
+  const lines = po.lines.map((l) => {
+    const product = po.products[l.productId];
+    const factor = l.unitFactor ?? 1;
+    const net = round2(l.qty * l.costPrice);
+    return { name: product?.name ?? l.productId, sku: product?.sku ?? '', unit: '', qty: formatNumber(l.qty * factor === l.qty ? l.qty : l.qty), price: formatMoney(l.costPrice), discount: '0.00', net: formatMoney(net), vatRate: 0, vat: '0.00', total: formatMoney(net) };
+  });
+
+  return {
+    document: { kind: 'purchaseOrder', number: po.number, date: formatDate(po.date), titleAr: 'أمر شراء', titleEn: 'PURCHASE ORDER' },
+    company: companyBlock(),
+    party: supplier ? { name: supplier.name, vatNumber: supplier.vatNumber ?? null, address: supplier.address ?? null, phone: supplier.phone ?? null } : null,
+    lines,
+    totals: { subtotal: formatMoney(po.subTotal), discount: null, vat: formatMoney(po.taxAmount), grand: formatMoney(po.grandTotal), paid: null, remaining: null, amountInWords: tafqit(po.grandTotal), previousBalance: null, currentBalance: null },
+    qr: null,
+    logo: companyBlock().logo,
+  };
+}
+
+const VOUCHER_KIND_LABEL: Record<Voucher['kind'], { ar: string; en: string }> = {
+  RECEIPT: { ar: 'سند قبض', en: 'RECEIPT VOUCHER' },
+  PAYMENT: { ar: 'سند صرف', en: 'PAYMENT VOUCHER' },
+  TRANSFER: { ar: 'سند تحويل', en: 'TRANSFER VOUCHER' },
+  OWNER: { ar: 'سند مالك', en: 'OWNER VOUCHER' },
+};
+
+async function buildVoucherPayload(id: string): Promise<DocumentPayload> {
+  const voucher = await getVoucher(id);
+  const [accounts, methods] = await Promise.all([getAccounts(), getPaymentMethods()]);
+  const accountName = (accountId?: string) => accounts.find((a) => a.id === accountId)?.name ?? accountId ?? '';
+  const methodName = (methodId?: string) => methods.find((m) => m.id === methodId)?.name ?? methodId ?? '';
+
+  let accountsLine = '';
+  if (voucher.kind === 'RECEIPT') accountsLine = `من: ${methodName(voucher.paymentMethodId)} — إلى: ${accountName(voucher.creditAccountId)}`;
+  else if (voucher.kind === 'PAYMENT') accountsLine = `من: ${accountName(voucher.debitAccountId)} — إلى: ${methodName(voucher.paymentMethodId)}`;
+  else if (voucher.kind === 'TRANSFER') accountsLine = `من: ${accountName(voucher.sourceAccountId)} — إلى: ${accountName(voucher.destinationAccountId)}`;
+  else accountsLine = `${voucher.direction === 'drawings' ? 'مسحوبات من' : 'إضافة إلى'}: ${accountName(voucher.cashAccountId)}`;
+
+  const label = VOUCHER_KIND_LABEL[voucher.kind];
+
+  return {
+    document: {
+      kind: 'voucher',
+      number: voucher.number,
+      date: formatDate(voucher.date),
+      titleAr: label.ar,
+      titleEn: label.en,
+      description: voucher.description,
+      accountsLine,
+      note: voucher.note ?? null,
+    },
+    company: companyBlock(),
+    party: null,
+    lines: [],
+    totals: { subtotal: null, discount: null, vat: null, grand: formatMoney(voucher.amount), paid: null, remaining: null, amountInWords: tafqit(voucher.amount), previousBalance: null, currentBalance: null },
+    qr: null,
+    logo: companyBlock().logo,
+  };
+}
+
+async function buildStatementPayload(id: string): Promise<DocumentPayload> {
+  // `id` is "customer:<id>" or "supplier:<id>" — the print button on each party's page knows
+  // which kind it is (see PartyDetailPage's call site below).
+  const [kind, partyId] = id.split(':');
+  const isCustomer = kind === 'customer';
+  const party = isCustomer ? await getCustomer(partyId) : await getSupplier(partyId);
+  const rows = isCustomer ? await getCustomerStatement(partyId) : await getSupplierStatement(partyId);
+
+  const lines = rows.map((r) => ({
+    date: formatDate(r.date),
+    description: r.description,
+    number: r.number,
+    debit: r.debit > 0 ? formatMoney(r.debit) : '',
+    credit: r.credit > 0 ? formatMoney(r.credit) : '',
+    balance: formatMoney(r.balance),
+  }));
+  const closing = rows.length ? rows[rows.length - 1].balance : 0;
+
+  return {
+    document: { kind: 'statement', number: '', date: formatDate(new Date().toISOString()), titleAr: 'كشف حساب', titleEn: 'STATEMENT OF ACCOUNT' },
+    company: companyBlock(),
+    party: { name: party.name, code: party.code ?? null, vatNumber: party.vatNumber ?? null, address: party.address ?? null, phone: party.phone ?? null },
+    lines,
+    totals: { subtotal: null, discount: null, vat: null, grand: formatMoney(closing), paid: null, remaining: null, amountInWords: null, previousBalance: null, currentBalance: null },
+    qr: null,
+    logo: companyBlock().logo,
+  };
+}
+
+async function buildZReportPayload(id: string): Promise<DocumentPayload> {
+  const shift = await getShift(id);
+
+  const movements = shift.movements.map((m) => ({
+    time: formatDateTime(m.at),
+    kind: m.kind,
+    ref: m.refNumber ?? '',
+    amount: formatMoney(m.amount),
+  }));
+  const variance = round2((shift.countedCash ?? shift.expectedCash) - shift.expectedCash);
+
+  return {
+    document: { kind: 'zReport', number: shift.number, date: formatDateTime(shift.closedAt ?? shift.openedAt), titleAr: 'تقرير إغلاق الوردية (Z)', titleEn: 'Z-REPORT', cashierName: shift.openedByName, openedAt: formatDateTime(shift.openedAt), closedAt: shift.closedAt ? formatDateTime(shift.closedAt) : null },
+    company: companyBlock(),
+    party: null,
+    lines: movements,
+    totals: {
+      openingFloat: formatMoney(shift.openingFloat),
+      cashSales: formatMoney(shift.cashSales),
+      cashRefunds: formatMoney(shift.cashRefunds),
+      payIns: formatMoney(shift.payIns),
+      payOuts: formatMoney(shift.payOuts),
+      bankDrops: formatMoney(shift.bankDrops),
+      expectedCash: formatMoney(shift.expectedCash),
+      countedCash: formatMoney(shift.countedCash ?? shift.expectedCash),
+      grand: formatMoney(variance),
+    },
+    qr: null,
+    logo: companyBlock().logo,
+  };
+}
+
+async function buildTransferNotePayload(id: string): Promise<DocumentPayload> {
+  const transfer = await getTransfer(id);
+  const [branches, products] = await Promise.all([getBranches(), getProducts({ includeInactive: true })]);
+  const branchName = (branchId: string) => branches.find((b) => b.id === branchId)?.name ?? branchId;
+  const productName = (productId: string) => products.find((p) => p.id === productId)?.name ?? productId;
+
+  const lines = transfer.lines.map((l) => ({
+    name: productName(l.productId),
+    qty: formatNumber(l.qty),
+    price: '',
+    discount: '',
+    net: '',
+    vatRate: 0,
+    vat: '',
+    total: formatNumber(l.receivedQty ?? l.qty),
+  }));
+
+  return {
+    document: {
+      kind: 'transferNote',
+      number: transfer.number,
+      date: formatDate(transfer.date),
+      titleAr: 'إذن تحويل مخزون',
+      titleEn: 'STOCK TRANSFER NOTE',
+      fromBranch: branchName(transfer.fromBranchId),
+      toBranch: branchName(transfer.toBranchId),
+      note: transfer.note ?? null,
+    },
+    company: companyBlock(),
+    party: null,
+    lines,
+    totals: { subtotal: null, discount: null, vat: null, grand: null, paid: null, remaining: null, amountInWords: null, previousBalance: null, currentBalance: null },
+    qr: null,
+    logo: companyBlock().logo,
+  };
+}
+
 async function buildPayload(kind: PdfDocumentKind, id: string): Promise<DocumentPayload> {
-  if (kind === 'invoice') return buildInvoicePayload(id);
-  throw new Error(`pdfService: unsupported document kind '${kind}' (Phase 11b)`);
+  switch (kind) {
+    case 'invoice':
+      return buildInvoicePayload(id);
+    case 'quotation':
+      return buildQuotationPayload(id);
+    case 'creditNote':
+      return buildCreditNotePayload(id);
+    case 'debitNote':
+      return buildDebitNotePayload(id);
+    case 'purchaseOrder':
+      return buildPurchaseOrderPayload(id);
+    case 'voucher':
+      return buildVoucherPayload(id);
+    case 'statement':
+      return buildStatementPayload(id);
+    case 'zReport':
+      return buildZReportPayload(id);
+    case 'transferNote':
+      return buildTransferNotePayload(id);
+    default:
+      throw new Error(`pdfService: unsupported document kind '${kind}'`);
+  }
 }
 
 function resolveTemplate(kind: PdfDocumentKind, templateId?: string): PdfTemplate {
@@ -129,7 +460,7 @@ function resolveTemplate(kind: PdfDocumentKind, templateId?: string): PdfTemplat
     id: 'fallback',
     name: 'افتراضي',
     kind: documentKind,
-    baseTemplateId: 'invoice_standard',
+    baseTemplateId: BUILTIN_TEMPLATE_ID[kind],
     options: defaultTemplateOptions(),
     customSource: null,
     isDefault: true,
@@ -265,4 +596,211 @@ export function sampleInvoicePayload(): DocumentPayload {
     qr: qrSvg('sample-preview-qr-value'),
     logo: null,
   };
+}
+
+// =================================================================================================
+// Labels (Phase 11b) — docs/v2/07-products-and-inventory.md §6, docs/v2/12-documents-pdf-excel.md
+// §3/§4. A separate small entry point rather than another `PdfDocumentKind`/`buildXPayload`: a
+// label batch isn't "one document with one id" the way an invoice/voucher/etc. is — it's an
+// arbitrary set of product×qty picks the label builder page assembles, so the caller builds the
+// item list itself and hands it to `renderLabels`/`renderLabelsPreview` directly.
+// =================================================================================================
+
+/** One picked line in the label builder: a product, the unit it should be priced/labeled in, and how many copies. */
+export interface LabelPick {
+  productId: string;
+  name: string;
+  sku?: string;
+  barcode?: string;
+  priceText: string;
+  unit?: string;
+  batchNo?: string;
+  expiryText?: string;
+  copies: number;
+}
+
+/** One rendered label item, ready to embed in the label `DocumentPayload` (`data.labels[i]`). */
+export interface LabelDataItem {
+  name: string;
+  priceText: string;
+  sku?: string;
+  unit?: string;
+  batchNo?: string;
+  expiryText?: string;
+  barcodeSvg?: string | null;
+  qrSvg?: string | null;
+}
+
+/**
+ * Expands each pick into `copies` individual label items and generates its barcode (EAN-13 when
+ * the barcode looks like one, Code-128 otherwise) and optional QR (encoding the barcode itself,
+ * per docs/v2/07-products-and-inventory.md §6 "QR (encodes the barcode ...)"). Barcode/QR
+ * generation happens once per distinct pick, not once per copy, since bwip-js/uqr output is
+ * identical across copies of the same product — the copies are only expanded afterward.
+ */
+export async function buildLabelItems(picks: LabelPick[], opts: { includeQr: boolean }): Promise<LabelDataItem[]> {
+  const rendered = await Promise.all(
+    picks.map(async (p) => {
+      const symbology = looksLikeEan13(p.barcode) ? 'ean13' : 'code128';
+      const barcode = p.barcode ? await barcodeSvg(p.barcode, symbology) : null;
+      const qr = opts.includeQr && p.barcode ? qrSvg(p.barcode, 20) : null;
+      const item: LabelDataItem = { name: p.name, priceText: p.priceText, sku: p.sku, unit: p.unit, batchNo: p.batchNo, expiryText: p.expiryText, barcodeSvg: barcode, qrSvg: qr };
+      return { item, copies: Math.max(1, Math.floor(p.copies) || 1) };
+    }),
+  );
+  const items: LabelDataItem[] = [];
+  for (const { item, copies } of rendered) {
+    for (let i = 0; i < copies; i++) items.push(item);
+  }
+  return items;
+}
+
+/** Builds the label `DocumentPayload` — `data.labels` (not `data.lines`) is the array the label templates read. */
+function buildLabelPayload(items: LabelDataItem[]): DocumentPayload & { labels: LabelDataItem[] } {
+  const s = useSettingsStore().settings;
+  return {
+    document: { kind: 'label', number: '', date: formatDate(new Date().toISOString()), titleAr: 'ملصقات', titleEn: 'LABELS' },
+    company: { name: s?.storeName ?? '', logo: s?.logo ?? null },
+    party: null,
+    lines: [],
+    totals: {},
+    qr: null,
+    logo: s?.logo ?? null,
+    labels: items,
+  };
+}
+
+function labelTemplateOptions(label: LabelOptions): TemplateOptions {
+  const base = defaultTemplateOptions();
+  return { ...base, fontFamily: label.fontFamily, paper: 'a4', label } as TemplateOptions & { label: LabelOptions };
+}
+
+export interface RenderLabelsOutcome {
+  ok: boolean;
+  pdfBytes?: Uint8Array;
+}
+
+/** Renders a label batch to PDF and returns its bytes. Mirrors `render()`'s browser-dev-mode fallback. */
+export async function renderLabels(picks: LabelPick[], label: LabelOptions): Promise<RenderLabelsOutcome> {
+  if (!isTauri()) {
+    useToast().info(DESKTOP_ONLY_MESSAGE);
+    return { ok: false };
+  }
+  const items = await buildLabelItems(picks, { includeQr: label.showQr });
+  const payload = buildLabelPayload(items);
+  const templateId = label.layout === 'thermal' ? 'label_thermal' : 'label_sheet';
+  const { invoke } = await import('@tauri-apps/api/core');
+  const result = await invoke<{ pdf_base64: string; achieved_standard: string; warnings: unknown[] }>('render_pdf', {
+    req: { template_source: null, template_id: templateId, payload, options: labelTemplateOptions(label) },
+  });
+  const binary = atob(result.pdf_base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return { ok: true, pdfBytes: bytes };
+}
+
+/** Saves the rendered label PDF via the native save dialog and opens it. No-op (returns false) outside Tauri. */
+export async function renderLabelsAndSave(picks: LabelPick[], label: LabelOptions, filename = 'labels.pdf'): Promise<boolean> {
+  const outcome = await renderLabels(picks, label);
+  if (!outcome.ok || !outcome.pdfBytes) return false;
+  const [{ save }, { writeFile }, { openPath }] = await Promise.all([
+    import('@tauri-apps/plugin-dialog'),
+    import('@tauri-apps/plugin-fs'),
+    import('@tauri-apps/plugin-opener'),
+  ]);
+  const path = await save({ defaultPath: filename, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+  if (!path) return false;
+  await writeFile(path, outcome.pdfBytes);
+  await openPath(path);
+  return true;
+}
+
+// =================================================================================================
+// Generic report (Phase 11b) — docs/v2/12-documents-pdf-excel.md §3 "Reports: a generic report
+// template (title, filter line, table with a repeating header, totals, page x of y)". Built for
+// Phase 12's `modules/reports/**` pages to call once they exist (out of this phase's scope to wire
+// them up), but also usable right now by any report-shaped page outside `modules/reports/**` —
+// e.g. the day book (`modules/accounting/pages/DayBookPrintPage.vue`), which Phase 2 left on the
+// v1 browser-print fallback specifically because no report template existed yet.
+// =================================================================================================
+
+export interface GenericReportColumn {
+  key: string;
+  label: string;
+}
+
+export interface GenericReportRequest {
+  titleAr: string;
+  titleEn?: string;
+  filterLine?: string;
+  columns: GenericReportColumn[];
+  rows: Record<string, string>[];
+  totalText?: string;
+}
+
+function buildGenericReportPayload(req: GenericReportRequest): DocumentPayload {
+  return {
+    document: { kind: 'report', number: '', date: formatDate(new Date().toISOString()), titleAr: req.titleAr, titleEn: req.titleEn ?? '', filterLine: req.filterLine ?? null },
+    company: companyBlock(),
+    party: null,
+    lines: req.rows,
+    totals: { grand: req.totalText ?? null },
+    qr: null,
+    logo: companyBlock().logo,
+  };
+}
+
+function genericReportOptions(columns: GenericReportColumn[]): TemplateOptions {
+  const base = defaultTemplateOptions();
+  return { ...base, columns: columns.map((c) => ({ key: c.key as TemplateOptions['columns'][number]['key'], label: c.label, visible: true })) };
+}
+
+/** Renders a generic report to PDF and returns its bytes, browser-dev-mode fallback included. */
+export async function renderGenericReport(req: GenericReportRequest): Promise<RenderPdfOutcome> {
+  if (!isTauri()) {
+    useToast().info(DESKTOP_ONLY_MESSAGE);
+    return { ok: false };
+  }
+  const { invoke } = await import('@tauri-apps/api/core');
+  const result = await invoke<{ pdf_base64: string; achieved_standard: string; warnings: unknown[] }>('render_pdf', {
+    req: { template_source: null, template_id: 'generic_report', payload: buildGenericReportPayload(req), options: genericReportOptions(req.columns) },
+  });
+  const binary = atob(result.pdf_base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return { ok: true, pdfBytes: bytes, achievedStandard: result.achieved_standard };
+}
+
+/** Saves the rendered generic-report PDF via the native save dialog and opens it. No-op (returns false) outside Tauri. */
+export async function renderGenericReportAndSave(req: GenericReportRequest, filename: string): Promise<boolean> {
+  const outcome = await renderGenericReport(req);
+  if (!outcome.ok || !outcome.pdfBytes) return false;
+  const [{ save }, { writeFile }, { openPath }] = await Promise.all([
+    import('@tauri-apps/plugin-dialog'),
+    import('@tauri-apps/plugin-fs'),
+    import('@tauri-apps/plugin-opener'),
+  ]);
+  const path = await save({ defaultPath: filename, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+  if (!path) return false;
+  await writeFile(path, outcome.pdfBytes);
+  await openPath(path);
+  return true;
+}
+
+/** Live SVG preview for the label builder — same `render_preview` command the template designer uses, mirroring `renderPreview` above. */
+export async function renderLabelsPreview(picks: LabelPick[], label: LabelOptions): Promise<RenderPreviewOutcome> {
+  if (!isTauri()) return { pages: [], warnings: [] };
+  const items = await buildLabelItems(picks, { includeQr: label.showQr });
+  const payload = buildLabelPayload(items);
+  const templateId = label.layout === 'thermal' ? 'label_thermal' : 'label_sheet';
+  const { invoke } = await import('@tauri-apps/api/core');
+  try {
+    const result = await invoke<{ pages: string[]; warnings: RenderPreviewOutcome['warnings'] }>('render_preview', {
+      req: { template_source: null, template_id: templateId, payload, options: labelTemplateOptions(label) },
+    });
+    return { pages: result.pages, warnings: result.warnings ?? [] };
+  } catch (err) {
+    const diagnostics = Array.isArray(err) ? (err as PreviewError['diagnostics']) : [{ line: null, column: null, severity: 'error', message: String(err) }];
+    throw { diagnostics } satisfies PreviewError;
+  }
 }

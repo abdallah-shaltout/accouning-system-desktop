@@ -26,6 +26,20 @@ use super::world::RenderWorld;
 const LIB_TYP: &str = include_str!("../../templates/lib.typ");
 const INVOICE_STANDARD_TYP: &str = include_str!("../../templates/invoice_standard.typ");
 const INVOICE_SIMPLIFIED_TYP: &str = include_str!("../../templates/invoice_simplified.typ");
+// Phase 11b additions (docs/v2/12-documents-pdf-excel.md §3 document kinds table). Each is a new
+// template file wired in additively here — `build_world`/`render_pdf`/`render_preview` below are
+// unchanged in shape, just fed more `template_id` values.
+const QUOTATION_TYP: &str = include_str!("../../templates/quotation.typ");
+const CREDIT_NOTE_TYP: &str = include_str!("../../templates/credit_note.typ");
+const DEBIT_NOTE_TYP: &str = include_str!("../../templates/debit_note.typ");
+const PURCHASE_ORDER_TYP: &str = include_str!("../../templates/purchase_order.typ");
+const VOUCHER_TYP: &str = include_str!("../../templates/voucher.typ");
+const STATEMENT_TYP: &str = include_str!("../../templates/statement.typ");
+const Z_REPORT_TYP: &str = include_str!("../../templates/z_report.typ");
+const TRANSFER_NOTE_TYP: &str = include_str!("../../templates/transfer_note.typ");
+const GENERIC_REPORT_TYP: &str = include_str!("../../templates/generic_report.typ");
+const LABEL_SHEET_TYP: &str = include_str!("../../templates/label_sheet.typ");
+const LABEL_THERMAL_TYP: &str = include_str!("../../templates/label_thermal.typ");
 
 /// One structured compile diagnostic, positioned in the main template source.
 #[derive(Debug, Clone, Serialize)]
@@ -59,6 +73,17 @@ fn builtin_template_source(template_id: &str) -> Result<&'static str, String> {
     match template_id {
         "invoice_standard" => Ok(INVOICE_STANDARD_TYP),
         "invoice_simplified" => Ok(INVOICE_SIMPLIFIED_TYP),
+        "quotation" => Ok(QUOTATION_TYP),
+        "credit_note" => Ok(CREDIT_NOTE_TYP),
+        "debit_note" => Ok(DEBIT_NOTE_TYP),
+        "purchase_order" => Ok(PURCHASE_ORDER_TYP),
+        "voucher" => Ok(VOUCHER_TYP),
+        "statement" => Ok(STATEMENT_TYP),
+        "z_report" => Ok(Z_REPORT_TYP),
+        "transfer_note" => Ok(TRANSFER_NOTE_TYP),
+        "generic_report" => Ok(GENERIC_REPORT_TYP),
+        "label_sheet" => Ok(LABEL_SHEET_TYP),
+        "label_thermal" => Ok(LABEL_THERMAL_TYP),
         other => Err(format!("unknown built-in template id '{other}'")),
     }
 }
