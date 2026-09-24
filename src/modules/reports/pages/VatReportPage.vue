@@ -18,6 +18,19 @@ watch([from, to, ready], () => {
   reload();
 });
 
+// v2 (docs/v2/13 §1 "insights box") — TODO(phase 10): wire into the real insight engine once merged.
+const insights = computed(() => {
+  const d = data.value;
+  if (!d) return null;
+  return {
+    headline: d.netPayable >= 0 ? `مستحق للهيئة ${formatNumber(d.netPayable)} عن هذه الفترة` : `رصيد ضريبي مسترد قدره ${formatNumber(Math.abs(d.netPayable))}`,
+    metrics: [
+      { label: 'ضريبة المخرجات', value: formatNumber(d.outputVat) },
+      { label: 'ضريبة المدخلات', value: formatNumber(d.inputVat) },
+    ],
+  };
+});
+
 const rows = computed(() => {
   const d = data.value;
   if (!d) return [];
@@ -52,7 +65,17 @@ const table = computed<ExportTable | undefined>(() => {
 </script>
 
 <template>
-  <ReportShell title="ملخص ضريبة القيمة المضافة" subtitle="للاستعانة به عند تقديم الإقرار الضريبي" :from="from" :to="to" :loading="(loading || !ready) && !data" :error="error" :table="table" @retry="reload">
+  <ReportShell
+    title="ملخص ضريبة القيمة المضافة"
+    subtitle="للاستعانة به عند تقديم الإقرار الضريبي"
+    :from="from"
+    :to="to"
+    :loading="(loading || !ready) && !data"
+    :error="error"
+    :table="table"
+    :insights="insights"
+    @retry="reload"
+  >
     <template #filters>
       <DateRangeFilter v-model:from="from" v-model:to="to" :fiscal-start="fiscalStart" />
     </template>

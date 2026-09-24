@@ -31,6 +31,19 @@ const byCategory = computed(() => {
   return [...map.entries()].sort((a, b) => b[1].cost - a[1].cost);
 });
 
+// v2 (docs/v2/13 §1 "insights box") — TODO(phase 10): wire into the real insight engine once merged.
+const insights = computed(() => {
+  if (!data.value?.length) return null;
+  const lowCount = data.value.filter((r) => r.status !== 'ok').length;
+  return {
+    headline: lowCount > 0 ? `${lowCount} صنفاً منخفضاً أو نافداً يحتاج إعادة طلب` : 'كل الأصناف ضمن الحد الأدنى المطلوب',
+    metrics: [
+      { label: 'قيمة المخزون بالتكلفة', value: formatNumber(totals.value.cost) },
+      { label: 'عدد الأصناف', value: String(data.value.length) },
+    ],
+  };
+});
+
 const STATUS = { ok: { label: 'متوفر', tone: 'success' }, low: { label: 'منخفض', tone: 'warning' }, out: { label: 'نفد', tone: 'danger' } } as const;
 
 const columns: Column<InventoryReportRow>[] = [
@@ -56,7 +69,7 @@ const table = computed<ExportTable | undefined>(() =>
 </script>
 
 <template>
-  <ReportShell title="تقرير المخزون" subtitle="الكميات الحالية وقيمة المخزون" :as-of="todayKey()" :loading="loading && !data" :error="error" :table="table" @retry="reload">
+  <ReportShell title="تقرير المخزون" subtitle="الكميات الحالية وقيمة المخزون" :as-of="todayKey()" :loading="loading && !data" :error="error" :table="table" :insights="insights" @retry="reload">
     <div class="mb-5 grid gap-3 sm:grid-cols-3">
       <div class="rounded-xl border border-border bg-surface p-3.5">
         <p class="text-xs text-text-secondary">إجمالي القطع</p>

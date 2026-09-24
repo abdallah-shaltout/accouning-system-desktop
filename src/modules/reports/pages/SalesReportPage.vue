@@ -22,6 +22,16 @@ watch([from, to, ready], () => {
   reload();
 });
 
+// v2 (docs/v2/13 §1 "insights box") — TODO(phase 10): wire into the real insight engine once merged.
+const insights = computed(() => {
+  const s = data.value?.summary;
+  const topProduct = data.value?.byProduct[0];
+  if (!s) return null;
+  const metrics = [{ label: 'متوسط الفاتورة', value: formatNumber(s.averageInvoice) }, { label: 'هامش الربح', value: `${s.netSales ? formatNumber((s.grossProfit / s.netSales) * 100, 1) : 0}%` }];
+  if (topProduct) metrics.push({ label: 'أعلى صنف مبيعاً', value: topProduct.name });
+  return { headline: `${formatNumber(s.invoiceCount)} فاتورة بإجمالي ${formatNumber(s.total)} خلال الفترة`, metrics };
+});
+
 const view = ref<View>('product');
 const s = computed(() => data.value?.summary);
 
@@ -83,7 +93,7 @@ const table = computed<ExportTable | undefined>(() => {
 </script>
 
 <template>
-  <ReportShell title="تقرير المبيعات" subtitle="أداء المبيعات للفترة" :from="from" :to="to" :loading="(loading || !ready) && !data" :error="error" :table="table" @retry="reload">
+  <ReportShell title="تقرير المبيعات" subtitle="أداء المبيعات للفترة" :from="from" :to="to" :loading="(loading || !ready) && !data" :error="error" :table="table" :insights="insights" @retry="reload">
     <template #filters>
       <DateRangeFilter v-model:from="from" v-model:to="to" :fiscal-start="fiscalStart" />
     </template>

@@ -7,7 +7,9 @@ import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { round2 } from '@/modules/invoices/helpers/totals';
+import DimensionFilters from '../components/DimensionFilters.vue';
 import ReportShell from '../components/ReportShell.vue';
+import { useReportFilters } from '../controllers/useReportFilters';
 import { useReportRange } from '../controllers/useReportRange';
 import type { ExportTable } from '../helpers/export';
 import { getTrialBalance } from '../services/reportService';
@@ -15,10 +17,15 @@ import type { TrialBalanceRow } from '../types';
 
 const router = useRouter();
 const { from, to, fiscalStart, ready, syncUrl } = useReportRange();
-const { data, loading, error, reload } = useAsync(() => getTrialBalance({ from: from.value || undefined, to: to.value || undefined }), { immediate: false });
-watch([from, to, ready], () => {
+const { branchId, costCenterId, currency, branches, costCenters, currencies, showBranch, showCostCenter, showCurrency, dimensionQuery, syncDimensionsUrl } = useReportFilters();
+const { data, loading, error, reload } = useAsync(
+  () => getTrialBalance({ from: from.value || undefined, to: to.value || undefined, ...dimensionQuery.value }),
+  { immediate: false },
+);
+watch([from, to, branchId, costCenterId, currency, ready], () => {
   if (!ready.value) return;
   syncUrl();
+  syncDimensionsUrl();
   reload();
 });
 
@@ -34,6 +41,19 @@ const totals = computed(() => {
   };
 });
 const balanced = computed(() => Math.abs(totals.value.closingDebit - totals.value.closingCredit) < 0.01);
+
+// v2 (docs/v2/13 §1 "insights box"): a plain per-page summary until Phase 10's insight engine merges — TODO(phase 10).
+const insights = computed(() => {
+  if (!data.value?.length) return null;
+  const accountsWithBalance = data.value.filter((r) => r.closingDebit > 0 || r.closingCredit > 0).length;
+  return {
+    headline: balanced.value ? 'الأرصدة متوازنة — لا يوجد فرق بين إجمالي المدين والدائن' : 'يوجد فرق بين إجمالي المدين والدائن — راجع القيود اليدوية',
+    metrics: [
+      { label: 'عدد الحسابات ذات الرصيد', value: String(accountsWithBalance) },
+      { label: 'إجمالي الأرصدة المدينة', value: totals.value.closingDebit.toLocaleString('ar') },
+    ],
+  };
+});
 
 const columns: Column<TrialBalanceRow>[] = [
   { key: 'code', label: 'الرمز', width: '80px' },
@@ -58,9 +78,30 @@ const table = computed<ExportTable | undefined>(() =>
 </script>
 
 <template>
-  <ReportShell title="ميزان المراجعة" subtitle="أرصدة الحسابات في نهاية الفترة — يجب أن يتساوى المدين والدائن" :from="from" :to="to" :loading="(loading || !ready) && !data" :error="error" :table="table" @retry="reload">
+  <ReportShell
+    title="ميزان المراجعة"
+    subtitle="أرصدة الحسابات في نهاية الفترة — يجب أن يتساوى المدين والدائن"
+    :from="from"
+    :to="to"
+    :loading="(loading || !ready) && !data"
+    :error="error"
+    :table="table"
+    :insights="insights"
+    @retry="reload"
+  >
     <template #filters>
       <DateRangeFilter v-model:from="from" v-model:to="to" :fiscal-start="fiscalStart" />
+      <DimensionFilters
+        v-model:branch-id="branchId"
+        v-model:cost-center-id="costCenterId"
+        v-model:currency="currency"
+        :show-branch="showBranch"
+        :show-cost-center="showCostCenter"
+        :show-currency="showCurrency"
+        :branches="branches"
+        :cost-centers="costCenters"
+        :currencies="currencies"
+      />
     </template>
 
     <p class="mb-3 flex items-center gap-1.5 text-body" :class="balanced ? 'text-success' : 'text-danger'">

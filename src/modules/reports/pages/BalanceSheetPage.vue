@@ -5,19 +5,36 @@ import { CircleAlert, CircleCheck } from '@lucide/vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
-import { todayKey } from '@/modules/core/helpers/format';
+import { formatNumber, todayKey } from '@/modules/core/helpers/format';
+import DimensionFilters from '../components/DimensionFilters.vue';
 import ReportShell from '../components/ReportShell.vue';
 import StatementSection from '../components/StatementSection.vue';
+import { useReportFilters } from '../controllers/useReportFilters';
 import type { ExportTable } from '../helpers/export';
 import { getBalanceSheet } from '../services/reportService';
 
 const route = useRoute();
 const router = useRouter();
 const asOf = ref(typeof route.query.asOf === 'string' ? route.query.asOf : todayKey());
-const { data, loading, error, reload } = useAsync(() => getBalanceSheet(asOf.value || todayKey()));
-watch(asOf, () => {
-  router.replace({ query: { asOf: asOf.value } });
+const { branchId, costCenterId, currency, branches, costCenters, currencies, showBranch, showCostCenter, showCurrency, dimensionQuery, syncDimensionsUrl } = useReportFilters();
+const { data, loading, error, reload } = useAsync(() => getBalanceSheet(asOf.value || todayKey(), dimensionQuery.value));
+watch([asOf, branchId, costCenterId, currency], () => {
+  router.replace({ query: { ...route.query, asOf: asOf.value } });
+  syncDimensionsUrl();
   reload();
+});
+
+// v2 (docs/v2/13 §1 "insights box") — TODO(phase 10): wire into the real insight engine once merged.
+const insights = computed(() => {
+  const d = data.value;
+  if (!d) return null;
+  return {
+    headline: d.balanced ? 'الميزانية متوازنة' : 'الميزانية غير متوازنة — راجع القيود',
+    metrics: [
+      { label: 'إجمالي الأصول', value: formatNumber(d.totalAssets) },
+      { label: 'إجمالي الالتزامات', value: formatNumber(d.totalLiabilities) },
+    ],
+  };
 });
 
 const table = computed<ExportTable | undefined>(() => {
@@ -38,9 +55,20 @@ const table = computed<ExportTable | undefined>(() => {
 </script>
 
 <template>
-  <ReportShell title="الميزانية العمومية" subtitle="المركز المالي في تاريخ محدد" :as-of="asOf" :loading="loading && !data" :error="error" :table="table" @retry="reload">
+  <ReportShell title="الميزانية العمومية" subtitle="المركز المالي في تاريخ محدد" :as-of="asOf" :loading="loading && !data" :error="error" :table="table" :insights="insights" @retry="reload">
     <template #filters>
       <AppInput v-model="asOf" type="date" label="كما في تاريخ" class="w-44" />
+      <DimensionFilters
+        v-model:branch-id="branchId"
+        v-model:cost-center-id="costCenterId"
+        v-model:currency="currency"
+        :show-branch="showBranch"
+        :show-cost-center="showCostCenter"
+        :show-currency="showCurrency"
+        :branches="branches"
+        :cost-centers="costCenters"
+        :currencies="currencies"
+      />
     </template>
 
     <template v-if="data">

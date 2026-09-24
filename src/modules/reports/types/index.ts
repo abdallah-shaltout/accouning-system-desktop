@@ -165,3 +165,272 @@ export interface VatReport {
    */
   salesBoxes: VatCategoryBox[];
 }
+
+// ---------------------------------------------------------------------------------------------
+// v2 phase 12 (docs/v2/13-reports.md) — ReportShell v2 filter/comparison shape + new report types.
+// ---------------------------------------------------------------------------------------------
+
+/** Dimension filters a report query can accept — each is applied only when the value is set. */
+export interface DimensionFilter {
+  branchId?: string;
+  costCenterId?: string;
+  currency?: string;
+}
+
+export type ReportRangeFilter = DateRangeInput & DimensionFilter;
+
+/** `ReportShell`'s comparison mode (docs/v2/13-reports.md §1 "comparison"). */
+export type ComparisonMode = 'none' | 'previousPeriod' | 'sameLastYear';
+
+// --- Cash flow (indirect method) ----------------------------------------------------------------
+
+export interface CashFlowLine {
+  label: string;
+  amount: number;
+}
+
+export interface CashFlowStatement {
+  netIncome: number;
+  operatingAdjustments: CashFlowLine[];
+  operatingCash: number;
+  investing: CashFlowLine[];
+  investingCash: number;
+  financing: CashFlowLine[];
+  financingCash: number;
+  netChange: number;
+  openingCash: number;
+  closingCash: number;
+}
+
+// --- Day book -------------------------------------------------------------------------------
+
+export interface DayBookLine {
+  accountCode: string;
+  accountName: string;
+  debit: number;
+  credit: number;
+}
+
+export interface DayBookEntry {
+  id: string;
+  number: string;
+  date: string;
+  description: string;
+  lines: DayBookLine[];
+}
+
+// --- AR / AP aging ---------------------------------------------------------------------------
+
+export interface AgingReportRow {
+  partyId: string;
+  name: string;
+  current: number;
+  b30: number;
+  b60: number;
+  b90plus: number;
+  total: number;
+}
+
+// --- Overdue invoices ------------------------------------------------------------------------
+
+export interface OverdueRow {
+  id: string;
+  kind: 'invoice' | 'purchaseOrder';
+  number: string;
+  partyId: string;
+  partyName: string;
+  phone?: string;
+  date: string;
+  dueDate?: string;
+  daysOverdue: number;
+  outstanding: number;
+}
+
+// --- Gross profit ---------------------------------------------------------------------------
+
+export interface GrossProfitRow {
+  key: string;
+  label: string;
+  qty: number;
+  revenue: number;
+  cost: number;
+  profit: number;
+  marginPct: number;
+}
+
+// --- Returns analysis ------------------------------------------------------------------------
+
+export interface ReturnsReportRow {
+  key: string;
+  label: string;
+  count: number;
+  qty: number;
+  amount: number;
+}
+
+export interface ReturnsReport {
+  totalInvoices: number;
+  totalRefunds: number;
+  returnRatePct: number;
+  byReason: ReturnsReportRow[];
+  byProduct: ReturnsReportRow[];
+  byCashier: ReturnsReportRow[];
+}
+
+// --- Discounts & price overrides --------------------------------------------------------------
+
+export interface DiscountReportRow {
+  key: string;
+  label: string;
+  invoiceCount: number;
+  listValue: number;
+  chargedValue: number;
+  discountValue: number;
+  discountPct: number;
+}
+
+// --- Shifts / Z-report history -----------------------------------------------------------------
+
+export interface ShiftReportRow {
+  id: string;
+  number: string;
+  terminalId: string;
+  openedAt: string;
+  closedAt?: string;
+  openedBy: string;
+  closedBy?: string;
+  expectedCash: number;
+  countedCash: number;
+  variance: number;
+  salesTotal: number;
+}
+
+// --- Low / dead stock ------------------------------------------------------------------------
+
+export interface LowStockRow {
+  productId: string;
+  name: string;
+  sku: string;
+  category: string;
+  qty: number;
+  minStock: number;
+  suggestedQty: number;
+  costValue: number;
+}
+
+export interface DeadStockRow {
+  productId: string;
+  name: string;
+  sku: string;
+  category: string;
+  qty: number;
+  costValue: number;
+  lastSaleDate?: string;
+  daysSinceSale: number;
+}
+
+// --- Stocktake variances ---------------------------------------------------------------------
+
+export interface StocktakeVarianceRow {
+  countId: string;
+  countNumber: string;
+  productId: string;
+  name: string;
+  category: string;
+  countedQty: number;
+  systemQty: number;
+  qtyVariance: number;
+  valueVariance: number;
+}
+
+// --- Transfers ------------------------------------------------------------------------------
+
+export interface TransferReportRow {
+  id: string;
+  number: string;
+  date: string;
+  fromBranch: string;
+  toBranch: string;
+  status: string;
+  sentQty: number;
+  receivedQty: number;
+  shortageQty: number;
+  shortageValue: number;
+}
+
+// --- Purchases summary -----------------------------------------------------------------------
+
+export interface PurchasesReport {
+  summary: { poCount: number; grossPurchases: number; vat: number; total: number; returns: number };
+  bySupplier: { supplierId: string; name: string; count: number; total: number }[];
+  byProduct: { productId: string; name: string; qty: number; total: number; avgPrice: number }[];
+}
+
+// --- Expenses report -------------------------------------------------------------------------
+
+export interface ExpensesReport {
+  total: number;
+  byCategory: { categoryId: string; name: string; amount: number }[];
+  byMonth: { month: string; amount: number }[];
+}
+
+// --- Period / branch comparison ----------------------------------------------------------------
+
+export interface PeriodComparisonLine {
+  label: string;
+  a: number;
+  b: number;
+  delta: number;
+  deltaPct: number;
+}
+
+export interface BranchComparisonRow {
+  branchId: string;
+  name: string;
+  sales: number;
+  grossProfit: number;
+  invoiceCount: number;
+  averageInvoice: number;
+}
+
+// --- Business health ------------------------------------------------------------------------
+
+export interface BusinessHealthScore {
+  key: 'liquidity' | 'profitability' | 'debt' | 'collection';
+  label: string;
+  score: number; // 0-25
+  value: number; // raw ratio/metric
+  explanation: string;
+}
+
+export interface BusinessHealthReport {
+  total: number; // 0-100
+  scores: BusinessHealthScore[];
+}
+
+// --- VAT detail -----------------------------------------------------------------------------
+
+/** v2 phase 12 (docs/v2/13 §2 "VAT detail: line-level listing per document with category, net, VAT — the audit trail behind each box"). */
+export interface VatDetailRow {
+  id: string;
+  date: string;
+  documentNumber: string;
+  documentKind: 'sale' | 'salesReturn';
+  productName: string;
+  category: 'S' | 'Z' | 'E' | 'O';
+  rate: number;
+  net: number;
+  vat: number;
+}
+
+// --- Profit leakage --------------------------------------------------------------------------
+
+export interface ProfitLeakageReport {
+  netSales: number;
+  discounts: number;
+  returns: number;
+  writeOffs: number;
+  shrinkage: number;
+  totalLeakage: number;
+  leakagePct: number;
+}
