@@ -70,7 +70,7 @@ export interface VoucherFilter {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Card/wallet settlement (docs/v2/09 §2 "Card settlement") — completes Phase 3's `TODO(phase 8)`
+// Card/wallet settlement (docs/v2/09 §2 "Card settlement") — completes the follow-up Phase 3 left
 // in src/mocks/backend/sales.ts.
 // ---------------------------------------------------------------------------------------------
 

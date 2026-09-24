@@ -50,6 +50,14 @@ export interface BackupSettings {
   lastBackupKind?: BackupKind;
   /** YYYY-MM-DD of the last daily auto-backup run, so we don't run it twice in one day. */
   lastAutoRunDate?: string;
+  /**
+   * v2 phase 13b (docs/v2/14-platform.md §6 "An automatic backup failed"): set when a scheduled
+   * (auto/close-time) backup throws, cleared on the next successful backup of any kind. Distinct
+   * from the `backup-overdue` insight (days-since-success) — this is the immediate "it just failed"
+   * event the notifications drawer surfaces.
+   */
+  lastBackupFailedAt?: string;
+  lastBackupError?: string;
 }
 
 export const DEFAULT_BACKUP_SETTINGS: BackupSettings = {

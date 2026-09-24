@@ -445,8 +445,8 @@ export async function submitVatSettlement(from: string, to: string): Promise<Jou
   return clone(postVatSettlement(from, to, session.userId, canPostToClosedPeriod()));
 }
 
-/** Minimal payment-to-the-authority posting — see `payVatSettlement`'s doc comment for why it's kept this small. */
-export async function payVatSettlementNow(amount: number, method: 'cash' | 'bank'): Promise<JournalEntry> {
+/** Payment-to-the-authority posting, routed through a real payment method (see `payVatSettlement`'s doc comment). */
+export async function payVatSettlementNow(amount: number, paymentMethodId: string): Promise<JournalEntry> {
   await delay(300);
-  return clone(payVatSettlement(amount, method, session.userId));
+  return clone(payVatSettlement(amount, paymentMethodId, session.userId));
 }

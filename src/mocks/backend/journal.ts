@@ -4,6 +4,7 @@ import { mutate } from '../persist';
 import { ApiError, localDateKey, round2, uid } from '../utils';
 import { accountFor } from './accounts';
 import { draftJournal, logActivity, postJournal, updateDraftJournal, type PostingLine } from './core';
+import { recordPaymentVoucher } from './vouchers';
 
 /**
  * Manual-entry control-account rules (docs/v2/02-accounting-review.md B1):
@@ -276,27 +277,27 @@ export function postVatSettlement(from: string, to: string, userId: string, isAd
 }
 
 /**
- * "سداد" (pay) — a minimal payment-to-the-authority posting: Dr VAT payable, Cr cash/bank.
- * Full payment-method wiring (fees, clearing accounts, references) is Phase 3's territory — this
- * stays deliberately simple (a straight cash/bank voucher) so it doesn't touch
- * `modules/settings` (payment methods) or `src/mocks/backend/payments.ts`.
- * TODO(phase 3): once payment methods post through a shared voucher helper, route this through it
- * instead of picking `cash`/`bank` directly.
+ * "سداد" (pay) — payment-to-the-authority posting: Dr VAT payable, Cr the chosen payment method's
+ * settlement account. Routes through Phase 8's shared voucher helper (`recordPaymentVoucher`) like
+ * every other cash-out flow in the app, so it picks up real payment methods (fees, clearing
+ * accounts, per-branch overrides) instead of hard-coding `cash`/`bank` — this closes the phase-13b
+ * follow-up left when payment methods didn't have a shared posting path yet (Phase 3). Returns the
+ * voucher's underlying journal entry, same return shape callers already expected.
  */
-export function payVatSettlement(amount: number, method: 'cash' | 'bank', userId: string): JournalEntry {
+export function payVatSettlement(amount: number, paymentMethodId: string, userId: string): JournalEntry {
   if (amount <= 0) throw new ApiError('لا يوجد مبلغ مستحق للسداد');
   const payableAccount = accountFor('vatPayable');
-  const methodAccount = accountFor(method);
-  const entry = postJournal({
-    date: new Date().toISOString(),
-    description: 'سداد ضريبة القيمة المضافة لمصلحة الزكاة والضريبة والجمارك',
-    type: 'VAT_SETTLEMENT',
-    lines: [
-      { accountId: payableAccount.id, debit: amount },
-      { accountId: methodAccount.id, credit: amount },
-    ],
-    createdBy: userId,
-  });
-  logActivity('journal', `سداد ضريبة القيمة المضافة ${entry.number}`, userId, entry.date, `/accounting/journal/${entry.id}`);
+  const voucher = recordPaymentVoucher(
+    {
+      date: new Date().toISOString(),
+      description: 'سداد ضريبة القيمة المضافة لمصلحة الزكاة والضريبة والجمارك',
+      amount,
+      paymentMethodId,
+      debitAccountId: payableAccount.id,
+    },
+    userId,
+  );
+  const entry = db.journalEntries.find((e) => e.sourceRef?.kind === 'voucher' && e.sourceRef.id === voucher.id);
+  if (!entry) throw new ApiError('تعذر إنشاء قيد السداد', 'CONFLICT');
   return entry;
 }

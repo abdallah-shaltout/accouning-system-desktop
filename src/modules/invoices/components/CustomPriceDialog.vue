@@ -9,10 +9,12 @@ import { computed, ref, watch } from 'vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
-import { errorMessage } from '@/modules/core/controllers/useToast';
+import { submitApprovalRequest } from '@/modules/approvals/services/approvalService';
+import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
 import { formatNumber } from '@/modules/core/helpers/format';
 import { num0, toNum } from '@/modules/core/helpers/numbers';
 import { verifyManagerPin } from '@/modules/users/services/authService';
+import { round2 } from '../helpers/totals';
 import type { CartLine } from '../controllers/usePosStore';
 
 const props = defineProps<{
@@ -32,6 +34,8 @@ const pinPass = ref('');
 const pinError = ref('');
 const pinBusy = ref(false);
 const needsApproval = ref(false);
+const toast = useToast();
+const requestingApproval = ref(false);
 
 watch(open, (o) => {
   if (o && props.line) {
@@ -81,6 +85,26 @@ async function submitPin() {
     pinBusy.value = false;
   }
 }
+
+/** v2 §6 (docs/v2/14-platform.md §6): no manager present — queue instead of blocking the sale. */
+async function requestApprovalAsync() {
+  if (!props.line) return;
+  requestingApproval.value = true;
+  try {
+    await submitApprovalRequest({
+      kind: 'below_cost',
+      summary: `بيع "${props.line.name}" بسعر ${formatNumber(num0(price.value))} — أقل من الحد الأدنى ${formatNumber(props.floor)}`,
+      value: round2(props.floor - num0(price.value)),
+      requestNote: reason.value.trim() || undefined,
+    });
+    toast.success('تم إرسال طلب الاعتماد', 'سيراجعه أحد المديرين لاحقاً');
+    open.value = false;
+  } catch (err) {
+    toast.error(err);
+  } finally {
+    requestingApproval.value = false;
+  }
+}
 </script>
 
 <template>
@@ -109,6 +133,9 @@ async function submitPin() {
         <input v-model="pinUser" class="control h-10" placeholder="اسم مستخدم المدير" ltr autofocus />
         <input v-model="pinPass" type="password" class="control h-10" placeholder="كلمة المرور" ltr @keydown.enter="submitPin" />
         <p v-if="pinError" class="text-xs text-danger">{{ pinError }}</p>
+        <button type="button" class="text-xs text-primary hover:underline" :disabled="requestingApproval" @click="requestApprovalAsync">
+          لا يوجد مدير حالياً — إرسال طلب اعتماد لمراجعته لاحقاً
+        </button>
       </div>
     </div>
     <template #footer>

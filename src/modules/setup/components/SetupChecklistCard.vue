@@ -1,14 +1,15 @@
 <script setup lang="ts">
 /**
  * v2 phase 5 (docs/v2/05-onboarding.md §2 "Afterwards"): a setup-checklist card for skipped
- * onboarding steps (opening balances, users, template, first backup…), meant for the dashboard.
+ * onboarding steps (opening balances, users, template, first backup…), shown on the owner/manager
+ * dashboard (`DashboardPage.vue`, below `NeedsAttentionPanel`) once setup is incomplete.
  *
- * Ownership note: Phase 10 (docs/v2/11-journal-dashboard-insights.md) owns `modules/core`'s
- * dashboard pages and the insight engine. This component is deliberately standalone — NOT wired
- * into `DashboardPage.vue` by this phase, to avoid touching a file Phase 10 is editing
- * concurrently. Phase 10 (or a later pass) drops `<SetupChecklistCard />` into the dashboard grid.
- * TODO(phase 10): replace this simple "skipped steps" render with a real insight-engine card
- * (dismissible, ranked by impact) once `modules/core/services/insightTypes.ts`'s engine exists.
+ * Stays its own simple "skipped steps" checklist rather than becoming insight-engine rules
+ * (docs/v2/11 Part D): onboarding progress is a one-time, per-company completion state (11 fixed
+ * wizard steps), not a recurring condition to re-evaluate against live ledger/catalog data the way
+ * "20 items below reorder point" or "VAT deadline in 5 days" are — there's nothing for a rule to
+ * recompute here beyond "is this step still marked done", so a plain progress check is the right
+ * shape, not a gap.
  */
 import { onMounted, ref } from 'vue';
 import { Check, ChevronLeft } from '@lucide/vue';

@@ -6,9 +6,9 @@ import { ApiError, localDateKey, round2, uid } from '../utils';
 import { logActivity, postJournal, type PostingLine } from './core';
 
 /**
- * Card settlement (docs/v2/09-purchases-payments-expenses.md §2 "Card settlement") — completes
- * Phase 3's `TODO(phase 8)` in src/mocks/backend/sales.ts: card/wallet tenders post to their
- * clearing account at sale time; this voucher clears that balance when the bank deposit arrives.
+ * Card settlement (docs/v2/09-purchases-payments-expenses.md §2 "Card settlement") — completes the
+ * follow-up Phase 3 left in src/mocks/backend/sales.ts: card/wallet tenders post to their clearing
+ * account at sale time; this voucher clears that balance when the bank deposit arrives.
  * Post: Dr bank, Dr card fees / Cr clearing (cardClearing or walletClearing, by payment method).
  */
 

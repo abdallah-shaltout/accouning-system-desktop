@@ -18,7 +18,8 @@ watch([from, to, ready], () => {
   reload();
 });
 
-// v2 (docs/v2/13 §1 "insights box") — TODO(phase 10): wire into the real insight engine once merged.
+// v2 (docs/v2/13 §1 "insights box"): the plain per-page summary; `ruleKeys` below (passed to
+// ReportShell) additionally surfaces real insight-engine hits relevant to VAT.
 const insights = computed(() => {
   const d = data.value;
   if (!d) return null;
@@ -74,6 +75,7 @@ const table = computed<ExportTable | undefined>(() => {
     :error="error"
     :table="table"
     :insights="insights"
+    :rule-keys="['vat-deadline']"
     @retry="reload"
   >
     <template #filters>

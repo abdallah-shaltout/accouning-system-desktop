@@ -389,7 +389,8 @@ export function applyStockCount(countId: string, userId: string): StockAdjustmen
 
 // ---------------------------------------------------------------------------------------------
 // v2 phase 6 §4 — Expiry report actions: write-off (wired to Phase 1's LOSS/5120 posting above) and
-// return-to-supplier (a minimal DRAFT stub — TODO(phase 8) owns real debit-note posting).
+// return-to-supplier (drafts here, posted into a real Phase 8 debit note — see the doc comment
+// on `draftReturnToSupplier` below for the two-step flow).
 // ---------------------------------------------------------------------------------------------
 
 /** Write off one or more expired/near-expired batches — a regular LOSS StockAdjustment (§4 "write off"). */
@@ -420,11 +421,13 @@ export function writeOffBatches(batchIds: string[], userId: string, note?: strin
 }
 
 /**
- * TODO(phase 8): minimal draft-only stub (docs/v2/07-products-and-inventory.md §4 "return to
- * supplier"). Records the intent as a DRAFT `DebitNoteDraft` — no GL posting, no supplier AP
- * effect. Phase 8 (docs/v2/09-purchases-payments-expenses.md "Debit notes v2") replaces this with
- * a real debit note that reduces stock and AP; until then this is just a worklist entry so nothing
- * is lost when a storekeeper flags expired batches for return.
+ * First step of "return to supplier" (docs/v2/07-products-and-inventory.md §4): records the intent
+ * as a DRAFT `DebitNoteDraft` — no GL posting, no supplier AP effect yet. This is intentionally a
+ * two-step flow, not an unfinished stub: `ExpiryReportPage.vue` immediately posts the draft into a
+ * real debit note via `purchaseService.postDebitNoteDraft`, which calls Phase 8's
+ * `postDebitNoteFromDraft` (`src/mocks/backend/purchases.ts`) to reduce stock and AP for real, so
+ * the draft only exists as a brief worklist entry between "storekeeper flags expired batches" and
+ * "posted".
  */
 export function draftReturnToSupplier(supplierId: string, lines: { productId: string; batchId: string; qty: number; unitCost: number }[], userId: string, note?: string): DebitNoteDraft {
   if (!lines.length) throw new ApiError('اختر تشغيلة واحدة على الأقل للإرجاع');

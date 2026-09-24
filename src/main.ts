@@ -7,6 +7,15 @@ import router from './router';
 import { bootMockDb } from './mocks';
 import { buildActionCommands, buildPageCommands, customersProvider, productsProvider, suppliersProvider } from './modules/core/commandPalette/exampleProviders';
 import { registerCommands, registerSearchProviders } from './modules/core/controllers/useCommandPalette';
+// v2 phase 13b (docs/v2/14-platform.md §2): every module's own search provider + context commands,
+// completing the shell Phase 0 built with just the pages/actions/customers/suppliers/products examples.
+import * as invoiceCommands from './modules/invoices/commands';
+import * as purchaseCommands from './modules/purchases/commands';
+import * as voucherCommands from './modules/vouchers/commands';
+import * as accountingCommands from './modules/accounting/commands';
+import * as reportCommands from './modules/reports/commands';
+import * as settingsCommands from './modules/settings/commands';
+import * as approvalCommands from './modules/approvals/commands';
 import { useNotificationStore } from './modules/core/controllers/useNotificationStore';
 import { initAppearance } from './modules/core/controllers/useAppearance';
 import { initTheme } from './modules/core/controllers/useTheme';
@@ -26,10 +35,32 @@ async function bootstrap() {
   app.use(pinia);
   app.use(router);
 
-  // Command palette example providers (docs/v2/14-platform.md §2) — later phases add each
-  // module's own `commands.ts` here (or via a plugin-install convention) instead.
-  registerCommands([...buildPageCommands(router), ...buildActionCommands(router)]);
-  registerSearchProviders([customersProvider, suppliersProvider, productsProvider]);
+  // Command palette (docs/v2/14-platform.md §2): Phase 0's shell + pages/actions/customers/
+  // suppliers/products examples, plus every other module's own `commands.ts` (Phase 13b).
+  registerCommands([
+    ...buildPageCommands(router),
+    ...buildActionCommands(router),
+    ...invoiceCommands.commands,
+    ...invoiceCommands.buildContextCommands(router),
+    ...purchaseCommands.commands,
+    ...purchaseCommands.buildContextCommands(router),
+    ...voucherCommands.commands,
+    ...voucherCommands.buildContextCommands(router),
+    ...accountingCommands.commands,
+    ...accountingCommands.buildContextCommands(router),
+    ...approvalCommands.commands,
+  ]);
+  registerSearchProviders([
+    customersProvider,
+    suppliersProvider,
+    productsProvider,
+    ...invoiceCommands.searchProviders,
+    ...purchaseCommands.searchProviders,
+    ...voucherCommands.searchProviders,
+    ...accountingCommands.searchProviders,
+    ...reportCommands.searchProviders,
+    ...settingsCommands.searchProviders,
+  ]);
 
   // Last-resort handler: anything not caught by a page's ErrorBoundary becomes a toast, never a blank screen.
   app.config.errorHandler = (err, _instance, info) => {

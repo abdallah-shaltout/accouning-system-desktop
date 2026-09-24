@@ -294,14 +294,26 @@ work fully).
 
 ## Phase 13 — Backup, approvals, notifications & polish → [14](14-platform.md)
 
-**Phase 13a done** (2026-09-23, commit `bcf4823`). 13b (notifications, approvals, remaining palette
-providers, shortcuts, final e2e) waits on everything, per the wave table.
+**Phase 13a done** (2026-09-23, commit `bcf4823`). **13b done** (2026-09-24) — the final phase,
+closing every remaining `TODO(phase N)` in the codebase (report-page insight boxes → the real
+insight engine, `ReportShell`'s PDF export → the generic-report Typst template, the command
+palette's barcode lookup → `findByCode`, `AttachmentField` on payments/stock adjustments,
+company stamp/signature uploads, the VAT-settlement payment posting → a real payment method via
+the shared voucher helper, and the setup-checklist card → wired into the dashboard) plus building
+notifications, approvals and the rest of the command palette/shortcuts surfaces below. New
+`Area: 'approvals'` (admin/manager write). Discount/write-off/below-cost approvals stay
+PIN-gated synchronously at the point of action (unchanged) — the new `/approvals` async queue is
+purely the escape hatch those dialogs now offer when no manager is present to type a PIN, not a
+redundant parallel system. Full gate green on the merged tree: `bun run build`, `cargo build`,
+`bun run verify:mocks` (49 ok / 0 todo / 0 failed), `bun run check`, the full e2e suite (16 flows
+incl. a new consolidated `full_persona_pass.py` walking all 4 personas' day in one run) — zero
+console errors. Zero `TODO(phase` markers remain anywhere in `src/`/`scripts/`.
 
 - [x] Backup now / automatic (daily + on close, retention) / history / verify / restore with pre-restore backup; optional password encryption
-- [ ] Notifications drawer (insights + events); approvals page → **13b**
-- [ ] Command palette: every module's search provider + context commands → **13b** (Phase 0 built the shell + 3 example providers)
-- [ ] Keyboard shortcuts sheet (F1 / ?) per page → **13b**
-- [ ] Full e2e pass for all personas ([01](01-personas.md)); README and docs updated → **13b**
+- [x] Notifications drawer (insights by severity + events: transfer arrived, approval requested, backup failed, recurring entry due) with mark-as-read and links; approvals page (`/approvals`) for managers, async queue for when the synchronous PIN dialogs can't be used
+- [x] Command palette: search providers for invoices, purchases, vouchers, journal, accounts, reports, settings (Phase 0 built the shell + pages/actions/customers/suppliers/products); context `when(route)` commands on invoice/purchase/voucher/journal detail pages
+- [x] Keyboard shortcuts sheet (F1 / ?) — global, per-route registry (`modules/core/helpers/keyboardShortcuts.ts`), skips `/pos` (which keeps its own extensive Phase 7 sheet)
+- [x] Full e2e pass for all personas ([01](01-personas.md)); README rewritten for v2 (run steps, demo accounts, architecture, checks)
 
 ## Phase 14 (optional) — Native thermal printing → [12 §5](12-documents-pdf-excel.md)
 

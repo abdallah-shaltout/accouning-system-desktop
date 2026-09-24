@@ -22,7 +22,8 @@ watch([from, to, ready], () => {
   reload();
 });
 
-// v2 (docs/v2/13 §1 "insights box") — TODO(phase 10): wire into the real insight engine once merged.
+// v2 (docs/v2/13 §1 "insights box"): the plain per-page summary; `ruleKeys` below (passed to
+// ReportShell) additionally surfaces real insight-engine hits relevant to sales.
 const insights = computed(() => {
   const s = data.value?.summary;
   const topProduct = data.value?.byProduct[0];
@@ -93,7 +94,18 @@ const table = computed<ExportTable | undefined>(() => {
 </script>
 
 <template>
-  <ReportShell title="تقرير المبيعات" subtitle="أداء المبيعات للفترة" :from="from" :to="to" :loading="(loading || !ready) && !data" :error="error" :table="table" :insights="insights" @retry="reload">
+  <ReportShell
+    title="تقرير المبيعات"
+    subtitle="أداء المبيعات للفترة"
+    :from="from"
+    :to="to"
+    :loading="(loading || !ready) && !data"
+    :error="error"
+    :table="table"
+    :insights="insights"
+    :rule-keys="['discount-leak', 'refund-spike', 'good-news']"
+    @retry="reload"
+  >
     <template #filters>
       <DateRangeFilter v-model:from="from" v-model:to="to" :fiscal-start="fiscalStart" />
     </template>

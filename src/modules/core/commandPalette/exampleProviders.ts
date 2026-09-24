@@ -61,13 +61,6 @@ export function buildActionCommands(_router: Router): PaletteCommand[] {
       permission: { area: 'parties', access: 'write' },
     },
     {
-      id: 'action:new-journal',
-      group: 'actions',
-      title: 'قيد يومية جديد',
-      to: '/accounting/journal/new',
-      permission: { area: 'accounting', access: 'write' },
-    },
-    {
       id: 'action:toggle-theme',
       group: 'actions',
       title: 'تبديل المظهر (فاتح/داكن)',

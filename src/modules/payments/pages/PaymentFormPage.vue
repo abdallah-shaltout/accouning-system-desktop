@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// TODO(phase 8): wire <AttachmentField> onto payments/vouchers (docs/v2/14-platform.md §5).
+// v2 §5 (docs/v2/14-platform.md §5 "Accounting and payments: ... payments"): a receipt/scan can be
+// attached to the payment while filling the form, same draft-owner-ref pattern as ExpenseFormPage.
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Banknote, CircleCheck, CreditCard, Landmark, Save, Wand2, X } from '@lucide/vue';
@@ -7,6 +8,7 @@ import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
+import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
 import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
@@ -34,6 +36,8 @@ const date = ref(todayKey());
 const note = ref('');
 const saving = ref(false);
 const submitted = ref(false);
+
+const draftOwnerRef = `payment:new:${Date.now()}`;
 
 const customers = ref<Customer[]>([]);
 const suppliers = ref<Supplier[]>([]);
@@ -252,6 +256,10 @@ const methodOptions = [
           </div>
           <AppInput v-model="date" type="date" label="التاريخ" />
           <AppInput v-model="note" label="ملاحظات" />
+          <div>
+            <span class="field-label">المرفقات</span>
+            <AttachmentField :owner-ref="draftOwnerRef" />
+          </div>
           <ul v-if="submitted && problems.length" class="list-inside list-disc text-xs text-danger">
             <li v-for="p in problems" :key="p">{{ p }}</li>
           </ul>

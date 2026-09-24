@@ -54,6 +54,8 @@ export type Area =
   | 'reports'
   /** v2 phase 10 (docs/v2/01-personas.md §5 role matrix): `/analytics` — admin/manager write, accountant read, no one else. */
   | 'analytics'
+  /** v2 phase 13b (docs/v2/14-platform.md §6 "Approvals page (`/approvals`) for managers"): admin/manager write, no one else — same "manager approves" shape as the role matrix's other manager-only rows. */
+  | 'approvals'
   | 'users'
   | 'settings';
 

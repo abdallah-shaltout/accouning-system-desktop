@@ -97,6 +97,9 @@ export interface ThermalPrinterSettings {
 export interface StoreSettings {
   storeName: string;
   logo?: string;
+  /** v2 §5 (docs/v2/14-platform.md §5 "company settings" branding row): company stamp/signature images, same base64-data-URL storage as `logo` (kept synchronous/inline, not `AttachmentField`'s async IndexedDB blob store, since the PDF payload builder reads these by value — see pdfService.ts's `companyBlock()`). */
+  stamp?: string;
+  signature?: string;
   currency: string;
   vatNumber?: string;
   defaultTaxId?: string;

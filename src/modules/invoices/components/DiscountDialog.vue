@@ -8,13 +8,17 @@ import { computed, ref, watch } from 'vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
-import { errorMessage } from '@/modules/core/controllers/useToast';
+import { submitApprovalRequest } from '@/modules/approvals/services/approvalService';
+import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
+import { formatNumber } from '@/modules/core/helpers/format';
 import { num0, toNum } from '@/modules/core/helpers/numbers';
 import { verifyManagerPin } from '@/modules/users/services/authService';
 
 const props = defineProps<{ kind: 'line' | 'invoice'; maxPct: number; initialValue?: number; initialIsPct?: boolean }>();
 const open = defineModel<boolean>('open', { default: false });
 const emit = defineEmits<{ apply: [value: number, isPct: boolean, approvedBy?: string] }>();
+const toast = useToast();
+const requestingApproval = ref(false);
 
 const mode = ref<'pct' | 'amount'>('pct');
 const value = ref<number | undefined>();
@@ -69,6 +73,28 @@ async function submitPin() {
     pinBusy.value = false;
   }
 }
+
+/**
+ * v2 §6 (docs/v2/14-platform.md §6 "Approvals page"): when no manager is physically present to
+ * type a PIN, queue the request instead of blocking the sale — a manager decides later from
+ * `/approvals` or the notifications drawer. The line/invoice keeps its pre-discount price until then.
+ */
+async function requestApprovalAsync() {
+  requestingApproval.value = true;
+  try {
+    await submitApprovalRequest({
+      kind: 'discount',
+      summary: `${props.kind === 'line' ? 'خصم على صنف' : 'خصم على فاتورة'}: ${formatNumber(num0(value.value))}${mode.value === 'pct' ? '%' : ' ر.س'} (الحد المسموح ${props.maxPct}%)`,
+      value: num0(value.value),
+    });
+    toast.success('تم إرسال طلب الاعتماد', 'سيراجعه أحد المديرين لاحقاً');
+    open.value = false;
+  } catch (err) {
+    toast.error(err);
+  } finally {
+    requestingApproval.value = false;
+  }
+}
 </script>
 
 <template>
@@ -84,6 +110,9 @@ async function submitPin() {
       <input v-model="pinUser" class="control h-10" placeholder="اسم مستخدم المدير" ltr autofocus />
       <input v-model="pinPass" type="password" class="control h-10" placeholder="كلمة المرور" ltr @keydown.enter="submitPin" />
       <p v-if="pinError" class="text-xs text-danger">{{ pinError }}</p>
+      <button type="button" class="text-xs text-primary hover:underline" :disabled="requestingApproval" @click="requestApprovalAsync">
+        لا يوجد مدير حالياً — إرسال طلب اعتماد لمراجعته لاحقاً
+      </button>
     </div>
     <template #footer>
       <AppButton @click="open = false">إلغاء</AppButton>

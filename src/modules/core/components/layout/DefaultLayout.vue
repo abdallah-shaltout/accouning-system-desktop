@@ -4,6 +4,7 @@ import { sidebarCollapsedDefault } from '../../controllers/useAppearance';
 import AppSidebar from './AppSidebar.vue';
 import AppTopbar from './AppTopbar.vue';
 import ErrorBoundary from '../ErrorBoundary.vue';
+import KeyboardShortcutsSheet from './KeyboardShortcutsSheet.vue';
 
 const COLLAPSE_KEY = 'app_sidebar_collapsed';
 // The "القائمة الجانبية: مطوية افتراضياً" appearance setting seeds this session's initial value;
@@ -39,5 +40,6 @@ watch(collapsed, (v) => {
         </div>
       </main>
     </div>
+    <KeyboardShortcutsSheet />
   </div>
 </template>

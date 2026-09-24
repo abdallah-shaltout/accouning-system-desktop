@@ -42,7 +42,8 @@ const totals = computed(() => {
 });
 const balanced = computed(() => Math.abs(totals.value.closingDebit - totals.value.closingCredit) < 0.01);
 
-// v2 (docs/v2/13 §1 "insights box"): a plain per-page summary until Phase 10's insight engine merges — TODO(phase 10).
+// v2 (docs/v2/13 §1 "insights box"): the plain per-page summary; `ruleKeys` below (passed to
+// ReportShell) additionally surfaces real insight-engine hits relevant to the trial balance.
 const insights = computed(() => {
   if (!data.value?.length) return null;
   const accountsWithBalance = data.value.filter((r) => r.closingDebit > 0 || r.closingCredit > 0).length;
@@ -87,6 +88,7 @@ const table = computed<ExportTable | undefined>(() =>
     :error="error"
     :table="table"
     :insights="insights"
+    :rule-keys="['opening-balance-equity', 'year-end']"
     @retry="reload"
   >
     <template #filters>

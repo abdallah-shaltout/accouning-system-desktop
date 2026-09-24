@@ -17,6 +17,7 @@ import {
   ReceiptText,
   Repeat,
   Settings,
+  ShieldCheck,
   ShoppingBag,
   ShoppingCart,
   Tags,
@@ -112,6 +113,8 @@ export const NAVIGATION: NavGroup[] = [
   {
     label: 'الإدارة',
     items: [
+      // v2 phase 13b (docs/v2/14-platform.md §6): async manager approvals queue.
+      { label: 'طلبات الاعتماد', to: '/approvals', icon: ShieldCheck, area: 'approvals' },
       { label: 'المستخدمين', to: '/users', icon: UserCog, area: 'users' },
       { label: 'الإعدادات', to: '/settings', icon: Settings, area: 'settings' },
     ],

@@ -24,7 +24,8 @@ watch([asOf, branchId, costCenterId, currency], () => {
   reload();
 });
 
-// v2 (docs/v2/13 §1 "insights box") — TODO(phase 10): wire into the real insight engine once merged.
+// v2 (docs/v2/13 §1 "insights box"): the plain per-page summary; `ruleKeys` below (passed to
+// ReportShell) additionally surfaces real insight-engine hits relevant to the balance sheet.
 const insights = computed(() => {
   const d = data.value;
   if (!d) return null;
@@ -55,7 +56,17 @@ const table = computed<ExportTable | undefined>(() => {
 </script>
 
 <template>
-  <ReportShell title="الميزانية العمومية" subtitle="المركز المالي في تاريخ محدد" :as-of="asOf" :loading="loading && !data" :error="error" :table="table" :insights="insights" @retry="reload">
+  <ReportShell
+    title="الميزانية العمومية"
+    subtitle="المركز المالي في تاريخ محدد"
+    :as-of="asOf"
+    :loading="loading && !data"
+    :error="error"
+    :table="table"
+    :insights="insights"
+    :rule-keys="['opening-balance-equity', 'year-end']"
+    @retry="reload"
+  >
     <template #filters>
       <AppInput v-model="asOf" type="date" label="كما في تاريخ" class="w-44" />
       <DimensionFilters

@@ -202,9 +202,9 @@ function seedVouchers(now: Date, adminId: string, accountantId: string): void {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Card settlement (§2) — completes Phase 3's TODO(phase 8); settles the oldest half of the
-// unsettled card/wallet tenders history.ts's sales already posted, so both an open (unsettled)
-// balance and a settled example exist.
+// Card settlement (§2) — completes the follow-up Phase 3 left for Phase 8; settles the oldest half
+// of the unsettled card/wallet tenders history.ts's sales already posted, so both an open
+// (unsettled) balance and a settled example exist.
 // ---------------------------------------------------------------------------------------------
 
 function seedCardSettlement(now: Date, userId: string): void {

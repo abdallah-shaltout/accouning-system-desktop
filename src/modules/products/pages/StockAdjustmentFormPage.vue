@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// TODO(phase 6): wire <AttachmentField> onto stock adjustments/transfers/counts (docs/v2/14-platform.md §5).
+// v2 §5 (docs/v2/14-platform.md §5 "Stock: ... stock adjustments, transfers, counts"): a photo of
+// damaged goods or a supplier credit note can be attached while filling the adjustment.
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ClipboardCheck, PackageMinus, PackagePlus, Plus, ScanBarcode, Trash } from '@lucide/vue';
@@ -8,6 +9,7 @@ import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
+import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
 import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
 import JournalPreview from '@/modules/core/components/JournalPreview.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
@@ -50,6 +52,7 @@ const settingsStore = useSettingsStore();
 
 const initialType = String(route.query.type ?? 'STOCK_IN');
 const type = ref<StockAdjustmentType>(['STOCK_IN', 'LOSS', 'STOCKTAKE'].includes(initialType) ? (initialType as StockAdjustmentType) : 'STOCK_IN');
+const draftOwnerRef = `stock-adjustment:new:${Date.now()}`;
 const date = ref(todayKey());
 const note = ref('');
 const lines = ref<Line[]>([]);
@@ -420,6 +423,10 @@ function onApproved(userId: string) {
           </dl>
           <div class="mt-4">
             <AppInput v-model="note" label="البيان / ملاحظات" placeholder="مثال: جرد نهاية الشهر" />
+          </div>
+          <div class="mt-4">
+            <span class="field-label">المرفقات</span>
+            <AttachmentField :owner-ref="draftOwnerRef" />
           </div>
         </AppCard>
 

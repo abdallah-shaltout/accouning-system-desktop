@@ -20,11 +20,10 @@ import { db } from '@/mocks/db';
 
 /**
  * v2 (docs/v2/01-personas.md §2 storekeeper, docs/v2/11 Part B "role homes" table): the FULL
- * insight-driven home for أمين مخزن — completes Phase 6's placeholder (see that phase's
- * `// TODO(phase 10)` note, now resolved): "يحتاج انتباهك" wired to the same insight engine as
- * every other role (low-stock/expiry/budget-agnostic rules the storekeeper can see), a stock-value
- * KPI, receiving-to-do and incoming-transfer counts, plus the original low-stock/expiry/counts
- * cards and quick actions.
+ * insight-driven home for أمين مخزن — completes the placeholder Phase 6 left for Phase 10:
+ * "يحتاج انتباهك" wired to the same insight engine as every other role (low-stock/expiry/
+ * budget-agnostic rules the storekeeper can see), a stock-value KPI, receiving-to-do and
+ * incoming-transfer counts, plus the original low-stock/expiry/counts cards and quick actions.
  */
 const auth = useAuthStore();
 

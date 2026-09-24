@@ -59,9 +59,10 @@ export function seedDatabase(now = new Date()): void {
  * of accounts placeholder, empty catalog/party lists, sensible default settings and one admin
  * user so the app can reach the login screen without crashing.
  *
- * TODO(phase 5): replace with the 11-step onboarding wizard from docs/v2/05-onboarding.md — this
- * stub only exists so Phase 0's welcome screen has *something* to hand off to before the wizard
- * is built.
+ * Phase 5's 11-step onboarding wizard (docs/v2/05-onboarding.md) calls this itself as its own
+ * bootstrap step (see `SetupWizardPage.vue`) before walking the owner through CoA template,
+ * opening balances and imports — this isn't a stub waiting to be replaced, it's the shell every
+ * fresh company starts from either way.
  */
 export function seedEmptyCompany(): void {
   seedAccounts(new Date());

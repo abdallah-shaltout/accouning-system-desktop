@@ -3,8 +3,8 @@
  * Label builder (docs/v2/07-products-and-inventory.md §6 "Barcode / QR label printing
  * (/catalog/labels)", docs/v2/12-documents-pdf-excel.md §3-4). Entry points per the doc: the
  * product list (bulk select — not built yet, no bulk-select UI exists on ProductListPage), the
- * product page ("طباعة ملصقات"), and a purchase receipt's "طباعة ملصقات للكميات المستلمة" (Phase
- * 8's `PurchaseReceivePage.vue` TODO(phase 11b) stub, wired below). All three land here with
+ * product page ("طباعة ملصقات"), and a purchase receipt's "طباعة ملصقات للكميات المستلمة" (the
+ * hook Phase 8's `PurchaseReceivePage.vue` left for Phase 11b, wired below). All three land here with
  * optional query params that pre-fill the pick table; the page also works standalone with its own
  * product search, since the product-list bulk-select entry point doesn't exist yet.
  *

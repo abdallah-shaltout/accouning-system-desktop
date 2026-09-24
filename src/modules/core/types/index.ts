@@ -14,7 +14,9 @@ export type ActivityKind =
   | 'shift'
   /** v2 phase 8 (docs/v2/09-purchases-payments-expenses.md §4-§5): expenses and general vouchers. */
   | 'expense'
-  | 'voucher';
+  | 'voucher'
+  /** v2 phase 13b (docs/v2/14-platform.md §6): an async approval request was submitted/decided. */
+  | 'approval';
 
 export interface ActivityEntry {
   id: string;

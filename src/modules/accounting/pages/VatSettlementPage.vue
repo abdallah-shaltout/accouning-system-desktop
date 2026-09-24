@@ -2,27 +2,36 @@
 /**
  * VAT settlement (docs/v2/11-journal-dashboard-insights.md A4, 02-accounting-review.md §3): shows
  * output/input VAT and the net for a period, posts the settlement entry, then offers "سداد" (pay).
- * The payment posting is kept deliberately minimal (a straight cash/bank voucher) — full
- * payment-method wiring (fees, clearing accounts) is Phase 3's territory; see `payVatSettlement`'s
- * doc comment in src/mocks/backend/journal.ts for the TODO(phase 3) note.
+ * The payment posting routes through a real payment method via `recordPaymentVoucher` (docs/v2/09
+ * §2's shared voucher helper) — same as every other cash-out flow — instead of hard-coding
+ * cash/bank, closing the follow-up `payVatSettlement` used to carry since Phase 3.
  */
-import { computed, ref, watch } from 'vue';
-import { Banknote, CircleCheck, Landmark, Receipt } from '@lucide/vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { CircleCheck, Receipt } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
+import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
-import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { startOfMonthKey, todayKey } from '@/modules/core/helpers/format';
+import { getPaymentMethods } from '@/modules/settings/services/settingsService';
+import type { PaymentMethod } from '@/modules/settings/types';
 import { getVatPeriodTotals, payVatSettlementNow, submitVatSettlement } from '../services/accountingService';
 
 const toast = useToast();
 const confirm = useConfirm();
+
+const paymentMethods = ref<PaymentMethod[]>([]);
+const payMethodId = ref<string | undefined>();
+onMounted(async () => {
+  paymentMethods.value = (await getPaymentMethods()).filter((m) => m.showInPayments);
+  payMethodId.value = paymentMethods.value[0]?.id;
+});
 
 const from = ref(startOfMonthKey());
 const to = ref(todayKey());
@@ -56,15 +65,14 @@ async function postSettlement() {
 // --- سداد (pay) ----------------------------------------------------------------------------
 
 const payOpen = ref(false);
-const payMethod = ref<'cash' | 'bank'>('bank');
 const paying = ref(false);
 
 async function pay() {
-  if (!data.value) return;
+  if (!data.value || !payMethodId.value) return;
   const amount = Math.max(0, data.value.net);
   paying.value = true;
   try {
-    const entry = await payVatSettlementNow(amount, payMethod.value);
+    const entry = await payVatSettlementNow(amount, payMethodId.value);
     toast.success('تم تسجيل سداد الضريبة', entry.number);
     payOpen.value = false;
   } catch (err) {
@@ -126,23 +134,14 @@ const netLabel = computed(() => {
         <p class="text-body">
           المبلغ المستحق: <MoneyText :value="data ? Math.max(0, data.net) : 0" />
         </p>
-        <div>
-          <label class="field-label">طريقة السداد</label>
-          <SegmentedControl
-            v-model="payMethod"
-            :options="[
-              { value: 'cash', label: 'نقداً', icon: Banknote },
-              { value: 'bank', label: 'تحويل بنكي', icon: Landmark },
-            ]"
-          />
-        </div>
+        <AppSelect v-model="payMethodId" label="طريقة السداد" :options="paymentMethods.map((m) => ({ value: m.id, label: m.name }))" />
         <p class="flex items-center gap-1.5 text-xs text-text-secondary">
-          <CircleCheck class="size-3.5" /> سيُنشأ سند صرف بسيط (مدين صافي الضريبة المستحقة / دائن الصندوق أو البنك).
+          <CircleCheck class="size-3.5" /> سيُنشأ سند صرف (مدين صافي الضريبة المستحقة / دائن حساب طريقة السداد المختارة).
         </p>
       </div>
       <template #footer>
         <AppButton @click="payOpen = false">إغلاق</AppButton>
-        <AppButton variant="primary" :loading="paying" @click="pay">تأكيد السداد</AppButton>
+        <AppButton variant="primary" :disabled="!payMethodId" :loading="paying" @click="pay">تأكيد السداد</AppButton>
       </template>
     </AppModal>
   </div>

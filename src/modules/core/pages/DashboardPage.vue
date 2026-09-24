@@ -16,6 +16,7 @@ import StorekeeperHome from '../components/dashboard/StorekeeperHome.vue';
 import CashierHome from '../components/dashboard/CashierHome.vue';
 import AccountantHome from '../components/dashboard/AccountantHome.vue';
 import NeedsAttentionPanel from '../components/insights/NeedsAttentionPanel.vue';
+import SetupChecklistCard from '@/modules/setup/components/SetupChecklistCard.vue';
 import { useAsync } from '../controllers/useAsync';
 import { formatDateLong, formatMoney, formatNumber } from '../helpers/format';
 import { getHomeKpis, getTopCustomers, getTopProducts, type HomePeriod } from '../services/dashboardService';
@@ -28,7 +29,7 @@ import { getHomeKpis, getTopCustomers, getTopProducts, type HomePeriod } from '.
  *
  * Role homes (same components, different content — doc's table): cashier's home is the POS itself
  * plus a shift panel (`CashierHome.vue`); storekeeper gets the full insight-driven home
- * (`StorekeeperHome.vue`, completing Phase 6's `// TODO(phase 10)` stub); accountant gets a
+ * (`StorekeeperHome.vue`, completing the stub Phase 6 left for this phase); accountant gets a
  * posting/approval-focused home (`AccountantHome.vue`); owner/manager/admin get the full home below.
  */
 const auth = useAuthStore();
@@ -105,6 +106,11 @@ function retryAll() {
       <!-- "يحتاج انتباهك" (docs/v2/11 Part B.2) -->
       <div class="mb-4">
         <NeedsAttentionPanel />
+      </div>
+
+      <!-- Setup checklist (docs/v2/05-onboarding.md §2 "Afterwards") — hides itself once complete. -->
+      <div class="mb-4">
+        <SetupChecklistCard />
       </div>
 
       <!-- 4 KPIs with period-over-period comparison + sparkline (Part B.3) -->

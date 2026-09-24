@@ -20,6 +20,8 @@ import expensesRoutes from '@/modules/expenses/routes';
 import vouchersRoutes from '@/modules/vouchers/routes';
 // v2 phase 5 (docs/v2/05-onboarding.md): the setup wizard + standalone opening-balances page.
 import setupRoutes from '@/modules/setup/routes';
+// v2 phase 13b (docs/v2/14-platform.md §6): the async manager-approvals queue.
+import approvalsRoutes from '@/modules/approvals/routes';
 
 const moduleRoutes: RouteRecordRaw[] = [
   ...coreRoutes,
@@ -36,6 +38,7 @@ const moduleRoutes: RouteRecordRaw[] = [
   ...expensesRoutes,
   ...vouchersRoutes,
   ...setupRoutes,
+  ...approvalsRoutes,
 ];
 
 /** Pages marked `layout: 'blank'` render full-screen; everything else sits inside the app shell. */

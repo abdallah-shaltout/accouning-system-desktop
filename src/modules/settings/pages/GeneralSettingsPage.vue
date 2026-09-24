@@ -1,6 +1,9 @@
 <script setup lang="ts">
-// TODO(phase 13a, backup track): wire <AttachmentField> onto company logo/stamp/signature uploads
-// (docs/v2/14-platform.md §5 — "company settings" branding row).
+// v2 §5 (docs/v2/14-platform.md §5 — "company settings" branding row): logo/stamp/signature
+// uploads. These stay on the same lightweight base64-data-URL pattern the logo field already used
+// rather than switching to `AttachmentField` (its async IndexedDB blob store) — `pdfService.ts`'s
+// `companyBlock()` reads `company.logo`/`stamp`/`signature` synchronously by value when building a
+// Typst document payload, so the image has to be an inline string, not a blob reference.
 import { computed, onMounted, reactive, ref } from 'vue';
 import { ImagePlus, Save, Trash } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
@@ -35,6 +38,8 @@ const form = reactive({
   /** v2 (docs/v2/06-sales-and-pos.md §3, README decision 4): default true — Saudi B2C shelf pricing. */
   pricesIncludeTax: true,
   logo: undefined as string | undefined,
+  stamp: undefined as string | undefined,
+  signature: undefined as string | undefined,
   /** v2 phase 6 §5 — stock-in/write-off at/above this value needs a manager PIN. 0/empty = off. */
   inventoryApprovalThreshold: undefined as number | undefined,
   /**
@@ -50,6 +55,8 @@ const errors = ref<Record<string, string>>({});
 const saving = ref(false);
 const loading = ref(true);
 const fileInput = ref<HTMLInputElement>();
+const stampInput = ref<HTMLInputElement>();
+const signatureInput = ref<HTMLInputElement>();
 
 onMounted(async () => {
   await store.load(true);
@@ -66,6 +73,8 @@ onMounted(async () => {
     defaultTaxId: s.defaultTaxId ?? '',
     pricesIncludeTax: s.pricesIncludeTax !== false,
     logo: s.logo,
+    stamp: s.stamp,
+    signature: s.signature,
     inventoryApprovalThreshold: s.inventoryApprovalThreshold,
     featureBranches: s.features?.branches ?? false,
     featureCurrencies: s.features?.currencies ?? false,
@@ -75,14 +84,23 @@ onMounted(async () => {
   loading.value = false;
 });
 
-function onLogo(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
+function readImageInto(file: File | undefined, target: 'logo' | 'stamp' | 'signature', label: string) {
   if (!file) return;
   if (!file.type.startsWith('image/')) return toast.warning('اختر ملف صورة');
-  if (file.size > 600 * 1024) return toast.warning('حجم الشعار كبير', 'الحد الأقصى 600 كيلوبايت');
+  if (file.size > 600 * 1024) return toast.warning(`حجم ${label} كبير`, 'الحد الأقصى 600 كيلوبايت');
   const reader = new FileReader();
-  reader.onload = () => (form.logo = String(reader.result));
+  reader.onload = () => (form[target] = String(reader.result));
   reader.readAsDataURL(file);
+}
+
+function onLogo(e: Event) {
+  readImageInto((e.target as HTMLInputElement).files?.[0], 'logo', 'الشعار');
+}
+function onStamp(e: Event) {
+  readImageInto((e.target as HTMLInputElement).files?.[0], 'stamp', 'الختم');
+}
+function onSignature(e: Event) {
+  readImageInto((e.target as HTMLInputElement).files?.[0], 'signature', 'التوقيع');
 }
 
 async function save() {
@@ -103,6 +121,8 @@ async function save() {
       receiptFooter: form.receiptFooter.trim() || undefined,
       defaultTaxId: form.defaultTaxId || undefined,
       pricesIncludeTax: form.pricesIncludeTax,
+      stamp: form.stamp,
+      signature: form.signature,
       inventoryApprovalThreshold: form.inventoryApprovalThreshold || undefined,
       features: { branches: form.featureBranches, currencies: form.featureCurrencies, costCenters: form.featureCostCenters },
     });
@@ -197,6 +217,35 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
             </div>
           </div>
         </AppCard>
+
+        <AppCard title="الختم والتوقيع" subtitle="تُستخدم مستقبلاً على قوالب المستندات المخصصة">
+          <div class="space-y-4">
+            <div class="flex items-center gap-4">
+              <div class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-background">
+                <img v-if="form.stamp" :src="form.stamp" alt="ختم الشركة" class="size-full object-contain" />
+                <ImagePlus v-else class="size-5 text-text-secondary" />
+              </div>
+              <div class="space-y-2">
+                <input ref="stampInput" type="file" accept="image/*" class="hidden" @change="onStamp" />
+                <AppButton size="sm" :icon="ImagePlus" :disabled="!canWrite" @click="stampInput?.click()">{{ form.stamp ? 'تغيير الختم' : 'رفع ختم' }}</AppButton>
+                <AppButton v-if="form.stamp" size="sm" variant="ghost" :icon="Trash" :disabled="!canWrite" @click="form.stamp = undefined">إزالة</AppButton>
+              </div>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-background">
+                <img v-if="form.signature" :src="form.signature" alt="توقيع المخول" class="size-full object-contain" />
+                <ImagePlus v-else class="size-5 text-text-secondary" />
+              </div>
+              <div class="space-y-2">
+                <input ref="signatureInput" type="file" accept="image/*" class="hidden" @change="onSignature" />
+                <AppButton size="sm" :icon="ImagePlus" :disabled="!canWrite" @click="signatureInput?.click()">{{ form.signature ? 'تغيير التوقيع' : 'رفع توقيع' }}</AppButton>
+                <AppButton v-if="form.signature" size="sm" variant="ghost" :icon="Trash" :disabled="!canWrite" @click="form.signature = undefined">إزالة</AppButton>
+              </div>
+            </div>
+            <p class="text-tiny text-text-secondary">PNG بخلفية شفافة يُفضّل، حتى 600 كيلوبايت لكل صورة. تُحفظ محلياً.</p>
+          </div>
+        </AppCard>
+
         <AppButton v-if="canWrite" type="submit" variant="primary" block :icon="Save" :loading="saving">حفظ الإعدادات</AppButton>
       </div>
     </form>

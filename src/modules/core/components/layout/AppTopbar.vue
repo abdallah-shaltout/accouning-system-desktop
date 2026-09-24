@@ -9,6 +9,7 @@ import { resolvedTheme, toggleTheme } from '../../controllers/useTheme';
 import AppButton from '../ui/AppButton.vue';
 import DevMenu from '../DevMenu.vue';
 import BranchSwitcher from './BranchSwitcher.vue';
+import NotificationsDrawer from './NotificationsDrawer.vue';
 import UserMenu from './UserMenu.vue';
 
 const palette = useCommandPalette();
@@ -51,6 +52,7 @@ const crumbs = computed(() => {
       <DevMenu v-if="isDev" />
       <BranchSwitcher v-if="branchStore.showSwitcher" />
       <AppButton v-if="auth.can('pos', 'write')" to="/pos" size="sm" :icon="ShoppingCart">نقطة البيع</AppButton>
+      <NotificationsDrawer />
       <button
         type="button"
         class="flex size-8 items-center justify-center rounded-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"

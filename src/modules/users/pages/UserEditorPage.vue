@@ -88,6 +88,7 @@ const AREA_LABEL: Record<Area, string> = {
   payments: 'سندات القبض والصرف',
   reports: 'التقارير',
   analytics: 'التحليلات',
+  approvals: 'طلبات الاعتماد',
   users: 'إدارة المستخدمين',
   settings: 'الإعدادات',
 };

@@ -186,7 +186,9 @@ export async function backupNow(kind: BackupKind, password?: string, opts?: { su
 }
 
 async function afterBackupSaved(manifest: BackupManifest, kind: BackupKind): Promise<void> {
-  await saveBackupSettings({ lastBackupAt: manifest.createdAt, lastBackupKind: kind });
+  // Any successful backup (manual/auto/pre-restore) clears a previously-recorded failure — the
+  // notifications drawer's "an automatic backup failed" event only reflects the *latest* attempt.
+  await saveBackupSettings({ lastBackupAt: manifest.createdAt, lastBackupKind: kind, lastBackupFailedAt: undefined, lastBackupError: undefined });
   logActivity('settings', kind === 'manual' ? 'إنشاء نسخة احتياطية يدوية' : kind === 'auto' ? 'نسخة احتياطية تلقائية' : 'نسخة احتياطية قبل الاستعادة', session.userId, manifest.createdAt);
 }
 
@@ -381,6 +383,7 @@ async function runAutoBackupIfDue(): Promise<void> {
     if (isTauriMode()) await pruneFileHistory();
   } catch (err) {
     console.error('[backup] scheduled auto backup failed', err);
+    await saveBackupSettings({ lastBackupFailedAt: new Date().toISOString(), lastBackupError: err instanceof Error ? err.message : String(err) }).catch(() => {});
   }
 }
 
@@ -395,6 +398,7 @@ async function runCloseBackup(): Promise<void> {
     if (isTauriMode()) await pruneFileHistory();
   } catch (err) {
     console.error('[backup] close-time auto backup failed', err);
+    await saveBackupSettings({ lastBackupFailedAt: new Date().toISOString(), lastBackupError: err instanceof Error ? err.message : String(err) }).catch(() => {});
   }
 }
 

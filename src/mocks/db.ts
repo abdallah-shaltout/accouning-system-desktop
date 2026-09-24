@@ -21,6 +21,7 @@ import type { User } from '@/modules/users/types';
 import type { Expense, ExpenseCategory, RecurringExpense } from '@/modules/expenses/types';
 import type { CardSettlement, Voucher } from '@/modules/vouchers/types';
 import type { StockTransfer } from '@/modules/products/types';
+import type { ApprovalRequest } from '@/modules/approvals/types';
 
 /**
  * The in-memory "database" behind every mock service. It lives only for the lifetime of the
@@ -55,7 +56,7 @@ export interface MockDb {
   customFieldDefs: CustomFieldDef[];
   /** v2 phase 6 (§5 stocktake v2): scope + snapshot + blind/scan counting sessions, applied into a STOCKTAKE StockAdjustment. */
   stockCounts: StockCount[];
-  /** v2 phase 6 (§4 expiry report "return to supplier"). TODO(phase 8): superseded by real debit notes. */
+  /** v2 phase 6 (§4 expiry report "return to supplier"): a brief intermediate worklist row, posted into a real Phase 8 debit note (`postDebitNoteFromDraft`) and removed — see `draftReturnToSupplier`'s doc comment in `mocks/backend/inventory.ts`. */
   debitNoteDrafts: DebitNoteDraft[];
   customers: Customer[];
   suppliers: Supplier[];
@@ -106,6 +107,11 @@ export interface MockDb {
   currencies: Currency[];
   /** §2 — the exchange-rate table (currency, date, rate = base per 1 unit). */
   exchangeRates: ExchangeRate[];
+
+  // --- v2 phase 13b additions (docs/v2/14-platform.md §6) ----------------------------------------
+
+  /** Queued manager approvals for when the synchronous PIN dialog can't be used (no manager present) — see `modules/approvals/types`'s doc comment for the full split. */
+  approvalRequests: ApprovalRequest[];
 }
 
 export type DocumentKind =
@@ -167,6 +173,7 @@ export const db: MockDb = {
   stockTransfers: [],
   currencies: [],
   exchangeRates: [],
+  approvalRequests: [],
   settings: {
     storeName: '',
     currency: 'SAR',

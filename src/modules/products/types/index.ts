@@ -298,14 +298,16 @@ export interface StockCountInput {
 }
 
 // ---------------------------------------------------------------------------------------------
-// v2 §4 — Expiry report actions: return-to-supplier (draft debit note, TODO phase 8) / write-off
+// v2 §4 — Expiry report actions: return-to-supplier (draft, then posted as a real Phase 8 debit
+// note) / write-off
 // ---------------------------------------------------------------------------------------------
 
 /**
- * TODO(phase 8): a minimal draft stub only — Phase 8 owns real debit-note posting
- * (docs/v2/09-purchases-payments-expenses.md "Debit notes v2"). This just records the intent
- * ("return these expired batches to this supplier") as a DRAFT so nothing is lost; it never posts
- * to the ledger and has no UI to confirm/post it beyond this list.
+ * The intermediate step of "return to supplier" (docs/v2/09-purchases-payments-expenses.md "Debit
+ * notes v2"): records the intent ("return these expired batches to this supplier") so nothing is
+ * lost while a storekeeper is flagging batches, before `ExpiryReportPage.vue` immediately posts it
+ * into a real debit note via `purchaseService.postDebitNoteDraft` — see `draftReturnToSupplier`'s
+ * doc comment in `mocks/backend/inventory.ts` for the full two-step flow.
  */
 export interface DebitNoteDraft {
   id: string;

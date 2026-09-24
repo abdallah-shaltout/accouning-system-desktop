@@ -1,6 +1,7 @@
 import { computed, ref, shallowRef } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import { findByCode } from '@/modules/products/services/productService';
 import { normalizeArabic } from '../helpers/search';
 import {
   PREFIX_GROUPS,
@@ -172,10 +173,33 @@ export function useCommandPalette() {
         .filter((p) => !allowedGroups || allowedGroups.includes(p.group))
         .filter((p) => hasPermission(p.permission));
 
-      // Barcode-first: an 8–14 digit query is tried as a barcode lookup before anything else.
-      // TODO(phase 6/7): replace with a real barcode service once products/inventory ships one;
-      // for now this just biases ranking, no dedicated lookup exists to call.
+      // Barcode-first (docs/v2/14-platform.md §2): an 8–14 digit query is looked up directly against
+      // Phase 6/7's barcode/SKU index (`findByCode`, the same exact-match lookup POS scanning uses)
+      // before the fuzzy providers run, so a scanned barcode jumps straight to its product.
       const isBarcode = looksLikeBarcode(q);
+      let barcodeResult: { result: PaletteResult; score: number }[] = [];
+      if (isBarcode) {
+        try {
+          const product = await findByCode(q);
+          if (!controller.signal.aborted && product) {
+            barcodeResult = [
+              {
+                result: {
+                  id: `product:${product.id}`,
+                  group: 'products' as const,
+                  title: product.name,
+                  subtitle: product.barcode ?? product.sku,
+                  keywords: `${product.sku} ${product.barcode ?? ''}`,
+                  to: `/products/${product.id}`,
+                },
+                score: -200, // always first — an exact scanned-barcode match beats everything else
+              },
+            ];
+          }
+        } catch {
+          /* no match — fall through to the fuzzy providers below */
+        }
+      }
 
       let providerResults: { result: PaletteResult; score: number }[] = [];
       if (q) {
@@ -192,6 +216,7 @@ export function useCommandPalette() {
         providerResults = settled.flat().filter((x): x is { result: PaletteResult; score: number } => x.score !== undefined);
         if (isBarcode) providerResults = providerResults.map((x) => ({ ...x, score: x.score - 100 }));
       }
+      providerResults = [...barcodeResult, ...providerResults];
 
       if (id !== requestId || controller.signal.aborted) return;
 

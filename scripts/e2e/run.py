@@ -23,7 +23,13 @@ FLOWS_DIR = Path(__file__).resolve().parent / "flows"
 # `onboarding` (v2 phase 5) runs FIRST: it clears the persisted IndexedDB snapshot to prove a
 # genuinely fresh install (no company yet) goes through the wizard end to end — every later flow's
 # `ensure_demo_data()` (scripts/e2e/common.py) reseeds the demo dataset it needs regardless.
-ORDER = ["onboarding", "cashier_pos", "desk_invoice", "role_gating", "accountant_journal", "refund_payment", "products", "purchases", "expenses", "branches_currencies", "reports", "home_insights"]
+# `full_persona_pass` (v2 phase 13b) runs LAST: it's the final consolidated persona-day story and
+# posts/decides its own approval request, so it should see everything every earlier flow left behind.
+ORDER = [
+    "onboarding", "cashier_pos", "desk_invoice", "role_gating", "accountant_journal", "refund_payment",
+    "products", "purchases", "expenses", "branches_currencies", "reports", "reports_v2", "labels_templates",
+    "home_insights", "full_persona_pass",
+]
 
 
 def area_name(module_name: str) -> str:
