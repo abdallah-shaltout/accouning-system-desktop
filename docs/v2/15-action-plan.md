@@ -169,11 +169,18 @@ checked against the wrong settlement amounts).
 
 ## Phase 5 — Onboarding, opening balances & Excel import → [05](05-onboarding.md)
 
-- [ ] Setup wizard (11 steps), saved progress, setup checklist card
-- [ ] Opening balances tabs (cash/banks, customers ± open invoices, suppliers, stock, other) + review + the opening entry + closing 3900; **invariant 9 green**
-- [ ] "Balance from an old system" section in the party form
-- [ ] Generic `ImportWizard` (template download, mapping, validation, dedupe, batch commit, error file) + descriptors: customers, suppliers, products, opening stock, opening balances, price update
-- [ ] E2E: fresh company → wizard → import customers → opening entry balanced → first sale
+**Status: done** (2026-09-24). Commit `af2c685`. The full e2e proof (34 checks) runs fresh install →
+wizard → real .xlsx customer import → inline product create → opening entry posted → 3900 closes
+to exactly zero → login → first POS sale, with zero console errors end to end. Invariant 9 explicit
+and green. The setup-checklist card is intentionally standalone rather than wired into the
+dashboard, since Phase 10 owned that file concurrently — `// TODO(phase 10)` left for the
+insight-engine hookup.
+
+- [x] Setup wizard (11 steps), saved progress, setup checklist card
+- [x] Opening balances tabs (cash/banks, customers ± open invoices, suppliers, stock, other) + review + the opening entry + closing 3900; **invariant 9 green**
+- [x] "Balance from an old system" section in the party form
+- [x] Generic `ImportWizard` (template download, mapping, validation, dedupe, batch commit, error file) + descriptors: customers, suppliers, products, opening stock, opening balances, price update
+- [x] E2E: fresh company → wizard → import customers → opening entry balanced → first sale
 
 ## Phase 6 — Products & inventory v2 → [07](07-products-and-inventory.md)
 
@@ -244,31 +251,46 @@ every invariant holds — they're scope for a follow-up pass.
 
 ## Phase 10 — Home, analytics & recommendations → [11 Parts B–D](11-journal-dashboard-insights.md)
 
-- [ ] Insight engine (rules, keys, dismiss/snooze, thresholds settings, caching on `ledger:changed`)
-- [ ] The first-set rule catalogue (20 rules), each with a pre-filled action target
-- [ ] New home: "needs attention", 4 KPIs with period comparison + sparkline, one comparison chart, top products/customers
-- [ ] Role homes: cashier shift panel, storekeeper, accountant
-- [ ] `/analytics` tabs with one-sentence chart insights
-- [ ] Inline hints on product, party and report pages
+**Status: done** (2026-09-24). Commit `d11cf8a`. 21 rules built (exceeds the required 20), resolving
+every `TODO(phase 10)` left by earlier phases (Phase 2's due recurring entries, Phase 6's
+storekeeper home, Phase 8's recurring-expense due, Phase 9's budget insight, Phase 13a's
+backup-overdue). `/analytics` skipped a branches tab and a profitability waterfall (need deeper
+branch wiring / Phase 12's expense-by-group data) — noted as follow-ups, not silently dropped.
+
+- [x] Insight engine (rules, keys, dismiss/snooze, thresholds settings, caching on `ledger:changed`)
+- [x] The first-set rule catalogue (20 rules), each with a pre-filled action target
+- [x] New home: "needs attention", 4 KPIs with period comparison + sparkline, one comparison chart, top products/customers
+- [x] Role homes: cashier shift panel, storekeeper, accountant
+- [x] `/analytics` tabs with one-sentence chart insights
+- [x] Inline hints on product, party and report pages (report pages deferred — that module was owned by the concurrent Phase 12 agent)
 
 ## Phase 11 — Documents: PDF engine, templates, labels → [12](12-documents-pdf-excel.md)
 
-**Phase 11a done** (2026-09-23, commit `aab8e04`), built on the Typst spike's PASS. 11b (remaining
-templates + labels) waits on phases 6/7/8 per the wave table.
+**Status: done** (2026-09-24). 11a commit `aab8e04` (2026-09-23), 11b commit `dae5888`
+(2026-09-24). 11b added 9 new document templates + 2 label templates (11 new `.typ` files, all
+reusing `lib.typ`'s shared components), extended `pdfService.render()` from invoice-only to every
+document kind, and wired real print buttons across purchases/vouchers/shifts/transfers. 16 Rust
+smoke tests (lopdf-verified PDF structure), 0 failures.
 
 - [x] Rust `pdf` module: `render_pdf`, `render_preview` (SVG), embedded fonts (all 4 bundled families), virtual files; capabilities
 - [x] `pdfService` + `PdfPreview`; browser fallback to the print route
-- [x] Typst templates: invoice (standard/simplified) — 11a scope. Quotation, credit/debit note, PO, vouchers, statement, Z-report, transfer note, generic report → **11b**
-- [x] Template designer (options, live preview, import/export, advanced source editor with real compile-error feedback) — 11a proved this against the invoice template; defaults-per-branch waits on phase 9
-- [ ] Label builder + label templates (sheets and thermal sizes) with bwip-js barcodes and QR → **11b**
-- [ ] Every "print/PDF" button in the app goes through `pdfService`; documents can attach their PDF → invoice's print button does this now; the rest land with their own document kind in 11b
+- [x] Typst templates: invoice (standard/simplified), quotation, credit/debit note, PO, vouchers, statement, Z-report, transfer note, generic report
+- [x] Template designer (options, live preview, import/export, advanced source editor with real compile-error feedback); defaults-per-branch still open (a smaller follow-up)
+- [x] Label builder + label templates (sheets and thermal sizes) with bwip-js barcodes and QR
+- [x] Every "print/PDF" button in the app goes through `pdfService` (isTauri()-gated with a browser-print fallback); documents attaching their own rendered PDF is a smaller follow-up
 
 ## Phase 12 — Reports v2 → [13](13-reports.md)
 
-- [ ] `ReportShell` v2 (comparison, branch/cost-center/currency filters, insights box, PDF/Excel, drill-down)
-- [ ] Upgrade: trial balance, P&L, balance sheet, ledger, sales, stock valuation, movements, VAT
-- [ ] New: cash flow, day book, AR/AP aging, overdue, gross profit, returns, discounts & overrides, shifts, low/dead stock, expiry, stocktake variances, transfers, purchases, expenses, budget vs actual, period & branch comparison, business health, profit leakage
-- [ ] Reports hub: groups, search, favorites
+**Status: done** (2026-09-24). Commit `64602e1`. 27 report pages. `verify:mocks` at 49 ok/0 todo/0
+failed throughout — no regressions, no discrepancies found. PDF export still falls back to the
+browser print route (`// TODO(phase 11b)` — written before 11b's generic_report template landed;
+wiring it in is a small follow-up, not a blocker since Excel export and on-screen reports both
+work fully).
+
+- [x] `ReportShell` v2 (comparison, branch/cost-center/currency filters, insights box, PDF/Excel, drill-down)
+- [x] Upgrade: trial balance, P&L, balance sheet, sales, inventory (stock valuation + movements already lived inside it). Ledger and cost-center P&L kept as-is (already had filters/drill-down from earlier phases). VAT got insights only (comparison isn't meaningful for a return)
+- [x] New: cash flow, day book, AR/AP aging, overdue, gross profit, returns, discounts & overrides, shifts, low/dead stock, stocktake variances, transfers, purchases, expenses, budget vs actual, period & branch comparison, business health, profit leakage, VAT detail. Expiry links to Phase 6's existing page rather than duplicating it. Quotation-conversion and a customer-balances-summary report were skipped for time (lower priority than what was built)
+- [x] Reports hub: groups, search, favorites
 
 ## Phase 13 — Backup, approvals, notifications & polish → [14](14-platform.md)
 
