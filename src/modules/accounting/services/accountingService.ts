@@ -410,9 +410,9 @@ export async function loadTemplateIntoEntry(id: string): Promise<JournalTemplate
 
 /**
  * Posts a recurring template's entry for its current `nextDate` and advances the schedule.
- * There's no scheduler here — this is invoked from the "posted due entries" list action.
- * TODO(phase 10): surface due recurring entries as a dashboard/insight-engine card instead of
- * requiring a visit to the templates page (docs/v2/11-journal-dashboard-insights.md D2 "Recurring due").
+ * There's no scheduler here — this is invoked from the "posted due entries" list action, and,
+ * since Phase 10, also from the home/insight-engine card's "ترحيل الآن" action ("recurring-journal-due"
+ * rule in `modules/core/services/insightRules.ts`, docs/v2/11-journal-dashboard-insights.md D2).
  */
 export async function postRecurringTemplate(id: string): Promise<JournalEntry> {
   await delay();

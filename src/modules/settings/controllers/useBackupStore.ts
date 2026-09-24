@@ -6,9 +6,9 @@ import type { BackupHistoryEntry, BackupSettings } from '../types/backup';
 /**
  * Backup status + history (docs/v2/14-platform.md §4 "الحالة"). `lastBackupAt`/`lastBackupKind`
  * are exposed here so other phases can read "last backup" without depending on this page —
- * e.g. the user menu already does, and Phase 10's dashboard insight will too:
- * // TODO(phase 10): surface "لم يتم أخذ نسخة احتياطية منذ 7 أيام" using `useBackupStore().lastBackupAt`
- * in the insight engine (docs/v2/11-journal-dashboard-insights.md D2).
+ * e.g. the user menu already does, and Phase 10's "backup-overdue" insight rule
+ * (`modules/core/services/insightRules.ts`, docs/v2/11-journal-dashboard-insights.md D2) reads
+ * `useBackupStore().lastBackupAt` too, surfacing "لم يتم أخذ نسخة احتياطية منذ 7 أيام" on the home.
  */
 export const useBackupStore = defineStore('backup', () => {
   const settings = ref<BackupSettings | null>(null);

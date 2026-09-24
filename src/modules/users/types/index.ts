@@ -52,6 +52,8 @@ export type Area =
   | 'accounting'
   | 'payments'
   | 'reports'
+  /** v2 phase 10 (docs/v2/01-personas.md §5 role matrix): `/analytics` — admin/manager write, accountant read, no one else. */
+  | 'analytics'
   | 'users'
   | 'settings';
 

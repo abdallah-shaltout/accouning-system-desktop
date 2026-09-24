@@ -11,6 +11,7 @@ import {
   FolderTree,
   HandCoins,
   House,
+  LineChart,
   Package,
   Receipt,
   ReceiptText,
@@ -102,7 +103,11 @@ export const NAVIGATION: NavGroup[] = [
   },
   {
     label: 'التقارير',
-    items: [{ label: 'التقارير', to: '/reports', icon: ChartColumn, area: 'reports' }],
+    items: [
+      { label: 'التقارير', to: '/reports', icon: ChartColumn, area: 'reports' },
+      // v2 phase 10 (docs/v2/11-journal-dashboard-insights.md Part C).
+      { label: 'التحليلات', to: '/analytics', icon: LineChart, area: 'analytics' },
+    ],
   },
   {
     label: 'الإدارة',

@@ -2,8 +2,8 @@
 /**
  * Templates + recurring entries (docs/v2/11-journal-dashboard-insights.md A2/A3). No scheduler
  * here — "due" recurring templates (nextDate <= today) get a badge and a manual "ترحيل الآن" post
- * action. TODO(phase 10): surface these as a dashboard/insight-engine card instead of requiring a
- * visit to this page (see D2 "Recurring due" in the same doc).
+ * action. Phase 10: also surfaced as a home/insight-engine card ("recurring-journal-due" rule in
+ * `modules/core/services/insightRules.ts`, D2 "Recurring due") so a visit to this page isn't required.
  */
 import { computed, ref } from 'vue';
 import { Plus, Repeat, Send, Trash } from '@lucide/vue';

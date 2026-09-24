@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { Banknote, PackageX, Plus, ReceiptText, ShoppingCart, TrendingUp } from '@lucide/vue';
+import { computed, ref, watch } from 'vue';
+import { Banknote, Plus, ReceiptText, ShoppingCart, TrendingUp } from '@lucide/vue';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
-import { invoiceOutstanding } from '@/modules/invoices/helpers/totals';
 import AppButton from '../components/ui/AppButton.vue';
 import AppCard from '../components/ui/AppCard.vue';
 import EmptyState from '../components/ui/EmptyState.vue';
@@ -11,28 +9,53 @@ import ErrorState from '../components/ui/ErrorState.vue';
 import MoneyText from '../components/ui/MoneyText.vue';
 import RiyalIcon from '../components/ui/RiyalIcon.vue';
 import SkeletonBlock from '../components/ui/SkeletonBlock.vue';
-import StatusBadge from '../components/ui/StatusBadge.vue';
 import KpiCard from '../components/dashboard/KpiCard.vue';
+import Sparkline from '../components/dashboard/Sparkline.vue';
 import SalesTrendChart from '../components/dashboard/SalesTrendChart.vue';
 import StorekeeperHome from '../components/dashboard/StorekeeperHome.vue';
+import CashierHome from '../components/dashboard/CashierHome.vue';
+import AccountantHome from '../components/dashboard/AccountantHome.vue';
+import NeedsAttentionPanel from '../components/insights/NeedsAttentionPanel.vue';
 import { useAsync } from '../controllers/useAsync';
-import { formatDateLong, formatMoney, formatNumber, formatRelative, formatTime } from '../helpers/format';
-import { INVOICE_STATUS, PAYMENT_STATUS } from '../helpers/labels';
-import { getDashboardSummary, getLowStockProducts, getRecentActivity, getRecentInvoices } from '../services/dashboardService';
+import { formatDateLong, formatMoney, formatNumber } from '../helpers/format';
+import { getHomeKpis, getTopCustomers, getTopProducts, type HomePeriod } from '../services/dashboardService';
 
+/**
+ * v2 phase 10 (docs/v2/11-journal-dashboard-insights.md Part B "simpler home"): answers three
+ * questions in order — what needs me → how are we doing → what's the trend. Everything else
+ * (activity feed, recent invoices, the old low-stock table) moved to the bell/insights drawer,
+ * the invoices page, and the insight engine respectively.
+ *
+ * Role homes (same components, different content — doc's table): cashier's home is the POS itself
+ * plus a shift panel (`CashierHome.vue`); storekeeper gets the full insight-driven home
+ * (`StorekeeperHome.vue`, completing Phase 6's `// TODO(phase 10)` stub); accountant gets a
+ * posting/approval-focused home (`AccountantHome.vue`); owner/manager/admin get the full home below.
+ */
 const auth = useAuthStore();
-const router = useRouter();
-// v2 (docs/v2/01-personas.md §2, §6 "storekeeper home"): a minimal, separate landing page — the
-// full insight-driven home below isn't this role's job (no accounting/sales visibility for them).
-const isStorekeeper = computed(() => auth.role === 'storekeeper');
 
-const summary = useAsync(getDashboardSummary);
-const recent = useAsync(() => getRecentInvoices(8));
-const activity = useAsync(() => getRecentActivity(10));
-const lowStock = useAsync(() => getLowStockProducts(6));
+const isStorekeeper = computed(() => auth.role === 'storekeeper');
+const isCashier = computed(() => auth.role === 'cashier');
+const isAccountant = computed(() => auth.role === 'accountant');
+const isFullHome = computed(() => !isStorekeeper.value && !isCashier.value && !isAccountant.value);
+
+const PERIODS: { value: HomePeriod; label: string }[] = [
+  { value: 'today', label: 'اليوم' },
+  { value: 'week', label: 'هذا الأسبوع' },
+  { value: 'month', label: 'هذا الشهر' },
+];
+const period = ref<HomePeriod>('today');
+
+const kpis = useAsync(() => getHomeKpis(period.value));
+const topProducts = useAsync(() => getTopProducts(period.value));
+const topCustomers = useAsync(() => getTopCustomers(period.value));
+
+watch(period, () => {
+  kpis.reload();
+  topProducts.reload();
+  topCustomers.reload();
+});
 
 const canSeeCash = computed(() => auth.can('accounting'));
-const trendTotal = computed(() => summary.data.value?.salesTrend.reduce((a, d) => a + d.total, 0) ?? 0);
 
 const greeting = computed(() => {
   const h = new Date().getHours();
@@ -40,150 +63,120 @@ const greeting = computed(() => {
 });
 
 function retryAll() {
-  summary.reload();
-  recent.reload();
-  activity.reload();
-  lowStock.reload();
+  kpis.reload();
+  topProducts.reload();
+  topCustomers.reload();
 }
 </script>
 
 <template>
   <StorekeeperHome v-if="isStorekeeper" />
-  <div v-else>
+  <CashierHome v-else-if="isCashier" />
+  <AccountantHome v-else-if="isAccountant" />
+  <div v-else-if="isFullHome">
     <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-lg font-semibold tracking-tight">{{ greeting }}، {{ auth.user?.name.split(' ')[0] }}</h1>
         <p class="mt-0.5 text-body text-text-secondary">{{ formatDateLong(new Date().toISOString()) }}</p>
       </div>
-      <div class="flex gap-2">
-        <AppButton v-if="auth.can('purchases', 'write')" :icon="Plus" to="/purchases/new">أمر شراء</AppButton>
-        <AppButton v-if="auth.can('pos', 'write')" variant="primary" :icon="ShoppingCart" to="/pos">بيع جديد</AppButton>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="flex rounded-lg border border-border p-0.5">
+          <button
+            v-for="p in PERIODS"
+            :key="p.value"
+            type="button"
+            class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+            :class="period === p.value ? 'bg-primary text-on-primary' : 'text-text-secondary hover:text-text-primary'"
+            @click="period = p.value"
+          >
+            {{ p.label }}
+          </button>
+        </div>
+        <div class="flex gap-2">
+          <AppButton v-if="auth.can('purchases', 'write')" :icon="Plus" to="/purchases/new">أمر شراء</AppButton>
+          <AppButton v-if="auth.can('pos', 'write')" variant="primary" :icon="ShoppingCart" to="/pos">بيع جديد</AppButton>
+        </div>
       </div>
     </div>
 
-    <ErrorState v-if="summary.error.value" :message="summary.error.value" @retry="retryAll" />
+    <ErrorState v-if="kpis.error.value" :message="kpis.error.value" @retry="retryAll" />
 
     <template v-else>
-      <!-- KPI row -->
+      <!-- "يحتاج انتباهك" (docs/v2/11 Part B.2) -->
+      <div class="mb-4">
+        <NeedsAttentionPanel />
+      </div>
+
+      <!-- 4 KPIs with period-over-period comparison + sparkline (Part B.3) -->
       <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="مبيعات اليوم" :icon="TrendingUp" :loading="summary.loading.value" :to="auth.can('sales') ? '/invoices' : undefined">
-          <span dir="ltr">{{ formatMoney(summary.data.value?.todaySales) }}</span> <RiyalIcon class="text-[0.7em] text-text-secondary" />
-          <template #hint>{{ formatNumber(summary.data.value?.todayInvoiceCount) }} فاتورة — شامل الضريبة وبعد المرتجعات</template>
+        <KpiCard label="صافي المبيعات" :icon="TrendingUp" :loading="kpis.loading.value" :change-pct="kpis.data.value?.netSales.changePct" :to="auth.can('sales') ? '/invoices' : undefined">
+          <span dir="ltr">{{ formatMoney(kpis.data.value?.netSales.value) }}</span> <RiyalIcon class="text-[0.7em] text-text-secondary" />
+          <template #hint>شامل الضريبة وبعد المرتجعات</template>
+          <template #spark><Sparkline :data="kpis.data.value?.netSales.sparkline ?? []" /></template>
         </KpiCard>
+
+        <KpiCard label="مجمل الربح" :icon="Banknote" :loading="kpis.loading.value" :change-pct="kpis.data.value?.grossProfit.changePct" :to="canSeeCash ? '/reports/profit-loss' : undefined">
+          <span dir="ltr">{{ formatMoney(kpis.data.value?.grossProfit.value) }}</span> <RiyalIcon class="text-[0.7em] text-text-secondary" />
+          <template #hint>هامش {{ formatNumber(kpis.data.value?.grossProfit.marginPct, 1) }}%</template>
+          <template #spark><Sparkline :data="kpis.data.value?.grossProfit.sparkline ?? []" tone="success" /></template>
+        </KpiCard>
+
+        <KpiCard v-if="canSeeCash" label="السيولة" :icon="Banknote" :loading="kpis.loading.value" :change-pct="kpis.data.value?.cash.changePct" to="/reports/ledger?account=acc-1110">
+          <span dir="ltr">{{ formatMoney(kpis.data.value?.cash.value) }}</span> <RiyalIcon class="text-[0.7em] text-text-secondary" />
+          <template #hint>الصندوق والبنك، شامل التسوية</template>
+          <template #spark><Sparkline :data="kpis.data.value?.cash.sparkline ?? []" /></template>
+        </KpiCard>
+
         <KpiCard
-          label="فواتير غير مسددة"
+          label="مستحق من العملاء"
           :icon="ReceiptText"
-          :loading="summary.loading.value"
+          :loading="kpis.loading.value"
+          :change-pct="kpis.data.value?.receivables.changePct"
+          :tone="(kpis.data.value?.receivables.overdue ?? 0) > 0 ? 'warning' : undefined"
           :to="auth.can('sales') ? { path: '/invoices', query: { payment: 'open' } } : undefined"
         >
-          {{ formatNumber(summary.data.value?.unpaidInvoiceCount) }}
-          <template #hint>مستحق من العملاء: <MoneyText :value="summary.data.value?.unpaidInvoiceTotal" /></template>
-        </KpiCard>
-        <KpiCard
-          label="أصناف منخفضة المخزون"
-          :icon="PackageX"
-          :loading="summary.loading.value"
-          :tone="(summary.data.value?.lowStockCount ?? 0) > 0 ? 'warning' : undefined"
-          :to="{ path: '/products', query: { stock: 'low' } }"
-        >
-          {{ formatNumber(summary.data.value?.lowStockCount) }}
-          <template #hint>عند الحد الأدنى أو أقل</template>
-        </KpiCard>
-        <KpiCard v-if="canSeeCash" label="النقدية المتاحة" :icon="Banknote" :loading="summary.loading.value" to="/reports/ledger?account=acc-1110">
-          <span dir="ltr">{{ formatMoney(summary.data.value?.cashPosition) }}</span> <RiyalIcon class="text-[0.7em] text-text-secondary" />
+          <span dir="ltr">{{ formatMoney(kpis.data.value?.receivables.value) }}</span> <RiyalIcon class="text-[0.7em] text-text-secondary" />
           <template #hint>
-            الصندوق <MoneyText :value="summary.data.value?.cashOnHand" plain /> · البنك <MoneyText :value="summary.data.value?.bankBalance" plain />
+            متأخر: <span class="num text-warning">{{ formatMoney(kpis.data.value?.receivables.overdue) }}</span>
           </template>
+          <template #spark><Sparkline :data="kpis.data.value?.receivables.sparkline ?? []" tone="danger" /></template>
         </KpiCard>
       </div>
 
-      <!-- Chart + activity -->
-      <div class="mt-4 grid gap-4 xl:grid-cols-3">
-        <AppCard class="xl:col-span-2" title="صافي المبيعات — آخر 14 يوماً" padding="sm">
-          <template #actions>
-            <span class="text-xs text-text-secondary">الإجمالي <MoneyText :value="trendTotal" class="text-text-primary" /></span>
-          </template>
-          <SkeletonBlock v-if="summary.loading.value" height="h-48" />
-          <SalesTrendChart v-else-if="summary.data.value" :data="summary.data.value.salesTrend" />
-        </AppCard>
-
-        <AppCard title="آخر النشاطات" padding="none">
-          <div v-if="activity.loading.value" class="p-4"><SkeletonBlock :lines="6" /></div>
-          <EmptyState v-else-if="!activity.data.value?.length" title="لا توجد نشاطات" compact />
-          <ul v-else class="max-h-[248px] divide-y divide-border overflow-y-auto">
-            <li v-for="a in activity.data.value" :key="a.id">
-              <component
-                :is="a.link ? 'RouterLink' : 'div'"
-                :to="a.link"
-                class="flex items-start gap-2.5 px-4 py-2.5"
-                :class="a.link && 'hover:bg-surface-hover'"
-              >
-                <span class="mt-1.5 size-1.5 shrink-0 rounded-full bg-text-secondary/50" />
-                <span class="min-w-0 flex-1">
-                  <span class="block truncate text-body">{{ a.message }}</span>
-                  <span class="block text-tiny text-text-secondary">{{ a.userName }} · {{ formatRelative(a.date) }}</span>
-                </span>
-              </component>
-            </li>
-          </ul>
+      <!-- One comparison chart (Part B.4) -->
+      <div class="mt-4">
+        <AppCard title="صافي المبيعات — مقارنة بالفترة السابقة" padding="sm">
+          <SkeletonBlock v-if="kpis.loading.value" height="h-48" />
+          <SalesTrendChart v-else-if="kpis.data.value" :data="kpis.data.value.salesTrend" />
         </AppCard>
       </div>
 
-      <!-- Recent invoices + low stock -->
-      <div class="mt-4 grid gap-4 xl:grid-cols-3">
-        <AppCard class="xl:col-span-2" title="أحدث الفواتير" padding="none">
-          <template v-if="auth.can('sales')" #actions>
-            <AppButton size="sm" variant="ghost" to="/invoices">عرض الكل</AppButton>
-          </template>
-          <div v-if="recent.loading.value" class="p-4"><SkeletonBlock :lines="6" /></div>
-          <EmptyState v-else-if="!recent.data.value?.length" title="لا توجد فواتير بعد" compact />
-          <table v-else class="w-full text-body">
-            <tbody>
-              <tr
-                v-for="inv in recent.data.value"
-                :key="inv.id"
-                class="cursor-pointer border-b border-border last:border-0 hover:bg-surface-hover"
-                @click="router.push(`/invoices/${inv.id}`)"
-              >
-                <td class="px-4 py-2.5"><span class="num font-medium">{{ inv.number }}</span></td>
-                <td class="px-2 py-2.5 text-text-secondary">{{ inv.customerName ?? 'عميل نقدي' }}</td>
-                <td class="px-2 py-2.5 text-text-secondary"><span class="num">{{ formatTime(inv.date) }}</span></td>
-                <td class="px-2 py-2.5">
-                  <StatusBadge
-                    v-if="inv.status === 'REFUNDED'"
-                    :tone="INVOICE_STATUS.REFUNDED.tone"
-                    :label="INVOICE_STATUS.REFUNDED.label"
-                  />
-                  <StatusBadge v-else :tone="PAYMENT_STATUS[inv.paymentStatus].tone" :label="PAYMENT_STATUS[inv.paymentStatus].label" />
-                </td>
-                <td class="px-4 py-2.5 text-end">
-                  <MoneyText :value="inv.grandTotal" />
-                  <span v-if="invoiceOutstanding(inv) > 0 && inv.status !== 'REFUNDED'" class="block text-tiny text-warning">
-                    متبقي <MoneyText :value="invoiceOutstanding(inv)" plain />
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </AppCard>
-
-        <AppCard title="تنبيهات المخزون" padding="none">
-          <template v-if="auth.can('purchases', 'write') && lowStock.data.value?.length" #actions>
-            <AppButton size="sm" variant="ghost" to="/purchases/new">طلب شراء</AppButton>
-          </template>
-          <div v-if="lowStock.loading.value" class="p-4"><SkeletonBlock :lines="5" /></div>
-          <EmptyState v-else-if="!lowStock.data.value?.length" title="المخزون بحالة جيدة" description="لا توجد أصناف عند الحد الأدنى" compact />
+      <!-- Top products / customers (Part B.5) -->
+      <div class="mt-4 grid gap-4 lg:grid-cols-2">
+        <AppCard title="أفضل 5 منتجات (حسب الربح)" padding="none">
+          <div v-if="topProducts.loading.value" class="p-4"><SkeletonBlock :lines="5" /></div>
+          <EmptyState v-else-if="!topProducts.data.value?.length" title="لا توجد مبيعات في هذه الفترة" compact />
           <ul v-else class="divide-y divide-border">
-            <li v-for="p in lowStock.data.value" :key="p.id">
+            <li v-for="p in topProducts.data.value" :key="p.id">
               <RouterLink :to="`/products/${p.id}`" class="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-hover">
                 <span class="min-w-0">
                   <span class="block truncate text-body">{{ p.name }}</span>
-                  <span class="num block text-tiny text-text-secondary">{{ p.sku }}</span>
+                  <span class="num block text-tiny text-text-secondary">{{ p.sku }} · {{ formatNumber(p.qty) }} وحدة</span>
                 </span>
-                <span class="shrink-0 text-end text-xs">
-                  <span class="num block font-medium" :class="p.stockQty <= 0 ? 'text-danger' : 'text-warning'">{{ formatNumber(p.stockQty) }}</span>
-                  <span class="block text-tiny text-text-secondary">الحد <span class="num">{{ formatNumber(p.minStock) }}</span></span>
-                </span>
+                <MoneyText :value="p.grossProfit" class="shrink-0" />
+              </RouterLink>
+            </li>
+          </ul>
+        </AppCard>
+
+        <AppCard title="أفضل 5 عملاء" padding="none">
+          <div v-if="topCustomers.loading.value" class="p-4"><SkeletonBlock :lines="5" /></div>
+          <EmptyState v-else-if="!topCustomers.data.value?.length" title="لا توجد مبيعات لعملاء في هذه الفترة" compact />
+          <ul v-else class="divide-y divide-border">
+            <li v-for="c in topCustomers.data.value" :key="c.id">
+              <RouterLink :to="`/customers/${c.id}`" class="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-hover">
+                <span class="truncate text-body">{{ c.name }}</span>
+                <MoneyText :value="c.total" class="shrink-0" />
               </RouterLink>
             </li>
           </ul>

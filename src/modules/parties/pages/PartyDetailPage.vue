@@ -39,7 +39,11 @@ import type { AllocationStatus, OpenDocument } from '@/modules/payments/types';
 import { getPayments } from '@/modules/payments/services/paymentService';
 import { getPurchaseOrders } from '@/modules/purchases/services/purchaseService';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import InsightHints from '@/modules/core/components/insights/InsightHints.vue';
 import { getPartyAging, getPartyHistory } from '../services/partyService';
+
+/** v2 phase 10 (docs/v2/11 D1 "inline hints"): both rules are already one-instance-per-customer. */
+const CUSTOMER_INSIGHT_RULES = ['overdue-customers', 'credit-limit'];
 import { getCustomer, getCustomerStatement, getSupplier, getSupplierStatement } from '../services/partyService';
 import type { AgingBucket, Customer, PartyStatementRow, Supplier } from '../types';
 
@@ -89,6 +93,9 @@ const overLimit = computed(() => creditLimit.value > 0 && (p.value?.balance ?? 0
 function docLink(row: PartyStatementRow) {
   if (row.kind === 'invoice' || row.kind === 'refund') return `/invoices/${row.refId}`;
   if (row.kind === 'purchaseOrder' || row.kind === 'purchaseReturn') return `/purchases/${row.refId}`;
+  // v2 phase 5 (docs/v2/05-onboarding.md §4): an "opening" row has no document page of its own —
+  // the journal entry itself is the record.
+  if (row.kind === 'opening') return `/accounting/journal/${row.refId}`;
   return `/payments/${row.refId}`;
 }
 
@@ -154,6 +161,8 @@ function whatsappHref(number: string) {
           </AppButton>
         </template>
       </PageHeader>
+
+      <InsightHints v-if="isCustomer" :rule-keys="CUSTOMER_INSIGHT_RULES" :entity-id="id" class="mb-4" />
 
       <div class="grid items-start gap-5 xl:grid-cols-[300px_1fr]">
         <div class="space-y-4">

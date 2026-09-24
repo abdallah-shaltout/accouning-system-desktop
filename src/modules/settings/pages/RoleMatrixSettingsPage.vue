@@ -27,7 +27,7 @@ const ROLES: Role[] = ['admin', 'manager', 'accountant', 'cashier', 'storekeeper
 const AREA_LABEL: Record<Area, string> = {
   dashboard: 'الرئيسية', pos: 'نقطة البيع', sales: 'الفواتير والمرتجعات', inventory: 'المنتجات والمخزون',
   parties: 'العملاء والموردين', purchases: 'المشتريات', expenses: 'المصروفات', accounting: 'الحسابات والقيود', payments: 'سندات القبض والصرف',
-  reports: 'التقارير', users: 'إدارة المستخدمين', settings: 'الإعدادات',
+  reports: 'التقارير', analytics: 'التحليلات', users: 'إدارة المستخدمين', settings: 'الإعدادات',
 };
 const AREAS = Object.keys(AREA_LABEL) as Area[];
 

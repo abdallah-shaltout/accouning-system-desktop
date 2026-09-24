@@ -13,9 +13,13 @@ import purchasesRoutes from '@/modules/purchases/routes';
 import paymentsRoutes from '@/modules/payments/routes';
 import reportsRoutes from '@/modules/reports/routes';
 import settingsRoutes from '@/modules/settings/routes';
+// v2 phase 10 (docs/v2/11-journal-dashboard-insights.md Part C): analytics tabs.
+import analyticsRoutes from '@/modules/analytics/routes';
 // v2 phase 8 (docs/v2/09-purchases-payments-expenses.md §4-§5): new expenses + vouchers modules.
 import expensesRoutes from '@/modules/expenses/routes';
 import vouchersRoutes from '@/modules/vouchers/routes';
+// v2 phase 5 (docs/v2/05-onboarding.md): the setup wizard + standalone opening-balances page.
+import setupRoutes from '@/modules/setup/routes';
 
 const moduleRoutes: RouteRecordRaw[] = [
   ...coreRoutes,
@@ -28,8 +32,10 @@ const moduleRoutes: RouteRecordRaw[] = [
   ...paymentsRoutes,
   ...reportsRoutes,
   ...settingsRoutes,
+  ...analyticsRoutes,
   ...expensesRoutes,
   ...vouchersRoutes,
+  ...setupRoutes,
 ];
 
 /** Pages marked `layout: 'blank'` render full-screen; everything else sits inside the app shell. */

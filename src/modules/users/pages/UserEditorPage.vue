@@ -87,6 +87,7 @@ const AREA_LABEL: Record<Area, string> = {
   accounting: 'الحسابات والقيود',
   payments: 'سندات القبض والصرف',
   reports: 'التقارير',
+  analytics: 'التحليلات',
   users: 'إدارة المستخدمين',
   settings: 'الإعدادات',
 };

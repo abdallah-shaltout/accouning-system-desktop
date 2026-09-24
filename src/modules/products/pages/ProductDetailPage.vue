@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowLeftRight, Beaker, PackagePlus, Pencil } from '@lucide/vue';
+import { ArrowLeftRight, Beaker, PackagePlus, Pencil, Printer } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
@@ -15,6 +15,7 @@ import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDate, formatDateTime, formatNumber } from '@/modules/core/helpers/format';
 import { MOVEMENT_REASON } from '@/modules/core/helpers/labels';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import ProductInsightHints from '@/modules/core/components/insights/ProductInsightHints.vue';
 import { useCatalogStore } from '../controllers/useCatalogStore';
 import { batchAlertTone, getBatches, getStockMovements } from '../services/inventoryService';
 import { getProduct, isLowStock } from '../services/productService';
@@ -63,11 +64,17 @@ const columns: Column<Movement>[] = [
           <span class="num">{{ p?.sku }}</span><template v-if="p?.barcode"> · <span class="num">{{ p.barcode }}</span></template>
           · {{ catalog.categoryName(p?.categoryId) }}
         </template>
-        <template v-if="auth.can('inventory', 'write')" #actions>
-          <AppButton v-if="p?.type === 'product'" :icon="PackagePlus" :to="`/inventory/adjustments/new?type=STOCK_IN&product=${id}`">إدخال مخزون</AppButton>
-          <AppButton variant="primary" :icon="Pencil" :to="`/products/${id}/edit`">تعديل</AppButton>
+        <template #actions>
+          <!-- v2 phase 11b (docs/v2/07-products-and-inventory.md §6 "The product page: طباعة ملصقات"). -->
+          <AppButton :icon="Printer" :to="`/catalog/labels?productId=${id}`">طباعة ملصقات</AppButton>
+          <template v-if="auth.can('inventory', 'write')">
+            <AppButton v-if="p?.type === 'product'" :icon="PackagePlus" :to="`/inventory/adjustments/new?type=STOCK_IN&product=${id}`">إدخال مخزون</AppButton>
+            <AppButton variant="primary" :icon="Pencil" :to="`/products/${id}/edit`">تعديل</AppButton>
+          </template>
         </template>
       </PageHeader>
+
+      <ProductInsightHints :product-id="id" class="mb-4" />
 
       <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <AppCard padding="sm">

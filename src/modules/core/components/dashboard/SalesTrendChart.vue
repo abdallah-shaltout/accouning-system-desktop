@@ -6,8 +6,12 @@ import { formatDate, formatMoney, formatNumber } from '../../helpers/format';
  * Single-series column chart (inline SVG, no library). One hue — today's column in the full
  * accent, past days a lighter step of the same hue. Hover any column band for the exact value.
  * RTL: time runs right → left (oldest on the right), matching Arabic reading order.
+ * v2 phase 10 (docs/v2/11 Part B.4): optional `previousTotal` per point draws a light comparison
+ * line for the previous period, so the home's one chart shows both series at once.
  */
-const props = defineProps<{ data: { date: string; total: number }[] }>();
+const props = defineProps<{ data: { date: string; total: number; previousTotal?: number }[] }>();
+
+const hasComparison = computed(() => props.data.some((d) => d.previousTotal !== undefined));
 
 const W = 640;
 const H = 200;
@@ -19,7 +23,7 @@ const hover = ref<number | null>(null);
 
 /** Clean y ticks: 0, step, 2×step… with a 1/2/5 × 10ⁿ step. */
 const ticks = computed(() => {
-  const max = Math.max(1, ...props.data.map((d) => d.total));
+  const max = Math.max(1, ...props.data.map((d) => Math.max(d.total, d.previousTotal ?? 0)));
   const rough = max / 4;
   const pow = 10 ** Math.floor(Math.log10(rough));
   const step = [1, 2, 5, 10].map((m) => m * pow).find((s) => s >= rough) ?? rough;
@@ -53,6 +57,18 @@ function columnPath(x: number, y: number, w: number, h: number): string {
 
 function yOf(v: number) {
   return PAD.top + plotH - (v / ticks.value.top) * plotH;
+}
+
+/** Previous-period light comparison line, aligned to the same column centers as the bars. */
+const comparisonPath = computed(() => {
+  if (!hasComparison.value) return '';
+  return bars.value
+    .map((b, i) => `${i === 0 ? 'M' : 'L'}${round1(b.bandX + band.value / 2)},${round1(yOf(b.previousTotal ?? 0))}`)
+    .join(' ');
+});
+
+function round1(n: number) {
+  return Math.round(n * 10) / 10;
 }
 
 function compact(v: number) {
@@ -96,6 +112,7 @@ const tooltip = computed(() => (hover.value === null ? null : bars.value[hover.v
           :fill-opacity="b.isToday || hover === b.i ? 1 : 0.45"
           pointer-events="none"
         />
+        <circle v-if="hover === b.i && hasComparison" :cx="b.bandX + band / 2" :cy="yOf(b.previousTotal ?? 0)" r="2.5" fill="var(--color-text-secondary)" pointer-events="none" />
         <text
           v-if="b.i % 2 === (data.length - 1) % 2"
           :x="b.bandX + band / 2"
@@ -108,6 +125,9 @@ const tooltip = computed(() => (hover.value === null ? null : bars.value[hover.v
           {{ b.isToday ? 'اليوم' : dayLabel(b.date) }}
         </text>
       </g>
+
+      <!-- Previous-period comparison line (docs/v2/11 Part B.4: "the previous period as a light line") -->
+      <path v-if="hasComparison" :d="comparisonPath" fill="none" stroke="var(--color-text-secondary)" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.6" pointer-events="none" />
     </svg>
 
     <div
@@ -117,12 +137,17 @@ const tooltip = computed(() => (hover.value === null ? null : bars.value[hover.v
     >
       <p class="text-text-secondary">{{ formatDate(tooltip.date) }}</p>
       <p class="num font-medium text-text-primary">{{ formatMoney(tooltip.total) }}</p>
+      <p v-if="tooltip.previousTotal !== undefined" class="num text-text-secondary">الفترة السابقة: {{ formatMoney(tooltip.previousTotal) }}</p>
     </div>
 
     <!-- Table view for screen readers -->
     <table class="sr-only">
       <caption>صافي المبيعات اليومية</caption>
-      <tr v-for="d in data" :key="d.date"><th>{{ d.date }}</th><td>{{ formatMoney(d.total) }}</td></tr>
+      <tr v-for="d in data" :key="d.date">
+        <th>{{ d.date }}</th>
+        <td>{{ formatMoney(d.total) }}</td>
+        <td v-if="d.previousTotal !== undefined">{{ formatMoney(d.previousTotal) }}</td>
+      </tr>
     </table>
   </div>
 </template>

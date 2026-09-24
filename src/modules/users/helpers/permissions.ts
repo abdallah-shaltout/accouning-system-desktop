@@ -15,23 +15,23 @@ import type { Access, Area, Role } from '../types';
 export const ROLE_ACCESS: Record<Role, Record<Area, Access>> = {
   admin: {
     dashboard: 'write', pos: 'write', sales: 'write', inventory: 'write', parties: 'write',
-    purchases: 'write', expenses: 'write', accounting: 'write', payments: 'write', reports: 'write', users: 'write', settings: 'write',
+    purchases: 'write', expenses: 'write', accounting: 'write', payments: 'write', reports: 'write', analytics: 'write', users: 'write', settings: 'write',
   },
   manager: {
     dashboard: 'write', pos: 'write', sales: 'write', inventory: 'write', parties: 'write',
-    purchases: 'write', expenses: 'write', accounting: 'write', payments: 'write', reports: 'write', users: 'none', settings: 'write',
+    purchases: 'write', expenses: 'write', accounting: 'write', payments: 'write', reports: 'write', analytics: 'write', users: 'none', settings: 'write',
   },
   accountant: {
     dashboard: 'read', pos: 'none', sales: 'write', inventory: 'read', parties: 'read',
-    purchases: 'read', expenses: 'write', accounting: 'write', payments: 'write', reports: 'write', users: 'none', settings: 'none',
+    purchases: 'read', expenses: 'write', accounting: 'write', payments: 'write', reports: 'write', analytics: 'read', users: 'none', settings: 'none',
   },
   cashier: {
     dashboard: 'read', pos: 'write', sales: 'write', inventory: 'read', parties: 'read',
-    purchases: 'none', expenses: 'write', accounting: 'none', payments: 'none', reports: 'none', users: 'none', settings: 'none',
+    purchases: 'none', expenses: 'write', accounting: 'none', payments: 'none', reports: 'none', analytics: 'none', users: 'none', settings: 'none',
   },
   storekeeper: {
     dashboard: 'read', pos: 'none', sales: 'none', inventory: 'write', parties: 'read',
-    purchases: 'write', expenses: 'none', accounting: 'none', payments: 'none', reports: 'read', users: 'none', settings: 'none',
+    purchases: 'write', expenses: 'none', accounting: 'none', payments: 'none', reports: 'read', analytics: 'none', users: 'none', settings: 'none',
   },
 };
 

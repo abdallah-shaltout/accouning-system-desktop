@@ -16,6 +16,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/settings/branches', name: 'settings-branches', component: () => import('../pages/BranchesSettingsPage.vue'), meta: { title: 'الفروع', section, area: 'settings' } },
   { path: '/settings/cost-centers', name: 'settings-cost-centers', component: () => import('../pages/CostCentersSettingsPage.vue'), meta: { title: 'مراكز التكلفة', section, area: 'settings' } },
   { path: '/settings/currencies', name: 'settings-currencies', component: () => import('../pages/CurrenciesSettingsPage.vue'), meta: { title: 'العملات', section, area: 'settings' } },
+  // v2 phase 10 (docs/v2/11-journal-dashboard-insights.md D1 "Thresholds"): insight-engine rule thresholds.
+  { path: '/settings/recommendations', name: 'settings-recommendations', component: () => import('../pages/RecommendationsSettingsPage.vue'), meta: { title: 'التوصيات', section, area: 'settings' } },
   // v2 phase 6 §6: role matrix editor. Gated on `users` (only admins manage users/roles today).
   { path: '/settings/roles', name: 'settings-roles', component: () => import('../pages/RoleMatrixSettingsPage.vue'), meta: { title: 'المستخدمون والأدوار', section, area: 'users' } },
   // Appearance is a per-device preference, open to every signed-in user.

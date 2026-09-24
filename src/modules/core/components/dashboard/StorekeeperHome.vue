@@ -1,28 +1,42 @@
 <script setup lang="ts">
-import { AlertTriangle, ClipboardCheck, PackageMinus, PackagePlus, PackageX } from '@lucide/vue';
+import { computed } from 'vue';
+import { AlertTriangle, ClipboardCheck, PackageMinus, PackagePlus, PackageX, Truck, Warehouse } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import KpiCard from '@/modules/core/components/dashboard/KpiCard.vue';
+import NeedsAttentionPanel from '@/modules/core/components/insights/NeedsAttentionPanel.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
-import { formatDateLong, formatNumber } from '@/modules/core/helpers/format';
+import { formatDateLong, formatMoney, formatNumber } from '@/modules/core/helpers/format';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getExpiryReport, getStockCounts } from '@/modules/products/services/inventoryService';
+import { getTransfers } from '@/modules/products/services/transferService';
+import { getPurchaseOrders } from '@/modules/purchases/services/purchaseService';
 import { getLowStockProducts } from '../../services/dashboardService';
+import { db } from '@/mocks/db';
 
 /**
- * v2 (docs/v2/01-personas.md §2 storekeeper, docs/v2/07-products-and-inventory.md §6): a minimal
- * landing page for أمين مخزن — low stock, expiring soon and open counts, plus the actions they use
- * most. The full insight-driven home (recommendations, per-role branch views) is Phase 10's job;
- * this is deliberately simple.
+ * v2 (docs/v2/01-personas.md §2 storekeeper, docs/v2/11 Part B "role homes" table): the FULL
+ * insight-driven home for أمين مخزن — completes Phase 6's placeholder (see that phase's
+ * `// TODO(phase 10)` note, now resolved): "يحتاج انتباهك" wired to the same insight engine as
+ * every other role (low-stock/expiry/budget-agnostic rules the storekeeper can see), a stock-value
+ * KPI, receiving-to-do and incoming-transfer counts, plus the original low-stock/expiry/counts
+ * cards and quick actions.
  */
 const auth = useAuthStore();
 
 const lowStock = useAsync(() => getLowStockProducts(8));
 const expiry = useAsync(getExpiryReport);
 const counts = useAsync(getStockCounts);
+const transfers = useAsync(getTransfers);
+const purchaseOrders = useAsync(() => getPurchaseOrders());
+
+const incomingTransfers = computed(() => transfers.data.value?.filter((t) => t.status === 'SENT') ?? []);
+const receivingToDo = computed(() => purchaseOrders.data.value?.filter((p) => p.status === 'ORDERED') ?? []);
+const stockValue = computed(() => db.products.filter((p) => p.active && p.type === 'product').reduce((a, p) => a + (p.stockValue ?? 0), 0));
 
 const greeting = new Date().getHours() < 12 ? 'صباح الخير' : 'مساء الخير';
 </script>
@@ -39,6 +53,25 @@ const greeting = new Date().getHours() < 12 ? 'صباح الخير' : 'مساء 
         <AppButton :icon="PackageMinus" to="/inventory/adjustments/new?type=LOSS">إتلاف / فقد</AppButton>
         <AppButton variant="primary" :icon="ClipboardCheck" to="/inventory/counts/new">جرد جديد</AppButton>
       </div>
+    </div>
+
+    <div class="mb-4">
+      <NeedsAttentionPanel />
+    </div>
+
+    <div class="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <KpiCard label="قيمة المخزون" :icon="Warehouse" :loading="!db.products.length">
+        <span dir="ltr">{{ formatMoney(stockValue) }}</span>
+      </KpiCard>
+      <KpiCard label="استلام بانتظارك" :icon="PackagePlus" :loading="purchaseOrders.loading.value" :tone="receivingToDo.length > 0 ? 'warning' : undefined" to="/purchases">
+        {{ formatNumber(receivingToDo.length) }}
+      </KpiCard>
+      <KpiCard label="تحويلات واردة" :icon="Truck" :loading="transfers.loading.value" :tone="incomingTransfers.length > 0 ? 'warning' : undefined" to="/inventory/transfers">
+        {{ formatNumber(incomingTransfers.length) }}
+      </KpiCard>
+      <KpiCard label="أصناف منخفضة المخزون" :icon="PackageX" :loading="lowStock.loading.value" :tone="(lowStock.data.value?.length ?? 0) > 0 ? 'warning' : undefined" to="/products?stock=low">
+        {{ formatNumber(lowStock.data.value?.length) }}
+      </KpiCard>
     </div>
 
     <div class="grid gap-4 xl:grid-cols-3">

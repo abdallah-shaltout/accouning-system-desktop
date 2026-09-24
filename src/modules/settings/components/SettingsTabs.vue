@@ -20,6 +20,7 @@ const tabs = computed(() =>
     { to: '/settings/branches', label: 'الفروع', show: auth.can('settings') && !!settingsStore.settings?.features?.branches },
     { to: '/settings/cost-centers', label: 'مراكز التكلفة', show: auth.can('settings') && !!settingsStore.settings?.features?.costCenters },
     { to: '/settings/currencies', label: 'العملات', show: auth.can('settings') && !!settingsStore.settings?.features?.currencies },
+    { to: '/settings/recommendations', label: 'التوصيات', show: auth.can('settings') },
     { to: '/settings/roles', label: 'المستخدمون والأدوار', show: auth.can('users') },
     { to: '/settings/printing', label: 'الطباعة والأجهزة', show: auth.can('settings') },
     { to: '/settings/appearance', label: 'المظهر', show: true },

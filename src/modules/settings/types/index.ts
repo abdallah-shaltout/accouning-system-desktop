@@ -147,6 +147,11 @@ export interface StoreSettings {
   /** v2 phase 6 (§6 "Role matrix editor") — sparse per-role area-access overrides on top of the presets. */
   roleAccessOverrides?: import('@/modules/users/helpers/permissions').RoleAccessOverrides;
   /**
+   * v2 phase 10 (docs/v2/11-journal-dashboard-insights.md D1 "Thresholds") — Settings → التوصيات.
+   * Sparse: unset fields fall back to `DEFAULT_THRESHOLDS` in `modules/core/services/insightTypes.ts`.
+   */
+  insightThresholds?: Partial<import('@/modules/core/services/insightTypes').InsightThresholds>;
+  /**
    * v2 phase 7 POS settings (docs/v2/06-sales-and-pos.md §1). Kept as flat store-wide toggles
    * (not a per-role permission-matrix entry — no `pos.*`/`sales.*` area exists in
    * `modules/users/helpers/permissions.ts`'s `Area` type, and adding one is a bigger surface than
@@ -178,5 +183,24 @@ export interface StoreSettings {
     branches?: boolean;
     currencies?: boolean;
     costCenters?: boolean;
+  };
+  /**
+   * v2 phase 5 (docs/v2/05-onboarding.md): the setup wizard's own progress/state. `goLiveDate` is
+   * the opening-balance date (locked once the opening entry posts, per §6); `completedStep`/`skipped`
+   * drive the dashboard's setup-checklist card; `openingEntryId`/`closingEntryId` are what the
+   * "before first use" edit flow reverses+re-posts.
+   */
+  onboarding?: {
+    businessType?: string;
+    goLiveDate?: string;
+    completedStep?: number;
+    /** Step keys the owner skipped (required steps can never appear here). */
+    skipped?: string[];
+    /** Step keys fully finished — drives the wizard's own progress rail across reloads. */
+    done?: string[];
+    finishedAt?: string;
+    openingEntryId?: string;
+    closingEntryId?: string;
+    coaTemplate?: 'basic' | 'standard' | 'detailed';
   };
 }

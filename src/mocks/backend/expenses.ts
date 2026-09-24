@@ -181,5 +181,6 @@ export function postRecurringExpense(id: string, userId: string, date = new Date
   return expense;
 }
 
-// TODO(phase 10): surface `dueRecurringExpenses()` through the insight engine (docs/v2/11-journal-
-// dashboard-insights.md Part B) instead of only the expenses list's due-list panel this phase ships.
+// Phase 10: `dueRecurringExpenses()` is also surfaced through the insight engine
+// ("recurring-expense-due" rule in `modules/core/services/insightRules.ts`, docs/v2/11-journal-
+// dashboard-insights.md Part B/D2), on top of the expenses list's own due-list panel.
