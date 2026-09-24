@@ -5,7 +5,7 @@ import { Moon, Store, Sun, Sparkles, Building2 } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import { resolvedTheme, toggleTheme } from '@/modules/core/controllers/useTheme';
 import { errorMessage } from '@/modules/core/controllers/useToast';
-import { seedDatabase, seedEmptyCompany } from '@/mocks/seed';
+import { seedDatabase } from '@/mocks/seed';
 import { flushSnapshot } from '@/mocks/persist';
 
 const router = useRouter();
@@ -26,20 +26,11 @@ async function startDemo() {
   }
 }
 
-async function startFresh() {
-  error.value = '';
-  pending.value = 'fresh';
-  try {
-    // TODO(phase 5): replace with the 11-step onboarding wizard from docs/v2/05-onboarding.md.
-    // This is a minimal stub: an empty CoA + one admin user, just enough to reach /login.
-    seedEmptyCompany();
-    await flushSnapshot();
-    router.replace('/login');
-  } catch (err) {
-    error.value = errorMessage(err);
-  } finally {
-    pending.value = null;
-  }
+// v2 phase 5 (docs/v2/05-onboarding.md): the 11-step onboarding wizard. It seeds the empty-company
+// shell itself on mount (same `seedEmptyCompany()` this stub used to call directly) — see
+// src/modules/setup/pages/SetupWizardPage.vue.
+function startFresh() {
+  router.push('/setup');
 }
 
 </script>
@@ -81,9 +72,9 @@ async function startFresh() {
           </span>
           <span class="text-sm font-semibold">ابدأ شركتك</span>
           <span class="text-xs leading-relaxed text-text-secondary">
-            أنشئ شركة جديدة فارغة بدليل حسابات ومستخدم مدير، ثم أكمل الإعداد لاحقاً.
+            معالج إعداد من 11 خطوة: بيانات المنشأة، الضريبة، الفروع، دليل الحسابات، والأرصدة الافتتاحية.
           </span>
-          <AppButton variant="primary" size="sm" class="mt-1" :loading="pending === 'fresh'" :disabled="pending !== null">ابدأ الآن</AppButton>
+          <AppButton variant="primary" size="sm" class="mt-1" :disabled="pending !== null">ابدأ الآن</AppButton>
         </button>
 
         <button

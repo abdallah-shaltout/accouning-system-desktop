@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Building, FileText, Plus, Truck, Users } from '@lucide/vue';
+import { Building, FileText, Plus, Truck, Upload, Users } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
@@ -13,6 +13,10 @@ import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatNumber } from '@/modules/core/helpers/format';
 import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+// v2 phase 5 (docs/v2/05-onboarding.md §5): generic Excel import, wired in here for "import
+// customers/suppliers" — the same descriptor pattern the opening-balances step uses.
+import ImportWizard from '@/modules/core/components/import/ImportWizard.vue';
+import { customersDescriptor, suppliersDescriptor } from '@/modules/core/components/import/descriptors';
 import PartyFormModal from '../components/PartyFormModal.vue';
 import { getCustomers, getSuppliers } from '../services/partyService';
 import type { Customer, Supplier } from '../types';
@@ -31,6 +35,8 @@ const canWrite = computed(() => auth.can('parties', 'write'));
 const search = ref('');
 const view = ref<'active' | 'balance' | 'inactive'>(route.query.view === 'balance' ? 'balance' : 'active');
 const formOpen = ref(false);
+const importOpen = ref(false);
+const importDescriptor = computed(() => (isCustomer.value ? customersDescriptor : suppliersDescriptor));
 
 const { data, loading, error, reload } = useAsync<Party[]>(() =>
   isCustomer.value ? getCustomers({ includeInactive: true }) : getSuppliers({ includeInactive: true }),
@@ -69,6 +75,7 @@ const columns = computed<Column<Party>[]>(() => [
       :subtitle="isCustomer ? 'بيانات العملاء وأرصدتهم المستحقة (الذمم المدينة)' : 'بيانات الموردين والمبالغ المستحقة لهم (الذمم الدائنة)'"
     >
       <template #actions>
+        <AppButton v-if="canWrite" :icon="Upload" @click="importOpen = true">استيراد من إكسل</AppButton>
         <AppButton v-if="canWrite" :icon="FileText" :to="isCustomer ? '/customers/new' : '/suppliers/new'">نموذج كامل</AppButton>
         <AppButton v-if="canWrite" variant="primary" :icon="Plus" @click="formOpen = true">{{ isCustomer ? 'عميل جديد' : 'مورد جديد' }}</AppButton>
       </template>
@@ -114,5 +121,6 @@ const columns = computed<Column<Party>[]>(() => [
     </p>
 
     <PartyFormModal v-model:open="formOpen" :kind="kind" @saved="(p) => router.push(`/${isCustomer ? 'customers' : 'suppliers'}/${p.id}`)" />
+    <ImportWizard v-if="importOpen" :descriptor="importDescriptor" @close="importOpen = false" @imported="() => { importOpen = false; reload(); }" />
   </div>
 </template>

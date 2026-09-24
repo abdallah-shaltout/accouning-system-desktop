@@ -77,6 +77,9 @@ export function run(): Result[] {
     'settlement',
     // v2 phase 9 (docs/v2/10 §2 "Unrealized FX"): the revaluation wizard's auto-reversing entry.
     'fxReval',
+    // v2 phase 5 (docs/v2/05-onboarding.md §3, §4): the opening entry / its 3900-closing entry /
+    // a party's "رصيد سابق من نظام قديم" entry.
+    'opening',
   ]);
   const badSourceRefs = db.journalEntries.filter((e) => e.sourceRef && !sourceKinds.has(e.sourceRef.kind));
   results.push(check(badSourceRefs.length === 0, `every entry's sourceRef has a known kind (${badSourceRefs.length} unrecognized)`));
@@ -101,6 +104,23 @@ export function run(): Result[] {
   const lockDate = db.settings.accounting?.lockDate;
   const lockedButPosted = lockDate ? db.journalEntries.filter((e) => e.date.slice(0, 10) <= lockDate) : [];
   results.push(check(lockedButPosted.length === 0, `no entry is dated inside the locked period (lockDate=${lockDate ?? 'none'}, ${lockedButPosted.length} offenders)`));
+
+  // 9. `openingBalanceEquity` (3900) = 0 once onboarding is complete (docs/v2/05-onboarding.md §3
+  // "Closing 3900" — a second entry moves 3900's balance to capital/ownerCurrent). The demo seed
+  // (src/mocks/seed/index.ts) runs the real onboarding posting helpers (postOpeningEntry +
+  // closeOpeningBalanceEquity via src/mocks/backend/opening.ts), so this checks the same account
+  // every real company's wizard leaves at zero.
+  const openingEquityAccount = db.accounts.find((a) => a.systemRole === 'openingBalanceEquity');
+  let obeNet = 0;
+  if (openingEquityAccount) {
+    for (const e of db.journalEntries) {
+      for (const l of e.lines) {
+        if (l.accountId === openingEquityAccount.id) obeNet += l.debit - l.credit;
+      }
+    }
+  }
+  obeNet = round2(obeNet);
+  results.push(check(Math.abs(obeNet) < 0.01, `openingBalanceEquity (3900) is zero once onboarding is complete (current balance: ${obeNet})`));
 
   return results;
 }

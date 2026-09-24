@@ -59,7 +59,10 @@ function withRunningBalance(rows: Omit<PartyStatementRow, 'balance'>[], sign: 1 
 export function customerStatement(customerId: string): PartyStatementRow[] {
   const rows: Omit<PartyStatementRow, 'balance'>[] = partyLedgerLines('customer', customerId).map((l) => {
     const ref = l.entry.sourceRef;
-    const kind: PartyStatementRow['kind'] = ref?.kind === 'refund' ? 'refund' : ref?.kind === 'payment' ? 'payment' : 'invoice';
+    // v2 phase 5 (docs/v2/05-onboarding.md §4 "On the party: Statement — the balance appears as a
+    // رصيد افتتاحي row"): both the wizard's opening entry and a party-form "رصيد سابق" entry carry
+    // `sourceRef.kind === 'opening'`.
+    const kind: PartyStatementRow['kind'] = ref?.kind === 'refund' ? 'refund' : ref?.kind === 'payment' ? 'payment' : ref?.kind === 'opening' ? 'opening' : 'invoice';
     return {
       id: l.id,
       date: l.entry.date,
@@ -82,7 +85,8 @@ export function customerStatement(customerId: string): PartyStatementRow[] {
 export function supplierStatement(supplierId: string): PartyStatementRow[] {
   const rows: Omit<PartyStatementRow, 'balance'>[] = partyLedgerLines('supplier', supplierId).map((l) => {
     const ref = l.entry.sourceRef;
-    const kind: PartyStatementRow['kind'] = ref?.kind === 'purchaseReturn' ? 'purchaseReturn' : ref?.kind === 'payment' ? 'payment' : 'purchaseOrder';
+    const kind: PartyStatementRow['kind'] =
+      ref?.kind === 'purchaseReturn' ? 'purchaseReturn' : ref?.kind === 'payment' ? 'payment' : ref?.kind === 'opening' ? 'opening' : 'purchaseOrder';
     return {
       id: l.id,
       date: l.entry.date,

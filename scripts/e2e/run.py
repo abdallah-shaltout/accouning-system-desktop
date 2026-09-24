@@ -20,7 +20,10 @@ FLOWS_DIR = Path(__file__).resolve().parent / "flows"
 # Explicit order: later flows assume state left by earlier ones (e.g. role-gating and
 # refund-payment both read the invoice list that cashier-pos just created into). purchases/expenses
 # (v2 phase 8) run after products (batches) and before reports (which then sees their postings too).
-ORDER = ["cashier_pos", "desk_invoice", "role_gating", "accountant_journal", "refund_payment", "products", "purchases", "expenses", "branches_currencies", "reports", "home_insights"]
+# `onboarding` (v2 phase 5) runs FIRST: it clears the persisted IndexedDB snapshot to prove a
+# genuinely fresh install (no company yet) goes through the wizard end to end — every later flow's
+# `ensure_demo_data()` (scripts/e2e/common.py) reseeds the demo dataset it needs regardless.
+ORDER = ["onboarding", "cashier_pos", "desk_invoice", "role_gating", "accountant_journal", "refund_payment", "products", "purchases", "expenses", "branches_currencies", "reports", "home_insights"]
 
 
 def area_name(module_name: str) -> str:

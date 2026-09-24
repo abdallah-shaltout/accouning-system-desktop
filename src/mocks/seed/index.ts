@@ -8,6 +8,7 @@
  * them in here — never edit the individual area files' internals from an unrelated track.
  */
 import { db } from '../db';
+import { closeOpeningBalanceEquity } from '../backend/opening';
 import { postOpeningCapital, seedAccounts } from './accounts';
 import { postOpeningStock, seedCatalog } from './catalog';
 import { seedPeople } from './people';
@@ -36,6 +37,11 @@ export function seedDatabase(now = new Date()): void {
   const stockDate = new Date(day0);
   stockDate.setMinutes(stockDate.getMinutes() + 30);
   postOpeningStock(stockDate.toISOString(), ADMIN);
+  // v2 phase 5 (docs/v2/05-onboarding.md §3 "Closing 3900", invariant 9): `postOpeningStock` above
+  // credits 3900 (openingBalanceEquity) for every seeded product's opening quantity — closing it
+  // to capital right after is what the real wizard's step 8 does, and is what keeps 3900 at exactly
+  // zero once "onboarding" (the demo seed's equivalent) is complete.
+  closeOpeningBalanceEquity(stockDate.toISOString(), 'capital', ADMIN);
 
   seedHistory(now);
   seedShifts(now);

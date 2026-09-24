@@ -92,7 +92,10 @@ export type JournalSourceKind =
   /** v2 phase 7 (docs/v2/06-sales-and-pos.md §5): shift-close cash variance / cash-drop postings. */
   | 'shift'
   /** v2 phase 9 (docs/v2/10 §2 "Unrealized FX"): the currency-revaluation wizard's auto-reversing entry. */
-  | 'fxReval';
+  | 'fxReval'
+  /** v2 phase 5 (docs/v2/05-onboarding.md §3, §4): the onboarding opening entry, its 3900-closing
+   *  entry, and a party's "رصيد سابق من نظام قديم" opening-balance entry. */
+  | 'opening';
 
 export interface JournalLine {
   id: string;

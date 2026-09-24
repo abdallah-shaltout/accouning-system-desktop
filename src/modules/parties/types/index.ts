@@ -29,11 +29,18 @@ export interface NationalAddress {
   shortAddress?: string;
 }
 
-/** "Balance from an old system" stub — captured now, posted by the opening-balance wizard (Phase 5). */
+/**
+ * "Balance from an old system" (docs/v2/05-onboarding.md §4). `journalEntryId` is set once posted —
+ * its presence is what the form uses to show "مُرحّل" instead of the entry fields, and `locked`
+ * (set once a payment has been allocated against it) is what blocks further edits ("corrections via
+ * manual journal" from then on).
+ */
 export interface OpeningBalanceStub {
   amount?: number;
   side?: 'debit' | 'credit';
   asOfDate?: string;
+  journalEntryId?: string;
+  locked?: boolean;
 }
 
 export interface PartyBankInfo {

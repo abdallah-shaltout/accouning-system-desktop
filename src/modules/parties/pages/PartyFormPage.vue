@@ -38,8 +38,11 @@ import {
   unlinkPartyRecord,
   type DuplicateWarning,
 } from '../services/partyService';
-import type { Customer, NationalAddress, PartyContact, PartyGroup, PartyPhone, Supplier } from '../types';
+import type { Customer, NationalAddress, OpeningBalanceStub, PartyContact, PartyGroup, PartyPhone, Supplier } from '../types';
 import { isValidIban } from '../validators/partySchema';
+// v2 phase 5 (docs/v2/05-onboarding.md §4): posts the "رصيد سابق من نظام قديم" stub as a real
+// OPENING journal entry — completes Phase 4's stub (see the "رصيد سابق" card below).
+import { postPartyOpening, reversePartyOpening } from '@/modules/setup/services/setupService';
 
 const props = defineProps<{ kind: 'customer' | 'supplier' }>();
 const route = useRoute();
@@ -112,6 +115,11 @@ const duplicates = ref<DuplicateWarning[]>([]);
 const linkedId = ref<string | undefined>();
 const linkCandidates = ref<(Customer | Supplier)[]>([]);
 const showLinkPicker = ref(false);
+// v2 phase 5 (docs/v2/05-onboarding.md §4): the posted opening-balance entry, if any — drives the
+// "رصيد سابق" card between "not posted yet" (editable, posts on save) and "posted" (locked once a
+// payment is allocated to it; correction goes through the manual journal from then on).
+const openingStub = ref<OpeningBalanceStub | undefined>();
+const openingPosting = ref(false);
 
 async function load() {
   loading.value = true;
@@ -141,8 +149,12 @@ async function load() {
         accountName: p.bank?.accountName ?? '',
         contactPerson: (p as Supplier).contactPerson ?? '',
         notes: p.notes ?? '',
+        openingAmount: p.openingBalance?.amount,
+        openingSide: p.openingBalance?.side ?? 'debit',
+        openingAsOf: p.openingBalance?.asOfDate ?? '',
       });
       linkedId.value = p.linkedPartyId;
+      openingStub.value = p.openingBalance;
     }
   } catch (err) {
     loadError.value = errorMessage(err);
@@ -221,10 +233,14 @@ async function save() {
       paymentTermsDays: form.paymentTermsDays,
       bank: form.bankName || form.iban || form.accountName ? { bankName: form.bankName || undefined, iban: form.iban || undefined, accountName: form.accountName || undefined } : undefined,
       notes: form.notes.trim() || undefined,
-      // Opening-balance stub (docs/v2/08 §1 "رصيد سابق"): captured now, posted by the Phase 5
-      // opening-balance wizard. TODO(phase 5): post an opening journal entry from this on first save.
+      // Opening-balance stub (docs/v2/08 §1 "رصيد سابق", docs/v2/05 §4): the amount/side/date are
+      // always saved on the card; the actual ledger posting happens separately via `postOpening()`
+      // below (it needs a real partyId, which only exists once the party itself has been saved at
+      // least once) and is tracked by `journalEntryId`/`locked` on `openingStub`.
       openingBalance:
-        form.openingAmount !== undefined ? { amount: form.openingAmount, side: form.openingSide, asOfDate: form.openingAsOf || undefined } : undefined,
+        form.openingAmount !== undefined
+          ? { amount: form.openingAmount, side: form.openingSide, asOfDate: form.openingAsOf || undefined, journalEntryId: openingStub.value?.journalEntryId, locked: openingStub.value?.locked }
+          : undefined,
     };
     // Reactive form state holds nested arrays-of-objects (phones/contacts/nationalAddress) as Vue
     // Proxies; the mock backend later `structuredClone()`s the whole DB for IndexedDB persistence
@@ -233,13 +249,66 @@ async function save() {
     const payload = JSON.parse(
       JSON.stringify(isCustomer.value ? { ...common, creditLimit: form.creditLimit } : { ...common, contactPerson: form.contactPerson.trim() || undefined }),
     );
+    const wasNew = !id.value;
     const saved = isCustomer.value ? await saveCustomer(payload, id.value) : await saveSupplier(payload, id.value);
-    toast.success(id.value ? 'تم حفظ التعديلات' : isCustomer.value ? 'تمت إضافة العميل' : 'تمت إضافة المورد', saved.name);
+    // A brand-new party with a "رصيد سابق" amount posts immediately — there was no earlier chance
+    // to (no real partyId existed until this save). An existing party's amount only changes on the
+    // card, per docs/v2/05 §4 "editable until a payment is allocated" — posting/repost happens via
+    // the dedicated button below, not silently on every save.
+    if (wasNew && form.openingAmount) {
+      await postOpening(saved.id);
+    }
+    toast.success(id.value || !wasNew ? 'تم حفظ التعديلات' : isCustomer.value ? 'تمت إضافة العميل' : 'تمت إضافة المورد', saved.name);
     router.push(isCustomer.value ? `/customers/${saved.id}` : `/suppliers/${saved.id}`);
   } catch (err) {
     toast.error(err);
   } finally {
     saving.value = false;
+  }
+}
+
+// --- "رصيد سابق من نظام قديم" posting (docs/v2/05-onboarding.md §4) ------------------------------
+
+/** Posts (or re-posts after editing) the opening-balance entry for a party that already has a real id. */
+async function postOpening(partyId: string) {
+  if (!form.openingAmount) return;
+  openingPosting.value = true;
+  try {
+    const entryId = await postPartyOpening({
+      partyKind: isCustomer.value ? 'customer' : 'supplier',
+      partyId,
+      amount: form.openingAmount,
+      side: form.openingSide,
+      asOfDate: form.openingAsOf || new Date().toISOString().slice(0, 10),
+    });
+    openingStub.value = { amount: form.openingAmount, side: form.openingSide, asOfDate: form.openingAsOf, journalEntryId: entryId };
+  } finally {
+    openingPosting.value = false;
+  }
+}
+
+/** Reverses the posted entry so the amount/side/date can be edited again (docs/v2/05 §4 "Editing: allowed until a payment is allocated"). */
+async function unpostOpening() {
+  if (!openingStub.value?.journalEntryId) return;
+  openingPosting.value = true;
+  try {
+    await reversePartyOpening(openingStub.value.journalEntryId);
+    openingStub.value = undefined;
+    toast.success('تم إلغاء ترحيل الرصيد الافتتاحي — يمكن التعديل الآن');
+  } catch (err) {
+    toast.error(err);
+  } finally {
+    openingPosting.value = false;
+  }
+}
+
+async function postOpeningForExisting() {
+  if (!id.value) return;
+  try {
+    await postOpening(id.value);
+    toast.success('تم ترحيل الرصيد الافتتاحي');
+  } catch (err) {
+    toast.error(err);
   }
 }
 
@@ -387,14 +456,31 @@ const countryOptions = COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} 
 
         <!-- رصيد سابق -->
         <AppCard title="رصيد سابق (من نظام قديم)">
-          <p class="mb-3 text-xs text-text-secondary">يُحفظ الآن كملاحظة على البطاقة؛ ترحيله كقيد افتتاحي فعلي يتم من معالج الأرصدة الافتتاحية (المرحلة القادمة).</p>
+          <p v-if="openingStub?.journalEntryId" class="mb-3 flex items-center gap-1.5 text-xs" :class="openingStub.locked ? 'text-text-secondary' : 'text-success'">
+            <span>مُرحّل كقيد افتتاحي{{ openingStub.locked ? ' — مقفل بعد تخصيص دفعة، التعديل عبر القيد اليدوي فقط' : '' }}.</span>
+          </p>
+          <p v-else class="mb-3 text-xs text-text-secondary">
+            يُرحّل كقيد افتتاحي (مدين/دائن مقابل حساب الأرصدة الافتتاحية، أو رأس المال إذا كان التاريخ بعد تاريخ بدء العمل) — يظهر في كشف الحساب كصف "رصيد افتتاحي".
+          </p>
           <div class="grid gap-4 sm:grid-cols-3">
-            <AppInput v-model="form.openingAmount" type="number" min="0" label="المبلغ" />
+            <AppInput v-model="form.openingAmount" type="number" min="0" label="المبلغ" :disabled="!!openingStub?.locked" />
             <div>
               <span class="field-label">الجهة</span>
-              <SegmentedControl v-model="form.openingSide" :options="[{ value: 'debit', label: 'مدين (له/علينا)' }, { value: 'credit', label: 'دائن (عليه/لنا)' }]" size="sm" />
+              <SegmentedControl
+                v-model="form.openingSide"
+                class="pointer-events-none opacity-60"
+                :class="!openingStub?.locked && '!pointer-events-auto !opacity-100'"
+                :options="[{ value: 'debit', label: 'مدين (له/علينا)' }, { value: 'credit', label: 'دائن (عليه/لنا)' }]"
+                size="sm"
+              />
             </div>
-            <AppInput v-model="form.openingAsOf" type="date" label="كما في تاريخ" />
+            <AppInput v-model="form.openingAsOf" type="date" label="كما في تاريخ" :disabled="!!openingStub?.locked" />
+          </div>
+          <div v-if="id && !openingStub?.locked" class="mt-3 flex gap-2">
+            <AppButton v-if="!openingStub?.journalEntryId" type="button" size="sm" :loading="openingPosting" :disabled="!form.openingAmount" @click="postOpeningForExisting">
+              ترحيل الرصيد الافتتاحي
+            </AppButton>
+            <AppButton v-else type="button" size="sm" :loading="openingPosting" @click="unpostOpening">إلغاء الترحيل للتعديل</AppButton>
           </div>
         </AppCard>
 
