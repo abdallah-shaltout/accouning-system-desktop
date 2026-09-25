@@ -136,7 +136,7 @@ async function save() {
         <AppCard title="البيانات الأساسية">
           <div class="grid gap-4 sm:grid-cols-2">
             <AppInput v-model="form.name" label="الاسم الكامل" required :error="errors.name" />
-            <AppPhoneInput v-model="form.phone" label="الجوال" :error="errors.phone" />
+            <AppPhoneInput v-model="form.phone" label="الجوال" kind="mobile" :error="errors.phone" />
             <AppInput v-model="form.username" label="اسم المستخدم" required ltr :error="errors.username" hint="يستخدم لتسجيل الدخول" />
             <AppInput
               v-model="form.password"

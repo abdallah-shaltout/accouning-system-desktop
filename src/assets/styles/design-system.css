@@ -37,6 +37,11 @@
   --color-danger: #ef4444;
   --color-success: #22c55e;
   --color-warning: #d97706;
+  /* Control boundaries (input/select/switch-off/checkbox borders) need 3:1, not the decorative
+     hairline ratio --color-border gives (1.3-1.5:1 measured, see 18.C). Pulled forward for the
+     switch off-track fix in 18.A2 for the "neutral" base only; 18.C's full contrast pass adds the
+     per-base-palette overrides (zinc/stone/slate/gray, lines ~215+). */
+  --color-border-control: #85858f;
 
   /* Fixed greys for printed documents (invoices, receipts) — identical in light and dark mode. */
   --color-print-muted: #52525b;
@@ -134,6 +139,7 @@
   --color-danger: #e25858;
   --color-success: #42b883;
   --color-warning: #f0a33a;
+  --color-border-control: #6b6d78;
 }
 
 /*

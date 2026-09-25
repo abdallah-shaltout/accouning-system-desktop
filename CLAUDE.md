@@ -59,12 +59,46 @@ by `bun run memory` (pipeline in `scripts/memory/`: scan → parse → analyze �
 |---|---|
 | `AGENT_MEMORY.md` | Generated repo map — read first (see above) |
 | `docs/design_system.md` | Tokens, components, do/don't — the visual source of truth |
-| `docs/v2/17-ui-system-rtl-themes.md` | **Current plan**: RTL, motion, save dialog, sidebar, themes, shared UI system |
+| `plans/pending/` | **Active plans** — one folder per plan (see "Plans" below) |
+| `docs/v2/17-ui-system-rtl-themes.md` | Earlier plan (pre-`plans/`): RTL, motion, save dialog, sidebar, themes, shared UI system |
 | `docs/v2/15-action-plan.md` | Definition of done (the gates below come from here) |
 | `docs/v2/02-accounting-review.md` | Posting rules and invariants — read before touching any money logic |
 | `docs/v2/README.md` | Index of every v2 doc and the decisions already made |
 
-When you finish a planned task, tick its box in the doc and add a status note at the top of the phase.
+When you finish a planned task, tick its box in the plan file and add a status note at the top of the phase.
+
+## Plans
+
+Every implementation plan lives in `plans/`, never loose in `docs/` or the repo root.
+
+### Layout and lifecycle
+- `plans/pending/` holds plans that are not fully done. `plans/completed/` holds plans that are implemented
+  and verified. `plans/` is a live index, not an archive.
+- **One folder per plan**, even if it is a single file: `plans/pending/<NN>-<kebab-name>/`. `NN` continues
+  the doc numbering (the first one is `18`). The folder has a `README.md` with the overview, the decisions,
+  the definition of done, and a phase table (`File · What · Size · Status`) that links every file.
+- A plan with phases or sub-specs gets **one file per phase** (`phase-a-<name>.md`, …) inside its folder, not
+  one huge file. A small plan can be just `README.md`.
+- Links to docs are relative from the plan folder (`../../../docs/v2/02-accounting-review.md`), so they keep
+  working when the folder moves.
+- **Move on completion, in the same turn.** When the last task of a plan is done and its definition of done is
+  green (build, check, verify:mocks, full e2e), move the **whole folder** with
+  `git mv plans/pending/<plan> plans/completed/<plan>`, set every status to `done`, fix any link that pointed at the
+  old path (for example `docs/v2/README.md`), and run `bun run memory`. This is part of finishing the work, not a
+  later cleanup. If something could not be verified (for example no real `bun run desktop` check this session),
+  leave the plan in `pending/`, write exactly what is missing at the top of its README, and tell the user.
+  Never leave its status unclear.
+
+### Plan quality (a plan is ready only when all of these hold)
+- **Production-ready:** no placeholder logic and no "TODO: figure out later".
+- **Checklist-driven:** every phase has `- [ ]` tasks and a gate, so implementation is not improvised.
+- **Grounded in this repo:** it names the real files, services, routes and tokens (from `AGENT_MEMORY.md`), and
+  follows the architecture and UI rules in this file. No generic solutions bolted on.
+- **Not overkill:** it solves what was asked; extra ideas go in a short "later" note, not in the tasks.
+- **No conflicts:** checked against existing features, routes, models and the other pending plans. If it reverses
+  an earlier decision or a rule in this file, it says so and updates that rule as a task.
+- **Traceable:** every step has a stated reason (a bug found in code, a measurement, a user decision). Nothing is
+  guessed; open questions are listed as decisions for the user.
 
 ## Workflow
 
@@ -138,8 +172,10 @@ When you finish a planned task, tick its box in the doc and add a status note at
     breadcrumbs, submenu arrows and pagination are mirrored. Physical/numeric directions (trends,
     sort asc/desc, from→to between LTR amounts, play, undo/redo circles) are **not** mirrored.
 18. Things that slide, fill or move follow reading direction: "next" content enters from the left,
-    progress fills from the right, a switch's "on" thumb sits on the left. Arrow-key navigation is
-    mirrored (reka-ui does it via `ConfigProvider dir="rtl"`; custom handlers must too).
+    progress fills from the right. **Exception (product decision, doc 18.A2):** a switch's "on"
+    thumb always sits on the **right**, in every direction — unlike iOS/Material, which mirror it
+    in RTL. `Switch.vue` renders its track `dir="ltr"` for this reason (`/* rtl-ok: … */`). Arrow-key
+    navigation is mirrored (reka-ui does it via `ConfigProvider dir="rtl"`; custom handlers must too).
 19. Phone numbers, IBANs, codes stay `dir="ltr"` inside RTL layouts.
 
 ### Motion

@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **631 files / 64,233 lines** (md 22, rust 21, ts 194, vue 394).
+Indexed: **640 files / 65,135 lines** (md 30, rust 21, ts 194, vue 395).
 
 **Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -38,7 +38,7 @@ Indexed: **631 files / 64,233 lines** (md 22, rust 21, ts 194, vue 394).
 ## Architecture (layers & data flow)
 
 ```text
-pages (108) / components (322) / controllers (20)   src/modules/<domain>/…
+pages (108) / components (323) / controllers (20)   src/modules/<domain>/…
         │  may call ONLY ▼                  (seam rule — see Boundary report)
 services (28)   src/modules/<domain>/services/*   ← swap point for a real backend
    │                                   │
@@ -57,7 +57,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **accounting** | 12 / 3115 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
 | **analytics** | 8 / 465 | components 5, pages 1, routes 1, services 1 | 1 |  |
 | **approvals** | 5 / 248 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
-| **core** | 321 / 16192 | commandPalette 1, components 279, controllers 12, helpers 14, pages 4, routes 1, services 7, types 3 | 4 |  |
+| **core** | 322 / 16453 | commandPalette 1, components 280, controllers 12, helpers 14, pages 4, routes 1, services 7, types 3 | 4 |  |
 | **expenses** | 8 / 876 | pages 5, routes 1, services 1, types 1 | 5 |  |
 | **invoices** | 29 / 5240 | commands 1, components 12, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
 | **parties** | 9 / 1763 | components 1, helpers 1, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
@@ -65,7 +65,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **products** | 30 / 5023 | components 6, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
 | **purchases** | 10 / 1618 | commands 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
 | **reports** | 44 / 6032 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
-| **settings** | 26 / 4357 | commands 1, components 1, controllers 3, helpers 2, pages 12, routes 1, services 3, types 3 | 15 | yes |
+| **settings** | 26 / 4477 | commands 1, components 1, controllers 3, helpers 2, pages 12, routes 1, services 3, types 3 | 15 | yes |
 | **setup** | 17 / 1448 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
 | **templates** | 4 / 917 | pages 2, services 1, types 1 | 0 |  |
 | **users** | 11 / 928 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
@@ -246,13 +246,13 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **products** | core (199), mocks (15), users (13), settings (7), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
 | **purchases** | core (75), mocks (4), products (4), users (4), invoices (3), parties (3), settings (2), payments (1) | 5 |
 | **reports** | core (158), settings (7), accounting (5), mocks (4), invoices (1), users (1) | 4 |
-| **settings** | core (121), mocks (16), users (16), invoices (3), products (3), templates (2) | 11 |
+| **settings** | core (125), mocks (16), users (16), invoices (3), products (3), templates (2) | 11 |
 | **setup** | core (47), mocks (9), settings (4), accounting (2), products (2), parties (1), users (1) | 3 |
 | **templates** | core (16) | 3 |
 | **users** | core (36), mocks (7), products (3) | 15 |
 | **vouchers** | core (50), mocks (4), settings (2), users (2), accounting (1), invoices (1) | 3 |
 
-**Most-used npm packages** (files importing): `vue (365)`, `@lucide/vue (148)`, `reka-ui (118)`, `vue-router (98)`, `@vueuse/core (79)`, `@tauri-apps/api (13)`, `class-variance-authority (9)`, `pinia (9)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `zod (4)`, `fflate (3)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `@internationalized/date (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
+**Most-used npm packages** (files importing): `vue (367)`, `@lucide/vue (148)`, `reka-ui (118)`, `vue-router (98)`, `@vueuse/core (79)`, `@tauri-apps/api (13)`, `class-variance-authority (9)`, `pinia (9)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `zod (4)`, `fflate (3)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `@internationalized/date (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
 
 ## Rust ↔ Vue IPC contract
 
@@ -317,7 +317,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 
 | Group | Names |
 |---|---|
-| App*/ui components | `AiOrb`, `AppButton`, `AppCard`, `AppCombobox`, `AppInput`, `AppModal`, `AppPhoneInput`, `AppSelect`, `AppSwitch`, `AppTextarea`, `AttachmentField`, `AttachmentViewer`, `BrandLogo`, `ConfirmDialog`, `DataTable`, `DateRangeFilter`, `DirIcon`, `EmptyState`, `ErrorState`, `MoneyText`, `PageHeader`, `PdfPreview`, `RiyalIcon`, `SearchInput`, `SegmentedControl`, `SkeletonBlock`, `StatusBadge` |
+| App*/ui components | `AiOrb`, `AppButton`, `AppCard`, `AppCombobox`, `AppInput`, `AppModal`, `AppPhoneInput`, `AppSelect`, `AppSwitch`, `AppTextarea`, `AttachmentField`, `AttachmentViewer`, `BrandLogo`, `ConfirmDialog`, `CountryFlag`, `DataTable`, `DateRangeFilter`, `DirIcon`, `EmptyState`, `ErrorState`, `MoneyText`, `PageHeader`, `PdfPreview`, `RiyalIcon`, `SearchInput`, `SegmentedControl`, `SkeletonBlock`, `StatusBadge` |
 | App shell | `AppSidebar`, `AppTopbar`, `BrandBranchSwitcher`, `DefaultLayout`, `KeyboardShortcutsSheet`, `NavMain`, `NavQuickActions`, `NavUser`, `NotificationsDrawer` |
 | Core controllers (composables/stores) | `useAppearance`, `useAsync`, `useCommandPalette`, `useConfirm`, `useGridTab`, `useHotkeys`, `useInsights`, `useKeyboardShortcutsSheet`, `useNotificationStore`, `useNotifications`, `useTheme`, `useToast` |
 | Core helpers | `attachments`, `brand`, `countries`, `dirIcon`, `exportXlsx`, `format`, `keyboardShortcuts`, `labels`, `navigation`, `numbers`, `search`, `tafqit`, `utils`, `validation` |
@@ -364,15 +364,15 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `src/modules/parties/pages/PartyDetailPage.vue` | 407 |
 | `src/modules/purchases/pages/PurchaseFormPage.vue` | 399 |
 | `src/modules/settings/pages/BackupSettingsPage.vue` | 390 |
+| `src/modules/settings/pages/AppearanceSettingsPage.vue` | 376 |
 | `src/modules/accounting/pages/JournalDetailPage.vue` | 326 |
+| `src/modules/core/pages/DevUiPage.vue` | 321 |
 | `src/modules/invoices/pages/InvoiceListPage.vue` | 311 |
-| `src/modules/core/pages/DevUiPage.vue` | 307 |
 | `src/modules/payments/pages/PaymentFormPage.vue` | 275 |
 | `src/modules/products/pages/StockTransferListPage.vue` | 274 |
 | `src/modules/settings/pages/PaymentMethodsSettingsPage.vue` | 274 |
 | `src/modules/products/pages/LabelBuilderPage.vue` | 273 |
 | `src/modules/accounting/pages/FiscalYearsPage.vue` | 260 |
-| `src/modules/settings/pages/AppearanceSettingsPage.vue` | 256 |
 | `src/modules/products/pages/PriceListsPage.vue` | 255 |
 | `src/modules/settings/pages/GeneralSettingsPage.vue` | 254 |
 
@@ -404,7 +404,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `bun run scaffold` | `node scripts/scaffold.js` |
 | `bun run build:android` | `cd src-tauri/gen/android && ./gradlew.bat assembleArm64Debug` |
 | `bun run verify:mocks` | `bun run scripts/verify/run.ts` |
-| `bun run check` | `node scripts/check-text-tokens.js && node scripts/check-rtl.js` |
+| `bun run check` | `node scripts/check-text-tokens.js && node scripts/check-rtl.js && bun run scripts/check-contrast.ts` |
 | `bun run memory` | `bun run scripts/memory/run.ts` |
 | `bun run memory:check` | `bun run scripts/memory/run.ts --check` |
 
@@ -434,3 +434,11 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `docs/v2/16-equal-rebrand-and-ui-kit.md` | 16 — Equal: close fix, rebrand, shadcn-vue UI kit & sidebar-07 layout |
 | `docs/v2/17-ui-system-rtl-themes.md` | 17 — Real RTL, full motion, themes, a simpler sidebar, and one shared UI system |
 | `docs/v2/README.md` | Plan v2 — From Demo Shop to Real Business Tool |
+| `plans/pending/18-countries-a11y-diagnostics/phase-a-phone-switch.md` | 18.A — Quick fixes: phone input and switch |
+| `plans/pending/18-countries-a11y-diagnostics/phase-b-diagnostics.md` | 18.B — Diagnostics foundation (error · perf · debug · audit · accounting) |
+| `plans/pending/18-countries-a11y-diagnostics/phase-c-contrast.md` | 18.C — Contrast & accessibility |
+| `plans/pending/18-countries-a11y-diagnostics/phase-d-country-profiles.md` | 18.D — Country profiles: Egypt first, then Saudi |
+| `plans/pending/18-countries-a11y-diagnostics/phase-e-address-picker.md` | 18.E — Address picker (`eg.json`, `sa.json`) |
+| `plans/pending/18-countries-a11y-diagnostics/phase-f-accounting-debugger.md` | 18.F — Accounting debugger |
+| `plans/pending/18-countries-a11y-diagnostics/phase-g-dev-loop.md` | 18.G — Close the dev loop |
+| `plans/pending/18-countries-a11y-diagnostics/README.md` | 18 — Egypt + Saudi as real countries, address picker, phone/switch fixes, contrast, and a diagnostics system |

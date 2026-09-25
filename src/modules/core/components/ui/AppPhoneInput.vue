@@ -3,16 +3,34 @@
  * Phone input used by every phone field in the app (docs/v2/08-customers-and-suppliers.md §2).
  * - RTL layout: the country button sits at the *end* of the field; the number itself is LTR.
  * - Storage: E.164 (`+9665XXXXXXXX`), never the display-formatted string.
- * - Display formatting + validation: `libphonenumber-js/min`.
+ * - Display formatting + parsing: `libphonenumber-js/min`, which strips a typed national trunk
+ *   prefix (EG/SA leading `0`) correctly — this component never concatenates `+dial+digits` itself.
+ * - Validation only runs after the field has been touched (blurred once), so no error flashes while
+ *   the user is still typing (18.A1 #2).
  * - Arabic-Indic digits are converted to Latin as the user types or pastes.
  * - Paste: strips spaces/dashes and a leading `00` or `+`; switches country if the pasted number
  *   carries a different dial code.
+ * - Country dropdown rebuilt on shadcn's Combobox (reka-ui), like `AppCombobox` — real arrow-key
+ *   nav, Escape/Tab handling and listbox ARIA instead of a hand-rolled `<ul>` + window listener
+ *   (18.A1 #6).
  */
-import { computed, nextTick, onBeforeUnmount, ref, useId, watch } from 'vue';
+import { computed, nextTick, ref, useId, watch } from 'vue';
 import { AsYouType, isValidPhoneNumber, parsePhoneNumberFromString } from 'libphonenumber-js/min';
-import { ChevronDown, Search } from '@lucide/vue';
+import { Check, ChevronDown } from '@lucide/vue';
+import {
+  Combobox,
+  ComboboxAnchor,
+  ComboboxTrigger,
+  ComboboxInput,
+  ComboboxList,
+  ComboboxViewport,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxItemIndicator,
+} from '@/modules/core/components/shadcn/combobox';
 import { COUNTRIES, countryByCode, countryByDialCode, DEFAULT_COUNTRY_CODE, type CountryInfo } from '../../helpers/countries';
 import { matchesSearch } from '../../helpers/search';
+import CountryFlag from './CountryFlag.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -26,8 +44,13 @@ const props = withDefaults(
     defaultCountry?: string;
     /** Validate on blur and show the inline Arabic error if the number is incomplete/invalid. */
     validate?: boolean;
+    /**
+     * 'mobile' requires a mobile-type number (landlines rejected); 'any' (default) accepts a
+     * company landline too. Only changes validation + wording (18.A1 #5) — storage is unaffected.
+     */
+    kind?: 'mobile' | 'any';
   }>(),
-  { defaultCountry: DEFAULT_COUNTRY_CODE, validate: true },
+  { defaultCountry: DEFAULT_COUNTRY_CODE, validate: true, kind: 'any' },
 );
 
 /** E.164, e.g. "+966567891234". Empty string / undefined when cleared. */
@@ -36,12 +59,11 @@ const model = defineModel<string | undefined>();
 const id = useId();
 const countryCode = ref(props.defaultCountry);
 const nationalDigits = ref('');
-const open = ref(false);
-const query = ref('');
+const touched = ref(false);
 const localError = ref('');
 const numberInput = ref<HTMLInputElement>();
-const trigger = ref<HTMLButtonElement>();
-const searchInput = ref<HTMLInputElement>();
+const open = ref(false);
+const query = ref('');
 
 const ARABIC_INDIC = '٠١٢٣٤٥٦٧٨٩';
 function toLatinDigits(s: string): string {
@@ -71,32 +93,39 @@ watch(
   model,
   (v, old) => {
     if (v === old) return;
-    const currentE164 = nationalDigits.value ? `+${country.value.dialCode}${nationalDigits.value}` : '';
+    const currentE164 = nationalDigits.value ? parsePhoneNumberFromString(nationalDigits.value, country.value.code as any)?.number : '';
     if (v === currentE164) return; // change came from us, not the outside
     syncFromModel();
   },
 );
 
-function pushModel() {
+function validateNow() {
   if (!nationalDigits.value) {
-    model.value = undefined;
     localError.value = '';
     return;
   }
-  const e164 = `+${country.value.dialCode}${nationalDigits.value}`;
-  model.value = e164;
-  if (props.validate) {
-    // Validate the local `e164` string, not `model.value` — `defineModel` round-trips through the
-    // parent's `v-model` binding, and reading it back synchronously in the same tick isn't
-    // guaranteed to reflect the write yet (observed as `isValidPhoneNumber` receiving `undefined`
-    // and libphonenumber-js throwing "A text for parsing must be a string").
-    localError.value = isValidPhoneNumber(e164) ? '' : `رقم الجوال غير صحيح لـ${country.value.nameAr}`;
+  const parsed = parsePhoneNumberFromString(nationalDigits.value, country.value.code as any);
+  const valid = !!parsed && isValidPhoneNumber(parsed.number);
+  const kindOk = valid && (props.kind !== 'mobile' || parsed!.getType() === 'MOBILE' || parsed!.getType() === 'FIXED_LINE_OR_MOBILE');
+  localError.value = kindOk ? '' : props.kind === 'mobile' ? `رقم الجوال غير صحيح لـ${country.value.nameAr}` : `رقم الهاتف غير صحيح لـ${country.value.nameAr}`;
+}
+
+function pushModel() {
+  if (!nationalDigits.value) {
+    model.value = undefined;
+    if (touched.value) validateNow();
+    return;
   }
+  // Parsing (not concatenation) strips a typed national trunk prefix, e.g. EG "01012345678" or
+  // SA "0501234567", correctly (18.A1 #3).
+  const parsed = parsePhoneNumberFromString(nationalDigits.value, country.value.code as any);
+  model.value = parsed?.number ?? `+${country.value.dialCode}${nationalDigits.value}`;
+  if (touched.value && props.validate) validateNow();
 }
 
 function onInput(e: Event) {
   const raw = (e.target as HTMLInputElement).value;
-  nationalDigits.value = toLatinDigits(raw).replace(/\D/g, '').slice(0, country.value.nsnLength + 2);
+  nationalDigits.value = toLatinDigits(raw).replace(/\D/g, '');
   pushModel();
 }
 
@@ -116,7 +145,7 @@ function onPaste(e: ClipboardEvent) {
   } else {
     nationalDigits.value = digits.startsWith(country.value.dialCode) ? digits.slice(country.value.dialCode.length) : digits;
   }
-  nationalDigits.value = nationalDigits.value.slice(0, country.value.nsnLength + 2);
+  touched.value = true;
   pushModel();
 }
 
@@ -125,15 +154,18 @@ const displayValue = computed(() => {
   return new AsYouType(country.value.code as any).input(nationalDigits.value);
 });
 
-function selectCountry(c: CountryInfo) {
+function onSelectCountry(v: unknown) {
+  const c = countryByCode(v as string);
+  if (!c) return;
   countryCode.value = c.code;
-  hide();
+  open.value = false;
   pushModel();
   nextTick(() => numberInput.value?.focus());
 }
 
 function onBlur() {
-  if (props.validate && nationalDigits.value) pushModel();
+  touched.value = true;
+  if (props.validate) validateNow();
 }
 
 const filteredCountries = computed(() => {
@@ -142,33 +174,8 @@ const filteredCountries = computed(() => {
   return COUNTRIES.filter((c) => matchesSearch([c.nameAr, c.nameEn, `+${c.dialCode}`, c.dialCode], q));
 });
 
-async function show() {
-  if (props.disabled) return;
-  open.value = true;
-  query.value = '';
-  await nextTick();
-  searchInput.value?.focus();
-}
-
-function hide(refocus = false) {
-  open.value = false;
-  if (refocus) trigger.value?.focus();
-}
-
-function onDocClick(e: MouseEvent) {
-  if (!open.value) return;
-  const target = e.target as Node;
-  if (trigger.value?.contains(target)) return;
-  hide();
-}
-
-watch(open, (v) => {
-  if (v) window.addEventListener('mousedown', onDocClick, true);
-  else window.removeEventListener('mousedown', onDocClick, true);
-});
-onBeforeUnmount(() => window.removeEventListener('mousedown', onDocClick, true));
-
 const shownError = computed(() => props.error || localError.value || undefined);
+const errorId = computed(() => (shownError.value ? `${id}-error` : undefined));
 
 /** WhatsApp link for this number (digits only, no "+") — used by the party page's WhatsApp button. */
 const whatsappHref = computed(() => (model.value ? `https://wa.me/${model.value.replace(/\D/g, '')}` : undefined));
@@ -179,9 +186,9 @@ defineExpose({ whatsappHref, focus: () => numberInput.value?.focus() });
 <template>
   <div>
     <label v-if="label" :for="id" class="field-label">
-      {{ label }}<span v-if="required" class="text-danger"> *</span>
+      {{ label }}<span v-if="required" class="text-danger" aria-hidden="true"> *</span>
     </label>
-    <div class="relative flex items-stretch" dir="rtl">
+    <div class="flex items-stretch" dir="rtl">
       <input
         :id="id"
         ref="numberInput"
@@ -192,59 +199,60 @@ defineExpose({ whatsappHref, focus: () => numberInput.value?.focus() });
         :value="displayValue"
         :placeholder="placeholder ?? country.placeholder"
         :disabled="disabled"
-        :maxlength="country.nsnLength + 4"
         :aria-invalid="!!shownError || undefined"
-        class="control flex-1 rounded-e-none border-e-0 text-end"
+        :aria-describedby="errorId"
+        :aria-required="required || undefined"
+        class="control w-auto min-w-0 flex-1 rounded-e-none border-e-0 text-end"
         @input="onInput"
         @paste="onPaste"
         @blur="onBlur"
       />
-      <button
-        ref="trigger"
-        type="button"
-        :disabled="disabled"
-        class="control flex shrink-0 items-center gap-1.5 rounded-s-none px-2.5"
-        :class="disabled && 'cursor-not-allowed opacity-60'"
-        @click="open ? hide() : show()"
-      >
-        <span class="text-base leading-none">{{ country.flag }}</span>
-        <span class="num text-xs text-text-secondary">+{{ country.dialCode }}</span>
-        <ChevronDown class="size-3.5 text-text-secondary" />
-      </button>
 
-      <div
-        v-if="open"
-        dir="rtl"
-        class="absolute top-full z-50 mt-1 w-64 overflow-hidden rounded-lg border border-border bg-background shadow-xl"
-        :class="'end-0'"
+      <Combobox
+        :model-value="countryCode"
+        :open="open"
+        ignore-filter
+        :disabled="disabled"
+        @update:model-value="onSelectCountry"
+        @update:open="(v) => { open = v; if (v) query = ''; }"
       >
-        <div class="flex items-center gap-2 border-b border-border px-2.5">
-          <Search class="size-4 text-text-secondary" />
-          <input
-            ref="searchInput"
-            v-model="query"
-            placeholder="بحث عن دولة…"
-            class="h-9 w-full bg-transparent text-body outline-none placeholder:text-text-secondary"
-          />
-        </div>
-        <ul class="max-h-64 overflow-y-auto p-1">
-          <li v-for="c in filteredCountries" :key="c.code">
+        <ComboboxAnchor class="w-auto shrink-0">
+          <ComboboxTrigger as-child aria-haspopup="listbox" :aria-label="`دولة الرقم: ${country.nameAr}`">
             <button
               type="button"
-              class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-start text-body hover:bg-surface-hover"
-              :class="c.code === country.code && 'bg-surface-hover'"
-              @click="selectCountry(c)"
+              :disabled="disabled"
+              class="control flex w-auto shrink-0 items-center gap-1.5 rounded-s-none px-2.5"
+              :class="disabled && 'cursor-not-allowed opacity-60'"
             >
-              <span class="text-base leading-none">{{ c.flag }}</span>
+              <CountryFlag :code="country.code" />
+              <span class="num text-xs text-text-secondary">+{{ country.dialCode }}</span>
+              <ChevronDown class="size-3.5 text-text-secondary" />
+            </button>
+          </ComboboxTrigger>
+        </ComboboxAnchor>
+
+        <ComboboxList dir="rtl" class="w-64 min-w-60 rounded-lg border-border bg-background shadow-xl">
+          <ComboboxInput v-model="query" placeholder="بحث عن دولة…" class="text-body" />
+          <ComboboxViewport class="max-h-64 p-1">
+            <ComboboxItem
+              v-for="c in filteredCountries"
+              :key="c.code"
+              :value="c.code"
+              class="rounded-md px-2 py-1.5 text-body"
+            >
+              <CountryFlag :code="c.code" />
               <span class="min-w-0 flex-1 truncate">{{ c.nameAr }}</span>
               <span class="num text-xs text-text-secondary">+{{ c.dialCode }}</span>
-            </button>
-          </li>
-          <li v-if="!filteredCountries.length" class="px-2 py-6 text-center text-xs text-text-secondary">لا توجد نتائج</li>
-        </ul>
-      </div>
+              <ComboboxItemIndicator>
+                <Check class="size-4 text-primary" />
+              </ComboboxItemIndicator>
+            </ComboboxItem>
+            <ComboboxEmpty class="text-xs text-text-secondary">لا توجد نتائج</ComboboxEmpty>
+          </ComboboxViewport>
+        </ComboboxList>
+      </Combobox>
     </div>
-    <p v-if="shownError" class="mt-1 text-xs text-danger">{{ shownError }}</p>
+    <p v-if="shownError" :id="errorId" class="mt-1 text-xs text-danger" role="alert">{{ shownError }}</p>
     <p v-else-if="hint" class="mt-1 text-xs text-text-secondary">{{ hint }}</p>
   </div>
 </template>

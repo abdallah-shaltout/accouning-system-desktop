@@ -14,10 +14,10 @@ const model = defineModel<boolean>({ default: false });
     <Switch
       v-model="model"
       :disabled="disabled"
-      class="mt-0.5 h-5 w-9 border data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=unchecked]:border-border data-[state=unchecked]:bg-surface-hover"
+      class="mt-0.5 h-[1.15rem] w-8 border border-border-control data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=unchecked]:bg-surface-hover"
     >
       <template #thumb>
-        <span class="pointer-events-none block size-3.5 rounded-full bg-white shadow-sm" />
+        <span class="pointer-events-none block size-4 rounded-full bg-white shadow-sm" />
       </template>
     </Switch>
     <span v-if="label || description" class="min-w-0">

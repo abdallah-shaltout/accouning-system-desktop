@@ -18,6 +18,7 @@ import AppTextarea from '../components/ui/AppTextarea.vue';
 import AppSelect from '../components/ui/AppSelect.vue';
 import AppSwitch from '../components/ui/AppSwitch.vue';
 import AppCombobox, { type ComboOption } from '../components/ui/AppCombobox.vue';
+import AppPhoneInput from '../components/ui/AppPhoneInput.vue';
 import AppModal from '../components/ui/AppModal.vue';
 import DirIcon from '../components/ui/DirIcon.vue';
 import { dirIcon } from '../helpers/dirIcon';
@@ -47,6 +48,10 @@ const switchOn = ref(true);
 const switchOff = ref(false);
 const segmentValue = ref('a');
 const comboValue = ref<string | undefined>();
+const phoneEmpty = ref<string | undefined>();
+const phoneEg = ref<string | undefined>('+201012345678');
+const phoneSa = ref<string | undefined>('+966501234567');
+const phoneInvalid = ref<string | undefined>('+20123');
 const searchValue = ref('');
 const dateFrom = ref('');
 const dateTo = ref('');
@@ -134,6 +139,15 @@ const rtlPageCount = 8;
         <AppSwitch v-model="switchOn" label="مفعّل" description="حالة تشغيل" />
         <AppSwitch v-model="switchOff" label="غير مفعّل" description="حالة إيقاف" />
         <AppSwitch v-model="switchOff" label="معطّل" disabled />
+      </div>
+    </AppCard>
+
+    <AppCard title="الهاتف (AppPhoneInput)">
+      <div class="grid gap-4 sm:grid-cols-2">
+        <AppPhoneInput v-model="phoneEmpty" label="فارغ" default-country="EG" hint="اكتب رقماً محلياً بصفر البداية، مثل 01012345678" />
+        <AppPhoneInput v-model="phoneEg" label="مصر (صحيح)" default-country="EG" />
+        <AppPhoneInput v-model="phoneSa" label="السعودية (صحيح)" default-country="SA" kind="mobile" />
+        <AppPhoneInput v-model="phoneInvalid" label="غير صحيح (بعد الخروج من الحقل)" default-country="EG" />
       </div>
     </AppCard>
 

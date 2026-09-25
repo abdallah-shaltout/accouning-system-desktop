@@ -74,7 +74,7 @@ only. A survey of `modules/core/components/shadcn/*` on 2026-09-25 still finds:
 
 | Component | Problem | Fix |
 |---|---|---|
-| `switch/Switch.vue` | Thumb moves with `translate-x-[calc(100%-2px)]` → in RTL "on" slides the **wrong way** | `rtl:-translate-x-[calc(100%-2px)]` (or `data-[state=checked]:translate-x-[…]` + `rtl:` negation); checked thumb must sit at the **start** edge's opposite, i.e. left in RTL |
+| `switch/Switch.vue` | Thumb moves with `translate-x-[calc(100%-2px)]` → in RTL "on" slides the **wrong way** | `rtl:-translate-x-[calc(100%-2px)]` (or `data-[state=checked]:translate-x-[…]` + `rtl:` negation); checked thumb must sit at the **start** edge's opposite, i.e. left in RTL — **superseded by doc 18.A2 (2026-09-26):** the product decision is now "on" = thumb on the **right** in every direction (not mirrored), so the fix became `dir="ltr"` on the track instead. See CLAUDE.md rule 18. |
 | `breadcrumb/BreadcrumbSeparator.vue` | `ChevronRight` points away from the next crumb | `ChevronLeft` in RTL (`rtl:rotate-180`) |
 | `calendar/*PrevButton`, `*NextButton`, `range-calendar/*` | Prev = `ChevronLeft`, Next = `ChevronRight`, placed with `left-1`/`right-1` | Mirror icons, `start-1`/`end-1`; month grid already follows `dir` via reka-ui — verify |
 | `calendar/Calendar.vue` | `pl-2`, `pr-6`, `right-1` on the month/year selects | `ps-2`, `pe-6`, `end-1` |
