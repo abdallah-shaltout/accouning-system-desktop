@@ -249,22 +249,6 @@
   --text-lg: var(--text-heading-sm);
 }
 
-/* Reduced motion: OS setting or the in-app toggle (`.motion-reduce` on <html>, set by useAppearance.ts). */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-:root.motion-reduce *, :root.motion-reduce *::before, :root.motion-reduce *::after {
-  animation-duration: 0.001ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.001ms !important;
-  scroll-behavior: auto !important;
-}
-
 @layer base {
   body {
     margin: 0;

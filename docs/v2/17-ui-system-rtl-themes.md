@@ -139,6 +139,26 @@ allow-list comment (`/* rtl-ok: <reason> */`) for the legitimate cases above.
 
 ## Phase B — Full motion, always
 
+**Status: done** (2026-09-25). Removed the reduced-motion feature entirely: the CSS media query +
+`.motion-reduce` rule in `design-system.css`, `useAppearance.ts`'s `prefersReducedMotionMedia`/
+`applyMotion`/`reduceMotionSetting`/`reduceMotion`/`setReduceMotion` (with a one-time
+`localStorage.removeItem('app_reduce_motion')` in `initAppearance()`), the "تقليل الحركة" switch
+from `AppearanceSettingsPage.vue`, and `AiOrb.vue`'s `prefers-reduced-motion` checks — both the
+`matchMedia` gate on every eye-movement branch (idle/connecting/listening/thinking/speaking) and
+the `@media` block muting its float/particle/glow animations. No `motion-reduce:`/`motion-safe:`
+Tailwind variants existed anywhere in `src/`. Confirmed dialog/sheet/popover/dropdown all carry
+`data-[state=open]:animate-in`/`animate-out`, and the sidebar has `transition-[width]` — all still
+intact and unaffected by the removal (they were never gated by the reduced-motion code, only global
+CSS-level animation/transition durations were). The scaffolded `collapsible`/shadcn `Sonner`
+primitives are unused in the app (real toasts run through `ToastContainer.vue`'s own
+`TransitionGroup`, fixed in Phase A) — nothing to wire there for this phase. Updated docs 14 §3 to
+drop the motion settings row. Gate: `bun run build`, `bun run check`, `bun run verify:mocks`
+(49/0/0) and the full e2e suite all green. The doc's final manual gate — toggling Windows
+"Animation effects" off and confirming motion in `bun run desktop` — needs an interactive Windows
+session outside this sandbox and was not run; nothing in the removed code depended on that OS
+setting anymore after this change, since the only thing reading it (`prefersReducedMotionMedia`)
+is gone.
+
 **Why animations look dead today.** `design-system.css` (lines ~252–265) sets every animation and
 transition to ~0 ms whenever **either** the in-app "تقليل الحركة" toggle is on **or** Windows reports
 `prefers-reduced-motion: reduce` — which it does whenever *Settings → Accessibility → Visual effects →
@@ -148,22 +168,23 @@ with no way to turn it back on from inside the app.
 **Decision (user request):** motion always runs at full power. Remove the feature entirely.
 
 **Tasks**
-- [ ] Delete the `@media (prefers-reduced-motion: reduce)` block and the `:root.motion-reduce …` rule
+- [x] Delete the `@media (prefers-reduced-motion: reduce)` block and the `:root.motion-reduce …` rule
       in `src/assets/styles/design-system.css`.
-- [ ] Delete from `useAppearance.ts`: `prefersReducedMotionMedia`, `applyMotion`, `reduceMotionSetting`,
+- [x] Delete from `useAppearance.ts`: `prefersReducedMotionMedia`, `applyMotion`, `reduceMotionSetting`,
       `reduceMotion`, `setReduceMotion`, and their lines in `initAppearance()`. Remove the stale
       `app_reduce_motion` localStorage key once on boot.
-- [ ] Delete the "تقليل الحركة" switch from `AppearanceSettingsPage.vue`.
-- [ ] `AiOrb.vue`: remove the `matchMedia('(prefers-reduced-motion…')` check (line ~334) and its
+- [x] Delete the "تقليل الحركة" switch from `AppearanceSettingsPage.vue`.
+- [x] `AiOrb.vue`: remove the `matchMedia('(prefers-reduced-motion…')` check (line ~334) and its
       `@media` block (line ~715).
-- [ ] Grep for `motion-reduce:` / `motion-safe:` Tailwind variants and remove them (none found on
+- [x] Grep for `motion-reduce:` / `motion-safe:` Tailwind variants and remove them (none found on
       2026-09-25; re-check).
-- [ ] Check shadcn animations actually run: dialog/sheet/popover/dropdown enter+exit, sidebar
+- [x] Check shadcn animations actually run: dialog/sheet/popover/dropdown enter+exit, sidebar
       collapse, accordion/collapsible height, toast slide. Fix any component missing `tw-animate-css`
       classes.
-- [ ] Update docs 14 §3 (appearance settings list) to drop the motion setting.
+- [x] Update docs 14 §3 (appearance settings list) to drop the motion setting.
 - [ ] Gate: with Windows "Animation effects" **off**, open a dialog and collapse the sidebar in
-      `bun run desktop` — both animate.
+      `bun run desktop` — both animate. **Not run** — needs an interactive Windows session; see the
+      status note above for why the removed code no longer depends on that OS setting either way.
 
 ---
 

@@ -120,15 +120,6 @@ export type DateFormatStyle = 'dmy' | 'ymd';
 
 export type WeekStart = 'sat' | 'sun' | 'mon';
 
-// --- Motion --------------------------------------------------------------------------------------
-
-const prefersReducedMotionMedia = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
-
-function applyMotion(reduceMotion: boolean) {
-  const osReduced = !!prefersReducedMotionMedia?.matches;
-  document.documentElement.classList.toggle('motion-reduce', reduceMotion || osReduced);
-}
-
 // --- Storage helpers --------------------------------------------------------------------------
 
 function makeSetting<T extends string | number | boolean>(key: string, fallback: T, parse: (raw: string) => T | undefined) {
@@ -169,7 +160,6 @@ const rowsPerPageSetting = makeSetting<25 | 50 | 100>('app_rows_per_page', 25, (
   return n === 25 || n === 50 || n === 100 ? (n as 25 | 50 | 100) : undefined;
 });
 const zebraRowsSetting = makeSetting<boolean>('app_zebra_rows', false, (raw) => (raw === 'true' ? true : raw === 'false' ? false : undefined));
-const reduceMotionSetting = makeSetting<boolean>('app_reduce_motion', false, (raw) => (raw === 'true' ? true : raw === 'false' ? false : undefined));
 const sidebarCollapsedDefaultSetting = makeSetting<boolean>('app_sidebar_collapsed_default', false, (raw) => (raw === 'true' ? true : raw === 'false' ? false : undefined));
 
 export const fontFamily = fontSetting.state;
@@ -181,7 +171,6 @@ export const showHijri = hijriSetting.state;
 export const weekStart = weekStartSetting.state;
 export const rowsPerPage = rowsPerPageSetting.state;
 export const zebraRows = zebraRowsSetting.state;
-export const reduceMotion = reduceMotionSetting.state;
 /** Read by `DefaultLayout.vue` only to seed the sidebar's own per-session collapsed state. */
 export const sidebarCollapsedDefault = sidebarCollapsedDefaultSetting.state;
 
@@ -212,9 +201,6 @@ export function setRowsPerPage(v: 25 | 50 | 100) {
 export function setZebraRows(v: boolean) {
   zebraRowsSetting.set(v);
 }
-export function setReduceMotion(v: boolean) {
-  reduceMotionSetting.set(v);
-}
 export function setSidebarCollapsedDefault(v: boolean) {
   sidebarCollapsedDefaultSetting.set(v);
 }
@@ -225,14 +211,17 @@ export function initAppearance() {
   applyTextSize(textSize.value);
   applyDensity(density.value);
   applyAccent(accent.value);
-  applyMotion(reduceMotion.value);
 
   watch(fontFamily, (v) => void applyFont(v));
   watch(textSize, applyTextSize);
   watch(density, applyDensity);
   watch(accent, applyAccent);
-  watch(reduceMotion, applyMotion);
 
-  // OS-level reduced-motion changes take effect immediately even if the in-app toggle is off.
-  prefersReducedMotionMedia?.addEventListener('change', () => applyMotion(reduceMotion.value));
+  // Motion always runs at full power — remove the stale localStorage key if an earlier
+  // version of the app left it behind (docs/v2/17-ui-system-rtl-themes.md Phase B).
+  try {
+    localStorage.removeItem('app_reduce_motion');
+  } catch {
+    /* private mode — nothing to clean up */
+  }
 }

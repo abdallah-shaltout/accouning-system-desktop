@@ -235,7 +235,6 @@ function onVisibilityChange() {
 // ── "Life": blinking and looking around ──────────────────────────────────
 let lifeTimer: ReturnType<typeof setTimeout> | undefined;
 let blinkTimer: ReturnType<typeof setTimeout> | undefined;
-let reducedMotion = false;
 
 function liveLegacy() {
     if (Math.random() > 0.7 && !blinking.value) {
@@ -244,7 +243,7 @@ function liveLegacy() {
         blinkTimer = setTimeout(() => (blinking.value = false), 150);
     }
     // While active it's talking to the user, so it glances around less.
-    const shouldMove = !reducedMotion && (active.value ? Math.random() > 0.6 : Math.random() > 0.3);
+    const shouldMove = active.value ? Math.random() > 0.6 : Math.random() > 0.3;
     if (shouldMove) {
         const range = 20;
         eye.value = { x: Math.random() * range * 2 - range, y: Math.random() * range - range / 2 };
@@ -268,7 +267,7 @@ function liveState() {
 
     switch (props.state) {
         case "idle": {
-            const shouldMove = !reducedMotion && Math.random() > 0.3;
+            const shouldMove = Math.random() > 0.3;
             if (shouldMove) {
                 const range = 20;
                 eye.value = { x: Math.random() * range * 2 - range, y: Math.random() * range - range / 2 };
@@ -278,15 +277,11 @@ function liveState() {
             break;
         }
         case "connecting": {
-            if (!reducedMotion) {
-                eye.value = { x: eye.value.x >= 0 ? -12 : 12, y: 0 };
-            } else {
-                eye.value = { x: 0, y: 0 };
-            }
+            eye.value = { x: eye.value.x >= 0 ? -12 : 12, y: 0 };
             break;
         }
         case "listening": {
-            const shouldMove = !reducedMotion && Math.random() > 0.8;
+            const shouldMove = Math.random() > 0.8;
             if (shouldMove) {
                 const range = 8;
                 eye.value = { x: Math.random() * range * 2 - range, y: Math.random() * range - range / 2 };
@@ -296,15 +291,11 @@ function liveState() {
             break;
         }
         case "thinking": {
-            if (!reducedMotion) {
-                eye.value = { x: eye.value.x >= 0 ? -10 : 10, y: -10 };
-            } else {
-                eye.value = { x: 0, y: -10 };
-            }
+            eye.value = { x: eye.value.x >= 0 ? -10 : 10, y: -10 };
             break;
         }
         case "speaking": {
-            const shouldMove = !reducedMotion && Math.random() > 0.6;
+            const shouldMove = Math.random() > 0.6;
             if (shouldMove) {
                 const range = 20;
                 eye.value = { x: Math.random() * range * 2 - range, y: Math.random() * range - range / 2 };
@@ -331,8 +322,6 @@ function restartLife() {
 }
 
 onMounted(() => {
-    reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-
     // Legacy `stream` prop maps onto the input analyser.
     watch(
         () => (isStateMode.value ? props.inputStream : props.stream),
@@ -712,38 +701,4 @@ defineExpose({});
     }
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .ai-orb__float,
-    .ai-orb__particle,
-    .ai-orb__stage::after {
-        animation: none;
-    }
-    .ai-orb__particle {
-        opacity: 0.6;
-    }
-    .ai-orb__eyes {
-        transition: none;
-    }
-    .ai-orb__glow {
-        opacity: var(--orb-glow-base);
-    }
-    .ai-orb--connecting .ai-orb__glow,
-    .ai-orb--thinking .ai-orb__glow {
-        animation: none;
-        opacity: calc(var(--orb-glow-base) + 0.15);
-    }
-    /* The level-driven bounce stays (tells you who is speaking), but capped at 50% amplitude. */
-    .ai-orb--speaking .ai-orb__eye--left,
-    .ai-orb--legacy.is-active .ai-orb__eye--left {
-        transform: scaleY(calc(1 + var(--orb-level) * 0.75));
-    }
-    .ai-orb--speaking .ai-orb__eye--right,
-    .ai-orb--legacy.is-active .ai-orb__eye--right {
-        transform: scaleY(calc(1 + var(--orb-level) * 0.6));
-    }
-    .ai-orb--listening .ai-orb__eye--left,
-    .ai-orb--listening .ai-orb__eye--right {
-        transform: scaleY(calc(1 + var(--orb-level) * 0.4));
-    }
-}
 </style>

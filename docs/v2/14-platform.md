@@ -63,7 +63,6 @@ Opened with **Ctrl+K**, or the search pill in the topbar ("ابحث أو نفّ�
 | التاريخ (date) | dd/mm/yyyy · yyyy-mm-dd; **show Hijri alongside** | Hijri uses `Intl` `islamic-umalqura` |
 | بداية الأسبوع (week start) | السبت / الأحد / الإثنين (Sat / Sun / Mon) | date pickers, weekly reports |
 | الجداول (tables) | rows per page 25/50/100; zebra rows | |
-| الحركة (motion) | reduce motion | also follows the OS setting |
 | القائمة الجانبية (sidebar) | collapsed by default | |
 
 **Text size needs a real refactor:**

@@ -12,13 +12,11 @@ import {
   dateFormatStyle,
   density,
   fontFamily,
-  reduceMotion,
   rowsPerPage,
   setAccent,
   setDateFormatStyle,
   setDensity,
   setFontFamily,
-  setReduceMotion,
   setRowsPerPage,
   setShowHijri,
   setSidebarCollapsedDefault,
@@ -247,10 +245,6 @@ const sampleDate = new Date().toISOString();
             <AppSwitch :model-value="zebraRows" label="صفوف متناوبة (Zebra)" description="تظليل الصفوف الفردية لتسهيل القراءة" @update:model-value="setZebraRows" />
           </div>
         </div>
-      </AppCard>
-
-      <AppCard title="الحركة">
-        <AppSwitch :model-value="reduceMotion" label="تقليل الحركة" description="يُطبَّق تلقائياً أيضاً حسب إعداد النظام" @update:model-value="setReduceMotion" />
       </AppCard>
 
       <AppCard title="القائمة الجانبية">
