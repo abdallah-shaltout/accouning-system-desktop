@@ -293,14 +293,18 @@ necessary because the extra focus retries can push the debounced search render s
 because the original assertion was flaky.
 
 **E2E verification note.** The full 16-flow suite could not be run cleanly start-to-finish in this
-session: this sandbox's Vite dev server crashed outright (`script "dev" exited with code 1`, an
-environment-level failure, not an application error) 4 times across repeated attempts, each time at
-a different, unrelated point in the run. Every flow relevant to this phase's changes was confirmed
-passing individually in isolation instead (`onboarding`, `home_insights`, `full_persona_pass`,
-`branches_currencies`), and a partial full-suite run (7 flows: cashier-pos, desk-invoice, role-gating,
-accountant-journal, refund-payment, products, purchases) passed before that attempt's crash. `bun run
-build`, `bun run check`, and `bun run verify:mocks` (49/0/0) are all clean. This is an honest gap in
-this phase's verification, not a claim of a clean full run that didn't happen.
+session: this sandbox's Vite dev server failed mid-run 4 times across repeated attempts — either an
+outright crash (`script "dev" exited with code 1` / `ERR_CONNECTION_REFUSED`) or a stuck SPA
+navigation — each time at a different, unrelated point in the run (`report_print`, `products`/
+`purchases`, `onboarding` twice, `branches_currencies`). This is environment-level flakiness, not an
+application error: every one of the 16 flows has now been confirmed green, either in a partial
+full-suite run before a crash (`onboarding`, `cashier_pos`, `desk_invoice`, `role_gating`,
+`accountant_journal`, `refund_payment`, `products`, `purchases`, `expenses`) or standalone via
+`--only` immediately after (`branches_currencies`, `full_persona_pass`, `home_insights`,
+`labels_templates`, `report_print`, `reports`, `reports_v2`) — with zero console errors in every run.
+`bun run build`, `bun run check`, and `bun run verify:mocks` (49/0/0) are all clean. A single
+uninterrupted 16/16 run was never achieved in this sandbox; this is an honest gap in this phase's
+verification method, not a claim that one happened.
 
 **Two scope reductions, made deliberately and documented rather than silently skipped:**
 - **`CommandPalette` was not rebuilt on `CommandDialog`.** The current implementation has real
