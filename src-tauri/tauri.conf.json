@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "accounting-app",
+  "productName": "Equal",
   "version": "0.1.0",
   "identifier": "com.abdallah.accounting-app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "نظام المحاسبة ونقاط البيع",
+        "title": "ايكوال المحاسبي",
         "width": 1366,
         "height": 820,
         "minWidth": 1100,

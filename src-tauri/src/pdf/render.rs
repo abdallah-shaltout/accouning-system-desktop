@@ -14,10 +14,15 @@
 use ecow::EcoVec;
 use serde::Serialize;
 use typst::diag::SourceDiagnostic;
+use typst::foundations::Smart;
 use typst::World;
 use typst_layout::PagedDocument;
 use typst_library::WorldExt;
 use typst_pdf::{PdfOptions, PdfStandard, PdfStandards};
+
+/// `/Creator` metadata on every exported PDF (docs/v2/16-equal-rebrand-and-ui-kit.md Phase B).
+/// `/Producer` isn't user-settable — `typst-pdf` always writes its own "Typst $version" there.
+const PDF_CREATOR: &str = "Equal Accounting";
 
 use super::fonts;
 use super::payload::{PaperSize, RenderRequest, TemplateOptionsPeek};
@@ -229,14 +234,14 @@ pub fn render_pdf(req: RenderRequest) -> Result<RenderPdfResult, Vec<CompileDiag
     let a3b_standards = PdfStandards::new(&[PdfStandard::A_3b]).map_err(|e| {
         vec![CompileDiagnostic { line: None, column: None, severity: "error".into(), message: format!("could not build PDF/A-3b standard set: {e:?}") }]
     })?;
-    let a3b_options = PdfOptions { standards: a3b_standards, ..Default::default() };
+    let a3b_options = PdfOptions { standards: a3b_standards, creator: Smart::Custom(Some(PDF_CREATOR.into())), ..Default::default() };
 
     let (pdf_bytes, achieved_standard) = match typst_pdf::pdf(&document, &a3b_options) {
         Ok(bytes) => (bytes, "PDF/A-3b".to_string()),
         Err(diags) => {
             let fallback_diags = diagnostics_to_structured(&world, &diags, "warning");
             warnings.extend(fallback_diags);
-            let plain_options = PdfOptions::default();
+            let plain_options = PdfOptions { creator: Smart::Custom(Some(PDF_CREATOR.into())), ..Default::default() };
             let bytes = typst_pdf::pdf(&document, &plain_options)
                 .map_err(|diags| diagnostics_to_structured(&world, &diags, "error"))?;
             (bytes, "PDF 1.7 (PDF/A-3b export rejected, see warnings)".to_string())

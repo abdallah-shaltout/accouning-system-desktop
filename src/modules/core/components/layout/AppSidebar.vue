@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { PanelRightClose, PanelRightOpen, Store } from '@lucide/vue';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
+import { APP_SHORT } from '@/modules/core/helpers/brand';
 import { NAVIGATION, type NavItem } from '../../helpers/navigation';
 
 const collapsed = defineModel<boolean>('collapsed', { default: false });
@@ -39,7 +40,7 @@ function isActive(item: NavItem) {
       </div>
       <div v-if="!collapsed" class="min-w-0">
         <p class="truncate text-body font-semibold">{{ settings.settings?.storeName ?? '—' }}</p>
-        <p class="truncate text-tiny text-text-secondary">المحاسبة ونقاط البيع</p>
+        <p class="truncate text-tiny text-text-secondary">{{ APP_SHORT }}</p>
       </div>
     </div>
 

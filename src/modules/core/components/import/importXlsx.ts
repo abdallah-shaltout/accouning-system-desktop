@@ -3,12 +3,13 @@
  * `ImportWizard`. `exceljs` is lazy-loaded here, same pattern as `modules/core/helpers/exportXlsx.ts`.
  */
 import type { ImportColumn, ImportDescriptor } from './types';
+import { APP_NAME_AR } from '@/modules/core/helpers/brand';
 
 /** Builds and downloads the Arabic-header, RTL, data-validated .xlsx template for a descriptor. */
 export async function downloadImportTemplate(descriptor: ImportDescriptor): Promise<void> {
   const { default: ExcelJS } = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'نظام المحاسبة ونقاط البيع';
+  workbook.creator = APP_NAME_AR;
   workbook.created = new Date();
   const sheet = workbook.addWorksheet(descriptor.title, { views: [{ rightToLeft: true }] });
 

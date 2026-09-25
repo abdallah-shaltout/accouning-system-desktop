@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { LogIn, Moon, Store, Sun } from '@lucide/vue';
+import { LogIn, Moon, Sun } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
+import BrandLogo from '@/modules/core/components/ui/BrandLogo.vue';
 import { resolvedTheme, toggleTheme } from '@/modules/core/controllers/useTheme';
 import { errorMessage } from '@/modules/core/controllers/useToast';
 import { ROLE_LABEL } from '@/modules/core/helpers/labels';
 import { validate } from '@/modules/core/helpers/validation';
+import { APP_NAME_AR } from '@/modules/core/helpers/brand';
 import { useAuthStore } from '../controllers/useAuthStore';
 import { getDemoAccounts } from '../services/authService';
 import { loginSchema } from '../validators/userSchema';
@@ -54,14 +56,10 @@ function useDemo(account: { username: string; password: string }) {
   <div class="flex min-h-screen bg-background">
     <div class="flex flex-1 flex-col items-center justify-center px-6 py-10">
       <div class="w-full max-w-[360px]">
-        <div class="mb-8 flex items-center gap-3">
-          <div class="flex size-10 items-center justify-center rounded-lg bg-primary text-on-primary">
-            <Store class="size-5" />
-          </div>
-          <div>
-            <h1 class="text-lg font-semibold">تسجيل الدخول</h1>
-            <p class="text-body text-text-secondary">نظام المحاسبة ونقاط البيع</p>
-          </div>
+        <div class="mb-8">
+          <BrandLogo class="mb-5 h-9 w-auto" />
+          <h1 class="text-lg font-semibold">تسجيل الدخول</h1>
+          <p class="text-body text-text-secondary">{{ APP_NAME_AR }}</p>
         </div>
 
         <form class="space-y-4" novalidate @submit.prevent="submit">

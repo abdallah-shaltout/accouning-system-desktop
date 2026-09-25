@@ -3,6 +3,7 @@ import DefaultLayout from '@/modules/core/components/layout/DefaultLayout.vue';
 import { db } from '@/mocks/db';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
+import { APP_NAME_AR } from '@/modules/core/helpers/brand';
 import coreRoutes from '@/modules/core/routes';
 import usersRoutes from '@/modules/users/routes';
 import productsRoutes from '@/modules/products/routes';
@@ -91,7 +92,7 @@ router.beforeEach(async (to) => {
 
 router.afterEach((to) => {
   const store = useSettingsStore().settings?.storeName;
-  document.title = [to.meta.title, store ?? 'نظام المحاسبة ونقاط البيع'].filter(Boolean).join(' — ');
+  document.title = [to.meta.title, store ?? APP_NAME_AR].filter(Boolean).join(' — ');
 });
 
 export default router;

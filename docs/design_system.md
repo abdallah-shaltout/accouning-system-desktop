@@ -19,10 +19,15 @@ Source of truth for tokens: `src/assets/styles/design-system.css` (already scaff
 | `--color-border` | `#d4d4d8` | `#2d2e33` | Hairline dividers, card outlines |
 | `--color-text-primary` | `#09090b` | `#f2f2f2` | Headings, primary text |
 | `--color-text-secondary` | `#71717a` | `#8b8d98` | Muted/secondary text |
-| `--color-primary` | `#4f46e5` | `#5e6ad2` | Primary action buttons, active nav, links |
-| `--color-primary-hover` | `#4338ca` | `#6b79e4` | Primary hover |
+| `--color-primary` | `#0e7259` | `#0f7d63` | Primary action buttons, active nav, links |
+| `--color-primary-hover` | `#0b6350` | `#0d6b54` | Primary hover |
 | `--color-danger` | `#ef4444` | `#e25858` | Destructive actions, negative balances |
 | `--color-success` | `#22c55e` | `#42b883` | Paid/positive status |
+
+`--color-primary`/`--color-primary-hover` above are the **default accent preset**, `equal` (the
+Equal brand green, logo mark `#10886C`, darkened slightly to clear 4.5:1 white-text contrast —
+docs/v2/16-equal-rebrand-and-ui-kit.md Phase B). Users can switch to indigo/teal/rose/amber in
+Settings → Appearance; see `useAppearance.ts`'s `ACCENTS` map for every preset's values.
 
 Font: `--font-sans` = Cairo (Arabic) → Inter → system-ui fallback stack. Cairo is the correct choice over pure Inter here since this is an Arabic-first UI (Inter has no Arabic glyphs).
 

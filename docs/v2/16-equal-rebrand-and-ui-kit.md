@@ -67,6 +67,26 @@ would also stay open forever, because nothing puts a time limit on it.
 
 ## Phase B — Rebrand: "ايكوال المحاسبي" / Equal
 
+**Status: done** (2026-09-25). `brand.ts` added and wired everywhere the doc lists. New `equal`
+accent preset (light `#0e7259`/hover `#0b6350`, dark `#0f7d63`/hover `#0d6b54` — both picked a touch
+darker than the raw logo green `#10886C`, which only clears ~4.41:1, so they clear ≥5:1 white-text
+contrast for real) is now the default for new installs; existing installs keep their picked accent
+(the setting's own `localStorage`-null-check already gives this for free). `mark.svg` traced via
+`scripts/brand/trace-mark.py` (potrace + resvg-py, threshold 200 chosen by comparing 190/200/215/235
+at 1024px and 32px) then trimmed with `svgo` (74KB → 32KB). One real bug found and fixed in the
+tracing script itself: potrace's `Bitmap.trace()` always emits the whole padded canvas as an
+outermost even-odd ring, which rendered as a solid filled square behind the mark on its own
+background layer (e.g. the white-on-tile app icon) — fixed by dropping that synthetic border
+subpath in `path_to_svg_d()`. App icons regenerated via `bunx tauri icon` from a 1024px tile (white
+mark at 80% on `#10886C`, 22% corner radius); its `android`/`ios` output subfolders were deleted
+(this project has no mobile targets). `public/favicon.svg` + a multi-size `favicon.ico` fallback
+added. PDF `/Creator` metadata now says "Equal Accounting" (`typst_pdf::PdfOptions.creator` —
+`/Producer` isn't user-settable in typst-pdf 0.15, it's always `Typst $version`). `bun run build`,
+`cargo build`, `bun run check`, `bun run verify:mocks` (49/0/0) all pass; login/welcome/home
+screenshots checked visually in light + dark. **Not done**: `bun run tauri build` (the installer)
+wasn't run in this session — needs an interactive/long-running build to verify the exe/installer
+name and icon for real.
+
 **Assets** (`/logo`):
 
 | File | What it is | Use |
@@ -92,44 +112,52 @@ would also stay open forever, because nothing puts a time limit on it.
   - the Cargo crate name.
 
 **Tasks**
-- [ ] Add `brand.ts` and replace every hard-coded "نظام المحاسبة ونقاط البيع": `index.html` title,
+- [x] Add `brand.ts` and replace every hard-coded "نظام المحاسبة ونقاط البيع": `index.html` title,
       `router/index.ts` title fallback, `LoginPage.vue`, `WelcomePage.vue`, the sidebar subtitle,
       the xlsx `workbook.creator` in `exportXlsx.ts` and `importXlsx.ts`.
-- [ ] `tauri.conf.json`: `productName` → `Equal`, window `title` → `ايكوال المحاسبي`. This changes the
+- [x] `tauri.conf.json`: `productName` → `Equal`, window `title` → `ايكوال المحاسبي`. This changes the
       exe/installer name, which is acceptable at 0.1.0; note it in the release notes.
-- [ ] Brand assets: copy to `src/assets/brand/` (`logo-light-bg.webp`, `logo-dark-bg.webp`,
-      `mark.webp`). Add a `BrandLogo.vue` component with `variant="lockup" | "mark"` that switches
-      to the right file for the current theme.
-- [ ] **Vectorize `fav.webp` → `src/assets/brand/mark.svg`.** 192 px enlarged to the 1024 px an app
-      icon needs is visibly blurry, so trace the mark into a vector instead. A feasibility check
-      has been run (2026-09-25), with only temporary scratch output:
-      - Tool: `potracer` (pure-Python potrace, `pip install potracer`) + `resvg-py` for rendering.
-        `vtracer` **segfaults** on the local Python 3.14 and must not be used.
-      - Pipeline: composite onto white → grayscale → Lanczos ×4 (768 px) → threshold → potrace
-        (`turdsize=3, alphamax=1.0, opticurve=True, opttolerance=0.2`) → one `<path
-        fill="currentColor" fill-rule="evenodd">` in a `0 0 768 768` viewBox (~50–65 KB,
-        120–180 curves).
-      - Gotchas: potracer traces the **False** pixels, so pass the *inverted* ink mask (the first
-        try came out as a filled green square); and a dark threshold (`< 170`) wipes out the
-        face hatching.
-      - To do: pick the threshold by eye from 190 / 215 / 235 (zoomed crops of the face at 1024 px);
-        compare against a plain Lanczos enlargement; choose whichever reads better at 16, 32, 256
-        and 1024 px. The small sizes may simply use the raster instead.
+- [x] Brand assets: copy to `src/assets/brand/` (`logo-light-bg.webp`, `logo-dark-bg.webp`,
+      `mark.svg` — traced, not the raw `mark.webp`, see below). Add a `BrandLogo.vue` component
+      with `variant="lockup" | "mark"` that switches to the right file for the current theme.
+- [x] **Vectorize `fav.webp` → `src/assets/brand/mark.svg`.** 192 px enlarged to the 1024 px an app
+      icon needs is visibly blurry, so trace the mark into a vector instead.
+      - Tool: `potracer` (pure-Python potrace, `pip install potracer`, imports as `potrace`) +
+        `resvg-py` for rendering. `vtracer` was ruled out per the earlier feasibility check.
+      - Pipeline: composite onto white → grayscale → Lanczos ×4 (768 px) → threshold → pad with an
+        8px background margin → potrace (`turdsize=3, alphamax=1.0, opticurve=True,
+        opttolerance=0.2`) → drop the synthetic outer-border subpath (see bug note above) → one
+        `<path fill="currentColor" fill-rule="evenodd">` in a `0 0 768 768` viewBox, then `svgo
+        --precision 1` (74KB → 32KB).
+      - Gotchas confirmed: potrace traces the **True** pixels, so the ink mask (not its inverse) is
+        what's passed in; a dark threshold (`< 170`) wipes out the face hatching; and — found during
+        this phase, not in the original feasibility check — potrace's outermost contour is always a
+        full-canvas frame that must be stripped or it renders as a solid square on non-transparent
+        backgrounds.
+      - Threshold **200** chosen: compared 190/200/215/235 at 1024px (215/235 lose turban-line and
+        chin detail) and 32px (190/200 near-identical, 200 marginally cleaner); matches the
+        feasibility check's own default.
       - `currentColor` lets one SVG serve both themes: green on light, white on dark or on the green tile.
-      - Optional hardening: run the result through `svgo` to trim the path precision.
-- [ ] App icons from `mark.svg`: 1024×1024 PNG with a white mark at ~80% on a `#10886C` rounded tile
-      (radius ≈ 22%, matching the lockup tile) → `bunx tauri icon` regenerates `src-tauri/icons/*`.
-      Also `public/favicon.svg` (the vector itself) plus `favicon.ico` as a fallback.
-      Add the tracing script as `scripts/brand/trace-mark.py` so the icon can be rebuilt reproducibly.
-- [ ] Login + welcome pages: full lockup above the form. Sidebar: the mark (see Phase D).
-- [ ] Add the `equal` accent preset to `design-system.css` (light and dark shades, checked for
+- [x] App icons from `mark.svg`: 1024×1024 PNG with a white mark at ~80% on a `#10886C` rounded tile
+      (radius ≈ 22%, matching the lockup tile) → `bunx tauri icon` regenerates `src-tauri/icons/*`
+      (its `android`/`ios` output was deleted — no mobile targets in this project).
+      Also `public/favicon.svg` (the vector itself, brand green baked in since a standalone favicon
+      has no `currentColor` context) plus a multi-size `favicon.ico` fallback.
+      Tracing script at `scripts/brand/trace-mark.py` so the icon can be rebuilt reproducibly.
+- [x] Login + welcome pages: full lockup above the form. Sidebar: still the old subtitle wording,
+      swapped to `APP_SHORT`; the mark itself moves to the sidebar in Phase D, not here.
+- [x] Add the `equal` accent preset to `design-system.css` (light and dark shades, checked for
       ≥4.5:1 contrast of white text on the color). Default `data-accent` → `equal` in
-      `useAppearance.ts` for new installs. Existing installs keep the accent they picked.
-- [ ] README title and intro updated.
-- [ ] PDFs: company letterheads keep the *customer's* store logo (no change). Only the metadata
-      `creator`/`producer` in `pdf/render.rs` → "Equal Accounting".
-- [ ] Gate: build + screenshots of login, welcome and home in light and dark; installer
-      (`bun run tauri build`) shows the new name and icon.
+      `useAppearance.ts` for new installs (and `index.html`'s pre-paint inline fallback). Existing
+      installs keep the accent they picked (the setting only falls back when `localStorage` has no
+      prior value at all).
+- [x] README title and intro updated.
+- [x] PDFs: company letterheads keep the *customer's* store logo (no change). `/Creator` metadata
+      in `pdf/render.rs` → "Equal Accounting" (`/Producer` is not user-settable in typst-pdf 0.15).
+- [ ] Gate: build + screenshots of login, welcome and home in light and dark (**done** — build,
+      `cargo build`, `bun run check`, `verify:mocks`, and visual screenshots all pass); installer
+      (`bun run tauri build`) shows the new name and icon (**not done this session** — needs an
+      interactive/long-running build to verify for real).
 
 ---
 

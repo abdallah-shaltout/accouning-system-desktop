@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Moon, Store, Sun, Sparkles, Building2 } from '@lucide/vue';
+import { Moon, Sun, Sparkles, Building2 } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
+import BrandLogo from '@/modules/core/components/ui/BrandLogo.vue';
 import { resolvedTheme, toggleTheme } from '@/modules/core/controllers/useTheme';
 import { errorMessage } from '@/modules/core/controllers/useToast';
 import { seedDatabase } from '@/mocks/seed';
 import { flushSnapshot } from '@/mocks/persist';
+import { APP_NAME_AR } from '@/modules/core/helpers/brand';
 
 const router = useRouter();
 const pending = ref<'demo' | 'fresh' | null>(null);
@@ -49,11 +51,9 @@ function startFresh() {
 
     <div class="w-full max-w-2xl">
       <div class="mb-10 flex flex-col items-center text-center">
-        <div class="mb-4 flex size-12 items-center justify-center rounded-xl bg-primary text-on-primary">
-          <Store class="size-6" />
-        </div>
+        <BrandLogo class="mb-5 h-10 w-auto" />
         <h1 class="text-xl font-semibold">مرحباً بك</h1>
-        <p class="mt-1 text-body text-text-secondary">نظام المحاسبة ونقاط البيع — اختر كيف تبدأ</p>
+        <p class="mt-1 text-body text-text-secondary">{{ APP_NAME_AR }} — اختر كيف تبدأ</p>
       </div>
 
       <p v-if="error" class="mb-4 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger" role="alert">

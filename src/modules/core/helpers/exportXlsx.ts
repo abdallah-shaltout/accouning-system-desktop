@@ -3,6 +3,7 @@
  * table needs Excel export). `exceljs` is heavy, so it's dynamically imported here and only ever
  * loaded once the user actually clicks export.
  */
+import { APP_NAME_AR } from './brand';
 
 export interface ExportColumn<R = any> {
   key: string;
@@ -50,7 +51,7 @@ export async function exportXlsx<R = any>(options: ExportXlsxOptions<R>): Promis
   const [{ default: ExcelJS }, rows] = await Promise.all([import('exceljs'), collectRows(options)]);
 
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'نظام المحاسبة ونقاط البيع';
+  workbook.creator = APP_NAME_AR;
   workbook.created = new Date();
   const sheet = workbook.addWorksheet(options.sheetName ?? 'البيانات', { views: [{ rightToLeft: true }] });
 

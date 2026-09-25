@@ -90,15 +90,18 @@ function applyDensity(density: Density) {
 
 // --- Accent ------------------------------------------------------------------------------------
 
-export type AccentPreset = 'indigo' | 'teal' | 'rose' | 'amber';
+export type AccentPreset = 'equal' | 'indigo' | 'teal' | 'rose' | 'amber';
 
 /**
- * 4 presets, each with light/dark values. Indigo matches the current default primary so switching
+ * 5 presets, each with light/dark values. Indigo matches the pre-Equal default primary so switching
  * to it is a no-op visually. All were sanity-checked against white text (`--color-on-primary`)
  * for roughly WCAG AA (>= 4.5:1) at the "hover"/base shade used for text-on-accent surfaces
- * (buttons, badges): indigo ~4.8:1, teal ~4.6:1, rose ~4.7:1, amber (dark text) ~8.1:1.
+ * (buttons, badges): indigo ~4.8:1, teal ~4.6:1, rose ~4.7:1, amber (dark text) ~8.1:1, equal ~5.9:1
+ * light / ~5.1:1 dark (docs/v2/16-equal-rebrand-and-ui-kit.md Phase B — the logo green #10886C
+ * itself only clears ~4.4:1, so both shades here are picked a touch darker to clear 4.5:1 for real).
  */
 export const ACCENTS: Record<AccentPreset, { label: string; light: string; lightHover: string; dark: string; darkHover: string; onAccent: string }> = {
+  equal: { label: 'إيكوال (الأساسي)', light: '#0e7259', lightHover: '#0b6350', dark: '#0f7d63', darkHover: '#0d6b54', onAccent: '#ffffff' },
   indigo: { label: 'نيلي', light: '#4f46e5', lightHover: '#4338ca', dark: '#5e6ad2', darkHover: '#6b79e4', onAccent: '#ffffff' },
   teal: { label: 'فيروزي', light: '#0d9488', lightHover: '#0f766e', dark: '#2dd4bf', darkHover: '#5eead4', onAccent: '#ffffff' },
   rose: { label: 'وردي', light: '#e11d48', lightHover: '#be123c', dark: '#fb7185', darkHover: '#fda4af', onAccent: '#ffffff' },
@@ -157,7 +160,7 @@ const textSizeSetting = makeSetting<TextSize>('app_text_size', 100, (raw) => {
   return TEXT_SIZES.includes(n as TextSize) ? (n as TextSize) : undefined;
 });
 const densitySetting = makeSetting<Density>('app_density', 'comfortable', (raw) => (raw === 'compact' || raw === 'comfortable' ? raw : undefined));
-const accentSetting = makeSetting<AccentPreset>('app_accent', 'indigo', (raw) => (raw in ACCENTS ? (raw as AccentPreset) : undefined));
+const accentSetting = makeSetting<AccentPreset>('app_accent', 'equal', (raw) => (raw in ACCENTS ? (raw as AccentPreset) : undefined));
 const dateFormatSetting = makeSetting<DateFormatStyle>('app_date_format', 'dmy', (raw) => (raw === 'dmy' || raw === 'ymd' ? raw : undefined));
 const hijriSetting = makeSetting<boolean>('app_show_hijri', false, (raw) => (raw === 'true' ? true : raw === 'false' ? false : undefined));
 const weekStartSetting = makeSetting<WeekStart>('app_week_start', 'sun', (raw) => (raw === 'sat' || raw === 'sun' || raw === 'mon' ? raw : undefined));

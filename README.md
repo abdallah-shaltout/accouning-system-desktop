@@ -1,4 +1,4 @@
-# نظام المحاسبة ونقاط البيع — Desktop Accounting & POS
+# ايكوال المحاسبي (Equal Accounting) — Desktop Accounting & POS
 
 Arabic-first (RTL) accounting + POS + invoicing desktop app for a single retail/clothing shop —
 multi-branch, multi-currency capable, with real PDF documents. Tauri v2 shell · Vue 3

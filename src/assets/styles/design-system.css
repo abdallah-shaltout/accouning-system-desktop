@@ -182,6 +182,22 @@
   --color-primary-hover: #f6b856;
   --color-on-primary: #1c1400;
 }
+/*
+ * "equal" — the Equal brand green (logo mark #10886C), the default accent for new installs
+ * (docs/v2/16-equal-rebrand-and-ui-kit.md Phase B). #10886C itself only clears ~4.41:1 white-text
+ * contrast, just under the 4.5:1 target, so both shades below are picked to clear it for real
+ * (light 5.88:1 / 7.20:1 hover, dark 5.08:1 / 6.47:1 hover) while staying recognizably the same green.
+ */
+:root[data-accent="equal"] {
+  --color-primary: #0e7259;
+  --color-primary-hover: #0b6350;
+  --color-on-primary: #ffffff;
+}
+:root.dark[data-accent="equal"] {
+  --color-primary: #0f7d63;
+  --color-primary-hover: #0d6b54;
+  --color-on-primary: #ffffff;
+}
 
 /* Reduced motion: OS setting or the in-app toggle (`.motion-reduce` on <html>, set by useAppearance.ts). */
 @media (prefers-reduced-motion: reduce) {
