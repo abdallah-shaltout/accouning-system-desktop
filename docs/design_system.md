@@ -41,6 +41,15 @@ Font: `--font-sans` = Cairo (Arabic) → Inter → system-ui fallback stack. Cai
 
 ## Components
 
+**Build with shadcn-vue components** (docs/v2/16-equal-rebrand-and-ui-kit.md Phase C). Every base
+primitive — Button, Input, Dialog, Combobox, Table, etc. — lives in
+`modules/core/components/shadcn/*`, added via `bunx shadcn-vue@latest add <name>` and owned in-repo.
+The existing `App*` wrappers in `modules/core/components/ui/` (`AppButton`, `AppModal`, `DataTable`…)
+are built on top of these, keeping their old props/emits API so pages don't need to change; new code
+should use the shadcn components directly where no project convention (loading state, Arabic
+defaults, an icon prop, `MoneyText`-style formatting) is needed on top. Only add a genuinely custom
+component when no shadcn component fits, and keep it in `modules/core/components/ui`.
+
 ### Primary button
 Background `--color-primary`, white text, 6px radius, 10px/16px padding, weight 510. One per view/section — used for "Save", "New Invoice", "Post Journal Entry", etc.
 
