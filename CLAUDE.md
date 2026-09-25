@@ -10,10 +10,54 @@ One product that feels **small, calm and consistent** to a non-technical shop ow
 every page looks and behaves the same ("same soul"), works perfectly in RTL, light and dark, by
 keyboard, and never produces wrong accounting numbers.
 
+## Agent memory — `AGENT_MEMORY.md` (read first)
+
+`AGENT_MEMORY.md` is a generated map of this repo: domain modules and their layers, every service
+function (the seam), every route, module→module imports, the Rust↔Vue IPC contract, the mock-backend
+API and who uses it, the shared UI kit, boundary violations, and a "where to find X" index. It is built
+by `bun run memory` (pipeline in `scripts/memory/`: scan → parse → analyze → render; all settings in
+`scripts/memory/config.ts`).
+
+### Protocol
+1. **Read `AGENT_MEMORY.md` before any task, plan, or broad search.** Resolve "where is X / who calls
+   Y / does Z exist" from it first. Grep or open files only for what it does not answer, or to read
+   the exact code you will change.
+2. Before building a component, service, helper or route, check the Service API, Shared UI kit and
+   Routes sections, then **reuse or extend** what exists (UI rules 1–2 below).
+3. Treat the Boundary report as a to-do list. Don't add a new seam violation, oversized page or
+   cross-module page import. When you touch a file that already has one, fix it.
+4. The memory is generated. **Never hand-edit it** — change the code or `scripts/memory/config.ts`.
+
+### Architecture rules (all new code)
+- **Domain first.** Code belongs to exactly one domain module (`src/modules/<domain>/`) in the layer
+  that matches its job: `pages` → `components` → `controllers` → `services` → `helpers`/`types`/
+  `validators`. No new top-level folders, and no "utils" dumping grounds for domain logic.
+- **Modules talk through public surfaces:** another module's `services`, `types`, `helpers` or shared
+  `core` components. Never its `pages`, and never the mock backend (the seam rule).
+- **Centralize configuration.** Constants, labels, navigation, brand, theme tokens, route meta and
+  tool settings live in their single owning file (see "Where to find X"). Do not re-declare them
+  locally or hard-code the values.
+- **Scale by adding, not by branching.** New behavior goes into a new module entry (a route record,
+  a service function, a palette command, a Rust command registered in `lib.rs`), not into growing
+  `if`/`switch` chains in shared code. Keep functions small and single-purpose, and keep pages under
+  ~250 lines.
+- **Rust ↔ Vue:** a new `#[tauri::command]` gets registered in `generate_handler!` and called only
+  from a `core`/module **service**, never directly from a page. It must show up in the IPC table with
+  no contract gaps.
+
+### Keeping the memory current
+- After a **structural change**, run `bun run memory` and commit `AGENT_MEMORY.md` with that change.
+  Structural changes are: a new/renamed/moved module, service, route, page, shared component, mock
+  file or Rust command, or a new domain. The run takes under a second. `bun run memory:check` fails
+  when the file is stale.
+- If you find the memory stale and can't regenerate it (for example, a read-only task), **tell the
+  user to run `bun run memory`** and say what looked out of date.
+
 ## Read before working
 
 | Doc | Why |
 |---|---|
+| `AGENT_MEMORY.md` | Generated repo map — read first (see above) |
 | `docs/design_system.md` | Tokens, components, do/don't — the visual source of truth |
 | `docs/v2/17-ui-system-rtl-themes.md` | **Current plan**: RTL, motion, save dialog, sidebar, themes, shared UI system |
 | `docs/v2/15-action-plan.md` | Definition of done (the gates below come from here) |
@@ -127,6 +171,7 @@ When you finish a planned task, tick its box in the doc and add a status note at
 bun run build                 # vue-tsc + vite build
 bun run check                 # text-token guard today; RTL / UI-rule / contrast guards join it (doc 17)
 bun run verify:mocks          # accounting invariants — must be all OK, 0 failed
+bun run memory                # regenerate AGENT_MEMORY.md (structural changes); memory:check verifies
 bun run dev                   # (in the background) e2e needs the app on http://localhost:1420
 python scripts/e2e/run.py     # the WHOLE suite, not only the flows you touched (--only <flow> for one)
 bun run stop                  # free ports 1420/1421 when done
