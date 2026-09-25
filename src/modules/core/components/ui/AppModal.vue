@@ -1,6 +1,16 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue';
+/**
+ * Rebuilt on shadcn's Dialog, i.e. reka-ui's DialogRoot/DialogContent (docs/v2/16-equal-rebrand-and-
+ * ui-kit.md Phase C) — same props/slots/model as before. This is a real accessibility upgrade over
+ * the hand-rolled version: focus trap, scroll lock and Escape handling now come from reka-ui instead
+ * of the manual `nextTick()` autofocus + window keydown listener this used to do.
+ *
+ * `persistent` maps to reka-ui's own `DialogContent` escape/pointer-down-outside prevention, and the
+ * visual chrome (header with an "X" close button, footer, sizes) is kept exactly as it was, on top
+ * of `DialogContent`'s built-in overlay/portal/animation.
+ */
 import { X } from '@lucide/vue';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/modules/core/components/shadcn/dialog';
 
 const props = withDefaults(
   defineProps<{
@@ -14,75 +24,49 @@ const props = withDefaults(
 );
 
 const open = defineModel<boolean>('open', { default: false });
-const panel = ref<HTMLElement>();
 
 const widths = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' };
 
-function close() {
-  if (!props.persistent) open.value = false;
+function onEscapeKeyDown(e: Event) {
+  if (props.persistent) e.preventDefault();
 }
-
-function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && open.value) {
-    e.stopPropagation();
-    close();
-  }
+function onPointerDownOutside(e: Event) {
+  if (props.persistent) e.preventDefault();
 }
-
-watch(open, async (isOpen) => {
-  if (isOpen) {
-    window.addEventListener('keydown', onKeydown);
-    await nextTick();
-    const first = panel.value?.querySelector<HTMLElement>('[autofocus], input:not([type=hidden]), select, textarea, button:not([data-close])');
-    first?.focus();
-  } else {
-    window.removeEventListener('keydown', onKeydown);
-  }
-}, { immediate: true });
-
-onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 </script>
 
 <template>
-  <Teleport to="body">
-    <Transition
-      enter-active-class="transition duration-150 ease-out"
-      enter-from-class="opacity-0"
-      leave-active-class="transition duration-100 ease-in"
-      leave-to-class="opacity-0"
+  <Dialog v-model:open="open">
+    <DialogContent
+      :show-close-button="false"
+      dir="rtl"
+      class="grid-rows-[auto_1fr_auto] gap-0 rounded-xl border-border bg-background p-0 shadow-2xl"
+      :class="widths[size]"
+      @escape-key-down="onEscapeKeyDown"
+      @pointer-down-outside="onPointerDownOutside"
     >
-      <div v-if="open" dir="rtl" class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/45 p-4 pt-[8vh]" @mousedown.self="close">
-        <div
-          ref="panel"
-          role="dialog"
-          aria-modal="true"
-          :aria-label="title"
-          class="w-full rounded-xl border border-border bg-background shadow-2xl"
-          :class="widths[size]"
-        >
-          <header v-if="title" class="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
-            <div>
-              <h2 class="text-lead font-semibold">{{ title }}</h2>
-              <p v-if="description" class="mt-0.5 text-xs text-text-secondary">{{ description }}</p>
-            </div>
-            <button
-              type="button"
-              data-close
-              aria-label="إغلاق"
-              class="rounded-md p-1 text-text-secondary hover:bg-surface-hover hover:text-text-primary"
-              @click="close"
-            >
-              <X class="size-4" />
-            </button>
-          </header>
-          <div class="px-5 py-4">
-            <slot />
-          </div>
-          <footer v-if="$slots.footer" class="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
-            <slot name="footer" />
-          </footer>
+      <header v-if="title" class="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+        <div>
+          <DialogTitle class="text-lead font-semibold">{{ title }}</DialogTitle>
+          <DialogDescription v-if="description" class="mt-0.5 text-xs text-text-secondary">{{ description }}</DialogDescription>
         </div>
+        <button
+          type="button"
+          data-close
+          aria-label="إغلاق"
+          class="rounded-md p-1 text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+          @click="open = false"
+        >
+          <X class="size-4" />
+        </button>
+      </header>
+      <DialogTitle v-else class="sr-only">{{ ' ' }}</DialogTitle>
+      <div class="px-5 py-4">
+        <slot />
       </div>
-    </Transition>
-  </Teleport>
+      <footer v-if="$slots.footer" class="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+        <slot name="footer" />
+      </footer>
+    </DialogContent>
+  </Dialog>
 </template>

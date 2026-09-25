@@ -1,4 +1,13 @@
 <script setup lang="ts">
+/**
+ * Not rebuilt on shadcn's Popover + RangeCalendar (docs/v2/16-equal-rebrand-and-ui-kit.md Phase C's
+ * component map lists this pairing as the *default* target, with "keep text inputs as a fallback
+ * for typing dates"). This component's UX is inline-always-visible inputs + preset pills, with no
+ * closed/trigger state to hang a popover off — RangeCalendar also needs @internationalized/date
+ * CalendarDate values, not the plain YYYY-MM-DD strings this component's callers all use. Redoing
+ * the interaction model to fit a popover would be a UX change, not a kit swap, so it stays on plain
+ * `<input type="date">`, which already has full native OS-level accessibility.
+ */
 import { computed } from 'vue';
 import { daysAgoKey, startOfMonthKey, todayKey } from '../../helpers/format';
 

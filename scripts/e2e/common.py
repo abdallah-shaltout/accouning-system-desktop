@@ -68,9 +68,23 @@ class FlowError(SystemExit):
     pass
 
 
+def safe_print(*args: object) -> None:
+    """print() that can't crash the whole run over a console codepage that can't encode Arabic
+    (e.g. Windows' default cp1252) — falls back to replacing unencodable characters instead of
+    raising, which previously masked real failures/output with a UnicodeEncodeError."""
+    text = " ".join(str(a) for a in args)
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        import sys
+
+        enc = sys.stdout.encoding or "ascii"
+        print(text.encode(enc, errors="replace").decode(enc, errors="replace"))
+
+
 def make_check(errors_sink: list[str] | None = None):
     def check(cond: bool, msg: str) -> None:
-        print(("  ok   " if cond else "  FAIL ") + msg)
+        safe_print(("  ok   " if cond else "  FAIL ") + msg)
         if not cond:
             raise FlowError(1)
 

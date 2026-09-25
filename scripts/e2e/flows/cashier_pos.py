@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, make_check, shot  # noqa: E402
+from common import add_common_args, collect_console_errors, login_as, make_check, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -37,7 +37,7 @@ def run(base: str, shots_dir: Path) -> int:
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         collect_console_errors(page, errors)
 
-        print("cashier POS — open shift, scan, unit picker, split tender")
+        safe_print("cashier POS — open shift, scan, unit picker, split tender")
         login_as(page, base, "cashier")
         check("/pos" in page.url, "cashier lands on the POS after login")
         page.wait_for_timeout(600)
@@ -54,7 +54,7 @@ def run(base: str, shots_dir: Path) -> int:
         check(cart_lines.count() == 2, f"cart has 2 lines (got {cart_lines.count()})")
 
         # --- Held sales (F6): hold the current cart, confirm it's empty, resume it. -----------------
-        print("held sales (F6)")
+        safe_print("held sales (F6)")
         page.keyboard.press("F6")
         page.wait_for_timeout(400)
         check(page.locator("[data-testid='pos-cart-line']").count() == 0, "F6 holds the sale and empties the cart")
@@ -67,7 +67,7 @@ def run(base: str, shots_dir: Path) -> int:
         check(page.locator("[data-testid='pos-cart-line']").count() == 2, "resuming a held sale restores its lines")
 
         # --- Split tender (F12): part cash, part card. ----------------------------------------------
-        print("split tender dialog")
+        safe_print("split tender dialog")
         page.keyboard.press("F12")
         page.wait_for_timeout(400)
         check(page.get_by_role("dialog").is_visible(), "F12 opens the tender dialog")
@@ -94,14 +94,17 @@ def run(base: str, shots_dir: Path) -> int:
         check(page.locator("[data-testid='pos-cart-line']").count() == 0, "Enter starts a new sale (cart empty)")
 
         # --- Return by receipt scan (F7). -------------------------------------------------------------
-        print("return by scan (F7)")
+        safe_print("return by scan (F7)")
         page.keyboard.press("F7")
         page.wait_for_timeout(300)
         check(page.get_by_role("dialog").is_visible(), "F7 opens the return-by-scan dialog")
         page.fill("input[placeholder='امسح رقم الفاتورة أو اكتبه']", number.group(0))
         page.get_by_role("dialog").get_by_role("button", name="بحث").click()
-        page.wait_for_timeout(900)
         qty_inputs = page.locator("table input[type=number]")
+        try:
+            qty_inputs.first.wait_for(state="attached", timeout=5000)
+        except Exception:
+            pass
         check(qty_inputs.count() > 0, f"invoice lines loaded for the return (dialog: {page.get_by_role('dialog').inner_text()[:200]!r})")
         qty_inputs.first.fill("1")
         page.get_by_role("button", name="تسجيل المرتجع").click()
@@ -111,7 +114,7 @@ def run(base: str, shots_dir: Path) -> int:
         # --- Unit picker: the demo catalog's multi-unit product (بانادول, box+strip) only marks the
         # strip as `defaultForSale`, so scanning it adds directly without a picker (correct per its
         # data) — confirm that add-to-cart still works for a multi-unit product either way.
-        print("multi-unit product add (بانادول: box + strip units, only strip sellable by default)")
+        safe_print("multi-unit product add (بانادول: box + strip units, only strip sellable by default)")
         search.fill("بانادول")
         page.wait_for_timeout(400)
         panadol = page.locator("section button:has-text('بانادول')").first
@@ -125,10 +128,10 @@ def run(base: str, shots_dir: Path) -> int:
                 page.wait_for_timeout(300)
             check(page.locator("[data-testid='pos-cart-line']").count() > lines_before, "multi-unit product adds to the cart")
         else:
-            print("  (بانادول out of stock/not visible in this seed run — skipped, not a failure)")
+            safe_print("  (بانادول out of stock/not visible in this seed run — skipped, not a failure)")
 
         # --- Shift close with a counted variance. -------------------------------------------------------
-        print("shift close with variance")
+        safe_print("shift close with variance")
         cart_clear = page.locator("[data-testid='pos-cart-line']")
         if cart_clear.count():
             page.keyboard.press("F9")
@@ -157,7 +160,7 @@ def run(base: str, shots_dir: Path) -> int:
 
         browser.close()
 
-    print("console/page errors:", errors or "none")
+    safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
 
 
