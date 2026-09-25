@@ -352,6 +352,10 @@ designer), and page files over 300 lines (warning).
       branch, currency → `FormPage` + `useForm`.
 - [ ] **F-4 Detail pages:** invoice, purchase, party, product, journal entry, shift → `DetailPage`.
 - [ ] **F-5 Settings pages** → `SettingsPage`.
+- [ ] **F-5b Seam cleanup:** move the 12 UI files that import `@/mocks/*` directly (listed in
+      `CLAUDE.md` → Workflow → seam rule) behind services (`attachmentService`, `devToolsService`,
+      `setupService`, purchase totals helper in `modules/purchases/helpers`…), then add
+      "no `@/mocks` imports outside `modules/*/services` and `helpers`" to the guard script.
 - [ ] **F-6** Guard script to **error** mode; zero findings; update 15's definition of done to
       include `bun run check` passing the UI rules.
 
