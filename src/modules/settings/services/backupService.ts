@@ -25,6 +25,7 @@ import {
 } from '../helpers/backupArchive';
 import { sha256Hex } from '../helpers/backupCrypto';
 import { updateSettings } from './settingsService';
+import { saveFile } from '@/modules/core/services/saveFile';
 import type { BackupHistoryEntry, BackupKind, BackupManifest, BackupSettings, RestorePreview } from '../types/backup';
 import { DEFAULT_BACKUP_SETTINGS } from '../types/backup';
 
@@ -152,33 +153,24 @@ export async function backupNow(kind: BackupKind, password?: string, opts?: { su
   const filename = backupFileName(manifest.company);
 
   if (isTauriMode()) {
-    const { save } = await import('@tauri-apps/plugin-dialog');
-    const { writeFile, mkdir, exists } = await import('@tauri-apps/plugin-fs');
     let targetPath: string | null;
     if (opts?.suggestedPath) {
-      // Automatic backups reuse the configured folder without prompting.
+      // Automatic backups reuse the configured folder without prompting — no dialog, no toast.
+      const { writeFile, mkdir, exists } = await import('@tauri-apps/plugin-fs');
       targetPath = opts.suggestedPath;
       const folder = targetPath.slice(0, Math.max(targetPath.lastIndexOf('/'), targetPath.lastIndexOf('\\')));
       if (folder && !(await exists(folder))) await mkdir(folder, { recursive: true });
+      await writeFile(targetPath, bytes);
     } else {
-      targetPath = await save({ defaultPath: filename, filters: [{ name: 'Backup', extensions: ['zip'] }] });
+      targetPath = await saveFile(bytes, { suggestedName: filename, kind: 'backup', silent: true }) as string | null;
     }
     if (!targetPath) return { manifest, sizeBytes: bytes.length, cancelled: true };
-    await writeFile(targetPath, bytes);
     await afterBackupSaved(manifest, kind);
     return { manifest, sizeBytes: bytes.length, path: targetPath };
   }
 
   // Browser mode: download + keep a rolling history in IndexedDB.
-  const blob = new Blob([bytes.slice().buffer], { type: 'application/zip' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  await saveFile(bytes, { suggestedName: filename, kind: 'backup', silent: true });
 
   await browserPut({ id: `bak-${Date.now()}`, manifest, bytes, sizeBytes: bytes.length, savedAt: manifest.createdAt });
   await pruneBrowserHistory(BROWSER_KEEP);

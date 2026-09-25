@@ -4,6 +4,7 @@
  * loaded once the user actually clicks export.
  */
 import { APP_NAME_AR } from './brand';
+import { saveFile } from '@/modules/core/services/saveFile';
 
 export interface ExportColumn<R = any> {
   key: string;
@@ -71,13 +72,5 @@ export async function exportXlsx<R = any>(options: ExportXlsxOptions<R>): Promis
   }
 
   const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${options.fileName}.xlsx`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  await saveFile(new Uint8Array(buffer), { suggestedName: `${options.fileName}.xlsx`, kind: 'excel' });
 }

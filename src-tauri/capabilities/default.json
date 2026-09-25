@@ -19,6 +19,7 @@
       "identifier": "opener:allow-open-path",
       "allow": [{ "path": "**/*.pdf" }, { "path": "**/*.PDF" }]
     },
+    "opener:allow-reveal-item-in-dir",
     "fs:allow-read-file",
     "fs:allow-read-dir",
     "fs:allow-remove",

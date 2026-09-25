@@ -4,6 +4,7 @@
  */
 import type { ImportColumn, ImportDescriptor } from './types';
 import { APP_NAME_AR } from '@/modules/core/helpers/brand';
+import { saveFile } from '@/modules/core/services/saveFile';
 
 /** Builds and downloads the Arabic-header, RTL, data-validated .xlsx template for a descriptor. */
 export async function downloadImportTemplate(descriptor: ImportDescriptor): Promise<void> {
@@ -39,15 +40,7 @@ export async function downloadImportTemplate(descriptor: ImportDescriptor): Prom
   });
 
   const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `قالب_${descriptor.title}.xlsx`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  await saveFile(new Uint8Array(buffer), { suggestedName: `قالب_${descriptor.title}.xlsx`, kind: 'excel' });
 }
 
 /** Normalizes a header string for fuzzy synonym matching (trim, collapse spaces, lowercase). */
@@ -127,15 +120,7 @@ export async function downloadErrorFile(descriptor: ImportDescriptor, failedRows
     sheet.addRow([...descriptor.columns.map((c) => String(f.raw[c.label] ?? '')), f.reason]);
   }
   const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `أخطاء_${descriptor.title}.xlsx`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  await saveFile(new Uint8Array(buffer), { suggestedName: `أخطاء_${descriptor.title}.xlsx`, kind: 'excel' });
 }
 
 const MAPPING_STORAGE_PREFIX = 'import-mapping:';

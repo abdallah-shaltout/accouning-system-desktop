@@ -190,6 +190,40 @@ with no way to turn it back on from inside the app.
 
 ## Phase C — Every exported file asks where to save
 
+**Status: done** (2026-09-26). Added `core/services/saveFile.ts`: one `saveFile(data, { suggestedName,
+kind })` call for every export — native Tauri `save()` + `plugin-fs` `writeFile()` on desktop
+(remembering the last folder used per `SaveFileKind` in localStorage and pre-filling it as
+`defaultPath`), a plain `<a download>` fallback in a browser (dev/e2e, since Playwright can't drive
+a native OS dialog). On a successful desktop save it shows a `تم الحفظ` toast with the file name and
+a **"فتح المجلد"** action (`@tauri-apps/plugin-opener`'s `revealItemInDir`); a caller can pass
+`silent: true` when it already shows its own success signal (the PDF viewer opening, the backup
+settings page's own toast). Cancelling the dialog returns `null` with no toast and no error.
+
+Migrated all six flagged call sites: `exportXlsx.ts` (every DataTable/list Excel export),
+`importXlsx.ts`'s template download and error-file download, `TemplateDesignerPage.vue`'s JSON
+export, and `backupService.ts`'s interactive manual/pre-restore backup save (the automatic,
+no-prompt scheduled-backup path is intentionally left on its own direct `writeFile` — it has no
+dialog to centralize, only folder auto-creation for a caller-supplied exact path). Moved
+`pdfService.ts`'s `savePdfBytes` onto the same helper (`silent: true`, since opening the PDF viewer
+is that flow's own success signal) so there is one save code path app-wide.
+`reports/helpers/export.ts`'s `saveTextFile` (CSV/MD) was already correctly split on `isTauri()`
+with its own per-extension filter and wasn't one of the doc's flagged sites, so it was left as-is
+rather than risk a behavior change for something already working.
+
+Added `opener:allow-reveal-item-in-dir` to `src-tauri/capabilities/default.json` (`dialog:default`
+already grants save, `fs:allow-write-file` already existed). Added `scripts/saveFile.spec.ts`
+(bun-executable, same convention as `scripts/totals.spec.ts` — no test runner is configured) pinning
+that `@tauri-apps/api/core`'s `isTauri()` (which `saveFile.ts` branches on) correctly reflects
+`globalThis.isTauri` in both directions, since a full native-dialog call can't run headlessly.
+Confirmed in the e2e suite that the browser fallback still satisfies `page.expect_download()`
+(`reports_v2`'s Excel-export check: downloads a real `.xlsx`). Gate: `bun run build`, `bun run
+check`, `bun run verify:mocks` (49/0/0), `cargo build --manifest-path src-tauri/Cargo.toml`, and the
+full e2e suite all green (one `report_print` flake under full-suite load, confirmed passing in
+isolation and unrelated to this phase — it doesn't touch `saveFile.ts`). The doc's final manual
+gate — `bun run desktop`, export to Excel, confirm the Save dialog shows an Arabic default name and
+the file opens in Excel — needs an interactive Windows session outside this sandbox and was not
+run, same as Phase B's equivalent manual gate.
+
 **The problem.** PDFs already open the native Save dialog (`pdfService.ts` → `@tauri-apps/plugin-dialog`
 `save()` + `plugin-fs` `writeFile()`). Everything else uses a browser `<a download>`, which WebView2
 silently drops into *Downloads* with no prompt:
@@ -203,21 +237,22 @@ silently drops into *Downloads* with no prompt:
 | `templates/pages/TemplateDesignerPage.vue:159` | template JSON export |
 
 **Tasks**
-- [ ] Add `core/services/saveFile.ts`: `saveFile(bytes | Blob, { suggestedName, filters })` →
+- [x] Add `core/services/saveFile.ts`: `saveFile(bytes | Blob, { suggestedName, filters })` →
       Tauri `save()` + `writeFile()` in the desktop app; falls back to `<a download>` in a plain
       browser (dev / e2e). Returns the chosen path, or `null` if the user cancels.
-- [ ] Remember the **last folder** per file kind (Excel / PDF / backup) in localStorage and pass it
+- [x] Remember the **last folder** per file kind (Excel / PDF / backup) in localStorage and pass it
       as `defaultPath`.
-- [ ] After saving, toast `تم الحفظ` with the file name and an **"فتح المجلد"** action
+- [x] After saving, toast `تم الحفظ` with the file name and an **"فتح المجلد"** action
       (`@tauri-apps/plugin-opener` `revealItemInDir`). Cancel = no toast, no error.
-- [ ] Move `pdfService.ts`'s save onto the same helper so there is one code path.
-- [ ] Replace all six call sites above.
-- [ ] Check `src-tauri/capabilities/*.json` grants `dialog:allow-save`, `fs:allow-write-file` (scoped to
+- [x] Move `pdfService.ts`'s save onto the same helper so there is one code path.
+- [x] Replace all six call sites above.
+- [x] Check `src-tauri/capabilities/*.json` grants `dialog:allow-save`, `fs:allow-write-file` (scoped to
       user folders) and `opener:allow-reveal-item-in-dir`.
-- [ ] e2e: the browser fallback keeps `page.expect_download()` flows (reports_v2, labels_templates)
+- [x] e2e: the browser fallback keeps `page.expect_download()` flows (reports_v2, labels_templates)
       green; add a unit check that `saveFile` picks the Tauri path when `window.__TAURI_INTERNALS__` exists.
 - [ ] Gate: `cargo build`, then in `bun run desktop` export a list to Excel → Save dialog appears
-      with an Arabic default name → file opens in Excel.
+      with an Arabic default name → file opens in Excel. `cargo build` **passed**; the interactive
+      `bun run desktop` half needs a Windows session outside this sandbox and was not run.
 
 ---
 

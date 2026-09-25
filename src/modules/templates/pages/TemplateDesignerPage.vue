@@ -40,6 +40,7 @@ import PdfPreview from '@/modules/core/components/ui/PdfPreview.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { renderPreview, sampleInvoicePayload, type PreviewError } from '@/modules/core/services/pdfService';
+import { saveFile } from '@/modules/core/services/saveFile';
 import {
   duplicateTemplate,
   exportTemplate,
@@ -149,18 +150,10 @@ function resetToDefaults() {
   toast.info('تمت إعادة القالب إلى الإعدادات الافتراضية');
 }
 
-function exportJson() {
+async function exportJson() {
   if (!template.value) return;
   const payload = exportTemplate(template.value);
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${template.value.name.replace(/[\\/:*?"<>|]+/g, '-')}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  await saveFile(JSON.stringify(payload, null, 2), { suggestedName: `${template.value.name}.json`, kind: 'json' });
 }
 
 const fileInput = ref<HTMLInputElement>();

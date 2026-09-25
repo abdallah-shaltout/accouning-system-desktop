@@ -23,5 +23,8 @@ export function useToast() {
      */
     errorWithActions: (title: string, message: string | undefined, actions: ToastAction[]) =>
       store.addNotification({ type: 'error', title, message, actions, duration: 0 }),
+    /** Phase 17 Phase C: a success toast with inline actions (e.g. "فتح المجلد" after a save). */
+    successWithActions: (title: string, message: string | undefined, actions: ToastAction[]) =>
+      store.addNotification({ type: 'success', title, message, actions }),
   };
 }

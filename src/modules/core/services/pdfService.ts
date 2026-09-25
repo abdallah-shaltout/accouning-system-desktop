@@ -19,6 +19,7 @@ import { encode as uqrEncode } from 'uqr';
 import { formatDate, formatDateTime, formatMoney, formatNumber } from '@/modules/core/helpers/format';
 import { tafqit } from '@/modules/core/helpers/tafqit';
 import { useToast } from '@/modules/core/controllers/useToast';
+import { saveFile } from '@/modules/core/services/saveFile';
 import { getInvoicePrintData, getQuotation, getRefund, getShift } from '@/modules/invoices/services/invoiceService';
 import { round2 } from '@/modules/invoices/helpers/totals';
 import { zatcaQrBase64 } from '@/modules/invoices/helpers/zatcaQr';
@@ -518,18 +519,17 @@ export async function render(kind: PdfDocumentKind, id: string, templateId?: str
  * Native "Save as" → write → open in the default PDF viewer. Returns false when the dialog is
  * cancelled. Opening is best-effort: the file is already on disk at that point, so a viewer or
  * permission problem (`opener:allow-open-path` is scoped to `*.pdf` in capabilities/default.json)
- * only shows where it was saved — it never turns a successful save into an error.
+ * only shows where it was saved — it never turns a successful save into an error. `silent: true`
+ * since opening the PDF viewer is the success signal here, not the shared "تم الحفظ" toast.
  */
 async function savePdfBytes(bytes: Uint8Array, filename: string): Promise<boolean> {
-  const [{ save }, { writeFile }] = await Promise.all([import('@tauri-apps/plugin-dialog'), import('@tauri-apps/plugin-fs')]);
-  const path = await save({ defaultPath: filename.replace(/[\\/:*?"<>|]+/g, '-'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+  const path = await saveFile(bytes, { suggestedName: filename, kind: 'pdf', silent: true });
   if (!path) return false;
-  await writeFile(path, bytes);
   try {
     const { openPath } = await import('@tauri-apps/plugin-opener');
-    await openPath(path);
+    await openPath(path as string);
   } catch {
-    useToast().info('تم حفظ الملف', path);
+    useToast().info('تم حفظ الملف', path as string);
   }
   return true;
 }
