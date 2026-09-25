@@ -7,6 +7,7 @@
  * Tauri vs browser detection matches the rest of the app (`isTauri()` from `@tauri-apps/api/core`,
  * same as `modules/reports/helpers/export.ts`).
  */
+import { ref, type Ref } from 'vue';
 import { isTauri } from '@tauri-apps/api/core';
 import { db, session } from '@/mocks/db';
 import { mutate, migrations, SCHEMA_VERSION, flushSnapshot } from '@/mocks/persist';
@@ -402,15 +403,27 @@ async function runCloseBackup(): Promise<void> {
   }
 }
 
+/** True while a close-time backup is running, so `App.vue` can show a "closing…" overlay. */
+export const isClosingWithBackup: Ref<boolean> = ref(false);
+
+const CLOSE_BACKUP_TIMEOUT_MS = 10_000;
+let closingInProgress = false;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Wires the daily schedule check (polled every minute — simplest reliable approach for a page-
  * lifetime timer, no OS-level cron) and the on-close hook. Call once from `main.ts` after boot.
  *
- * On-close: Tauri exposes `tauri://close-requested` on the current window, which we listen for
- * and `await` the backup inside (blocking the actual close briefly) since Tauri lets an event
- * handler delay the window's destruction as long as it's still executing. In the browser,
- * `beforeunload` cannot reliably await an async IndexedDB+zip operation before the tab closes, so
- * that path is a best-effort approximation only: it fires the backup without blocking navigation.
+ * On-close: Tauri exposes `onCloseRequested`, which lets a handler delay the window's destruction
+ * for as long as it's still executing. The handler always calls `preventDefault()` first, runs the
+ * close-time backup (capped at `CLOSE_BACKUP_TIMEOUT_MS` via `Promise.race`, so a hung or failing
+ * backup can never block the close), then destroys the window itself in `finally`. A re-entry guard
+ * (`closingInProgress`) stops a second click on the X while the backup is still running from firing
+ * a second backup. In the browser, `beforeunload` cannot reliably await an async IndexedDB+zip
+ * operation before the tab closes, so that path stays a best-effort, non-blocking approximation.
  */
 export async function initAutoBackup(): Promise<void> {
   if (dailyTimer) return;
@@ -421,9 +434,18 @@ export async function initAutoBackup(): Promise<void> {
     try {
       const { getCurrentWindow } = await import('@tauri-apps/api/window');
       const win = getCurrentWindow();
-      closeUnlisten = await win.listen('tauri://close-requested', async () => {
-        await runCloseBackup();
-        await win.destroy();
+      closeUnlisten = await win.onCloseRequested(async (event) => {
+        event.preventDefault();
+        if (closingInProgress) return;
+        closingInProgress = true;
+        isClosingWithBackup.value = true;
+        try {
+          await Promise.race([runCloseBackup(), delay(CLOSE_BACKUP_TIMEOUT_MS)]);
+        } finally {
+          isClosingWithBackup.value = false;
+          closingInProgress = false;
+          await win.destroy();
+        }
       });
     } catch (err) {
       console.error('[backup] could not hook window close event', err);
