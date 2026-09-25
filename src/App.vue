@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
+import { ConfigProvider } from 'reka-ui';
 import CommandPalette from '@/modules/core/components/CommandPalette.vue';
 import ToastContainer from '@/modules/core/components/ToastContainer.vue';
 import ConfirmDialog from '@/modules/core/components/ui/ConfirmDialog.vue';
@@ -13,16 +14,20 @@ onMounted(() => void initPrintResultListener());
 </script>
 
 <template>
-  <RouterView />
-  <ToastContainer />
-  <ConfirmDialog />
-  <CommandPalette />
-  <div v-if="isClosingWithBackup" class="closing-overlay" role="status" aria-live="polite">
-    <div class="closing-overlay__box">
-      <span class="closing-overlay__spinner" aria-hidden="true" />
-      <span>جارٍ حفظ نسخة احتياطية قبل الإغلاق…</span>
+  <!-- Phase C (docs/v2/16-equal-rebrand-and-ui-kit.md): mirrors menus, submenus, sliders and
+       arrow-key navigation in every reka-ui-based shadcn component for this Arabic-only, RTL-only app. -->
+  <ConfigProvider dir="rtl" locale="ar">
+    <RouterView />
+    <ToastContainer />
+    <ConfirmDialog />
+    <CommandPalette />
+    <div v-if="isClosingWithBackup" class="closing-overlay" role="status" aria-live="polite">
+      <div class="closing-overlay__box">
+        <span class="closing-overlay__spinner" aria-hidden="true" />
+        <span>جارٍ حفظ نسخة احتياطية قبل الإغلاق…</span>
+      </div>
     </div>
-  </div>
+  </ConfigProvider>
 </template>
 
 <style scoped>
