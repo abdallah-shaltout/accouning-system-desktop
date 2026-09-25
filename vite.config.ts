@@ -36,6 +36,14 @@ export default defineConfig(() => ({
       ignored: ["**/src-tauri/**", "**/references/**"],
     },
   },
+  // The installer ships its own WebView2 (see scripts/fetch-webview2.js), but if the app ever runs on
+  // an old system WebView2 (dev, fallback) keep layouts intact: lower Tailwind v4's range media
+  // queries (`@media (width>=40rem)`, Chromium 104+) to `min-width`, which older engines drop
+  // silently — every `sm:`/`lg:`/`xl:` grid would collapse to one column. Chromium 99 is the floor:
+  // below it `@layer` (all of Tailwind) is unsupported anyway.
+  build: {
+    cssTarget: "chrome99",
+  },
   // Only scan our own entry for dependencies — otherwise Vite crawls the HTML files of the
   // reference projects under `references/` and fails on their unresolved imports.
   optimizeDeps: {

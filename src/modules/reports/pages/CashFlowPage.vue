@@ -8,6 +8,8 @@ import { formatNumber } from '@/modules/core/helpers/format';
 import ReportShell from '../components/ReportShell.vue';
 import { useReportRange } from '../controllers/useReportRange';
 import type { ExportTable } from '../helpers/export';
+import { kpis, money, row, table as printTable } from '../print/build';
+import type { ReportPrintSpec } from '../print/types';
 import { getCashFlowStatement } from '../services/reportService';
 
 const { from, to, fiscalStart, ready, syncUrl } = useReportRange();
@@ -47,6 +49,44 @@ const table = computed<ExportTable | undefined>(() => {
   ];
   return { title: 'قائمة التدفقات النقدية', columns: ['البند', 'المبلغ'], rows };
 });
+
+// Official print: the three activity sections, each closed by its net line, then the cash bridge.
+const print = computed<ReportPrintSpec | null>(() => {
+  const d = data.value;
+  if (!d) return null;
+  const lines = (list: { label: string; amount: number }[]) => (list.length ? list.map((l) => row([l.label, money(l.amount)])) : [row(['لا توجد حركات', '—'], 'opening')]);
+  return {
+    signatures: true,
+    blocks: [
+      kpis([
+        { label: 'رصيد النقدية أول المدة', value: money(d.openingCash) },
+        { label: 'صافي التغير في النقدية', value: money(d.netChange), emphasis: true },
+        { label: 'رصيد النقدية آخر المدة', value: money(d.closingCash) },
+      ]),
+      printTable(
+        [
+          { label: 'البند', width: 4 },
+          { label: 'المبلغ', numeric: true, width: 1.4 },
+        ],
+        [
+          row(['الأنشطة التشغيلية'], 'section'),
+          row(['صافي الربح', money(d.netIncome)]),
+          ...d.operatingAdjustments.map((l) => row([l.label, money(l.amount)])),
+          row(['صافي النقدية من الأنشطة التشغيلية', money(d.operatingCash)], 'subtotal'),
+          row(['الأنشطة الاستثمارية'], 'section'),
+          ...lines(d.investing),
+          row(['صافي النقدية من الأنشطة الاستثمارية', money(d.investingCash)], 'subtotal'),
+          row(['الأنشطة التمويلية'], 'section'),
+          ...lines(d.financing),
+          row(['صافي النقدية من الأنشطة التمويلية', money(d.financingCash)], 'subtotal'),
+          row(['صافي التغير في النقدية', money(d.netChange)], 'total'),
+          row(['رصيد النقدية أول المدة', money(d.openingCash)], 'opening'),
+          row(['رصيد النقدية آخر المدة', money(d.closingCash)], 'grand'),
+        ],
+      ),
+    ],
+  };
+});
 </script>
 
 <template>
@@ -58,6 +98,7 @@ const table = computed<ExportTable | undefined>(() => {
     :loading="(loading || !ready) && !data"
     :error="error"
     :table="table"
+    :print="print"
     :insights="insights"
     @retry="reload"
   >

@@ -324,11 +324,14 @@ export async function getSalesReport(range: DateRangeInput): Promise<SalesReport
   const byProduct = new Map<string, SalesReport['byProduct'][number]>();
   for (const inv of invoices) {
     const factor = 1 - inv.discountRate / 100;
+    // Tax-inclusive invoices (the default, docs/v2/06 §3) carry VAT inside `subTotal`/line prices:
+    // there `subTotal − discount = grandTotal`. Strip each line's VAT so "revenue" is pre-tax.
+    const inclusive = inv.taxAmount > 0 && Math.abs(inv.subTotal - inv.discountAmount - inv.grandTotal) < 0.01;
     for (const l of inv.lines) {
       const row = byProduct.get(l.productId) ?? { productId: l.productId, name: l.name, qty: 0, revenue: 0, cost: 0, profit: 0 };
       const product = db.products.find((p) => p.id === l.productId);
       row.qty += l.qty;
-      row.revenue += (l.qty * l.price - l.discount) * factor;
+      row.revenue += ((l.qty * l.price - l.discount) * factor) / (inclusive ? 1 + (l.taxRate ?? inv.taxRate) / 100 : 1);
       row.cost += product?.type === 'product' ? l.qty * l.costPrice : 0;
       byProduct.set(l.productId, row);
     }
@@ -370,9 +373,11 @@ export async function getSalesReport(range: DateRangeInput): Promise<SalesReport
 
   const grossSales = sum(invoices, (i) => i.subTotal);
   const discounts = sum(invoices, (i) => i.discountAmount);
-  const netSales = round2(grossSales - discounts);
   const vat = sum(invoices, (i) => i.taxAmount);
   const total = sum(invoices, (i) => i.grandTotal);
+  // Pre-tax net sales = what the customer paid minus VAT — correct for tax-inclusive and
+  // tax-exclusive invoices alike (`subTotal − discount` is VAT-inclusive on inclusive invoices).
+  const netSales = round2(total - vat);
   const refundTotal = sum(refunds, (r) => r.grandTotal);
   const cogs = sum(productRows, (r) => r.cost);
 

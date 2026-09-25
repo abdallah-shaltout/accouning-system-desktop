@@ -11,6 +11,8 @@ import ReportShell from '../components/ReportShell.vue';
 import StatementSection from '../components/StatementSection.vue';
 import { useReportFilters } from '../controllers/useReportFilters';
 import type { ExportTable } from '../helpers/export';
+import { boxes, money, note, row, STATEMENT_COLUMNS, statementRows, table as printTable } from '../print/build';
+import type { ReportPrintSpec } from '../print/types';
 import { getBalanceSheet } from '../services/reportService';
 
 const route = useRoute();
@@ -53,6 +55,38 @@ const table = computed<ExportTable | undefined>(() => {
   rows.push(['الالتزامات + حقوق الملكية', '', d.totalLiabilities + d.totalEquity]);
   return { title: 'الميزانية العمومية', columns: ['القسم', 'الحساب', 'المبلغ'], rows };
 });
+
+// Official print (reference layout: assets | liabilities + equity side by side).
+const print = computed<ReportPrintSpec | null>(() => {
+  const d = data.value;
+  if (!d) return null;
+  const equity = [...d.equity, { code: '3300', name: 'صافي ربح الفترة (غير مُقفل)', amount: d.unclosedEarnings }];
+  return {
+    signatures: true,
+    meta: [{ label: 'التوازن', value: d.balanced ? 'متوازنة' : 'غير متوازنة' }],
+    blocks: [
+      boxes([
+        { title: 'إجمالي الأصول', value: money(d.totalAssets) },
+        { title: 'إجمالي الالتزامات', value: money(d.totalLiabilities) },
+        { title: 'حقوق الملكية', value: money(d.totalEquity), sub: 'شاملة صافي ربح الفترة غير المُقفل', emphasis: true },
+      ]),
+      ...(d.balanced ? [] : [note('الميزانية غير متوازنة — الأصول لا تساوي الالتزامات + حقوق الملكية', 'warn')]),
+      {
+        type: 'columns',
+        columns: [
+          [printTable(STATEMENT_COLUMNS, [...statementRows('الأصول', d.assets, d.totalAssets).slice(0, -1), row(['', 'إجمالي الأصول', money(d.totalAssets)], 'grand')])],
+          [
+            printTable(STATEMENT_COLUMNS, [
+              ...statementRows('الالتزامات', d.liabilities, d.totalLiabilities),
+              ...statementRows('حقوق الملكية', equity, d.totalEquity),
+              row(['', 'الالتزامات + حقوق الملكية', money(d.totalLiabilities + d.totalEquity)], 'grand'),
+            ]),
+          ],
+        ],
+      },
+    ],
+  };
+});
 </script>
 
 <template>
@@ -63,6 +97,7 @@ const table = computed<ExportTable | undefined>(() => {
     :loading="loading && !data"
     :error="error"
     :table="table"
+    :print="print"
     :insights="insights"
     :rule-keys="['opening-balance-equity', 'year-end']"
     @retry="reload"

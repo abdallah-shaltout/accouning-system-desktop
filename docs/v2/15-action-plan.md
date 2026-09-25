@@ -18,6 +18,18 @@ the currency-revaluation wizard has a working backend with no dedicated settings
 handful of lower-priority reports and analytics tabs from the doc's full catalogue were skipped
 for time in favor of broader coverage elsewhere (each noted in its phase's status block above).
 
+**Follow-up (2026-09-24): official report printing.** "طباعة / PDF" on reports used to print the
+on-screen component (browser) or a plain table (desktop). Every report now renders a real document
+from a `ReportDocument` model (`src/modules/reports/print/`) in the reference accounting system's
+official layout (letterhead, "تقرير رسمي" badge, period / issue / currency / prepared-by strip, KPI
+bar, section / subtotal / total / grand rows, signatures, running "page x of y"): HTML for the
+preview dialog + printing, and `src-tauri/templates/report.typ` for the native PDF (PDF/A-3b).
+Financial statements have hand-built layouts; the rest convert their export table automatically.
+The same pipeline now backs the journal voucher, invoice register, Z report and the journal list's
+day book. Also fixed: the sales report's "net sales before tax" and gross profit included VAT on
+tax-inclusive invoices. Gate: `report_print.py` e2e flow, `cargo run --bin report_smoke` (27
+real reports + 4 documents, 0 failures).
+
 **Agent instructions:**
 - **Constraints:** still **UI-only against the mock backend**. The only native code is the PDF
   engine (Phase 11) and optional thermal printing (Phase 14).

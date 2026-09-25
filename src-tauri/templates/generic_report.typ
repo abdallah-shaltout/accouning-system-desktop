@@ -1,7 +1,7 @@
 // Generic report template (title + filter line + repeating-header table + totals + page x of y) —
-// docs/v2/12-documents-pdf-excel.md §3 "Reports: a generic report template". Built for Phase 12's
-// reports to call once they exist; not wired to any report page in this phase (out of this
-// phase's scope), just documented and rendering.
+// docs/v2/12-documents-pdf-excel.md §3 "Reports: a generic report template". Superseded for the
+// reports module by `report.typ` (the official layout: letterhead, meta strip, sectioned tables,
+// signatures), which every report page now prints through; kept for `pdfService.renderGenericReport`.
 //
 // Expected `data` shape (a DocumentPayload — see src-tauri/src/pdf/payload.rs):
 //   document: { kind: "report", number: "", date, titleAr, titleEn, filterLine? }

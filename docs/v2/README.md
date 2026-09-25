@@ -45,6 +45,7 @@ using it:
 | 13 | [reports.md](13-reports.md) | Report catalogue v2 |
 | 14 | [platform.md](14-platform.md) | Command palette, appearance settings, backup/restore, attachments, speed |
 | 15 | [action-plan.md](15-action-plan.md) | **Phased checklist**: the file to execute from |
+| 16 | [equal-rebrand-and-ui-kit.md](16-equal-rebrand-and-ui-kit.md) | Close-button fix, Equal rebrand, shadcn-vue UI kit, sidebar-07 shell (next work) |
 
 Read order for an implementer: 02 → 03 → 04 → 15, then the feature file for the phase in progress.
 

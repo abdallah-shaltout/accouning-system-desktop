@@ -2,6 +2,8 @@
 /**
  * Notifications drawer (docs/v2/14-platform.md §6 "Bell drawer: insights (by severity) + events").
  * A dropdown anchored to the bell icon in the topbar — mark-as-read, links to the relevant page.
+ * Opens toward the page (`end-0`, like the user/branch menus) so it never runs off the left edge in
+ * RTL; on narrow windows it spans the viewport under the topbar instead.
  */
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -69,7 +71,7 @@ onBeforeUnmount(() => {
     <div
       v-if="open"
       dir="rtl"
-      class="absolute start-0 top-10 z-40 max-h-[70vh] w-80 overflow-y-auto rounded-xl border border-border bg-background shadow-2xl sm:w-96"
+      class="fixed inset-x-2 top-14 z-50 max-h-[70vh] overflow-y-auto rounded-xl border border-border bg-background shadow-2xl sm:absolute sm:inset-x-auto sm:end-0 sm:top-full sm:mt-1.5 sm:w-96"
       role="menu"
     >
       <div class="flex items-center justify-between border-b border-border px-3.5 py-2.5">

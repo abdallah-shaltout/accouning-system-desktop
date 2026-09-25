@@ -9,10 +9,12 @@ import { computed, watch } from 'vue';
 import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
-import { formatDateTime, formatNumber } from '@/modules/core/helpers/format';
+import { formatDate, formatDateTime, formatNumber } from '@/modules/core/helpers/format';
 import ReportShell from '../components/ReportShell.vue';
 import { useReportRange } from '../controllers/useReportRange';
 import type { ExportTable } from '../helpers/export';
+import { count, kpis, money, row, table as printTable } from '../print/build';
+import type { ReportPrintSpec } from '../print/types';
 import { getDayBook } from '../services/reportService';
 
 const { from, to, fiscalStart, ready, syncUrl } = useReportRange();
@@ -43,10 +45,44 @@ const table = computed<ExportTable | undefined>(() => {
   }
   return { title: 'دفتر اليومية', columns: ['رقم القيد', 'التاريخ', 'البيان / الحساب', 'مدين', 'دائن'], rows };
 });
+
+// Official print: every entry as a header band (number · date · description) over its lines.
+const print = computed<ReportPrintSpec | null>(() => {
+  const d = data.value;
+  if (!d) return null;
+  const m = (v: number) => money(v, { dashZero: true });
+  return {
+    signatures: true,
+    blocks: [
+      kpis([
+        { label: 'عدد القيود', value: count(d.length) },
+        { label: 'إجمالي المدين', value: money(totals.value.debit), emphasis: true },
+        { label: 'إجمالي الدائن', value: money(totals.value.credit), emphasis: true },
+      ]),
+      printTable(
+        [
+          { label: 'الرمز', dim: true, width: 0.8 },
+          { label: 'الحساب', width: 4 },
+          { label: 'مدين', numeric: true, width: 1.3 },
+          { label: 'دائن', numeric: true, width: 1.3 },
+        ],
+        [
+          ...d.flatMap((e) => [
+            // Arabic words between the Latin number and the date keep bidi from fusing them into one LTR run.
+            row([`قيد ${e.number} بتاريخ ${formatDate(e.date)} — ${e.description}`], 'subhead'),
+            ...e.lines.map((l) => row([l.accountCode, l.accountName, m(l.debit), m(l.credit)])),
+          ]),
+          row(['', 'الإجمالي', money(totals.value.debit), money(totals.value.credit)], 'total'),
+        ],
+        'لا توجد قيود في هذه الفترة',
+      ),
+    ],
+  };
+});
 </script>
 
 <template>
-  <ReportShell title="دفتر اليومية" subtitle="كل القيود المرحّلة خلال الفترة بتفاصيلها" :from="from" :to="to" :loading="(loading || !ready) && !data" :error="error" :table="table" :insights="insights" @retry="reload">
+  <ReportShell title="دفتر اليومية" subtitle="كل القيود المرحّلة خلال الفترة بتفاصيلها" :from="from" :to="to" :loading="(loading || !ready) && !data" :error="error" :table="table" :print="print" :insights="insights" @retry="reload">
     <template #filters>
       <DateRangeFilter v-model:from="from" v-model:to="to" :fiscal-start="fiscalStart" />
     </template>

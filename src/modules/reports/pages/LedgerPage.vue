@@ -8,10 +8,12 @@ import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import { errorMessage } from '@/modules/core/controllers/useToast';
-import { formatDateTime } from '@/modules/core/helpers/format';
+import { formatDate, formatDateTime } from '@/modules/core/helpers/format';
 import ReportShell from '../components/ReportShell.vue';
 import { useReportRange } from '../controllers/useReportRange';
 import type { ExportTable } from '../helpers/export';
+import { banner, count, kpis, money, row, table as printTable } from '../print/build';
+import type { ReportPrintSpec } from '../print/types';
 import { getAccountLedger, getLedgerTargets, getPartyLedger } from '../services/reportService';
 import type { AccountLedger } from '../types';
 
@@ -73,6 +75,43 @@ const table = computed<ExportTable | undefined>(() => {
     ],
   };
 });
+
+// Official print (reference `generalLedger.hbs`: account banner, balance bar, running-balance table).
+const print = computed<ReportPrintSpec | null>(() => {
+  const d = data.value;
+  if (!d) return null;
+  const m = (v: number) => money(v, { dashZero: true });
+  return {
+    title: kind.value === 'account' ? 'كشف حساب — دفتر الأستاذ' : kind.value === 'customer' ? 'كشف حساب عميل' : 'كشف حساب مورد',
+    subtitle: 'الحركات المرحّلة خلال الفترة مع الرصيد التراكمي',
+    signatures: true,
+    blocks: [
+      banner(d.title, d.subtitle, `طبيعة الرصيد: ${d.normalSide === 'DEBIT' ? 'مدين' : 'دائن'}`),
+      kpis([
+        { label: 'رصيد أول المدة', value: money(d.openingBalance) },
+        { label: 'إجمالي المدين', value: money(d.totalDebit) },
+        { label: 'إجمالي الدائن', value: money(d.totalCredit) },
+        { label: 'عدد الحركات', value: count(d.rows.length) },
+        { label: 'رصيد آخر المدة', value: money(d.closingBalance), emphasis: true },
+      ]),
+      printTable(
+        [
+          { label: 'التاريخ', dim: true, width: 1 },
+          { label: 'المستند', width: 1.1 },
+          { label: 'البيان', width: 3 },
+          { label: 'مدين', numeric: true, width: 1.2 },
+          { label: 'دائن', numeric: true, width: 1.2 },
+          { label: 'الرصيد', numeric: true, width: 1.3 },
+        ],
+        [
+          row(['', '', 'رصيد أول المدة', '', '', money(d.openingBalance)], 'opening'),
+          ...d.rows.map((r) => row([formatDate(r.date), r.entryNumber, r.description, m(r.debit), m(r.credit), money(r.balance)])),
+          row(['', '', 'الإجمالي / رصيد آخر المدة', money(d.totalDebit), money(d.totalCredit), money(d.closingBalance)], 'total'),
+        ],
+      ),
+    ],
+  };
+});
 </script>
 
 <template>
@@ -84,6 +123,7 @@ const table = computed<ExportTable | undefined>(() => {
     :loading="loading && !data"
     :error="error"
     :table="table"
+    :print="print"
     @retry="load"
   >
     <template #filters>

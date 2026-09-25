@@ -21,10 +21,13 @@ import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue'
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { useToast } from '@/modules/core/controllers/useToast';
-import { daysAgoKey, formatDateTime, formatNumber, todayKey } from '@/modules/core/helpers/format';
+import { daysAgoKey, formatDate, formatDateTime, formatNumber, todayKey } from '@/modules/core/helpers/format';
 import { INVOICE_STATUS, PAYMENT_STATUS, SALE_METHOD_LABEL } from '@/modules/core/helpers/labels';
 import { matchesSearch } from '@/modules/core/helpers/search';
 import { getCustomers } from '@/modules/parties/services/partyService';
+import ReportPrintDialog from '@/modules/reports/components/ReportPrintDialog.vue';
+import { count, kpis, money, row, table as printTable } from '@/modules/reports/print/build';
+import { useOfficialPrint } from '@/modules/reports/print/useOfficialPrint';
 import { getUsers } from '@/modules/users/services/userService';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getInvoices, isOverdue, type InvoiceRow } from '../services/invoiceService';
@@ -154,8 +157,74 @@ async function downloadPdfsZip() {
   }
 }
 
+// Print = an official invoice register of the rows currently listed (letterhead, filters, totals),
+// rendered as its own document — never a print of this screen.
+const { open: printOpen, doc: printDoc, show: showPrint } = useOfficialPrint();
+
+function statusText(r: InvoiceRow): string {
+  const base = r.status === 'REFUNDED' ? INVOICE_STATUS.REFUNDED.label : PAYMENT_STATUS[r.paymentStatus].label;
+  return [base, r.status !== 'REFUNDED' && r.refundedAmount > 0 ? 'مرتجع جزئي' : '', isOverdue(r) ? 'متأخر' : ''].filter(Boolean).join(' · ');
+}
+
 function printAll() {
-  window.print();
+  const list = rows.value;
+  const filters = [
+    view.value !== 'all' ? (viewOptions.value.find((o) => o.value === view.value)?.label ?? SAVED_VIEWS.find((v) => v.id === view.value)?.label) : '',
+    source.value ? (source.value === 'POS' ? 'نقطة بيع' : 'فاتورة مكتبية') : '',
+    cashierId.value ? `الكاشير: ${cashiers.value?.find((u) => u.id === cashierId.value)?.name ?? ''}` : '',
+    customerId.value ? `العميل: ${customers.value?.find((c) => c.id === customerId.value)?.name ?? ''}` : '',
+    search.value ? `بحث: ${search.value}` : '',
+  ].filter(Boolean);
+  showPrint({
+    title: 'سجل فواتير المبيعات',
+    subtitle: 'الفواتير المعروضة حسب عوامل التصفية الحالية',
+    leadMeta: [
+      { label: 'الفترة من', value: from.value ? formatDate(from.value) : 'البداية' },
+      { label: 'الفترة إلى', value: to.value ? formatDate(to.value) : formatDate(new Date().toISOString()) },
+      ...(filters.length ? [{ label: 'التصفية', value: filters.join(' — ') }] : []),
+    ],
+    blocks: [
+      kpis([
+        { label: 'عدد الفواتير', value: count(summary.value.count) },
+        { label: 'إجمالي الفواتير', value: money(list.reduce((a, r) => a + r.grandTotal, 0)) },
+        { label: 'المرتجعات', value: money(list.reduce((a, r) => a + r.refundedAmount, 0)) },
+        { label: 'الصافي بعد المرتجعات', value: money(summary.value.total), emphasis: true },
+        { label: 'المتبقي على العملاء', value: money(summary.value.outstanding) },
+      ]),
+      printTable(
+        [
+          { label: '#', dim: true, align: 'center', width: 0.4 },
+          { label: 'رقم الفاتورة', width: 1.2 },
+          { label: 'التاريخ', dim: true, width: 1.3 },
+          { label: 'العميل', width: 2 },
+          { label: 'المصدر', width: 0.9 },
+          { label: 'الدفع', width: 0.9 },
+          { label: 'الحالة', width: 1.3 },
+          { label: 'الإجمالي', numeric: true, width: 1.1 },
+          { label: 'المرتجع', numeric: true, width: 1 },
+          { label: 'المتبقي', numeric: true, width: 1 },
+        ],
+        [
+          ...list.map((r, i) =>
+            row([
+              count(i + 1),
+              r.number,
+              formatDateTime(r.date),
+              r.customerName ?? 'عميل نقدي',
+              (r.source ?? 'POS') === 'POS' ? 'نقطة بيع' : 'مكتبية',
+              SALE_METHOD_LABEL[r.paymentMethod],
+              statusText(r),
+              money(r.grandTotal),
+              money(r.refundedAmount, { dashZero: true }),
+              money(r.outstanding, { dashZero: true }),
+            ]),
+          ),
+          row(['', '', '', 'الإجمالي', '', '', '', money(list.reduce((a, r) => a + r.grandTotal, 0)), money(list.reduce((a, r) => a + r.refundedAmount, 0)), money(summary.value.outstanding)], 'total'),
+        ],
+        'لا توجد فواتير مطابقة',
+      ),
+    ],
+  });
 }
 </script>
 
@@ -164,7 +233,7 @@ function printAll() {
     <PageHeader title="الفواتير" subtitle="فواتير المبيعات وحالة السداد والمرتجعات">
       <template #actions>
         <AppButton :icon="Download" :loading="zipping" @click="downloadPdfsZip">تنزيل PDF (مضغوط)</AppButton>
-        <AppButton :icon="Printer" @click="printAll">طباعة</AppButton>
+        <AppButton :icon="Printer" :disabled="loading && !data" data-testid="invoices-print" @click="printAll">طباعة</AppButton>
         <AppButton v-if="auth.can('pos', 'write')" variant="primary" :icon="ShoppingCart" to="/pos">بيع جديد</AppButton>
       </template>
     </PageHeader>
@@ -235,5 +304,7 @@ function printAll() {
         </div>
       </template>
     </DataTable>
+
+    <ReportPrintDialog v-model:open="printOpen" :doc="printDoc" :file-name="`سجل الفواتير ${from || ''}_${to || ''}`" />
   </div>
 </template>

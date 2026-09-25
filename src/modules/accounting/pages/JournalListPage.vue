@@ -3,9 +3,8 @@
  * Journal list v2 (docs/v2/11-journal-dashboard-insights.md A1): day-grouped with sticky headers +
  * daily Dr/Cr totals, inline row expansion, full filters, saved views (localStorage — same pattern
  * as Phase 0's appearance settings, since there's no per-user record in the mock backend), footer
- * totals, Excel export, and a day-book PDF. `pdfService` only covers invoices so far (Phase 11a
- * scope) — the day book uses the same browser-print fallback pattern `InvoicePrintPage` uses for
- * non-Tauri, via a dedicated `/accounting/day-book` print route (documented shortcut, see report).
+ * totals, Excel export, and a day-book PDF — which opens the reports hub's day book with its
+ * official print preview (letterhead, entry bands, signatures; `modules/reports/print/`).
  */
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
@@ -301,9 +300,9 @@ async function exportEntriesWithLines() {
   }
 }
 
+/** Opens the day-book report for the same period with its official print preview already open. */
 function openDayBook() {
-  const url = router.resolve({ path: '/accounting/day-book', query: { from: from.value || undefined, to: to.value || undefined } }).href;
-  window.open(`#${url}`, '_blank');
+  void router.push({ path: '/reports/day-book', query: { from: from.value || undefined, to: to.value || undefined, print: '1' } });
 }
 </script>
 

@@ -15,6 +15,7 @@ import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import { useGridTab } from '@/modules/core/controllers/useGridTab';
 import { useHotkeys } from '@/modules/core/controllers/useHotkeys';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { dateKeyToIso, todayKey } from '@/modules/core/helpers/format';
@@ -182,6 +183,13 @@ function addLine() {
   lines.value.push(line);
   return line;
 }
+
+const linesBody = ref<HTMLElement>();
+const onLinesKeydown = useGridTab({
+  container: linesBody,
+  addRow: addLine,
+  isFilled: (i) => !!lines.value[i] && (!!lines.value[i].accountId || num0(lines.value[i].debit) > 0 || num0(lines.value[i].credit) > 0),
+});
 
 function removeLine(line: Line) {
   if (lines.value.length <= 2) return;
@@ -435,7 +443,7 @@ useHotkeys({
             <th class="w-10" />
           </tr>
         </thead>
-        <tbody>
+        <tbody ref="linesBody" @keydown="onLinesKeydown">
           <tr v-for="(line, i) in lines" :key="line.key" class="border-b border-border last:border-0">
             <td class="px-3 py-1.5"><span class="num text-text-secondary">{{ i + 1 }}</span></td>
             <td class="min-w-60 px-2 py-1.5">
@@ -501,6 +509,7 @@ useHotkeys({
                   type="button"
                   class="rounded p-1.5 text-text-secondary hover:bg-surface-hover"
                   aria-label="تكرار السطر (Ctrl+D)"
+                  data-grid-skip
                   title="تكرار السطر (Ctrl+D)"
                   @click="duplicateLine(line)"
                 >
@@ -511,6 +520,7 @@ useHotkeys({
                   class="rounded p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger disabled:opacity-30"
                   :disabled="lines.length <= 2"
                   aria-label="حذف السطر"
+                  data-grid-skip
                   @click="removeLine(line)"
                 >
                   <Trash class="size-3.5" />

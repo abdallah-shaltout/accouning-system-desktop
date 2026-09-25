@@ -10,7 +10,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/accounting/journal-templates', name: 'journal-templates', component: () => import('../pages/JournalTemplatesPage.vue'), meta: { title: 'قوالب القيود والقيود المتكررة', section, area: 'accounting' } },
   { path: '/accounting/fiscal-years', name: 'fiscal-years', component: () => import('../pages/FiscalYearsPage.vue'), meta: { title: 'السنة المالية', section, area: 'accounting' } },
   { path: '/accounting/vat-settlement', name: 'vat-settlement', component: () => import('../pages/VatSettlementPage.vue'), meta: { title: 'تسوية ضريبة القيمة المضافة', section, area: 'accounting' } },
-  { path: '/accounting/day-book', name: 'day-book', component: () => import('../pages/DayBookPrintPage.vue'), meta: { title: 'دفتر اليومية', section, area: 'accounting' } },
+  // The day book prints from the reports hub's official layout; this old print route just forwards there with the preview open.
+  { path: '/accounting/day-book', name: 'day-book', redirect: (to) => ({ path: '/reports/day-book', query: { ...to.query, print: '1' } }) },
 ];
 
 export default routes;

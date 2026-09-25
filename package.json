@@ -8,6 +8,8 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "stop": "node scripts/stop-dev.js",
+    "desktop": "node scripts/stop-dev.js && tauri dev",
     "scaffold": "node scripts/scaffold.js",
     "verify:mocks": "bun run scripts/verify/run.ts",
     "check": "node scripts/check-text-tokens.js"

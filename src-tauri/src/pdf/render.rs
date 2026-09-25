@@ -40,6 +40,9 @@ const TRANSFER_NOTE_TYP: &str = include_str!("../../templates/transfer_note.typ"
 const GENERIC_REPORT_TYP: &str = include_str!("../../templates/generic_report.typ");
 const LABEL_SHEET_TYP: &str = include_str!("../../templates/label_sheet.typ");
 const LABEL_THERMAL_TYP: &str = include_str!("../../templates/label_thermal.typ");
+// Official report layout (letterhead, meta strip, KPI bar, sectioned tables, signatures) — renders
+// `payload.report`, the same `ReportDocument` model the web print/preview renders as HTML.
+const REPORT_TYP: &str = include_str!("../../templates/report.typ");
 
 /// One structured compile diagnostic, positioned in the main template source.
 #[derive(Debug, Clone, Serialize)]
@@ -82,6 +85,7 @@ fn builtin_template_source(template_id: &str) -> Result<&'static str, String> {
         "z_report" => Ok(Z_REPORT_TYP),
         "transfer_note" => Ok(TRANSFER_NOTE_TYP),
         "generic_report" => Ok(GENERIC_REPORT_TYP),
+        "report" => Ok(REPORT_TYP),
         "label_sheet" => Ok(LABEL_SHEET_TYP),
         "label_thermal" => Ok(LABEL_THERMAL_TYP),
         other => Err(format!("unknown built-in template id '{other}'")),

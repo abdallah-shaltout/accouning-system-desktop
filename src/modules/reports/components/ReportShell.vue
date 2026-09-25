@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import { isTauri } from '@tauri-apps/api/core';
-import { FileDown, FileSpreadsheet, FileText, Lightbulb, Printer, Table2 } from '@lucide/vue';
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { FileDown, FileSpreadsheet, Lightbulb, Printer, Table2 } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
@@ -11,21 +11,25 @@ import { useInsights } from '@/modules/core/controllers/useInsights';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { exportXlsx } from '@/modules/core/helpers/exportXlsx';
 import { formatDate, formatDateTime } from '@/modules/core/helpers/format';
-import { renderGenericReportAndSave } from '@/modules/core/services/pdfService';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
+import { getBranches, getCostCenters } from '@/modules/settings/services/branchesService';
 import { saveTextFile, toCsv, toMarkdown, type ExportTable } from '../helpers/export';
+import { blocksFromTable } from '../print/build';
+import type { ReportPrintSpec } from '../print/types';
+import { useOfficialPrint } from '../print/useOfficialPrint';
+import ReportPrintDialog from './ReportPrintDialog.vue';
 
 /**
  * v2 (docs/v2/13-reports.md §1) — the shared report frame: title, filter bar (period, comparison,
  * branch/cost-center/currency — added via the `#filters` slot by each page using
- * `useReportFilters`/`useReportRange`), an insights box, export actions and a print-only header.
- * Exports operate on `table` — the snapshot of what is currently rendered.
+ * `useReportFilters`/`useReportRange`), an insights box and export actions.
+ * Excel/CSV/Markdown exports operate on `table` — the snapshot of what is currently rendered.
  *
- * PDF export (docs/v2/13 §1, closes the phase-11b TODO): Phase 11b's generic report Typst template
- * (`generic_report.typ`) and `pdfService.renderGenericReportAndSave()` are wired here — in Tauri,
- * "PDF / طباعة" renders a real PDF via `table`'s own columns/rows (falling back to the browser print
- * route only if the native render itself fails). Outside Tauri (browser dev server), it keeps the
- * v1 print-window fallback, since no native PDF engine is available there.
+ * Print / PDF is a real document render, never the on-screen component: the page's `print` spec (or,
+ * when a page has none, its `table` converted by `blocksFromTable`) becomes a `ReportDocument` with
+ * the company letterhead, period/issue/currency/prepared-by strip and optional signatures, previewed
+ * in `ReportPrintDialog` and printed from there (HTML, `print/renderHtml.ts`) or saved as a native
+ * PDF (Typst, `src-tauri/templates/report.typ`). Ctrl+P opens the same preview.
  */
 const props = defineProps<{
   title: string;
@@ -46,11 +50,15 @@ const props = defineProps<{
   insights?: { headline: string; metrics?: { label: string; value: string }[] } | null;
   /** Insight-engine rule keys relevant to this report (e.g. `['vat-deadline']` on the VAT report) — see the pages for the mapping. Omit to show only the plain per-page summary above. */
   ruleKeys?: string[];
+  /** The printed document's body (blocks + extra meta). Omit to print `table` in the official layout. */
+  print?: ReportPrintSpec | null;
 }>();
 defineEmits<{ retry: [] }>();
 
 const toast = useToast();
 const settings = useSettingsStore();
+const route = useRoute();
+const router = useRouter();
 
 // v2 (docs/v2/13 §1 "insights box"): real insight-engine hits for this report's domain, in addition
 // to the page's own ad-hoc summary. Role-filtered by the signed-in user like every other insight
@@ -74,28 +82,70 @@ function withMeta(t: ExportTable): ExportTable {
   return { ...t, meta: [settings.settings?.storeName ?? '', period.value, `أُنشئ في ${formatDateTime(new Date().toISOString())}`, ...(t.meta ?? [])] };
 }
 
-async function print() {
-  // Native PDF (Tauri): render the currently-shown `table` through the generic report template.
-  // Browser dev server has no PDF engine, so it keeps the v1 print-window fallback.
-  if (isTauri() && props.table) {
-    try {
-      const t = withMeta(props.table);
-      const ok = await renderGenericReportAndSave(
-        {
-          titleAr: t.title,
-          filterLine: [settings.settings?.storeName, period.value].filter(Boolean).join(' — '),
-          columns: t.columns.map((label, i) => ({ key: String(i), label })),
-          rows: t.rows.map((row) => Object.fromEntries(row.map((v, i) => [String(i), typeof v === 'number' ? v.toLocaleString('ar') : String(v)]))),
-        },
-        `${fileBase.value}.pdf`,
-      );
-      if (ok) return;
-    } catch (err) {
-      toast.error(err, 'تعذر إنشاء PDF — سيتم فتح نافذة الطباعة بدلاً من ذلك');
-    }
-  }
-  window.print();
+// ---- Official print / PDF ----------------------------------------------------------------------
+
+const { open: printOpen, doc: printDoc, show: showPrint } = useOfficialPrint();
+const canPrint = computed(() => !props.loading && !props.error && !!(props.print ?? props.table));
+
+/** Period cells for the meta strip, from the same props the on-screen period line uses. */
+function periodMeta(): { label: string; value: string }[] {
+  if (props.asOf) return [{ label: 'كما في', value: formatDate(props.asOf) }];
+  if (props.from || props.to)
+    return [
+      { label: 'الفترة من', value: props.from ? formatDate(props.from) : 'البداية' },
+      { label: 'الفترة إلى', value: props.to ? formatDate(props.to) : formatDate(new Date().toISOString()) },
+    ];
+  return [{ label: 'الفترة', value: 'كل الفترات' }];
 }
+
+/** Active dimension filters (docs/v2/10 §4) — printed so a filtered report can't pass for the whole company. */
+async function dimensionMeta(): Promise<{ label: string; value: string }[]> {
+  const out: { label: string; value: string }[] = [];
+  const branchId = typeof route.query.branchId === 'string' ? route.query.branchId : '';
+  const costCenterId = typeof route.query.costCenterId === 'string' ? route.query.costCenterId : '';
+  if (branchId) out.push({ label: 'الفرع', value: (await getBranches()).find((b) => b.id === branchId)?.name ?? branchId });
+  if (costCenterId) out.push({ label: 'مركز التكلفة', value: (await getCostCenters()).find((c) => c.id === costCenterId)?.name ?? costCenterId });
+  return out;
+}
+
+async function openPrint() {
+  if (!canPrint.value) return;
+  const spec: ReportPrintSpec = props.print ?? { blocks: blocksFromTable(props.table!, props.insights?.metrics) };
+  try {
+    showPrint({
+      ...spec,
+      title: spec.title ?? props.title,
+      subtitle: spec.subtitle ?? props.subtitle,
+      leadMeta: periodMeta(),
+      meta: [...(spec.meta ?? []), ...(await dimensionMeta())],
+      currency: typeof route.query.currency === 'string' ? route.query.currency : undefined,
+    });
+  } catch (err) {
+    toast.error(err, 'تعذر تجهيز التقرير للطباعة');
+  }
+}
+
+// `?print=1` (e.g. the journal list's "دفتر اليومية PDF" button) opens the preview as soon as the
+// report has loaded, then drops the flag so a refresh/back doesn't pop it again.
+watch(
+  canPrint,
+  (ok) => {
+    if (!ok || route.query.print !== '1') return;
+    void router.replace({ query: { ...route.query, print: undefined } });
+    void openPrint();
+  },
+  { immediate: true },
+);
+
+// Ctrl+P prints the official document, not the screen. Matched on `code` so it also works with an
+// Arabic keyboard layout (where `key` is "ح").
+function onKeydown(e: KeyboardEvent) {
+  if (!(e.ctrlKey || e.metaKey) || e.code !== 'KeyP' || printOpen.value) return;
+  e.preventDefault();
+  void openPrint();
+}
+onMounted(() => window.addEventListener('keydown', onKeydown));
+onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 
 async function exportAs(kind: 'csv' | 'md') {
   if (!props.table) return;
@@ -130,8 +180,8 @@ async function exportExcel() {
   <div>
     <PageHeader :title="title" :subtitle="subtitle" back="/reports">
       <template #actions>
-        <AppButton size="sm" :icon="Printer" :disabled="loading || !!error" title="حفظ كـ PDF (نسخة سطح المكتب) أو الطباعة" @click="print">
-          PDF / طباعة
+        <AppButton size="sm" :icon="Printer" :disabled="!canPrint" title="معاينة النسخة الرسمية ثم الطباعة أو الحفظ PDF (Ctrl+P)" data-testid="report-print-open" @click="openPrint">
+          طباعة / PDF
         </AppButton>
         <AppButton size="sm" :icon="Table2" :disabled="!table || loading" @click="exportExcel">Excel</AppButton>
         <AppButton size="sm" :icon="FileSpreadsheet" :disabled="!table || loading" @click="exportAs('csv')">CSV</AppButton>
@@ -145,14 +195,8 @@ async function exportExcel() {
 
     <ErrorState v-if="error" :message="error" @retry="$emit('retry')" />
     <div v-else-if="loading" class="space-y-3"><SkeletonBlock :lines="10" height="h-9" /></div>
-    <div v-else class="print-root">
-      <!-- Print-only letterhead -->
-      <div class="mb-4 hidden border-b-2 border-black pb-3 print:block">
-        <p class="text-lead font-semibold">{{ settings.settings?.storeName }}</p>
-        <p class="text-body">{{ title }}</p>
-        <p class="text-tiny text-print-muted">{{ period }} · <FileText class="inline size-3" /> {{ formatDateTime(new Date().toISOString()) }}</p>
-      </div>
-      <p class="no-print mb-3 text-xs text-text-secondary">{{ period }}</p>
+    <div v-else>
+      <p class="mb-3 text-xs text-text-secondary">{{ period }}</p>
 
       <!-- Insights box (docs/v2/13 §1): the page's own per-page summary, plus (when `ruleKeys` is
            given) the real rule-catalogue insights for this report's domain (docs/v2/11 Part D). -->
@@ -171,5 +215,7 @@ async function exportExcel() {
 
       <slot />
     </div>
+
+    <ReportPrintDialog v-model:open="printOpen" :doc="printDoc" :file-name="fileBase" />
   </div>
 </template>

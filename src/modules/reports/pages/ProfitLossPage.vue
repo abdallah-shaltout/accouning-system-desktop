@@ -11,6 +11,8 @@ import StatementSection from '../components/StatementSection.vue';
 import { useReportFilters } from '../controllers/useReportFilters';
 import { useReportRange } from '../controllers/useReportRange';
 import type { ExportTable } from '../helpers/export';
+import { kpis, money, pct, row, STATEMENT_COLUMNS, table as printTable } from '../print/build';
+import type { PrintRow, ReportPrintSpec } from '../print/types';
 import { getProfitAndLoss, getProfitAndLossComparison } from '../services/reportService';
 import type { ProfitAndLoss } from '../types';
 
@@ -80,6 +82,41 @@ const table = computed<ExportTable | undefined>(() => {
   const columns = prev ? ['البند', 'الحساب', 'المبلغ', 'الفترة السابقة', 'الفرق'] : ['البند', 'الحساب', 'المبلغ'];
   return { title: 'قائمة الدخل', columns, rows };
 });
+
+// Official print: one statement table (code | account | amount [| previous | change]).
+const print = computed<ReportPrintSpec | null>(() => {
+  const d = data.value;
+  if (!d) return null;
+  const prev = previous.value;
+  const compareCells = (amount: number, prevAmount: number | undefined) => (prev ? [prevAmount === undefined ? '—' : money(prevAmount), prevAmount === undefined ? '—' : money(round2Local(amount - prevAmount))] : []);
+  const rows: PrintRow[] = [];
+  const section = (title: string, lines: typeof d.revenue, total: number, totalLabel: string, prevLines?: typeof d.revenue, prevTotal?: number) => {
+    rows.push(row([title], 'section'));
+    for (const l of lines) rows.push(row([l.code, l.name, money(l.amount), ...compareCells(l.amount, prevLines?.find((p) => p.code === l.code)?.amount)]));
+    if (!lines.length) rows.push(row(['', 'لا توجد حركات', '—', ...(prev ? ['—', '—'] : [])], 'opening'));
+    rows.push(row(['', totalLabel, money(total), ...compareCells(total, prevTotal)], 'subtotal'));
+  };
+  section('الإيرادات', d.revenue, d.netRevenue, 'صافي الإيرادات', prev?.revenue, prev?.netRevenue);
+  section('تكلفة المبيعات', d.cogs, d.totalCogs, 'إجمالي تكلفة المبيعات', prev?.cogs, prev?.totalCogs);
+  rows.push(row(['', 'مجمل الربح', money(d.grossProfit), ...compareCells(d.grossProfit, prev?.grossProfit)], 'total'));
+  section('المصروفات', d.expenses, d.totalExpenses, 'إجمالي المصروفات', prev?.expenses, prev?.totalExpenses);
+  rows.push(row(['', d.netIncome >= 0 ? 'صافي الربح' : 'صافي الخسارة', money(d.netIncome), ...compareCells(d.netIncome, prev?.netIncome)], 'grand'));
+
+  return {
+    signatures: true,
+    meta: prev ? [{ label: 'المقارنة مع', value: comparison.value === 'sameLastYear' ? 'نفس الفترة من العام الماضي' : 'الفترة السابقة' }] : [],
+    blocks: [
+      kpis([
+        { label: 'صافي الإيرادات', value: money(d.netRevenue) },
+        { label: 'مجمل الربح', value: money(d.grossProfit) },
+        { label: d.netIncome >= 0 ? 'صافي الربح' : 'صافي الخسارة', value: money(d.netIncome), emphasis: true },
+        { label: 'هامش مجمل الربح', value: pct(grossMargin.value) },
+        { label: 'هامش صافي الربح', value: pct(margin.value) },
+      ]),
+      printTable(prev ? [...STATEMENT_COLUMNS, { label: 'الفترة السابقة', numeric: true, width: 1.3 }, { label: 'التغير', numeric: true, width: 1.3 }] : STATEMENT_COLUMNS, rows),
+    ],
+  };
+});
 </script>
 
 <template>
@@ -91,6 +128,7 @@ const table = computed<ExportTable | undefined>(() => {
     :loading="(loading || !ready) && !data"
     :error="error"
     :table="table"
+    :print="print"
     :insights="insights"
     @retry="reload"
   >

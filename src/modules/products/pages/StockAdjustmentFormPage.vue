@@ -17,6 +17,7 @@ import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { getAccounts, type AccountWithBalance } from '@/modules/accounting/services/accountingService';
+import { useGridTab } from '@/modules/core/controllers/useGridTab';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { dateKeyToIso, formatNumber, todayKey } from '@/modules/core/helpers/format';
 import { num0, toNum } from '@/modules/core/helpers/numbers';
@@ -125,6 +126,14 @@ function addLine(productId?: string) {
     empty.qty = 1;
   } else lines.value.push({ key: ++seq, productId, qty: productId ? 1 : undefined });
 }
+
+const linesBody = ref<HTMLElement>();
+const onLinesKeydown = useGridTab({
+  container: linesBody,
+  addRow: () => addLine(),
+  // Stocktake rows are the pre-filled product list — Tab walks them but never appends.
+  isFilled: (i) => type.value !== 'STOCKTAKE' && !!lines.value[i]?.productId,
+});
 
 function onScan() {
   const code = scan.value.trim();
@@ -334,7 +343,7 @@ function onApproved(userId: string) {
                   <th v-if="type !== 'STOCKTAKE'" class="w-10" />
                 </tr>
               </thead>
-              <tbody>
+              <tbody ref="linesBody" @keydown="onLinesKeydown">
                 <tr v-for="line in lines" :key="line.key" class="border-b border-border last:border-0" :class="type === 'STOCKTAKE' && change(line) !== 0 && 'bg-warning/5'">
                   <td class="min-w-56 px-4 py-1.5">
                     <AppCombobox
@@ -390,6 +399,7 @@ function onApproved(userId: string) {
                       type="button"
                       class="rounded p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger"
                       aria-label="حذف السطر"
+                      data-grid-skip
                       @click="lines = lines.filter((l) => l.key !== line.key)"
                     >
                       <Trash class="size-3.5" />

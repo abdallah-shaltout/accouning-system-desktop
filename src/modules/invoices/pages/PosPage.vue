@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { isTauri } from '@tauri-apps/api/core';
 import {
@@ -262,8 +262,39 @@ function remaining(p: Product) {
 // --- Unit picker (shown when a product has more than one active unit) ---
 const unitPickerProduct = ref<Product | null>(null);
 const unitPickerQty = ref(1);
+const unitPickerFocusQty = ref(false);
 
-async function addProductWithUnit(p: Product, unit: ProductUnit | undefined, qty: number) {
+/**
+ * Cart qty inputs by line id. A product-card click lands the cursor in the added line's qty
+ * (selected, so typing replaces it); Enter/Esc there returns to the search box. Scans don't do
+ * this — the cursor stays in the search box for the next scan.
+ */
+const qtyInputs = new Map<string, HTMLInputElement>();
+function setQtyRef(lineId: string, el: unknown) {
+  if (el) qtyInputs.set(lineId, el as HTMLInputElement);
+  else qtyInputs.delete(lineId);
+}
+function focusActiveQty() {
+  nextTick(() => {
+    const el = cart.activeId ? qtyInputs.get(cart.activeId) : undefined;
+    el?.focus();
+    el?.select();
+  });
+}
+function onQtyChange(lineId: string, e: Event) {
+  const input = e.target as HTMLInputElement;
+  changeQty(lineId, Number(input.value));
+  // A rejected qty (over stock) leaves the line untouched — show its real qty again.
+  const line = cart.lines.find((l) => l.id === lineId);
+  if (line) input.value = String(line.qty);
+}
+function onQtyEscape(lineId: string, e: Event) {
+  const line = cart.lines.find((l) => l.id === lineId);
+  if (line) (e.target as HTMLInputElement).value = String(line.qty);
+  searchInput.value?.focus();
+}
+
+async function addProductWithUnit(p: Product, unit: ProductUnit | undefined, qty: number, focusQty = false) {
   const price = priceOf(p, unit);
   let batchId: string | undefined;
   let batchNo: string | undefined;
@@ -281,18 +312,20 @@ async function addProductWithUnit(p: Product, unit: ProductUnit | undefined, qty
   }
   if (!cart.add(p, { price, listPrice: price, qty, unit, batchId, batchNo })) {
     toast.warning('الكمية غير متوفرة', `المتوفر من "${p.name}": ${formatNumber(p.stockQty)}`);
-  }
+  } else if (focusQty) focusActiveQty();
 }
 
-function addProduct(p: Product) {
+/** `focusQty`: product-card clicks move the cursor to the new line's qty (see `qtyInputs`). */
+function addProduct(p: Product, focusQty = false) {
   const qty = cart.takeQtyPrefix();
   const activeUnits = (p.units ?? []).filter((u) => u.active && u.defaultForSale !== false);
   if (activeUnits.length > 1) {
     unitPickerProduct.value = p;
     unitPickerQty.value = qty;
+    unitPickerFocusQty.value = focusQty;
     return;
   }
-  void addProductWithUnit(p, activeUnits[0], qty);
+  void addProductWithUnit(p, activeUnits[0], qty, focusQty);
 }
 
 /** Enter / scan in the search box: exact barcode/SKU wins (via the index, <50ms), then a single visible match. */
@@ -529,6 +562,7 @@ const shortcuts = [
   ['F12', 'الدفع'],
   ['Ctrl+P', 'إعادة طباعة الإيصال'],
   ['+ / −', 'كمية الصنف المحدد'],
+  ['Enter / Esc', 'من خانة الكمية: تأكيد / تراجع والعودة للبحث'],
   ['n*', 'مضاعف الكمية قبل المسح، مثال 3*'],
   ['Enter', 'تأكيد الدفع / بيع جديد'],
   ['F1', 'عرض الاختصارات'],
@@ -621,7 +655,7 @@ const shortcuts = [
               type="button"
               class="group flex h-28 flex-col justify-between rounded-xl border border-border bg-surface p-3 text-start transition-colors hover:border-primary/60 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-45"
               :disabled="remaining(p) <= 0"
-              @click="addProduct(p)"
+              @click="addProduct(p, true)"
             >
               <span class="line-clamp-2 text-body font-medium leading-snug">{{ p.name }}</span>
               <span class="flex items-end justify-between gap-2">
@@ -691,12 +725,17 @@ const shortcuts = [
                   <Minus class="size-3.5" />
                 </button>
                 <input
+                  :ref="(el) => setQtyRef(l.id, el)"
                   :value="l.qty"
                   type="number"
                   min="1"
                   class="control h-7 w-14 px-1 text-center"
                   aria-label="الكمية"
-                  @change="changeQty(l.id, Number(($event.target as HTMLInputElement).value))"
+                  data-testid="pos-line-qty"
+                  @change="onQtyChange(l.id, $event)"
+                  @focus="cart.activeId = l.id"
+                  @keydown.enter.prevent="searchInput?.focus()"
+                  @keydown.esc.prevent="onQtyEscape(l.id, $event)"
                   @click.stop
                 />
                 <button type="button" class="flex size-7 items-center justify-center rounded-md border border-border hover:bg-surface-hover" aria-label="زيادة" @click.stop="changeQty(l.id, l.qty + 1)">
@@ -778,7 +817,7 @@ const shortcuts = [
             type="button"
             class="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2.5 hover:border-primary/60 hover:bg-surface-hover"
             data-testid="unit-picker-option"
-            @click="(void addProductWithUnit(unitPickerProduct!, u, unitPickerQty), (unitPickerProduct = null))"
+            @click="(void addProductWithUnit(unitPickerProduct!, u, unitPickerQty, unitPickerFocusQty), (unitPickerProduct = null))"
           >
             <span>{{ catalog.unitName(u.unitId) }}</span>
             <MoneyText :value="priceOf(unitPickerProduct, u)" plain />

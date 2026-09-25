@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
+# The crate also ships test binaries (pdf_smoke, report_smoke, thermal_smoke, typst_spike), so
+# `cargo run` / `tauri dev` need to be told which one is the app.
+default-run = "accounting-app"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -69,6 +72,10 @@ path = "src/bin/typst_spike.rs"
 [[bin]]
 name = "pdf_smoke"
 path = "src/bin/pdf_smoke.rs"
+
+[[bin]]
+name = "report_smoke"
+path = "src/bin/report_smoke.rs"
 
 [[bin]]
 name = "thermal_smoke"

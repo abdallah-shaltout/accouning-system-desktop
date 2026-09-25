@@ -35,6 +35,7 @@ import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStor
 import { getDefaultTemplate, getTemplate } from '@/modules/templates/services/templateService';
 import { defaultTemplateOptions, type BaseTemplateId, type DocumentKind, type LabelOptions, type PdfTemplate, type TemplateOptions } from '@/modules/templates/types';
 import { barcodeSvg, looksLikeEan13 } from '@/modules/products/helpers/labelBarcode';
+import type { ReportDocument } from '@/modules/reports/print/types';
 
 export type PdfDocumentKind =
   | 'invoice'
@@ -513,20 +514,31 @@ export async function render(kind: PdfDocumentKind, id: string, templateId?: str
   return { ok: true, pdfBytes: bytes, achievedStandard: result.achieved_standard };
 }
 
+/**
+ * Native "Save as" → write → open in the default PDF viewer. Returns false when the dialog is
+ * cancelled. Opening is best-effort: the file is already on disk at that point, so a viewer or
+ * permission problem (`opener:allow-open-path` is scoped to `*.pdf` in capabilities/default.json)
+ * only shows where it was saved — it never turns a successful save into an error.
+ */
+async function savePdfBytes(bytes: Uint8Array, filename: string): Promise<boolean> {
+  const [{ save }, { writeFile }] = await Promise.all([import('@tauri-apps/plugin-dialog'), import('@tauri-apps/plugin-fs')]);
+  const path = await save({ defaultPath: filename.replace(/[\\/:*?"<>|]+/g, '-'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+  if (!path) return false;
+  await writeFile(path, bytes);
+  try {
+    const { openPath } = await import('@tauri-apps/plugin-opener');
+    await openPath(path);
+  } catch {
+    useToast().info('تم حفظ الملف', path);
+  }
+  return true;
+}
+
 /** Saves the rendered PDF via the native save dialog and opens it. No-op (returns false) outside Tauri. */
 export async function renderAndSave(kind: PdfDocumentKind, id: string, filename: string, templateId?: string): Promise<boolean> {
   const outcome = await render(kind, id, templateId);
   if (!outcome.ok || !outcome.pdfBytes) return false;
-  const [{ save }, { writeFile }, { openPath }] = await Promise.all([
-    import('@tauri-apps/plugin-dialog'),
-    import('@tauri-apps/plugin-fs'),
-    import('@tauri-apps/plugin-opener'),
-  ]);
-  const path = await save({ defaultPath: filename, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
-  if (!path) return false;
-  await writeFile(path, outcome.pdfBytes);
-  await openPath(path);
-  return true;
+  return savePdfBytes(outcome.pdfBytes, filename);
 }
 
 export interface RenderPreviewOutcome {
@@ -703,25 +715,15 @@ export async function renderLabels(picks: LabelPick[], label: LabelOptions): Pro
 export async function renderLabelsAndSave(picks: LabelPick[], label: LabelOptions, filename = 'labels.pdf'): Promise<boolean> {
   const outcome = await renderLabels(picks, label);
   if (!outcome.ok || !outcome.pdfBytes) return false;
-  const [{ save }, { writeFile }, { openPath }] = await Promise.all([
-    import('@tauri-apps/plugin-dialog'),
-    import('@tauri-apps/plugin-fs'),
-    import('@tauri-apps/plugin-opener'),
-  ]);
-  const path = await save({ defaultPath: filename, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
-  if (!path) return false;
-  await writeFile(path, outcome.pdfBytes);
-  await openPath(path);
-  return true;
+  return savePdfBytes(outcome.pdfBytes, filename);
 }
 
 // =================================================================================================
 // Generic report (Phase 11b) — docs/v2/12-documents-pdf-excel.md §3 "Reports: a generic report
-// template (title, filter line, table with a repeating header, totals, page x of y)". Built for
-// Phase 12's `modules/reports/**` pages to call once they exist (out of this phase's scope to wire
-// them up), but also usable right now by any report-shaped page outside `modules/reports/**` —
-// e.g. the day book (`modules/accounting/pages/DayBookPrintPage.vue`), which Phase 2 left on the
-// v1 browser-print fallback specifically because no report template existed yet.
+// template (title, filter line, table with a repeating header, totals, page x of y)". The reports
+// module and every other "print a list/statement" screen now use the official layout instead
+// (`renderReportPdf`/`saveReportPdf` below + `src/modules/reports/print/`); this plain table
+// template stays available for ad-hoc tabular exports.
 // =================================================================================================
 
 export interface GenericReportColumn {
@@ -775,16 +777,44 @@ export async function renderGenericReport(req: GenericReportRequest): Promise<Re
 export async function renderGenericReportAndSave(req: GenericReportRequest, filename: string): Promise<boolean> {
   const outcome = await renderGenericReport(req);
   if (!outcome.ok || !outcome.pdfBytes) return false;
-  const [{ save }, { writeFile }, { openPath }] = await Promise.all([
-    import('@tauri-apps/plugin-dialog'),
-    import('@tauri-apps/plugin-fs'),
-    import('@tauri-apps/plugin-opener'),
-  ]);
-  const path = await save({ defaultPath: filename, filters: [{ name: 'PDF', extensions: ['pdf'] }] });
-  if (!path) return false;
-  await writeFile(path, outcome.pdfBytes);
-  await openPath(path);
-  return true;
+  return savePdfBytes(outcome.pdfBytes, filename);
+}
+
+// =================================================================================================
+// Official reports — `src-tauri/templates/report.typ` renders the same `ReportDocument` model the
+// reports module prints/previews as HTML (src/modules/reports/print/), so the saved PDF is a real
+// document render (letterhead, meta strip, sectioned tables, signatures, page x of y), never a
+// capture of the on-screen page.
+// =================================================================================================
+
+/** Renders an official report to PDF bytes (desktop only — returns null in the browser). */
+export async function renderReportPdf(report: ReportDocument): Promise<Uint8Array | null> {
+  if (!isTauri()) return null;
+  const payload = {
+    document: { kind: 'report', number: '', date: report.issuedAt, titleAr: report.title, titleEn: '' },
+    company: companyBlock(),
+    party: null,
+    lines: [],
+    totals: {},
+    qr: null,
+    logo: report.company.logo ?? null,
+    report,
+  };
+  const { invoke } = await import('@tauri-apps/api/core');
+  const result = await invoke<{ pdf_base64: string; achieved_standard: string; warnings: unknown[] }>('render_pdf', {
+    req: { template_source: null, template_id: 'report', payload, options: { paper: 'a4' } },
+  });
+  const binary = atob(result.pdf_base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/** Renders the report PDF, asks where to save it, writes and opens it. False when cancelled or outside Tauri. */
+export async function saveReportPdf(report: ReportDocument, filename: string): Promise<boolean> {
+  const bytes = await renderReportPdf(report);
+  if (!bytes) return false;
+  return savePdfBytes(bytes, filename);
 }
 
 /** Live SVG preview for the label builder — same `render_preview` command the template designer uses, mirroring `renderPreview` above. */

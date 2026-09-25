@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /**
- * v2 phase 7 (docs/v2/06-sales-and-pos.md §5 "Z-report is printed (thermal or A4)"). Phase 11b
- * adds the Z-report Typst template (docs/v2/12-documents-pdf-excel.md §3), so `print()` now goes
- * through `pdfService` in the desktop app; the browser print route stays as the non-Tauri fallback.
+ * v2 phase 7 (docs/v2/06-sales-and-pos.md §5 "Z-report is printed (thermal or A4)"). The A4 print is
+ * an official document (letterhead, shift strip, sales by method, cash reconciliation, cashier /
+ * supervisor signatures) rendered by the reports print pipeline — previewed, then printed or saved
+ * as a native PDF — never a print of this screen.
  */
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { isTauri } from '@tauri-apps/api/core';
 import { Printer } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
@@ -16,24 +16,62 @@ import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDateTime } from '@/modules/core/helpers/format';
-import { renderAndSave } from '@/modules/core/services/pdfService';
-import { useToast } from '@/modules/core/controllers/useToast';
+import ReportPrintDialog from '@/modules/reports/components/ReportPrintDialog.vue';
+import { heading, kpis, money, note, row, table as printTable } from '@/modules/reports/print/build';
+import { useOfficialPrint } from '@/modules/reports/print/useOfficialPrint';
 import { getShift } from '../services/invoiceService';
 
 const route = useRoute();
-const toast = useToast();
 const id = String(route.params.id);
 const { data, error, reload } = useAsync(() => getShift(id));
 const shift = computed(() => data.value);
 
-async function print() {
-  if (isTauri()) {
-    const ok = await renderAndSave('zReport', id, `${shift.value?.number ?? id}.pdf`);
-    if (ok) return;
-    toast.error('تعذر إنشاء ملف PDF');
-    return;
-  }
-  window.print();
+const { open: printOpen, doc: printDoc, show: showPrint } = useOfficialPrint();
+
+function print() {
+  const s = shift.value;
+  if (!s) return;
+  const variance = s.variance ?? 0;
+  const cols = [
+    { label: 'البند', width: 3 },
+    { label: 'المبلغ', numeric: true, width: 1.4 },
+  ];
+  showPrint({
+    title: 'تقرير إغلاق الوردية (Z)',
+    subtitle: `وردية ${s.number}`,
+    badge: 'تقرير Z',
+    leadMeta: [
+      { label: 'الوردية', value: s.number },
+      { label: 'الكاشير', value: s.openedByName },
+      { label: 'فُتحت', value: formatDateTime(s.openedAt) },
+      { label: 'أُغلقت', value: s.closedAt ? formatDateTime(s.closedAt) : 'مفتوحة' },
+    ],
+    signatures: true,
+    signatureTitles: ['الكاشير', 'المشرف / المدير'],
+    blocks: [
+      kpis([
+        { label: 'إجمالي المبيعات', value: money(s.salesTotal) },
+        { label: 'النقد المتوقع', value: money(s.expectedCash ?? 0) },
+        { label: 'النقد المعدود', value: money(s.countedCash ?? 0) },
+        { label: 'الفرق', value: money(variance), emphasis: true },
+      ]),
+      heading('المبيعات حسب طريقة الدفع'),
+      printTable(cols, [...s.salesByMethod.map((m) => row([m.label, money(m.amount)])), row(['إجمالي المبيعات', money(s.salesTotal)], 'total')], 'لا توجد مبيعات في هذه الوردية'),
+      heading('تسوية النقدية'),
+      printTable(cols, [
+        row(['الرصيد الافتتاحي', money(s.openingFloat)], 'opening'),
+        row(['+ مبيعات نقدية', money(s.cashSales)]),
+        row(['− مرتجعات نقدية', money(-s.cashRefunds)]),
+        row(['+ إيداع (Pay in)', money(s.payIns)]),
+        row(['− سحب (Pay out)', money(-s.payOuts)]),
+        ...(s.bankDrops ? [row(['− إيداع بنكي', money(-s.bankDrops)])] : []),
+        row(['النقد المتوقع في الدرج', money(s.expectedCash ?? 0)], 'subtotal'),
+        row(['النقد المعدود فعلياً', money(s.countedCash ?? 0)]),
+        row([variance < 0 ? 'الفرق (عجز)' : variance > 0 ? 'الفرق (زيادة)' : 'الفرق', money(variance)], 'grand'),
+      ]),
+      ...(Math.abs(variance) >= 0.01 ? [note(variance < 0 ? `يوجد عجز في الصندوق بقيمة ${money(Math.abs(variance))}` : `توجد زيادة في الصندوق بقيمة ${money(variance)}`, 'warn')] : [note('الصندوق مطابق — لا يوجد فرق', 'ok')]),
+    ],
+  });
 }
 </script>
 
@@ -42,7 +80,7 @@ async function print() {
     <ErrorState v-if="error" :message="error" @retry="reload" />
     <template v-else>
       <PageHeader :title="shift ? `تقرير Z — وردية ${shift.number}` : '…'" back="/pos/shifts">
-        <template #actions><AppButton variant="primary" :icon="Printer" @click="print">طباعة</AppButton></template>
+        <template #actions><AppButton variant="primary" :icon="Printer" :disabled="!shift" data-testid="shift-print" @click="print">طباعة</AppButton></template>
       </PageHeader>
 
       <AppCard v-if="!shift" padding="sm"><SkeletonBlock :lines="8" /></AppCard>
@@ -74,5 +112,7 @@ async function print() {
         </dl>
       </div>
     </template>
+
+    <ReportPrintDialog v-model:open="printOpen" :doc="printDoc" :file-name="`تقرير Z ${shift?.number ?? ''}`" />
   </div>
 </template>

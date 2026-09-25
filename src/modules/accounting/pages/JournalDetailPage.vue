@@ -5,7 +5,7 @@
  */
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Copy, ExternalLink, Undo2 } from '@lucide/vue';
+import { Copy, ExternalLink, Printer, Undo2 } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
@@ -19,9 +19,13 @@ import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { useToast } from '@/modules/core/controllers/useToast';
-import { formatDateTime, todayKey } from '@/modules/core/helpers/format';
+import { formatDate, formatDateTime, todayKey } from '@/modules/core/helpers/format';
+import { tafqit } from '@/modules/core/helpers/tafqit';
 import { getCustomers, getSuppliers } from '@/modules/parties/services/partyService';
 import type { Customer, Supplier } from '@/modules/parties/types';
+import ReportPrintDialog from '@/modules/reports/components/ReportPrintDialog.vue';
+import { money, note, row, table as printTable } from '@/modules/reports/print/build';
+import { useOfficialPrint } from '@/modules/reports/print/useOfficialPrint';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getAccounts, getJournalEntry, reverseJournalEntry, type AccountWithBalance } from '../services/accountingService';
 import type { JournalEntryType } from '../types';
@@ -106,6 +110,69 @@ async function confirmReverse() {
 function duplicateEntry() {
   router.push(`/accounting/journal/new?duplicate=${id.value}`);
 }
+
+// --- Official print: a journal voucher (سند قيد) rendered as its own document, never the screen ---
+const { open: printOpen, doc: printDoc, show: showPrint } = useOfficialPrint();
+
+/** "فقط … لا غير" — tafqit only closes with "لا غير" when there are no halalas. */
+function amountInWords(amount: number): string {
+  const words = tafqit(amount, { prefix: 'فقط' });
+  return words.endsWith('لا غير') ? words : `${words} لا غير`;
+}
+
+function printEntry() {
+  const v = e.value;
+  if (!v) return;
+  const partyName = (l: (typeof v.lines)[number]) => (l.partyId ? (l.partyKind === 'supplier' ? suppliers : customers).value.get(l.partyId)?.name : undefined);
+  const m = (n: number) => money(n, { dashZero: true });
+  showPrint({
+    title: 'قيد يومية',
+    subtitle: v.description,
+    badge: TYPE_LABEL[v.type],
+    userLabel: 'طُبع بواسطة',
+    leadMeta: [
+      { label: 'رقم القيد', value: v.number },
+      { label: 'التاريخ', value: formatDate(v.date) },
+      { label: 'الحالة', value: v.status === 'DRAFT' ? 'مسودة' : v.reversed ? 'مرحّل — معكوس' : 'مرحّل' },
+      ...(v.sourceRef ? [{ label: 'المستند المصدر', value: `${SOURCE_LABEL[v.sourceRef.kind] ?? v.sourceRef.kind} ${v.sourceRef.number}` }] : []),
+      { label: 'أنشأه', value: v.createdByName },
+    ],
+    signatures: true,
+    signatureTitles: ['أعدّه', 'راجعه', 'اعتمده'],
+    blocks: [
+      ...(v.reversalOfId ? [note(`هذا القيد يعكس قيداً سابقاً${v.reversalReason ? ` — السبب: ${v.reversalReason}` : ''}`, 'warn')] : []),
+      ...(v.reversedById ? [note(`تم عكس هذا القيد بالقيد ${v.reversedByNumber ?? ''}${v.reversalReason ? ` — السبب: ${v.reversalReason}` : ''}`, 'warn')] : []),
+      printTable(
+        [
+          { label: 'الرمز', dim: true, width: 0.7 },
+          { label: 'الحساب', width: 2.2 },
+          { label: 'البيان', width: 2.4 },
+          { label: 'مدين', numeric: true, width: 1.2 },
+          { label: 'دائن', numeric: true, width: 1.2 },
+        ],
+        [
+          ...v.lines.map((l) => {
+            const acc = accounts.value.get(l.accountId);
+            return row([acc?.code ?? '', acc?.name ?? l.accountId, [l.description, partyName(l)].filter(Boolean).join(' — '), m(l.debit), m(l.credit)]);
+          }),
+          row(['', 'الإجمالي', '', money(v.totalDebit), money(v.totalCredit)], 'total'),
+        ],
+      ),
+      note(`المبلغ كتابةً: ${amountInWords(v.totalDebit)}`),
+    ],
+  });
+}
+
+// The command palette's "طباعة هذا القيد" sets `?print=1`.
+watch(
+  () => [e.value, route.query.print] as const,
+  ([v, flag]) => {
+    if (!v || flag !== '1') return;
+    void router.replace({ query: { ...route.query, print: undefined } });
+    printEntry();
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -123,6 +190,7 @@ function duplicateEntry() {
           <AppButton v-if="e?.sourceLink" :icon="ExternalLink" :to="e.sourceLink">
             {{ SOURCE_LABEL[e.sourceRef!.kind] }} <span class="num">{{ e.sourceRef?.number }}</span>
           </AppButton>
+          <AppButton v-if="e" :icon="Printer" data-testid="journal-print" @click="printEntry">طباعة</AppButton>
           <AppButton v-if="e" :icon="Copy" @click="duplicateEntry">نسخ إلى قيد جديد</AppButton>
           <AppButton v-if="canReverse" variant="danger" :icon="Undo2" :loading="busy" @click="openReverseDialog">عكس القيد</AppButton>
         </template>
@@ -251,5 +319,7 @@ function duplicateEntry() {
         <AppButton variant="danger" :icon="Undo2" :loading="busy" @click="confirmReverse">عكس القيد</AppButton>
       </template>
     </AppModal>
+
+    <ReportPrintDialog v-model:open="printOpen" :doc="printDoc" :file-name="e ? `قيد ${e.number}` : 'قيد'" />
   </div>
 </template>

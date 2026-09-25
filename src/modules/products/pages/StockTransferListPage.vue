@@ -19,6 +19,7 @@ import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { isTauri } from '@tauri-apps/api/core';
+import { useGridTab } from '@/modules/core/controllers/useGridTab';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { formatDateTime, formatNumber } from '@/modules/core/helpers/format';
 import { toNum } from '@/modules/core/helpers/numbers';
@@ -87,6 +88,13 @@ function openCreate() {
 function addLine() {
   draftLines.value.push({ key: seq++ });
 }
+const draftLinesEl = ref<HTMLElement>();
+const onDraftLinesKeydown = useGridTab({
+  container: draftLinesEl,
+  rowSelector: ':scope > div',
+  addRow: addLine,
+  isFilled: (i) => !!draftLines.value[i]?.productId,
+});
 function removeLine(key: number) {
   draftLines.value = draftLines.value.filter((l) => l.key !== key);
 }
@@ -229,12 +237,14 @@ async function printTransferNote(t: StockTransfer) {
         </div>
         <div class="space-y-2">
           <p class="text-tiny font-medium text-text-secondary">الأصناف</p>
-          <div v-for="l in draftLines" :key="l.key" class="flex items-center gap-2">
-            <AppCombobox v-model="l.productId" class="flex-1" placeholder="اختر منتجاً" :options="productOptions" />
-            <AppInput v-model="l.qty" type="number" min="0" class="w-28" placeholder="الكمية" />
-            <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger" @click="removeLine(l.key)">
-              <Trash2 class="size-4" />
-            </button>
+          <div ref="draftLinesEl" class="space-y-2" @keydown="onDraftLinesKeydown">
+            <div v-for="l in draftLines" :key="l.key" class="flex items-center gap-2">
+              <AppCombobox v-model="l.productId" class="flex-1" placeholder="اختر منتجاً" :options="productOptions" />
+              <AppInput v-model="l.qty" type="number" min="0" class="w-28" placeholder="الكمية" />
+              <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger" data-grid-skip @click="removeLine(l.key)">
+                <Trash2 class="size-4" />
+              </button>
+            </div>
           </div>
           <AppButton size="sm" variant="ghost" :icon="Plus" @click="addLine">إضافة صنف</AppButton>
         </div>

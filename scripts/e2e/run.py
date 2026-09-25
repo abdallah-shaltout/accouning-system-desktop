@@ -27,7 +27,7 @@ FLOWS_DIR = Path(__file__).resolve().parent / "flows"
 # posts/decides its own approval request, so it should see everything every earlier flow left behind.
 ORDER = [
     "onboarding", "cashier_pos", "desk_invoice", "role_gating", "accountant_journal", "refund_payment",
-    "products", "purchases", "expenses", "branches_currencies", "reports", "reports_v2", "labels_templates",
+    "products", "purchases", "expenses", "branches_currencies", "reports", "reports_v2", "report_print", "labels_templates",
     "home_insights", "full_persona_pass",
 ]
 

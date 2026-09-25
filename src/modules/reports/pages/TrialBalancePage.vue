@@ -12,6 +12,8 @@ import ReportShell from '../components/ReportShell.vue';
 import { useReportFilters } from '../controllers/useReportFilters';
 import { useReportRange } from '../controllers/useReportRange';
 import type { ExportTable } from '../helpers/export';
+import { count, kpis, money, note, row, table as printTable } from '../print/build';
+import type { ReportPrintSpec } from '../print/types';
 import { getTrialBalance } from '../services/reportService';
 import type { TrialBalanceRow } from '../types';
 
@@ -76,6 +78,41 @@ const table = computed<ExportTable | undefined>(() =>
     ],
   },
 );
+
+const print = computed<ReportPrintSpec | null>(() => {
+  const rows = data.value;
+  if (!rows) return null;
+  const t = totals.value;
+  const m = (v: number) => money(v, { dashZero: true });
+  return {
+    signatures: true,
+    blocks: [
+      kpis([
+        { label: 'عدد الحسابات ذات الرصيد', value: count(rows.filter((r) => r.closingDebit > 0 || r.closingCredit > 0).length) },
+        { label: 'إجمالي الأرصدة المدينة', value: money(t.closingDebit), emphasis: true },
+        { label: 'إجمالي الأرصدة الدائنة', value: money(t.closingCredit), emphasis: true },
+        { label: 'الفرق', value: money(round2(t.closingDebit - t.closingCredit)) },
+      ]),
+      balanced.value ? note('الميزان متوازن — إجمالي الأرصدة المدينة يساوي إجمالي الأرصدة الدائنة', 'ok') : note('الميزان غير متوازن — راجع القيود اليدوية', 'warn'),
+      printTable(
+        [
+          { label: 'الرمز', dim: true, width: 0.7 },
+          { label: 'الحساب', width: 2.6 },
+          { label: 'رصيد أول المدة', numeric: true, width: 1.2 },
+          { label: 'حركة مدينة', numeric: true, width: 1.2 },
+          { label: 'حركة دائنة', numeric: true, width: 1.2 },
+          { label: 'رصيد مدين', numeric: true, width: 1.2 },
+          { label: 'رصيد دائن', numeric: true, width: 1.2 },
+        ],
+        [
+          ...rows.map((r) => row([r.code, r.name, m(r.openingBalance), m(r.periodDebit), m(r.periodCredit), m(r.closingDebit), m(r.closingCredit)])),
+          row(['', 'الإجمالي', money(t.opening), money(t.debit), money(t.credit), money(t.closingDebit), money(t.closingCredit)], 'total'),
+        ],
+        'لا توجد حسابات ذات حركة في هذه الفترة',
+      ),
+    ],
+  };
+});
 </script>
 
 <template>
@@ -87,6 +124,7 @@ const table = computed<ExportTable | undefined>(() =>
     :loading="(loading || !ready) && !data"
     :error="error"
     :table="table"
+    :print="print"
     :insights="insights"
     :rule-keys="['opening-balance-equity', 'year-end']"
     @retry="reload"

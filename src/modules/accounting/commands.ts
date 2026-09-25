@@ -47,14 +47,15 @@ export const searchProviders: PaletteSearchProvider[] = [
   },
 ];
 
-export function buildContextCommands(_router: Router): PaletteCommand[] {
+export function buildContextCommands(router: Router): PaletteCommand[] {
   return [
     {
       id: 'context:journal-print',
       group: 'actions',
       title: 'طباعة هذا القيد',
       when: (route: RouteLocationNormalizedLoaded) => route.name === 'journal-entry',
-      run: () => window.print(),
+      // Opens the entry's official print preview (JournalDetailPage watches `?print=1`), not a print of the screen.
+      run: () => void router.replace({ query: { ...router.currentRoute.value.query, print: '1' } }),
       permission: { area: 'accounting', access: 'read' },
     },
   ];

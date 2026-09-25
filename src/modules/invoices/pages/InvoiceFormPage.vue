@@ -15,6 +15,7 @@ import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
 import JournalPreview from '@/modules/core/components/JournalPreview.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import { useGridTab } from '@/modules/core/controllers/useGridTab';
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
 import { formatNumber } from '@/modules/core/helpers/format';
 import { num0 } from '@/modules/core/helpers/numbers';
@@ -131,6 +132,8 @@ function pickProduct(line: DeskLine, product: Product) {
 function addLine() {
   lines.value.push(newLine());
 }
+const linesBody = ref<HTMLElement>();
+const onLinesKeydown = useGridTab({ container: linesBody, addRow: addLine, isFilled: (i) => !!lines.value[i]?.name.trim() });
 function duplicateLine(i: number) {
   lines.value.splice(i + 1, 0, { ...lines.value[i], id: `dl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}` });
 }
@@ -344,7 +347,7 @@ const amountInWords = computed(() => tafqit(totals.value.gross));
                 <th class="w-16 px-2 py-2" />
               </tr>
             </thead>
-            <tbody>
+            <tbody ref="linesBody" @keydown="onLinesKeydown">
               <tr v-for="(l, i) in lines" :key="l.id" class="border-b border-border last:border-0">
                 <td class="px-3 py-1.5">
                   <input
@@ -379,7 +382,7 @@ const amountInWords = computed(() => tafqit(totals.value.gross));
                 <td class="px-2 py-1.5"><span class="num text-text-secondary">{{ formatNumber(totals.lines[i]?.vat ?? 0) }}</span></td>
                 <td class="px-2 py-1.5"><span class="num font-medium">{{ formatNumber(totals.lines[i]?.gross ?? 0) }}</span></td>
                 <td class="px-2 py-1.5 text-center">
-                  <button type="button" class="rounded p-1 text-text-secondary hover:bg-danger/10 hover:text-danger" aria-label="حذف" @click="removeLine(i)">
+                  <button type="button" class="rounded p-1 text-text-secondary hover:bg-danger/10 hover:text-danger" aria-label="حذف" data-grid-skip @click="removeLine(i)">
                     <Trash class="size-3.5" />
                   </button>
                 </td>

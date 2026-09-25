@@ -146,11 +146,11 @@ def run(base: str, shots_dir: Path) -> int:
         shot(page, shots_dir, "6_inventory_report_insights")
 
         # =========================================================================================
-        # 4. Accountant's day (docs/v2/01-personas.md §3): opens a report whose PDF export now goes
-        #    through the real generic-report Typst template in Tauri (browser dev server here just
-        #    confirms the button doesn't error — the native path is covered by the Rust smoke tests).
+        # 4. Accountant's day (docs/v2/01-personas.md §3): prints the trial balance — "طباعة / PDF"
+        #    opens the official document preview (letterhead, signatures); the native PDF path
+        #    (`report.typ`) is covered by `cargo run --bin report_smoke`.
         # =========================================================================================
-        print("[accountant] trial balance — export button doesn't error in browser dev mode")
+        print("[accountant] trial balance — official print preview")
         login_as(page, base, "accountant")
         page.wait_for_timeout(400)
         page.goto(f"{base}/reports/trial-balance")
@@ -158,10 +158,12 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(600)
         check(page.get_by_text("ميزان المراجعة").count() > 0, "trial balance report loads")
         pdf_btn = page.get_by_role("button", name=re.compile("PDF"))
-        if pdf_btn.count():
-            pdf_btn.first.click()
-            page.wait_for_timeout(500)
-            check(True, "PDF/print button clicked without throwing (browser fallback path)")
+        check(pdf_btn.count() > 0, "report has a طباعة / PDF button")
+        pdf_btn.first.click()
+        page.wait_for_selector("[data-testid=report-print-dialog]", timeout=5000)
+        html = page.locator("[data-testid=report-print-frame]").get_attribute("srcdoc") or ""
+        check("تقرير رسمي" in html and "ميزان المراجعة" in html, "print opens the official document preview, not a print of the screen")
+        page.keyboard.press("Escape")
 
         browser.close()
 

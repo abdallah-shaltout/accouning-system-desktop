@@ -9,6 +9,8 @@ import { formatDate, formatNumber } from '@/modules/core/helpers/format';
 import ReportShell from '../components/ReportShell.vue';
 import { useReportRange } from '../controllers/useReportRange';
 import type { ExportTable } from '../helpers/export';
+import { count, heading, kpis as printKpis, money, pct, qty, row, table as printTable } from '../print/build';
+import type { ReportPrintSpec } from '../print/types';
 import { getSalesReport } from '../services/reportService';
 import type { SalesReport } from '../types';
 
@@ -91,6 +93,78 @@ const table = computed<ExportTable | undefined>(() => {
   }
   return { title: 'تقرير المبيعات', columns: simpleColumns.value.map((c) => c.label), rows: simpleRows.value.map((r) => [r.label, r.count, r.total]) };
 });
+
+const VIEW_LABEL: Record<View, string> = { product: 'حسب المنتج', category: 'حسب التصنيف', day: 'حسب اليوم', method: 'حسب طريقة الدفع', cashier: 'حسب الكاشير' };
+
+// Official print (reference `salesReport.hbs`: KPI bar, the breakdown with a totals row, then ratios).
+const print = computed<ReportPrintSpec | null>(() => {
+  const d = data.value;
+  const sum = s.value;
+  if (!d || !sum) return null;
+  const breakdown =
+    view.value === 'product'
+      ? printTable(
+          [
+            { label: '#', dim: true, align: 'center', width: 0.4 },
+            { label: 'المنتج', width: 3 },
+            { label: 'الكمية', numeric: true, width: 0.9 },
+            { label: 'المبيعات (قبل الضريبة)', numeric: true, width: 1.4 },
+            { label: 'التكلفة', numeric: true, width: 1.3 },
+            { label: 'الربح', numeric: true, width: 1.3 },
+          ],
+          [
+            ...d.byProduct.map((r, i) => row([count(i + 1), r.name, qty(r.qty), money(r.revenue), money(r.cost), money(r.profit)])),
+            row(['', 'الإجمالي', qty(d.byProduct.reduce((a, r) => a + r.qty, 0)), money(d.byProduct.reduce((a, r) => a + r.revenue, 0)), money(d.byProduct.reduce((a, r) => a + r.cost, 0)), money(d.byProduct.reduce((a, r) => a + r.profit, 0))], 'total'),
+          ],
+          'لا توجد مبيعات في هذه الفترة',
+        )
+      : printTable(
+          [
+            { label: '#', dim: true, align: 'center', width: 0.4 },
+            { label: simpleColumns.value[0].label, width: 3 },
+            { label: simpleColumns.value[1].label, numeric: true, width: 1 },
+            { label: simpleColumns.value[2].label, numeric: true, width: 1.5 },
+          ],
+          [
+            ...simpleRows.value.map((r, i) => row([count(i + 1), r.label, view.value === 'category' ? qty(r.count) : count(r.count), money(r.total)])),
+            row(['', 'الإجمالي', view.value === 'category' ? qty(simpleRows.value.reduce((a, r) => a + r.count, 0)) : count(simpleRows.value.reduce((a, r) => a + r.count, 0)), money(simpleRows.value.reduce((a, r) => a + r.total, 0))], 'total'),
+          ],
+          'لا توجد مبيعات في هذه الفترة',
+        );
+  return {
+    meta: [{ label: 'التفصيل', value: VIEW_LABEL[view.value] }],
+    blocks: [
+      printKpis([
+        { label: 'عدد الفواتير', value: count(sum.invoiceCount) },
+        { label: 'صافي المبيعات (قبل الضريبة)', value: money(sum.netSales), emphasis: true },
+        { label: 'ضريبة القيمة المضافة', value: money(sum.vat) },
+        { label: 'الإجمالي شامل الضريبة', value: money(sum.total) },
+      ]),
+      printKpis([
+        { label: 'المرتجعات', value: money(sum.refunds) },
+        { label: 'الخصومات', value: money(sum.discounts) },
+        { label: 'تكلفة البضاعة المباعة', value: money(sum.cogs) },
+        { label: 'مجمل الربح', value: money(sum.grossProfit), emphasis: true },
+      ]),
+      heading(`تفاصيل المبيعات — ${VIEW_LABEL[view.value]}`),
+      breakdown,
+      heading('المؤشرات'),
+      printTable(
+        [
+          { label: 'المؤشر', width: 3 },
+          { label: 'القيمة', numeric: true, width: 1.4 },
+        ],
+        [
+          row(['متوسط الفاتورة', money(sum.averageInvoice)]),
+          row(['هامش مجمل الربح', pct(sum.netSales ? (sum.grossProfit / sum.netSales) * 100 : 0)]),
+          row(['نسبة المرتجعات من المبيعات', pct(sum.total ? (sum.refunds / sum.total) * 100 : 0)]),
+          row(['نسبة الخصومات من إجمالي المبيعات', pct(sum.grossSales ? (sum.discounts / sum.grossSales) * 100 : 0)]),
+          row(['صافي المبيعات بعد المرتجعات', money(sum.netAfterRefunds)], 'subtotal'),
+        ],
+      ),
+    ],
+  };
+});
 </script>
 
 <template>
@@ -102,6 +176,7 @@ const table = computed<ExportTable | undefined>(() => {
     :loading="(loading || !ready) && !data"
     :error="error"
     :table="table"
+    :print="print"
     :insights="insights"
     :rule-keys="['discount-leak', 'refund-spike', 'good-news']"
     @retry="reload"

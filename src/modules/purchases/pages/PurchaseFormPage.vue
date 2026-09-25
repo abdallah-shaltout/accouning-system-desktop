@@ -12,6 +12,7 @@ import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
+import { useGridTab } from '@/modules/core/controllers/useGridTab';
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
 import { dateKeyToIso, formatNumber, toDateKey, todayKey } from '@/modules/core/helpers/format';
 import { num0, toNum } from '@/modules/core/helpers/numbers';
@@ -147,6 +148,13 @@ function addLowStock() {
 
 const filled = computed(() => lines.value.filter((l) => l.productId));
 
+const linesBody = ref<HTMLElement>();
+const onLinesKeydown = useGridTab({
+  container: linesBody,
+  addRow: () => lines.value.push({ key: ++seq, discountIsPct: true }),
+  isFilled: (i) => !!lines.value[i]?.productId,
+});
+
 function unitFactorOf(line: Line): number {
   const p = line.productId ? byId.value.get(line.productId) : undefined;
   return p?.units?.find((u) => u.id === line.unitId)?.factor ?? 1;
@@ -281,7 +289,7 @@ const spreadOptions: { value: LandedCostSpread; label: string }[] = [
                 <th class="w-10" />
               </tr>
             </thead>
-            <tbody>
+            <tbody ref="linesBody" @keydown="onLinesKeydown">
               <tr v-for="line in lines" :key="line.key" class="border-b border-border last:border-0">
                 <td class="min-w-52 px-4 py-1.5">
                   <AppCombobox
@@ -321,6 +329,7 @@ const spreadOptions: { value: LandedCostSpread; label: string }[] = [
                     class="rounded p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger disabled:opacity-30"
                     :disabled="lines.length <= 1"
                     aria-label="حذف السطر"
+                    data-grid-skip
                     @click="lines = lines.filter((l) => l.key !== line.key)"
                   >
                     <Trash class="size-3.5" />

@@ -8,6 +8,8 @@ import { formatNumber } from '@/modules/core/helpers/format';
 import ReportShell from '../components/ReportShell.vue';
 import { useReportRange } from '../controllers/useReportRange';
 import type { ExportTable } from '../helpers/export';
+import { boxes as printBoxes, count, heading, money, note, pct, row, table as printTable } from '../print/build';
+import type { ReportPrintSpec } from '../print/types';
 import { getVatReport } from '../services/reportService';
 
 const { from, to, fiscalStart, ready, syncUrl } = useReportRange();
@@ -63,6 +65,52 @@ const table = computed<ExportTable | undefined>(() => {
     ],
   };
 });
+
+// Official print (reference `vatReport.hbs`: output / input / net boxes, then the return lines).
+const print = computed<ReportPrintSpec | null>(() => {
+  const d = data.value;
+  if (!d) return null;
+  return {
+    signatures: true,
+    blocks: [
+      printBoxes([
+        { title: 'ضريبة المخرجات (المبيعات)', value: money(d.outputVat) },
+        { title: 'ضريبة المدخلات (المشتريات)', value: money(d.inputVat) },
+        { title: d.netPayable >= 0 ? 'صافي الضريبة المستحقة للهيئة' : 'رصيد ضريبي مسترد', value: money(Math.abs(d.netPayable)), emphasis: true },
+      ]),
+      heading('ملخص الإقرار'),
+      printTable(
+        [
+          { label: 'البند', width: 3 },
+          { label: 'عدد المستندات', numeric: true, align: 'center', width: 1 },
+          { label: 'المبلغ الخاضع', numeric: true, width: 1.4 },
+          { label: 'الضريبة', numeric: true, width: 1.4 },
+        ],
+        [
+          ...rows.value.map((r) => row([`${r.label} — ${r.sub}`, count(r.count), money(r.sign * r.taxable), money(r.sign * r.vat)])),
+          row(['ضريبة المخرجات', '', '', money(d.outputVat)], 'subtotal'),
+          row(['ضريبة المدخلات', '', '', money(d.inputVat)], 'subtotal'),
+          row([d.netPayable >= 0 ? 'صافي الضريبة المستحقة' : 'صافي الرصيد المسترد', '', '', money(d.netPayable)], 'grand'),
+        ],
+      ),
+      ...(boxes.value.length
+        ? [
+            heading('مربعات الإقرار — المبيعات حسب الفئة الضريبية'),
+            printTable(
+              [
+                { label: 'الفئة', width: 3 },
+                { label: 'النسبة', numeric: true, align: 'center', width: 1 },
+                { label: 'صافي المبيعات', numeric: true, width: 1.4 },
+                { label: 'الضريبة', numeric: true, width: 1.4 },
+              ],
+              boxes.value.map((b) => row([CATEGORY_LABEL[b.category] ?? b.category, pct(b.rate, 2), money(b.net), money(b.vat)])),
+            ),
+          ]
+        : []),
+      reconciled.value ? note('مطابق لأرصدة حسابات الضريبة في دفتر الأستاذ (2150 و 1150)', 'ok') : note('يوجد فرق مع حسابات الضريبة في دفتر الأستاذ — راجع القيود اليدوية', 'warn'),
+    ],
+  };
+});
 </script>
 
 <template>
@@ -74,6 +122,7 @@ const table = computed<ExportTable | undefined>(() => {
     :loading="(loading || !ready) && !data"
     :error="error"
     :table="table"
+    :print="print"
     :insights="insights"
     :rule-keys="['vat-deadline']"
     @retry="reload"

@@ -5,9 +5,11 @@ import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.v
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
-import { formatNumber } from '@/modules/core/helpers/format';
+import { formatNumber, todayKey } from '@/modules/core/helpers/format';
 import ReportShell from '../components/ReportShell.vue';
 import type { ExportTable } from '../helpers/export';
+import { count, kpis, money, row, table as printTable } from '../print/build';
+import type { ReportPrintSpec } from '../print/types';
 import { getAgingReport } from '../services/reportService';
 import type { AgingReportRow } from '../types';
 
@@ -55,15 +57,39 @@ const table = computed<ExportTable | undefined>(() =>
     rows: [...data.value.map((r) => [r.name, r.current, r.b30, r.b60, r.b90plus, r.total]), ['الإجمالي', totals.value.current, totals.value.b30, totals.value.b60, totals.value.b90plus, totals.value.total]],
   },
 );
+
+// Official print (reference `accountsReceivableAging.hbs`: bucket bar, then one row per party).
+const print = computed<ReportPrintSpec | null>(() => {
+  const rows = data.value;
+  if (!rows) return null;
+  const t = totals.value;
+  const m = (v: number) => money(v, { dashZero: true });
+  return {
+    meta: [{ label: 'النوع', value: kind.value === 'customer' ? 'ذمم مدينة (العملاء)' : 'ذمم دائنة (الموردون)' }],
+    blocks: [
+      kpis(columns.slice(1).map((c) => ({ label: c.label, value: money(t[c.key as keyof typeof t]), emphasis: c.key === 'total' }))),
+      printTable(
+        [{ label: '#', dim: true, align: 'center', width: 0.4 }, { label: kind.value === 'customer' ? 'العميل' : 'المورد', width: 3 }, ...columns.slice(1).map((c) => ({ label: c.label, numeric: true, width: 1.2 }))],
+        [
+          ...rows.map((r, i) => row([count(i + 1), r.name, m(r.current), m(r.b30), m(r.b60), m(r.b90plus), money(r.total)])),
+          row(['', 'الإجمالي', money(t.current), money(t.b30), money(t.b60), money(t.b90plus), money(t.total)], 'total'),
+        ],
+        'لا توجد أرصدة مفتوحة',
+      ),
+    ],
+  };
+});
 </script>
 
 <template>
   <ReportShell
     :title="kind === 'customer' ? 'أعمار ديون العملاء' : 'أعمار ديون الموردين'"
     subtitle="الأرصدة المفتوحة موزعة حسب عدد أيام التأخر عن تاريخ الاستحقاق"
+    :as-of="todayKey()"
     :loading="loading && !data"
     :error="error"
     :table="table"
+    :print="print"
     :insights="insights"
     @retry="reload"
   >

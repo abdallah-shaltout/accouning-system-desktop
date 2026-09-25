@@ -11,6 +11,8 @@ import { useAsync } from '@/modules/core/controllers/useAsync';
 import ReportShell from '../components/ReportShell.vue';
 import { useReportRange } from '../controllers/useReportRange';
 import type { ExportTable } from '../helpers/export';
+import { money, row, table as printTable } from '../print/build';
+import type { ReportPrintSpec } from '../print/types';
 import { getCostCenterProfitAndLoss } from '../services/reportService';
 
 const { from, to, fiscalStart, ready, syncUrl } = useReportRange();
@@ -43,6 +45,22 @@ const table = computed<ExportTable | undefined>(() => {
   const rows: (string | number)[][] = ROWS.map((r) => [r.label, ...columns.value.map((c) => c[r.key]), data.value!.total[r.key]]);
   return { title: 'الأرباح والخسائر حسب مركز التكلفة', columns: ['البند', ...columns.value.map((c) => c.name), 'الإجمالي'], rows };
 });
+
+const print = computed<ReportPrintSpec | null>(() => {
+  const d = data.value;
+  if (!d) return null;
+  const kind = (key: (typeof ROWS)[number]['key']) => (key === 'netIncome' ? 'grand' : key === 'grossProfit' ? 'subtotal' : 'normal');
+  return {
+    signatures: true,
+    blocks: [
+      printTable(
+        [{ label: 'البند', width: 1.8 }, ...columns.value.map((c) => ({ label: c.name, numeric: true, width: 1.2 })), { label: 'الإجمالي', numeric: true, width: 1.3 }],
+        ROWS.map((r) => row([r.label, ...columns.value.map((c) => money(c[r.key])), money(d.total[r.key])], kind(r.key))),
+        'لا توجد مراكز تكلفة ذات حركة في هذه الفترة',
+      ),
+    ],
+  };
+});
 </script>
 
 <template>
@@ -54,6 +72,7 @@ const table = computed<ExportTable | undefined>(() => {
     :loading="(loading || !ready) && !data"
     :error="error"
     :table="table"
+    :print="print"
     @retry="reload"
   >
     <template #filters>

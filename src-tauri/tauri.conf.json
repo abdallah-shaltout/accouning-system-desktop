@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.abdallah.accounting-app",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "node scripts/fetch-webview2.js && bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "node scripts/fetch-webview2.js && bun run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -27,6 +27,12 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "fixedRuntime",
+        "path": "./Microsoft.WebView2.FixedVersionRuntime.153.0.4234.48.x64/"
+      }
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
