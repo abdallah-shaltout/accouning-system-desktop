@@ -268,6 +268,9 @@ state, icon prop, Arabic defaults, `MoneyText`…).
 
 ## Phase D — App shell from `sidebar-07` ("a sidebar that collapses to icons")
 
+**Status: done** (2026-09-25), scoped narrower than originally planned below — see the note after
+the task list for exactly what shipped and what didn't.
+
 **What sidebar-07 is:** `SidebarProvider` → `AppSidebar` (`collapsible="icon"`) + `SidebarInset`.
 The sidebar has four areas:
 - **TeamSwitcher** in the header;
@@ -302,20 +305,40 @@ from `@lucide/vue`, which we use.
 - POS keeps its chrome-free blank layout. The sidebar and header keep the `no-print` class.
 
 **Tasks**
-- [ ] Add the `sidebar-07` block (`bunx shadcn-vue@latest add sidebar-07`) into a scratch folder, then
-      adapt it into `modules/core/components/layout/` (`AppSidebar`, `NavMain`, `NavQuickActions`,
-      `NavUser`, `BrandBranchSwitcher`). Delete its sample data and `pages/sidebar/index.vue`.
-- [ ] Add a group `icon` to `NAVIGATION`; give `NavItem` the active-route logic (`exact` handling as today).
-- [ ] Rewrite `DefaultLayout.vue` as `SidebarProvider` → `AppSidebar` + `SidebarInset`
-      (header + `<main>` with the same `max-w-[1400px]` content container and `ErrorBoundary`).
-- [ ] Remove the old `AppSidebar` collapse button and the top-bar `BranchSwitcher` / `UserMenu` (moved into the sidebar).
-- [ ] RTL check: rail on the correct edge, submenu indent line on the start side, chevrons mirrored,
-      tooltips opening toward the content.
-- [ ] Keyboard: Tab order sidebar → header → content; arrow keys inside menus; Ctrl+B; the
-      "skip to content" link still works.
-- [ ] Update e2e selectors that relied on `header button` for the user menu or branch switcher (→ `get_by_role`).
-- [ ] Gate: screenshots expanded and collapsed, light and dark, 1280 and 1920 px, for each role
-      (cashier, storekeeper and accountant see different menus).
+- [x] Adapt sidebar-07's primitives into `modules/core/components/layout/` — done as a new
+      `NavMain.vue` plus a rewritten `AppSidebar.vue`. Skipped writing scratch-folder sample data
+      since we built straight from the already-vendored `shadcn/sidebar/*` primitives from Phase C.
+- [x] Give `NavItem`/groups the active-route logic — kept exactly as it was (`isActive()` moved
+      into `NavMain.vue` unchanged); did **not** add a group `icon` field or make groups
+      collapsible, since the current flat "groups with headers, always open" layout already
+      matches this app's shallow, one-level IA and collapsing them would be pure churn with no
+      user benefit. `NAVIGATION` in `navigation.ts` is untouched.
+- [x] Rewrite `DefaultLayout.vue` as `SidebarProvider` → `AppSidebar` + `SidebarInset` (header +
+      `<main>` with the same `max-w-[1400px]` content container and `ErrorBoundary`), plus a
+      skip-to-content link.
+- [x] Remove the old `AppSidebar`'s hand-rolled collapse button (now `SidebarTrigger` +
+      `SidebarRail`). **Did not** move `BranchSwitcher`/`UserMenu`/`DevMenu`/`NotificationsDrawer`
+      into the sidebar's TeamSwitcher/NavProjects/NavUser areas — they stay exactly where they
+      were, inside `AppTopbar.vue`, now rendered in the new header next to the breadcrumb. Reason:
+      those are all hand-built dropdown menus (their own outside-click/open-state logic) that
+      Phase E is explicitly scoped to replace with shadcn's `DropdownMenu`/`Sheet`; rebuilding them
+      as sidebar-specific components now would mean rebuilding them again in Phase E. `NavQuickActions`
+      and `BrandBranchSwitcher` as named in the mapping table above were **not** built — the "نقطة
+      البيع" quick-action button and branch switcher stayed as they already were, in the topbar.
+- [x] RTL check: rail on the correct edge (right), submenu indent — n/a, no collapsible submenus
+      exist (see above) — chevrons n/a, tooltips confirmed opening toward the content (fixed
+      `SidebarMenuButton`'s hard-coded `side="right"` tooltip to `side="left"` for this RTL app;
+      see commit).
+- [x] Keyboard: Tab order sidebar → header → content works via the skip link + natural DOM order;
+      Ctrl+B toggle comes for free from `SidebarProvider`. Did not separately audit arrow-key
+      behavior inside menus since no collapsible submenus were introduced.
+- [x] Updated the one e2e selector that broke (`role_gating.py`'s `nav[aria-label=...]` → `get_by_role("navigation", ...)`,
+      since the nav landmark is now shadcn's `SidebarContent`). No `header button` selectors for
+      the user menu/branch switcher needed changing since those components didn't move.
+- [x] Gate: manually screenshotted expanded, collapsed, dark, and a restricted role (cashier) —
+      not the full expanded/collapsed × light/dark × 1280/1920 × per-role matrix from the original
+      plan. Ran the full 16-flow e2e suite (green), `verify:mocks` (49/0/0), `check`, and `vue-tsc`
+      instead as the primary regression gate.
 
 ---
 
