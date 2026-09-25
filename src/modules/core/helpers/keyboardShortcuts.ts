@@ -42,4 +42,5 @@ export const ROUTE_SHORTCUTS: Record<string, ShortcutEntry[]> = {
 export const GLOBAL_SHORTCUTS: ShortcutEntry[] = [
   { keys: 'Ctrl+K', label: 'فتح لوحة الأوامر (بحث أو تنفيذ أمر)' },
   { keys: 'F1 / ?', label: 'عرض اختصارات لوحة المفاتيح لهذه الصفحة' },
+  { keys: 'Ctrl+B', label: 'طيّ/فتح القائمة الجانبية' },
 ];

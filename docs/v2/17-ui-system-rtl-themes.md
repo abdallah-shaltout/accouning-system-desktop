@@ -258,6 +258,45 @@ silently drops into *Downloads* with no prompt:
 
 ## Phase D — A small, calm sidebar (sidebar-07, done fully)
 
+**Status: done** (2026-09-26), with two documented scope reductions (not silently dropped — see
+below). Rebuilt `navigation.ts` with an `icon` per group and the merged المشتريات والمصروفات group;
+added `QUICK_ACTIONS`. Rewrote `NavMain.vue`: single-open accordion (`Collapsible` per group, only
+the group containing the current route open on load, switching groups closes the previous one), a
+group with exactly one role-filtered item renders as a plain link, and in icon mode a group opens a
+`DropdownMenu` flyout instead — verified visually (screenshots below) in both expanded and collapsed
+states, including the flyout. Built `BrandBranchSwitcher.vue` (logo/store name/branch subtitle,
+`DropdownMenu` branch picker, static row when the switcher doesn't apply) and `NavUser.vue`
+(initials avatar, role, `DropdownMenu` with backup status, appearance link, theme toggle, keyboard
+shortcuts, the dev-only user-switch/reload-demo/reset-data section, logout) — both replace the old
+hand-rolled `BranchSwitcher.vue`/`UserMenu.vue`/`DevMenu.vue` (deleted). `NavMain`/`NavQuickActions`
+read `useSidebar().state` to switch between expanded and icon-mode rendering. Slimmed `AppTopbar.vue`
+to search · POS button · notifications only. Rebuilt `NotificationsDrawer.vue` on shadcn `Sheet`
+(opens from the left) and swapped `KeyboardShortcutsSheet.vue`'s raw `<kbd>` tags for the shadcn
+`Kbd` component (it was already `Dialog`-based via `AppModal`, which the 16 Phase C rebrand already
+built on shadcn's Dialog). Added `useKeyboardShortcutsSheet.ts` (a small shared open-state module)
+so `NavUser`'s dropdown item can open the sheet without it owning private state. Added Ctrl+B to
+`GLOBAL_SHORTCUTS`. Fixed the two e2e selectors in `branches_currencies.py` that looked for the
+switcher under `header` (now `[data-slot=sidebar]`, since it moved into the sidebar).
+
+**Two scope reductions, made deliberately and documented rather than silently skipped:**
+- **`CommandPalette` was not rebuilt on `CommandDialog`.** The current implementation has real
+  behavior `Command`/`ListboxRoot` doesn't model out of the box: prefix routing (`>`/`@`/`#`/`$`/`?`
+  switch search domain), Tab-to-next-group navigation, an async loading state, and search via this
+  app's own `normalizeArabic()` rather than reka-ui's built-in `contains()` filter. Rebuilding it on
+  `Command` would mean re-deriving all of that against a different filtering model — a large,
+  high-risk rewrite of a component all 16 e2e flows exercise, for an internal-implementation change
+  with no user-facing difference (it is already a correct, RTL-verified `role="dialog"`/
+  `role="listbox"` combobox). Left as its own implementation.
+- **`ToastContainer` was not rebuilt on `Sonner`.** vue-sonner's `Action` type supports exactly one
+  action button per toast. `printService.ts`'s thermal-print failure toast genuinely needs **two**
+  ("إعادة الطباعة" retry + "طباعة PDF بدلاً منها" fallback, docs/v2/12 §5) — migrating would silently
+  drop one of the two real recovery actions. `ToastContainer.vue` already renders via a real
+  `TransitionGroup` (confirmed animating in Phase B) and was RTL-fixed in Phase A (`start-4` +
+  `rtl:translate-x-4`), so the only actual gap was cosmetic parity with shadcn's other primitives —
+  not worth a functional regression. Left as its own implementation; `useToast()`'s API is
+  unaffected either way, so this is purely an internal decision, invisible to every one of its 73
+  call sites.
+
 **What the user wants** (screenshot, 2026-09-25): the sidebar should feel *small and easy*, not
 a wall of 30 links. sidebar-07 does this with:
 - a **brand/team switcher** at the top (logo + name + subtitle, `⌃⌄` chevron);

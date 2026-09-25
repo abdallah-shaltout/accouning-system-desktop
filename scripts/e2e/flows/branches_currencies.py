@@ -31,10 +31,11 @@ def run(base: str, shots_dir: Path) -> int:
         safe_print("branches, cost centers & currencies")
         login_as(page, base, "admin")
 
-        # --- Topbar branch switcher (features are ON in the demo seed) -------------------------
+        # --- Sidebar brand/branch switcher (features are ON in the demo seed; docs/v2/17 Phase D
+        # moved it from the topbar into the sidebar header) -------------------------------------
         page.wait_for_timeout(500)
-        switcher = page.locator("header button", has_text="كل الفروع").or_(page.locator("header button", has_text="الفرع"))
-        check(switcher.count() > 0, "topbar branch switcher is visible (features on, >1 branch)")
+        switcher = page.locator("[data-slot=sidebar] button", has_text="كل الفروع").or_(page.locator("[data-slot=sidebar] button", has_text="الفرع"))
+        check(switcher.count() > 0, "sidebar branch switcher is visible (features on, >1 branch)")
         if switcher.count():
             switcher.first.click()
             page.wait_for_timeout(200)
@@ -106,8 +107,8 @@ def run(base: str, shots_dir: Path) -> int:
 
         page.goto(f"{base}/dashboard")
         page.wait_for_timeout(700)
-        switcher_after = page.locator("header button", has_text="كل الفروع").or_(page.locator("header button", has_text="فرع"))
-        check(switcher_after.count() == 0, "feature-switches-off: no branch switcher in the topbar")
+        switcher_after = page.locator("[data-slot=sidebar] button", has_text="كل الفروع").or_(page.locator("[data-slot=sidebar] button", has_text="فرع"))
+        check(switcher_after.count() == 0, "feature-switches-off: no branch switcher in the sidebar")
         shot(page, shots_dir, "features_off_dashboard")
 
         browser.close()

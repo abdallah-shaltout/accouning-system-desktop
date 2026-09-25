@@ -6,22 +6,24 @@
  * both pop up, and shows whatever `ROUTE_SHORTCUTS` has for every other page, falling back to just
  * the global shortcuts (Ctrl+K, F1/?) when the current page has none of its own.
  */
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { Keyboard } from '@lucide/vue';
 import AppModal from '../ui/AppModal.vue';
+import { Kbd } from '@/modules/core/components/shadcn/kbd';
 import { useHotkeys } from '../../controllers/useHotkeys';
+import { keyboardShortcutsOpen as open, useKeyboardShortcutsSheet } from '../../controllers/useKeyboardShortcutsSheet';
 import { GLOBAL_SHORTCUTS, ROUTE_SHORTCUTS } from '../../helpers/keyboardShortcuts';
 
 const route = useRoute();
-const open = ref(false);
+const { toggle } = useKeyboardShortcutsSheet();
 
 const pageShortcuts = computed(() => (typeof route.name === 'string' ? (ROUTE_SHORTCUTS[route.name] ?? []) : []));
 
 useHotkeys(
   {
-    F1: () => void (open.value = !open.value),
-    '?': () => void (open.value = !open.value),
+    F1: toggle,
+    '?': toggle,
   },
   { enabled: () => route.name !== 'pos' },
 );
@@ -35,7 +37,7 @@ useHotkeys(
         <ul class="space-y-1">
           <li v-for="s in pageShortcuts" :key="s.keys" class="flex items-center justify-between gap-3 py-1 text-body">
             <span class="text-text-secondary">{{ s.label }}</span>
-            <kbd class="num rounded border border-border bg-surface px-1.5 py-0.5 text-xs">{{ s.keys }}</kbd>
+            <Kbd class="num">{{ s.keys }}</Kbd>
           </li>
         </ul>
       </div>
@@ -48,7 +50,7 @@ useHotkeys(
         <ul class="space-y-1">
           <li v-for="s in GLOBAL_SHORTCUTS" :key="s.keys" class="flex items-center justify-between gap-3 py-1 text-body">
             <span class="text-text-secondary">{{ s.label }}</span>
-            <kbd class="num rounded border border-border bg-surface px-1.5 py-0.5 text-xs">{{ s.keys }}</kbd>
+            <Kbd class="num">{{ s.keys }}</Kbd>
           </li>
         </ul>
       </div>

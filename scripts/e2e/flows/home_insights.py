@@ -76,10 +76,10 @@ def run(base: str, shots_dir: Path) -> int:
         check(page.get_by_text("التحليلات").count() > 0, "analytics page loads")
         check(page.get_by_text("المبيعات").count() > 0, "sales tab renders")
         shot(page, shots_dir, "analytics_sales")
-        page.get_by_role("button", name="المنتجات").click()
+        page.get_by_role("button", name="المنتجات", exact=True).click()
         page.wait_for_selector("text=الأعلى ربحاً", timeout=10000)
         check(page.get_by_text("الأعلى ربحاً").count() > 0, "products tab renders")
-        page.get_by_role("button", name="العملاء").click()
+        page.get_by_role("button", name="العملاء", exact=True).click()
         page.wait_for_selector("text=عملاء جدد مقابل عائدين", timeout=10000)
         check(page.get_by_text("عملاء جدد مقابل عائدين").count() > 0, "customers tab renders")
 

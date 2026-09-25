@@ -1,20 +1,20 @@
 <script setup lang="ts">
 /**
- * Notifications drawer (docs/v2/14-platform.md §6 "Bell drawer: insights (by severity) + events").
- * A dropdown anchored to the bell icon in the topbar — mark-as-read, links to the relevant page.
- * Opens toward the page (`end-0`, like the user/branch menus) so it never runs off the left edge in
- * RTL; on narrow windows it spans the viewport under the topbar instead.
+ * Notifications drawer (docs/v2/14-platform.md §6 "Bell drawer: insights (by severity) + events"),
+ * rebuilt on shadcn's Sheet (docs/v2/17-ui-system-rtl-themes.md Phase D) — opens from the side
+ * closest to the bell (the topbar's trailing/start edge in RTL, i.e. physically left) rather than
+ * the hand-rolled dropdown it used to be. `useNotifications()`'s composable API is unchanged.
  */
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Bell, BellRing, CheckCheck, CircleCheck } from '@lucide/vue';
 import { useNotifications } from '../../controllers/useNotifications';
 import { formatDateTime } from '../../helpers/format';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/modules/core/components/shadcn/sheet';
 
 const router = useRouter();
 const { all, unreadCount, markRead, markAllRead, isRead } = useNotifications();
 const open = ref(false);
-const root = ref<HTMLElement>();
 
 const SEVERITY_CLASS: Record<string, string> = {
   critical: 'bg-danger/10 text-danger',
@@ -23,40 +23,20 @@ const SEVERITY_CLASS: Record<string, string> = {
   positive: 'bg-success/10 text-success',
 };
 
-function toggle() {
-  open.value = !open.value;
-}
-
 function onOpen(n: (typeof all.value)[number]) {
   markRead(n.id);
   open.value = false;
   router.push(n.actionTo);
 }
-
-function onClickOutside(e: MouseEvent) {
-  if (open.value && root.value && !root.value.contains(e.target as Node)) open.value = false;
-}
-function onEscape(e: KeyboardEvent) {
-  if (e.key === 'Escape') open.value = false;
-}
-onMounted(() => {
-  window.addEventListener('mousedown', onClickOutside);
-  window.addEventListener('keydown', onEscape);
-});
-onBeforeUnmount(() => {
-  window.removeEventListener('mousedown', onClickOutside);
-  window.removeEventListener('keydown', onEscape);
-});
 </script>
 
 <template>
-  <div ref="root" class="relative">
+  <Sheet v-model:open="open">
     <button
       type="button"
       class="relative flex size-8 items-center justify-center rounded-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"
       aria-label="الإشعارات"
-      :aria-expanded="open"
-      @click="toggle"
+      @click="open = true"
     >
       <BellRing v-if="unreadCount > 0" class="size-4" />
       <Bell v-else class="size-4" />
@@ -68,29 +48,25 @@ onBeforeUnmount(() => {
       </span>
     </button>
 
-    <div
-      v-if="open"
-      dir="rtl"
-      class="fixed inset-x-2 top-14 z-50 max-h-[70vh] overflow-y-auto rounded-xl border border-border bg-background shadow-2xl sm:absolute sm:inset-x-auto sm:end-0 sm:top-full sm:mt-1.5 sm:w-96"
-      role="menu"
-    >
-      <div class="flex items-center justify-between border-b border-border px-3.5 py-2.5">
-        <p class="text-body font-semibold">الإشعارات</p>
+    <!-- rtl-ok: the sheet opens from the left, the side toward the topbar's start edge in RTL -->
+    <SheetContent side="left" dir="rtl" class="flex w-full flex-col gap-0 p-0 sm:max-w-sm">
+      <SheetHeader class="flex-row items-center justify-between space-y-0 border-b border-border">
+        <SheetTitle>الإشعارات</SheetTitle>
         <button v-if="unreadCount > 0" type="button" class="flex items-center gap-1 text-tiny text-primary hover:underline" @click="markAllRead">
           <CheckCheck class="size-3.5" /> تعليم الكل كمقروء
         </button>
-      </div>
+      </SheetHeader>
 
-      <div v-if="!all.length" class="flex flex-col items-center gap-2 px-4 py-10 text-center">
+      <div v-if="!all.length" class="flex flex-1 flex-col items-center justify-center gap-2 px-4 text-center">
         <CircleCheck class="size-7 text-success" :stroke-width="1.5" />
         <p class="text-body text-text-secondary">لا توجد إشعارات جديدة</p>
       </div>
 
-      <ul v-else class="divide-y divide-border">
+      <ul v-else class="flex-1 divide-y divide-border overflow-y-auto">
         <li v-for="n in all" :key="n.id">
           <button
             type="button"
-            class="flex w-full items-start gap-2.5 px-3.5 py-2.5 text-start hover:bg-surface-hover"
+            class="flex w-full items-start gap-2.5 px-4 py-2.5 text-start hover:bg-surface-hover"
             :class="!isRead(n.id) && 'bg-primary/5'"
             @click="onOpen(n)"
           >
@@ -105,6 +81,6 @@ onBeforeUnmount(() => {
           </button>
         </li>
       </ul>
-    </div>
-  </div>
+    </SheetContent>
+  </Sheet>
 </template>

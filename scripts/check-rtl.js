@@ -56,9 +56,11 @@ const SIDE_PROP_EXEMPT = new Set([
   "src/modules/core/components/shadcn/sheet/SheetContent.vue",
 ]);
 
-// shadcn primitives that render the base library's own directional icon and mirror it themselves
-// with `rtl:-scale-x-100` (see the component) rather than going through DirIcon — pages import
-// from dirIcon.ts instead, but the primitives themselves are the one legitimate direct-import site.
+// shadcn primitives (and the sidebar's own accordion chevron, which follows the exact same
+// disclosure-triangle pattern as DropdownMenuSubTrigger below) that render the base library's own
+// directional icon and mirror it themselves with `rtl:rotate-180`/`rtl:-scale-x-100` (see the
+// component) rather than going through DirIcon — pages import from dirIcon.ts instead, but these
+// are the legitimate direct-import sites.
 const ICON_PRIMITIVE_EXEMPT = new Set([
   "src/modules/core/components/shadcn/range-calendar/RangeCalendarNextButton.vue",
   "src/modules/core/components/shadcn/range-calendar/RangeCalendarPrevButton.vue",
@@ -66,6 +68,7 @@ const ICON_PRIMITIVE_EXEMPT = new Set([
   "src/modules/core/components/shadcn/calendar/CalendarPrevButton.vue",
   "src/modules/core/components/shadcn/breadcrumb/BreadcrumbSeparator.vue",
   "src/modules/core/components/shadcn/dropdown-menu/DropdownMenuSubTrigger.vue",
+  "src/modules/core/components/layout/NavMain.vue",
   "src/modules/core/helpers/dirIcon.ts",
 ]);
 
