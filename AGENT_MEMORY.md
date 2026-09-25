@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **640 files / 65,135 lines** (md 30, rust 21, ts 194, vue 395).
+Indexed: **646 files / 65,969 lines** (md 30, rust 22, ts 199, vue 395).
 
 **Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -40,7 +40,7 @@ Indexed: **640 files / 65,135 lines** (md 30, rust 21, ts 194, vue 395).
 ```text
 pages (108) / components (323) / controllers (20)   src/modules/<domain>/…
         │  may call ONLY ▼                  (seam rule — see Boundary report)
-services (28)   src/modules/<domain>/services/*   ← swap point for a real backend
+services (31)   src/modules/<domain>/services/*   ← swap point for a real backend
    │                                   │
    ▼                                   ▼
 mock backend  src/mocks/     Tauri IPC invoke('<cmd>') → src-tauri/src/lib.rs
@@ -54,22 +54,23 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 
 | Module | Files / lines | Layers (file count) | Routes | Palette |
 |---|---|---|---|---|
-| **accounting** | 12 / 3115 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
-| **analytics** | 8 / 465 | components 5, pages 1, routes 1, services 1 | 1 |  |
-| **approvals** | 5 / 248 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
-| **core** | 322 / 16453 | commandPalette 1, components 280, controllers 12, helpers 14, pages 4, routes 1, services 7, types 3 | 4 |  |
-| **expenses** | 8 / 876 | pages 5, routes 1, services 1, types 1 | 5 |  |
-| **invoices** | 29 / 5240 | commands 1, components 12, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
-| **parties** | 9 / 1763 | components 1, helpers 1, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
-| **payments** | 6 / 884 | pages 3, routes 1, services 1, types 1 | 3 |  |
-| **products** | 30 / 5023 | components 6, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
-| **purchases** | 10 / 1618 | commands 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
-| **reports** | 44 / 6032 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
-| **settings** | 26 / 4477 | commands 1, components 1, controllers 3, helpers 2, pages 12, routes 1, services 3, types 3 | 15 | yes |
-| **setup** | 17 / 1448 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
-| **templates** | 4 / 917 | pages 2, services 1, types 1 | 0 |  |
-| **users** | 11 / 928 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
-| **vouchers** | 9 / 811 | commands 1, pages 5, routes 1, services 1, types 1 | 5 | yes |
+| **accounting** | 12 / 3117 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
+| **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
+| **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
+| **core** | 322 / 16467 | commandPalette 1, components 280, controllers 12, helpers 14, pages 4, routes 1, services 7, types 3 | 4 |  |
+| **diagnostics** | 5 / 580 | config 1, services 3, types 1 | 0 |  |
+| **expenses** | 8 / 878 | pages 5, routes 1, services 1, types 1 | 5 |  |
+| **invoices** | 29 / 5242 | commands 1, components 12, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
+| **parties** | 9 / 1765 | components 1, helpers 1, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
+| **payments** | 6 / 886 | pages 3, routes 1, services 1, types 1 | 3 |  |
+| **products** | 30 / 5031 | components 6, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
+| **purchases** | 10 / 1620 | commands 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
+| **reports** | 44 / 6034 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
+| **settings** | 26 / 4483 | commands 1, components 1, controllers 3, helpers 2, pages 12, routes 1, services 3, types 3 | 15 | yes |
+| **setup** | 17 / 1450 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
+| **templates** | 4 / 919 | pages 2, services 1, types 1 | 0 |  |
+| **users** | 11 / 932 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
+| **vouchers** | 9 / 813 | commands 1, pages 5, routes 1, services 1, types 1 | 5 | yes |
 
 ## Service API (the seam — pages call only these)
 
@@ -85,6 +86,9 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | core | `pdfService` | `render`, `renderAndSave`, `renderPreview`, `sampleInvoicePayload`, `buildLabelItems`, `renderLabels`, `renderLabelsAndSave`, `renderGenericReport`, `renderGenericReportAndSave`, `renderReportPdf`, `saveReportPdf`, `renderLabelsPreview` |
 | core | `printService` | `printReceipt`, `testPrint`, `initPrintResultListener` |
 | core | `saveFile` | `saveFile` |
+| diagnostics | `defineService` | `wrap` |
+| diagnostics | `diagnosticsService` | `readLogs`, `clearLogs`, `openLogFolder`, `rotateLogs`, `exportAll`, `initDiagnostics` |
+| diagnostics | `logService` | `fingerprintOf`, `setLogContext`, `newCorrelationId`, `withCorrelation`, `registerSink`, `log` |
 | expenses | `expenseService` | `getExpenseCategories`, `saveExpenseCategory`, `deleteExpenseCategory`, `getExpenses`, `getExpense`, `createExpense`, `getRecurringExpenses`, `saveRecurringExpense`, `deleteRecurringExpense`, `getDueRecurringExpenses`, `postDueRecurringExpense` |
 | invoices | `invoiceService` | `isOverdue`, `getInvoices`, `getInvoicesPaged`, `getInvoice`, `previewSale`, `createSale`, `createRefund`, `getRefund`, `getInvoicePrintData`, `getCurrentShift`, `getShifts`, `getShift`, `openPosShift`, `getXReport`, `closePosShift`, `forceClosePosShift`, `recordCashInOut`, `getHeldSales`, `holdSale`, `resumeHeldSale`, `discardHeldSale`, `getQuotations`, `getQuotation`, `saveQuotation`, `setQuotationStatus`, `convertQuotationToInvoice` |
 | parties | `partyService` | `findDuplicates`, `checkDuplicates`, `getPartyGroups`, `getCustomers`, `getCustomer`, `saveCustomer`, `getCustomerStatement`, `getSuppliers`, `getSupplier`, `saveSupplier`, `getSupplierStatement`, `linkPartyRecords`, `unlinkPartyRecord`, `getLinkedNetBalance`, `getPartyHistory`, `getPartyAging` |
@@ -95,7 +99,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | products | `transferService` | `getTransfers`, `getTransfer`, `createTransfer`, `sendTransfer`, `receiveTransfer`, `rejectTransfer`, `branchStockQty` |
 | purchases | `purchaseService` | `getPurchaseOrders`, `getPurchaseOrder`, `savePurchaseOrder`, `sendPurchaseOrderToSupplier`, `receivePurchaseOrder`, `confirmPurchaseOrder`, `cancelPurchaseOrder`, `createPurchaseReturn`, `getPurchaseReturn`, `getActiveBatches`, `getDebitNoteDrafts`, `postDebitNoteDraft` |
 | reports | `reportService` | `getTrialBalance`, `getProfitAndLoss`, `getProfitAndLossComparison`, `getCostCenterProfitAndLoss`, `getCostCenterBudgetVsActual`, `getBalanceSheet`, `getAccountLedger`, `getPartyLedger`, `getSalesReport`, `getInventoryReport`, `getVatReport`, `getVatDetail`, `getLedgerTargets`, `getCashFlowStatement`, `getDayBook`, `getAgingReport`, `getOverdueReport`, `getGrossProfitReport`, `getReturnsReport`, `getDiscountsReport`, `getShiftsReport`, `getLowStockReport`, `getDeadStockReport`, `getStocktakeVariances`, `getTransfersReport`, `getPurchasesReport`, `getExpensesReport`, `getPeriodComparison`, `getBranchComparison`, `getBusinessHealthReport`, `getProfitLeakageReport`, `getDimensionOptions` |
-| settings | `backupService` | `backupSettings`, `saveBackupSettings`, `isTauriMode`, `backupNow`, `listHistory`, `deleteHistoryEntry`, `verifyHistoryEntry`, `pickRestoreFile`, `previewRestore`, `restoreFromArchive`, `initAutoBackup`, `stopAutoBackup`, `pickBackupFolder`, `isClosingWithBackup` |
+| settings | `backupService` | `backupSettings`, `saveBackupSettings`, `isTauriMode`, `backupNow`, `listHistory`, `deleteHistoryEntry`, `verifyHistoryEntry`, `pickRestoreFile`, `previewRestore`, `restoreFromArchive`, `isClosingWithBackup`, `initAutoBackup`, `stopAutoBackup`, `pickBackupFolder` |
 | settings | `branchesService` | `getBranches`, `createBranch`, `updateBranch`, `deactivateBranch`, `reactivateBranch`, `getCostCenters`, `createCostCenter`, `updateCostCenter`, `deleteCostCenter`, `getCurrencies`, `getExchangeRates`, `createCurrency`, `updateCurrency`, `saveExchangeRate`, `isBaseCurrencyLocked`, `setBaseCurrency`, `getRevaluationPreview`, `getDefaultRevaluationRates`, `postRevaluation` |
 | settings | `settingsService` | `getSettings`, `updateSettings`, `getTaxes`, `saveTax`, `deleteTax`, `getPaymentMethods`, `savePaymentMethod`, `reorderPaymentMethods`, `deletePaymentMethod` |
 | setup | `setupService` | `getOnboardingProgress`, `saveOnboardingProgress`, `markStepDone`, `markStepSkipped`, `applyBusinessTypeDefaults`, `isBaseCurrencyLocked`, `applyCountryTax`, `applyFiscalYear`, `applyBranches`, `previewCoaTemplate`, `applyCoaTemplate`, `applyPaymentMethods`, `getOpeningBalanceEquityNet`, `isFirstUsePosted`, `postOpeningBalances`, `postOpeningStock`, `recloseOpeningBalanceEquity`, `postPartyOpening`, `reversePartyOpening`, `finishOnboarding`, `uid` |
@@ -233,31 +237,36 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 
 | From | Imports from | Imported by (# modules) |
 |---|---|---|
-| **accounting** | core (100), users (6), mocks (4), parties (4), reports (3), settings (2), invoices (1) | 9 |
-| **analytics** | core (16), mocks (1) | 1 |
-| **app** | core (13), settings (5), users (3), accounting (2), approvals (2), invoices (2), mocks (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), parties (1), payments (1), products (1), setup (1) | 0 |
-| **approvals** | core (11), mocks (2), users (1) | 4 |
-| **core** | mocks (21), users (19), invoices (13), products (12), settings (10), parties (3), purchases (3), accounting (2), templates (2), vouchers (2), payments (1), reports (1), setup (1) | 17 |
-| **expenses** | core (57), mocks (3), users (3), accounting (2), parties (2), settings (2) | 2 |
-| **invoices** | core (162), mocks (9), settings (9), parties (8), products (8), users (8), reports (6), approvals (2), accounting (1), payments (1) | 10 |
+| **accounting** | core (100), users (6), mocks (4), parties (4), reports (3), settings (2), diagnostics (1), invoices (1) | 9 |
+| **analytics** | core (16), diagnostics (1), mocks (1) | 1 |
+| **app** | core (13), settings (5), users (3), accounting (2), approvals (2), diagnostics (2), invoices (2), mocks (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), parties (1), payments (1), products (1), setup (1) | 0 |
+| **approvals** | core (11), mocks (2), diagnostics (1), users (1) | 4 |
+| **core** | mocks (21), users (19), invoices (13), products (12), settings (10), diagnostics (6), parties (3), purchases (3), accounting (2), templates (2), vouchers (2), payments (1), reports (1), setup (1) | 17 |
+| **expenses** | core (57), mocks (3), users (3), accounting (2), parties (2), settings (2), diagnostics (1) | 2 |
+| **invoices** | core (162), mocks (9), settings (9), parties (8), products (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
 | **mocks** | invoices (9), products (8), accounting (7), settings (5), core (3), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 16 |
-| **parties** | core (49), mocks (8), payments (3), users (2), invoices (1), purchases (1), setup (1) | 10 |
-| **payments** | core (42), invoices (2), mocks (2), parties (2), users (2) | 6 |
-| **products** | core (199), mocks (15), users (13), settings (7), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
-| **purchases** | core (75), mocks (4), products (4), users (4), invoices (3), parties (3), settings (2), payments (1) | 5 |
-| **reports** | core (158), settings (7), accounting (5), mocks (4), invoices (1), users (1) | 4 |
-| **settings** | core (125), mocks (16), users (16), invoices (3), products (3), templates (2) | 11 |
-| **setup** | core (47), mocks (9), settings (4), accounting (2), products (2), parties (1), users (1) | 3 |
-| **templates** | core (16) | 3 |
-| **users** | core (36), mocks (7), products (3) | 15 |
-| **vouchers** | core (50), mocks (4), settings (2), users (2), accounting (1), invoices (1) | 3 |
+| **parties** | core (49), mocks (8), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), setup (1) | 10 |
+| **payments** | core (42), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
+| **products** | core (199), mocks (15), users (13), settings (7), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
+| **purchases** | core (75), mocks (4), products (4), users (4), invoices (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
+| **reports** | core (158), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
+| **settings** | core (125), mocks (16), users (16), diagnostics (3), invoices (3), products (3), templates (2) | 11 |
+| **setup** | core (47), mocks (9), settings (4), accounting (2), products (2), diagnostics (1), parties (1), users (1) | 3 |
+| **templates** | core (16), diagnostics (1) | 3 |
+| **users** | core (36), mocks (7), products (3), diagnostics (2) | 15 |
+| **vouchers** | core (50), mocks (4), settings (2), users (2), accounting (1), diagnostics (1), invoices (1) | 3 |
 
-**Most-used npm packages** (files importing): `vue (367)`, `@lucide/vue (148)`, `reka-ui (118)`, `vue-router (98)`, `@vueuse/core (79)`, `@tauri-apps/api (13)`, `class-variance-authority (9)`, `pinia (9)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `zod (4)`, `fflate (3)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `@internationalized/date (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
+**Most-used npm packages** (files importing): `vue (367)`, `@lucide/vue (148)`, `reka-ui (118)`, `vue-router (98)`, `@vueuse/core (79)`, `@tauri-apps/api (15)`, `class-variance-authority (9)`, `pinia (9)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `zod (4)`, `fflate (3)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `@internationalized/date (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
 
 ## Rust ↔ Vue IPC contract
 
 | Command | Rust path | Defined in | Registered | Invoked from |
 |---|---|---|---|---|
+| `diag_append` | `diag::diag_append` | `src-tauri/src/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
+| `diag_read` | `diag::diag_read` | `src-tauri/src/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
+| `diag_clear` | `diag::diag_clear` | `src-tauri/src/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
+| `diag_open_folder` | `diag::diag_open_folder` | `src-tauri/src/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
+| `diag_rotate` | `diag::diag_rotate` | `src-tauri/src/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
 | `greet` | `greet` | `src-tauri/src/lib.rs` | yes | — |
 | `render_pdf_spike` | `pdf::render_pdf_spike` | `src-tauri/src/pdf/mod.rs` | yes | — |
 | `render_pdf` | `pdf::render::render_pdf` | `src-tauri/src/pdf/render.rs` | yes | `src/modules/core/services/pdfService.ts` |
@@ -266,9 +275,9 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | `print_thermal_receipt` | `print::commands::print_thermal_receipt` | `src-tauri/src/print/commands.rs` | yes | `src/modules/core/services/printService.ts` |
 | `print_test_receipt` | `print::commands::print_test_receipt` | `src-tauri/src/print/commands.rs` | yes | `src/modules/core/services/printService.ts` |
 
-**Plugins:** `sql`, `opener`, `fs`, `dialog`. Frontend plugin use: `@tauri-apps/api (13)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `@tauri-apps/plugin-opener (2)`
+**Plugins:** `sql`, `opener`, `fs`, `dialog`, `log`. Frontend plugin use: `@tauri-apps/api (15)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `@tauri-apps/plugin-opener (2)`
 
-**Rust module tree:** `lib.rs → pub mod pdf`, `lib.rs → pub mod print`, `pdf/mod.rs → pub mod fonts`, `pdf/mod.rs → mod payload`, `pdf/mod.rs → mod qr`, `pdf/mod.rs → pub mod raster`, `pdf/mod.rs → pub mod render`, `pdf/mod.rs → mod world`, `print/mod.rs → pub mod dither`, `print/mod.rs → pub mod escpos`, `print/mod.rs → pub mod payload`, `print/mod.rs → pub mod printers`, `print/mod.rs → pub mod render`, `print/mod.rs → mod transport`, `print/mod.rs → pub mod commands`
+**Rust module tree:** `lib.rs → pub mod diag`, `lib.rs → pub mod pdf`, `lib.rs → pub mod print`, `pdf/mod.rs → pub mod fonts`, `pdf/mod.rs → mod payload`, `pdf/mod.rs → mod qr`, `pdf/mod.rs → pub mod raster`, `pdf/mod.rs → pub mod render`, `pdf/mod.rs → mod world`, `print/mod.rs → pub mod dither`, `print/mod.rs → pub mod escpos`, `print/mod.rs → pub mod payload`, `print/mod.rs → pub mod printers`, `print/mod.rs → pub mod render`, `print/mod.rs → mod transport`, `print/mod.rs → pub mod commands`
 
 **Contract gaps:** invoked-but-unregistered — · registered-but-never-invoked `greet`, `render_pdf_spike` · defined-but-unregistered — · registered-but-undefined —
 
@@ -388,7 +397,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | Layer | Facts |
 |---|---|
 | Desktop shell | Tauri v2 — product `Equal`, identifier `com.abdallah.accounting-app` (never change) |
-| Rust crates | `tauri`, `tauri-plugin-opener`, `serde`, `serde_json`, `tauri-plugin-sql`, `tauri-plugin-fs`, `tauri-plugin-dialog`, `typst`, `typst-pdf`, `typst-library`, `typst-layout`, `typst-syntax`, `typst-utils`, `typst-svg`, `qrcode`, `image`, `ecow`, `time`, `lopdf`, `resvg`, `usvg`, `tiny-skia`, `windows` |
+| Rust crates | `tauri`, `tauri-plugin-opener`, `serde`, `serde_json`, `tauri-plugin-sql`, `tauri-plugin-fs`, `tauri-plugin-dialog`, `tauri-plugin-log`, `typst`, `typst-pdf`, `typst-library`, `typst-layout`, `typst-syntax`, `typst-utils`, `typst-svg`, `qrcode`, `image`, `ecow`, `time`, `lopdf`, `resvg`, `usvg`, `tiny-skia`, `windows` |
 | Rust extra binaries | `typst_spike`, `pdf_smoke`, `report_smoke`, `thermal_smoke` |
 | Frontend deps | `@fontsource-variable/cairo`, `@fontsource/ibm-plex-sans-arabic`, `@fontsource/noto-naskh-arabic`, `@fontsource/tajawal`, `@lucide/vue`, `@tailwindcss/vite`, `@tauri-apps/api`, `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@vueuse/core`, `bwip-js`, `class-variance-authority`, `clsx`, `exceljs`, `fflate`, `libphonenumber-js`, `pinia`, `reka-ui`, `tailwind-merge`, `tailwindcss`, `tw-animate-css`, `uqr`, `vue`, `vue-router`, `vue-sonner`, `zod` |
 | Dev deps | `@tauri-apps/cli`, `@types/node`, `@vitejs/plugin-vue`, `typescript`, `vite`, `vue-tsc` |

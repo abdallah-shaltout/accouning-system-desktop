@@ -15,6 +15,8 @@ import {
 } from '@/mocks/backend/inventory';
 import { mutate } from '@/mocks/persist';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 import type {
   DebitNoteDraft,
   ProductBatch,
@@ -35,11 +37,11 @@ export interface AdjustmentFilter {
 }
 
 /** Value of an adjustment at its snapshot unit costs (gains positive, losses negative). */
-export function adjustmentValue(adj: StockAdjustment): number {
+export const adjustmentValue = wrap('products.adjustmentValue', function adjustmentValue(adj: StockAdjustment): number {
   return Math.round(adj.lines.reduce((acc, l) => acc + l.qtyChange * (l.unitCost ?? 0), 0) * 100) / 100;
-}
+});
 
-export async function getStockAdjustments(filter: AdjustmentFilter = {}): Promise<StockAdjustment[]> {
+export const getStockAdjustments = wrap('products.getStockAdjustments', async function getStockAdjustments(filter: AdjustmentFilter = {}): Promise<StockAdjustment[]> {
   await delay();
   return clone(
     db.stockAdjustments
@@ -51,33 +53,33 @@ export async function getStockAdjustments(filter: AdjustmentFilter = {}): Promis
       )
       .sort((a, b) => b.date.localeCompare(a.date)),
   );
-}
+});
 
-export async function getStockAdjustment(id: string): Promise<StockAdjustment & { journalEntryId?: string }> {
+export const getStockAdjustment = wrap('products.getStockAdjustment', async function getStockAdjustment(id: string): Promise<StockAdjustment & { journalEntryId?: string }> {
   await delay();
   const adj = db.stockAdjustments.find((a) => a.id === id);
   if (!adj) throw new ApiError('التسوية غير موجودة', 'NOT_FOUND');
   const je = db.journalEntries.find((e) => e.sourceRef?.kind === 'stockAdjustment' && e.sourceRef.id === id);
   return { ...clone(adj), journalEntryId: je?.id };
-}
+});
 
-export async function createStockAdjustment(input: StockAdjustmentInput, asDraft = false): Promise<StockAdjustment> {
+export const createStockAdjustment = wrap('products.createStockAdjustment', async function createStockAdjustment(input: StockAdjustmentInput, asDraft = false): Promise<StockAdjustment> {
   await delay();
   return clone(recordStockAdjustment(input, session.userId, asDraft));
-}
+});
 
-export async function completeAdjustment(id: string): Promise<StockAdjustment> {
+export const completeAdjustment = wrap('products.completeAdjustment', async function completeAdjustment(id: string): Promise<StockAdjustment> {
   await delay();
   return clone(completeStockAdjustment(id, session.userId));
-}
+});
 
-export async function deleteDraftAdjustment(id: string): Promise<void> {
+export const deleteDraftAdjustment = wrap('products.deleteDraftAdjustment', async function deleteDraftAdjustment(id: string): Promise<void> {
   await delay();
   const adj = db.stockAdjustments.find((a) => a.id === id);
   if (!adj) throw new ApiError('التسوية غير موجودة', 'NOT_FOUND');
   if (adj.status !== 'DRAFT') throw new ApiError('لا يمكن حذف تسوية معتمدة — أنشئ تسوية عكسية بدلاً من ذلك');
   mutate(() => (db.stockAdjustments = db.stockAdjustments.filter((a) => a.id !== id)));
-}
+});
 
 export interface MovementFilter {
   productId?: string;
@@ -87,7 +89,7 @@ export interface MovementFilter {
 }
 
 /** Stock ledger, newest first. `refLink` points at the source document screen. */
-export async function getStockMovements(filter: MovementFilter = {}): Promise<(StockMovement & { productName: string; refLink?: string })[]> {
+export const getStockMovements = wrap('products.getStockMovements', async function getStockMovements(filter: MovementFilter = {}): Promise<(StockMovement & { productName: string; refLink?: string })[]> {
   await delay();
   return db.stockMovements
     .filter(
@@ -98,12 +100,12 @@ export async function getStockMovements(filter: MovementFilter = {}): Promise<(S
     )
     .sort((a, b) => b.date.localeCompare(a.date))
     .map((m) => ({ ...clone(m), productName: db.products.find((p) => p.id === m.productId)?.name ?? '—', refLink: refLink(m) }));
-}
+});
 
 export type StockMovementRow = StockMovement & { productName: string; refLink?: string };
 
 /** Server-mode variant of `getStockMovements` for `DataTable`: paged and sorted server-side. */
-export async function getStockMovementsPaged(query: PagedQuery<MovementFilter>): Promise<PagedResult<StockMovementRow>> {
+export const getStockMovementsPaged = wrap('products.getStockMovementsPaged', async function getStockMovementsPaged(query: PagedQuery<MovementFilter>): Promise<PagedResult<StockMovementRow>> {
   await delay();
   const filter = query.filters ?? {};
   let rows: StockMovementRow[] = db.stockMovements
@@ -130,7 +132,7 @@ export async function getStockMovementsPaged(query: PagedQuery<MovementFilter>):
 
   const start = (query.page - 1) * query.pageSize;
   return { rows: rows.slice(start, start + query.pageSize), total };
-}
+});
 
 function refLink(m: StockMovement): string | undefined {
   switch (m.reason) {
@@ -155,10 +157,10 @@ function refLink(m: StockMovement): string | undefined {
 // v2 phase 6 §3 — Batches & expiry
 // ---------------------------------------------------------------------------------------------
 
-export async function getBatches(productId: string): Promise<ProductBatch[]> {
+export const getBatches = wrap('products.getBatches', async function getBatches(productId: string): Promise<ProductBatch[]> {
   await delay();
   return clone(activeBatchesFor(productId));
-}
+});
 
 export type ExpiryBucket = 'expired' | 'within30' | 'within60' | 'within90' | 'ok';
 
@@ -181,7 +183,7 @@ function expiryBucket(batch: ProductBatch, today: string): { bucket: ExpiryBucke
 }
 
 /** §4 expiry report: expired / ≤30 / ≤60 / ≤90, grouped by supplier (grouping done client-side by the page). */
-export async function getExpiryReport(): Promise<ExpiryRow[]> {
+export const getExpiryReport = wrap('products.getExpiryReport', async function getExpiryReport(): Promise<ExpiryRow[]> {
   await delay();
   const today = new Date().toISOString().slice(0, 10);
   return db.productBatches
@@ -194,71 +196,71 @@ export async function getExpiryReport(): Promise<ExpiryRow[]> {
     })
     .filter((r) => r.bucket !== 'ok')
     .sort((a, b) => (a.daysLeft ?? 0) - (b.daysLeft ?? 0));
-}
+});
 
-export function batchAlertTone(batch: ProductBatch, alertDays: number): 'danger' | 'warning' | undefined {
+export const batchAlertTone = wrap('products.batchAlertTone', function batchAlertTone(batch: ProductBatch, alertDays: number): 'danger' | 'warning' | undefined {
   if (isBatchExpired(batch)) return 'danger';
   if (isBatchNearExpiry(batch, alertDays)) return 'warning';
   return undefined;
-}
+});
 
-export async function writeOffExpiredBatches(batchIds: string[], note?: string): Promise<StockAdjustment> {
+export const writeOffExpiredBatches = wrap('products.writeOffExpiredBatches', async function writeOffExpiredBatches(batchIds: string[], note?: string): Promise<StockAdjustment> {
   await delay();
   return clone(writeOffBatches(batchIds, session.userId, note));
-}
+});
 
 /** v2 phase 8: still creates the intermediate DRAFT (backend/inventory.ts `draftReturnToSupplier`) — `ExpiryReportPage.vue` immediately posts it into a real debit note via `purchaseService.postDebitNoteDraft`. */
-export async function returnBatchesToSupplier(
+export const returnBatchesToSupplier = wrap('products.returnBatchesToSupplier', async function returnBatchesToSupplier(
   supplierId: string,
   lines: { productId: string; batchId: string; qty: number; unitCost: number }[],
   note?: string,
 ): Promise<DebitNoteDraft> {
   await delay();
   return clone(draftReturnToSupplier(supplierId, lines, session.userId, note));
-}
+});
 
-export async function getDebitNoteDrafts(): Promise<DebitNoteDraft[]> {
+export const getDebitNoteDrafts = wrap('products.getDebitNoteDrafts', async function getDebitNoteDrafts(): Promise<DebitNoteDraft[]> {
   await delay();
   return clone(db.debitNoteDrafts);
-}
+});
 
 // ---------------------------------------------------------------------------------------------
 // v2 phase 6 §5 — Stocktake v2
 // ---------------------------------------------------------------------------------------------
 
-export async function getStockCounts(): Promise<StockCount[]> {
+export const getStockCounts = wrap('products.getStockCounts', async function getStockCounts(): Promise<StockCount[]> {
   await delay();
   return clone([...db.stockCounts].sort((a, b) => b.startedAt.localeCompare(a.startedAt)));
-}
+});
 
-export async function getStockCount(id: string): Promise<StockCount> {
+export const getStockCount = wrap('products.getStockCount', async function getStockCount(id: string): Promise<StockCount> {
   await delay();
   const count = db.stockCounts.find((c) => c.id === id);
   if (!count) throw new ApiError('الجرد غير موجود', 'NOT_FOUND');
   return clone(count);
-}
+});
 
-export async function createStockCount(input: StockCountInput): Promise<StockCount> {
+export const createStockCount = wrap('products.createStockCount', async function createStockCount(input: StockCountInput): Promise<StockCount> {
   await delay();
   return clone(startStockCount(input, session.userId));
-}
+});
 
-export async function updateStockCountLine(countId: string, productId: string, qty: number, delta = false): Promise<StockCount> {
+export const updateStockCountLine = wrap('products.updateStockCountLine', async function updateStockCountLine(countId: string, productId: string, qty: number, delta = false): Promise<StockCount> {
   await delay(30);
   return clone(setStockCountLine(countId, productId, qty, delta));
-}
+});
 
-export async function submitCountForReview(countId: string): Promise<StockCount> {
+export const submitCountForReview = wrap('products.submitCountForReview', async function submitCountForReview(countId: string): Promise<StockCount> {
   await delay();
   return clone(submitStockCountForReview(countId));
-}
+});
 
-export async function resumeCounting(countId: string): Promise<StockCount> {
+export const resumeCounting = wrap('products.resumeCounting', async function resumeCounting(countId: string): Promise<StockCount> {
   await delay();
   return clone(backToCounting(countId));
-}
+});
 
-export async function completeStockCount(countId: string): Promise<StockAdjustment> {
+export const completeStockCount = wrap('products.completeStockCount', async function completeStockCount(countId: string): Promise<StockAdjustment> {
   await delay();
   return clone(applyStockCount(countId, session.userId));
-}
+});

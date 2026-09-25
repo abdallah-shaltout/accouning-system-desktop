@@ -3,17 +3,19 @@ import { logActivity } from '@/mocks/backend/core';
 import { mutate } from '@/mocks/persist';
 import type { User, UserInput } from '../types';
 
-export async function getUsers(): Promise<User[]> {
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
+export const getUsers = wrap('users.getUsers', async function getUsers(): Promise<User[]> {
   await delay();
   return clone(db.users);
-}
+});
 
-export async function getUser(id: string): Promise<User> {
+export const getUser = wrap('users.getUser', async function getUser(id: string): Promise<User> {
   await delay();
   const user = db.users.find((u) => u.id === id);
   if (!user) throw new ApiError('المستخدم غير موجود', 'NOT_FOUND');
   return clone(user);
-}
+});
 
 function assertUnique(username: string, exceptId?: string) {
   if (db.users.some((u) => u.id !== exceptId && u.username.toLowerCase() === username.toLowerCase())) {
@@ -21,7 +23,7 @@ function assertUnique(username: string, exceptId?: string) {
   }
 }
 
-export async function createUser(input: UserInput): Promise<User> {
+export const createUser = wrap('users.createUser', async function createUser(input: UserInput): Promise<User> {
   await delay();
   assertUnique(input.username);
   if (!input.password) throw new ApiError('كلمة المرور مطلوبة للمستخدم الجديد');
@@ -33,9 +35,9 @@ export async function createUser(input: UserInput): Promise<User> {
   });
   logActivity('user', `إضافة المستخدم ${user.name}`, session.userId, new Date().toISOString(), `/users/${user.id}`);
   return clone(user);
-}
+});
 
-export async function updateUser(id: string, input: UserInput): Promise<User> {
+export const updateUser = wrap('users.updateUser', async function updateUser(id: string, input: UserInput): Promise<User> {
   await delay();
   const user = db.users.find((u) => u.id === id);
   if (!user) throw new ApiError('المستخدم غير موجود', 'NOT_FOUND');
@@ -55,4 +57,4 @@ export async function updateUser(id: string, input: UserInput): Promise<User> {
   });
   logActivity('user', `تعديل بيانات المستخدم ${user.name}`, session.userId, new Date().toISOString(), `/users/${user.id}`);
   return clone(user);
-}
+});

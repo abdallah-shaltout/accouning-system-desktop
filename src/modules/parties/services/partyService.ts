@@ -6,6 +6,8 @@ import { emit } from '@/mocks/events';
 import { mutate } from '@/mocks/persist';
 import type { AgingBucket, Customer, CustomerInput, PartyGroup, PartyHistoryEntry, PartyStatementRow, Supplier, SupplierInput } from '../types';
 
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 export interface PartyFilter {
   search?: string;
   includeInactive?: boolean;
@@ -51,7 +53,7 @@ function nextCode(kind: 'customer' | 'supplier'): string {
 }
 
 /** Duplicate detection (docs/v2/08-customers-and-suppliers.md §1 "Checks: Duplicates"). */
-export function findDuplicates(input: { phone?: string; vatNumber?: string }, excludeId?: string): DuplicateWarning[] {
+export const findDuplicates = wrap('parties.findDuplicates', function findDuplicates(input: { phone?: string; vatNumber?: string }, excludeId?: string): DuplicateWarning[] {
   const all: (Customer | Supplier)[] = [...db.customers, ...db.suppliers];
   const warnings: DuplicateWarning[] = [];
   for (const p of all) {
@@ -64,19 +66,19 @@ export function findDuplicates(input: { phone?: string; vatNumber?: string }, ex
     }
   }
   return warnings;
-}
+});
 
-export async function checkDuplicates(input: { phone?: string; vatNumber?: string }, excludeId?: string): Promise<DuplicateWarning[]> {
+export const checkDuplicates = wrap('parties.checkDuplicates', async function checkDuplicates(input: { phone?: string; vatNumber?: string }, excludeId?: string): Promise<DuplicateWarning[]> {
   await delay(150);
   return findDuplicates(input, excludeId);
-}
+});
 
 // --- Groups ------------------------------------------------------------------------------------
 
-export async function getPartyGroups(kind: 'customer' | 'supplier'): Promise<PartyGroup[]> {
+export const getPartyGroups = wrap('parties.getPartyGroups', async function getPartyGroups(kind: 'customer' | 'supplier'): Promise<PartyGroup[]> {
   await delay(100);
   return clone(db.partyGroups.filter((g) => g.kind === kind));
-}
+});
 
 // --- Customers -------------------------------------------------------------------------------
 
@@ -84,7 +86,7 @@ function withComputed(c: Customer): Customer {
   return { ...clone(c), balance: customerBalance(c.id), unallocatedCredit: unallocatedCreditFor('customer', c.id) };
 }
 
-export async function getCustomers(filter: PartyFilter = {}): Promise<Customer[]> {
+export const getCustomers = wrap('parties.getCustomers', async function getCustomers(filter: PartyFilter = {}): Promise<Customer[]> {
   await delay();
   return db.customers
     .map(withComputed)
@@ -96,16 +98,16 @@ export async function getCustomers(filter: PartyFilter = {}): Promise<Customer[]
         (!filter.overLimitOnly || ((c.creditLimit ?? 0) > 0 && c.balance > (c.creditLimit ?? 0))) &&
         includesText([c.name, c.nameEn, c.code, c.phone, c.vatNumber], filter.search),
     );
-}
+});
 
-export async function getCustomer(id: string): Promise<Customer> {
+export const getCustomer = wrap('parties.getCustomer', async function getCustomer(id: string): Promise<Customer> {
   await delay();
   const c = db.customers.find((x) => x.id === id);
   if (!c) throw new ApiError('العميل غير موجود', 'NOT_FOUND');
   return withComputed(c);
-}
+});
 
-export async function saveCustomer(input: CustomerInput, id?: string): Promise<Customer> {
+export const saveCustomer = wrap('parties.saveCustomer', async function saveCustomer(input: CustomerInput, id?: string): Promise<Customer> {
   await delay();
   validateCommon(input);
   const data = clean(input);
@@ -130,12 +132,12 @@ export async function saveCustomer(input: CustomerInput, id?: string): Promise<C
   }
   emit('parties:changed');
   return withComputed(customer);
-}
+});
 
-export async function getCustomerStatement(id: string): Promise<PartyStatementRow[]> {
+export const getCustomerStatement = wrap('parties.getCustomerStatement', async function getCustomerStatement(id: string): Promise<PartyStatementRow[]> {
   await delay();
   return customerStatement(id);
-}
+});
 
 // --- Suppliers -------------------------------------------------------------------------------
 
@@ -143,7 +145,7 @@ function withComputedSupplier(s: Supplier): Supplier {
   return { ...clone(s), balance: supplierBalance(s.id), unallocatedCredit: unallocatedCreditFor('supplier', s.id) };
 }
 
-export async function getSuppliers(filter: PartyFilter = {}): Promise<Supplier[]> {
+export const getSuppliers = wrap('parties.getSuppliers', async function getSuppliers(filter: PartyFilter = {}): Promise<Supplier[]> {
   await delay();
   return db.suppliers
     .map(withComputedSupplier)
@@ -154,16 +156,16 @@ export async function getSuppliers(filter: PartyFilter = {}): Promise<Supplier[]
         (!filter.groupId || s.groupId === filter.groupId) &&
         includesText([s.name, s.nameEn, s.code, s.phone, s.contactPerson, s.vatNumber], filter.search),
     );
-}
+});
 
-export async function getSupplier(id: string): Promise<Supplier> {
+export const getSupplier = wrap('parties.getSupplier', async function getSupplier(id: string): Promise<Supplier> {
   await delay();
   const s = db.suppliers.find((x) => x.id === id);
   if (!s) throw new ApiError('المورد غير موجود', 'NOT_FOUND');
   return withComputedSupplier(s);
-}
+});
 
-export async function saveSupplier(input: SupplierInput, id?: string): Promise<Supplier> {
+export const saveSupplier = wrap('parties.saveSupplier', async function saveSupplier(input: SupplierInput, id?: string): Promise<Supplier> {
   await delay();
   validateCommon(input);
   const data = { ...clean(input), contactPerson: input.contactPerson?.trim() || undefined };
@@ -187,17 +189,17 @@ export async function saveSupplier(input: SupplierInput, id?: string): Promise<S
   }
   emit('parties:changed');
   return withComputedSupplier(supplier);
-}
+});
 
-export async function getSupplierStatement(id: string): Promise<PartyStatementRow[]> {
+export const getSupplierStatement = wrap('parties.getSupplierStatement', async function getSupplierStatement(id: string): Promise<PartyStatementRow[]> {
   await delay();
   return supplierStatement(id);
-}
+});
 
 // --- "Both roles" linking (docs/v2/08 §1 "Both roles") -----------------------------------------
 
 /** Links a customer record and a supplier record as the same real-world party (net balance shown on each). */
-export async function linkPartyRecords(customerId: string, supplierId: string): Promise<void> {
+export const linkPartyRecords = wrap('parties.linkPartyRecords', async function linkPartyRecords(customerId: string, supplierId: string): Promise<void> {
   await delay();
   const customer = db.customers.find((c) => c.id === customerId);
   const supplier = db.suppliers.find((s) => s.id === supplierId);
@@ -207,9 +209,9 @@ export async function linkPartyRecords(customerId: string, supplierId: string): 
     supplier.linkedPartyId = customer.id;
   });
   emit('parties:changed');
-}
+});
 
-export async function unlinkPartyRecord(partyId: string, kind: 'customer' | 'supplier'): Promise<void> {
+export const unlinkPartyRecord = wrap('parties.unlinkPartyRecord', async function unlinkPartyRecord(partyId: string, kind: 'customer' | 'supplier'): Promise<void> {
   await delay();
   const list = kind === 'customer' ? db.customers : db.suppliers;
   const other = kind === 'customer' ? db.suppliers : db.customers;
@@ -221,21 +223,21 @@ export async function unlinkPartyRecord(partyId: string, kind: 'customer' | 'sup
     if (counterpart) counterpart.linkedPartyId = undefined;
   });
   emit('parties:changed');
-}
+});
 
 /** Net balance across a linked customer+supplier pair (docs/v2/08 §1 "a net balance is shown on each"). */
-export async function getLinkedNetBalance(customerId?: string, supplierId?: string): Promise<number | undefined> {
+export const getLinkedNetBalance = wrap('parties.getLinkedNetBalance', async function getLinkedNetBalance(customerId?: string, supplierId?: string): Promise<number | undefined> {
   await delay(80);
   if (!customerId || !supplierId) return undefined;
   return customerBalance(customerId) - supplierBalance(supplierId);
-}
+});
 
 // --- History (docs/v2/08 §3 "السجل") ------------------------------------------------------------
 
-export async function getPartyHistory(partyId: string): Promise<PartyHistoryEntry[]> {
+export const getPartyHistory = wrap('parties.getPartyHistory', async function getPartyHistory(partyId: string): Promise<PartyHistoryEntry[]> {
   await delay(100);
   return clone(db.partyHistory.filter((h) => h.partyId === partyId)).sort((a, b) => b.date.localeCompare(a.date));
-}
+});
 
 // --- Aging (docs/v2/08 §3 "الأعمار") ------------------------------------------------------------
 
@@ -252,7 +254,7 @@ const AGING_BUCKETS: { key: AgingBucket['key']; label: string }[] = [
  * without one (cash/no-terms docs rarely carry a balance, but the bucket still needs a date to
  * compare against "today").
  */
-export async function getPartyAging(kind: 'customer' | 'supplier', partyId: string): Promise<AgingBucket[]> {
+export const getPartyAging = wrap('parties.getPartyAging', async function getPartyAging(kind: 'customer' | 'supplier', partyId: string): Promise<AgingBucket[]> {
   await delay(120);
   const today = localDateKey(new Date());
   const docs = getOpenDocumentsFor(kind === 'customer' ? 'customer' : 'supplier', partyId);
@@ -265,4 +267,4 @@ export async function getPartyAging(kind: 'customer' | 'supplier', partyId: stri
     buckets[bucketIndex].documents.push({ id: doc.id, number: doc.number, date: doc.date, dueDate: doc.dueDate, outstanding: doc.outstanding });
   }
   return buckets;
-}
+});

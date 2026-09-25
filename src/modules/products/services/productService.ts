@@ -5,11 +5,13 @@ import { emit } from '@/mocks/events';
 import { mutate } from '@/mocks/persist';
 import type { Product, ProductFilter, ProductInput, ProductUnit } from '../types';
 
-export function isLowStock(p: Product): boolean {
-  return p.type === 'product' && p.stockMode !== 'none' && p.stockQty <= (p.minStock ?? 0);
-}
+import { wrap } from '@/modules/diagnostics/services/defineService';
 
-export async function getProducts(filter: ProductFilter = {}): Promise<Product[]> {
+export const isLowStock = wrap('products.isLowStock', function isLowStock(p: Product): boolean {
+  return p.type === 'product' && p.stockMode !== 'none' && p.stockQty <= (p.minStock ?? 0);
+});
+
+export const getProducts = wrap('products.getProducts', async function getProducts(filter: ProductFilter = {}): Promise<Product[]> {
   await delay();
   return clone(
     db.products.filter(
@@ -21,22 +23,22 @@ export async function getProducts(filter: ProductFilter = {}): Promise<Product[]
         includesText([p.name, p.sku, p.barcode], filter.search),
     ),
   );
-}
+});
 
-export async function getProduct(id: string): Promise<Product> {
+export const getProduct = wrap('products.getProduct', async function getProduct(id: string): Promise<Product> {
   await delay();
   const product = db.products.find((p) => p.id === id);
   if (!product) throw new ApiError('المنتج غير موجود', 'NOT_FOUND');
   return clone(product);
-}
+});
 
 /** Exact SKU/barcode lookup (barcode scanners in POS and adjustment screens). */
-export async function findByCode(code: string): Promise<Product | null> {
+export const findByCode = wrap('products.findByCode', async function findByCode(code: string): Promise<Product | null> {
   await delay(60);
   const c = code.trim();
   const product = db.products.find((p) => p.active && (p.barcode === c || p.sku.toLowerCase() === c.toLowerCase()));
   return product ? clone(product) : null;
-}
+});
 
 /**
  * v2 §2 validation (docs/v2/07-products-and-inventory.md): factors are positive (decimals OK for
@@ -104,7 +106,7 @@ function normalize(input: ProductInput) {
 }
 
 /** §2 "Generate EAN-13" — internal prefix 628 (Saudi GS1) + a random body + a valid check digit. */
-export async function generateEan13(): Promise<string> {
+export const generateEan13 = wrap('products.generateEan13', async function generateEan13(): Promise<string> {
   await delay(30);
   for (let attempt = 0; attempt < 20; attempt++) {
     const body = `628${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
@@ -116,9 +118,9 @@ export async function generateEan13(): Promise<string> {
     if (!used) return code;
   }
   throw new ApiError('تعذر توليد باركود فريد — حاول مرة أخرى');
-}
+});
 
-export async function createProduct(input: ProductInput): Promise<Product> {
+export const createProduct = wrap('products.createProduct', async function createProduct(input: ProductInput): Promise<Product> {
   await delay();
   validate(input);
   const product: Product = { id: uid('prd'), ...normalize(input), stockQty: 0, stockValue: 0 };
@@ -134,9 +136,9 @@ export async function createProduct(input: ProductInput): Promise<Product> {
   logActivity('product', `إضافة المنتج ${product.name}`, session.userId, new Date().toISOString(), `/products/${product.id}`);
   emit('catalog:changed');
   return clone(product);
-}
+});
 
-export async function updateProduct(id: string, input: ProductInput): Promise<Product> {
+export const updateProduct = wrap('products.updateProduct', async function updateProduct(id: string, input: ProductInput): Promise<Product> {
   await delay();
   const product = db.products.find((p) => p.id === id);
   if (!product) throw new ApiError('المنتج غير موجود', 'NOT_FOUND');
@@ -155,14 +157,14 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Pr
   logActivity('product', `تعديل المنتج ${product.name}`, session.userId, new Date().toISOString(), `/products/${product.id}`);
   emit('catalog:changed');
   return clone(product);
-}
+});
 
 /** Suggest the next free SKU for a category prefix, e.g. MEN-008. */
-export async function suggestSku(prefix: string): Promise<string> {
+export const suggestSku = wrap('products.suggestSku', async function suggestSku(prefix: string): Promise<string> {
   await delay(40);
   const used = db.products
     .map((p) => p.sku)
     .filter((s) => s.startsWith(`${prefix}-`))
     .map((s) => Number(s.slice(prefix.length + 1)) || 0);
   return `${prefix}-${String(Math.max(0, ...used) + 1).padStart(3, '0')}`;
-}
+});

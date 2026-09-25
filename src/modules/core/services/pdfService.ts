@@ -38,6 +38,8 @@ import { defaultTemplateOptions, type BaseTemplateId, type DocumentKind, type La
 import { barcodeSvg, looksLikeEan13 } from '@/modules/products/helpers/labelBarcode';
 import type { ReportDocument } from '@/modules/reports/print/types';
 
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 export type PdfDocumentKind =
   | 'invoice'
   | 'quotation'
@@ -497,7 +499,7 @@ export interface RenderPdfOutcome {
 const DESKTOP_ONLY_MESSAGE = 'ملف PDF الفعلي متاح في نسخة سطح المكتب';
 
 /** Renders a real PDF for the given document and returns its bytes. In browser dev mode, shows a toast and returns `{ ok: false }` so the caller can fall back to `/print/...`. */
-export async function render(kind: PdfDocumentKind, id: string, templateId?: string): Promise<RenderPdfOutcome> {
+export const render = wrap('core.render', async function render(kind: PdfDocumentKind, id: string, templateId?: string): Promise<RenderPdfOutcome> {
   if (!isTauri()) {
     useToast().info(DESKTOP_ONLY_MESSAGE);
     return { ok: false };
@@ -513,7 +515,7 @@ export async function render(kind: PdfDocumentKind, id: string, templateId?: str
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return { ok: true, pdfBytes: bytes, achievedStandard: result.achieved_standard };
-}
+});
 
 /**
  * Native "Save as" → write → open in the default PDF viewer. Returns false when the dialog is
@@ -535,11 +537,11 @@ async function savePdfBytes(bytes: Uint8Array, filename: string): Promise<boolea
 }
 
 /** Saves the rendered PDF via the native save dialog and opens it. No-op (returns false) outside Tauri. */
-export async function renderAndSave(kind: PdfDocumentKind, id: string, filename: string, templateId?: string): Promise<boolean> {
+export const renderAndSave = wrap('core.renderAndSave', async function renderAndSave(kind: PdfDocumentKind, id: string, filename: string, templateId?: string): Promise<boolean> {
   const outcome = await render(kind, id, templateId);
   if (!outcome.ok || !outcome.pdfBytes) return false;
   return savePdfBytes(outcome.pdfBytes, filename);
-}
+});
 
 export interface RenderPreviewOutcome {
   pages: string[];
@@ -557,7 +559,7 @@ export interface PreviewError {
  * a saved template — so it takes the request pieces directly rather than a
  * saved template id.
  */
-export async function renderPreview(
+export const renderPreview = wrap('core.renderPreview', async function renderPreview(
   payload: DocumentPayload,
   options: TemplateOptions,
   templateSource: string | null,
@@ -581,10 +583,10 @@ export async function renderPreview(
     const diagnostics = Array.isArray(err) ? (err as PreviewError['diagnostics']) : [{ line: null, column: null, severity: 'error', message: String(err) }];
     throw { diagnostics } satisfies PreviewError;
   }
-}
+});
 
 /** A small self-contained sample invoice payload, for the designer's live preview before picking a real document. */
-export function sampleInvoicePayload(): DocumentPayload {
+export const sampleInvoicePayload = wrap('core.sampleInvoicePayload', function sampleInvoicePayload(): DocumentPayload {
   const now = new Date().toISOString();
   return {
     document: { kind: 'invoice', number: 'INV-000123', date: formatDate(now), titleAr: 'فاتورة ضريبية', titleEn: 'TAX INVOICE' },
@@ -608,7 +610,7 @@ export function sampleInvoicePayload(): DocumentPayload {
     qr: qrSvg('sample-preview-qr-value'),
     logo: null,
   };
-}
+});
 
 // =================================================================================================
 // Labels (Phase 11b) — docs/v2/07-products-and-inventory.md §6, docs/v2/12-documents-pdf-excel.md
@@ -650,7 +652,7 @@ export interface LabelDataItem {
  * generation happens once per distinct pick, not once per copy, since bwip-js/uqr output is
  * identical across copies of the same product — the copies are only expanded afterward.
  */
-export async function buildLabelItems(picks: LabelPick[], opts: { includeQr: boolean }): Promise<LabelDataItem[]> {
+export const buildLabelItems = wrap('core.buildLabelItems', async function buildLabelItems(picks: LabelPick[], opts: { includeQr: boolean }): Promise<LabelDataItem[]> {
   const rendered = await Promise.all(
     picks.map(async (p) => {
       const symbology = looksLikeEan13(p.barcode) ? 'ean13' : 'code128';
@@ -665,7 +667,7 @@ export async function buildLabelItems(picks: LabelPick[], opts: { includeQr: boo
     for (let i = 0; i < copies; i++) items.push(item);
   }
   return items;
-}
+});
 
 /** Builds the label `DocumentPayload` — `data.labels` (not `data.lines`) is the array the label templates read. */
 function buildLabelPayload(items: LabelDataItem[]): DocumentPayload & { labels: LabelDataItem[] } {
@@ -693,7 +695,7 @@ export interface RenderLabelsOutcome {
 }
 
 /** Renders a label batch to PDF and returns its bytes. Mirrors `render()`'s browser-dev-mode fallback. */
-export async function renderLabels(picks: LabelPick[], label: LabelOptions): Promise<RenderLabelsOutcome> {
+export const renderLabels = wrap('core.renderLabels', async function renderLabels(picks: LabelPick[], label: LabelOptions): Promise<RenderLabelsOutcome> {
   if (!isTauri()) {
     useToast().info(DESKTOP_ONLY_MESSAGE);
     return { ok: false };
@@ -709,14 +711,14 @@ export async function renderLabels(picks: LabelPick[], label: LabelOptions): Pro
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return { ok: true, pdfBytes: bytes };
-}
+});
 
 /** Saves the rendered label PDF via the native save dialog and opens it. No-op (returns false) outside Tauri. */
-export async function renderLabelsAndSave(picks: LabelPick[], label: LabelOptions, filename = 'labels.pdf'): Promise<boolean> {
+export const renderLabelsAndSave = wrap('core.renderLabelsAndSave', async function renderLabelsAndSave(picks: LabelPick[], label: LabelOptions, filename = 'labels.pdf'): Promise<boolean> {
   const outcome = await renderLabels(picks, label);
   if (!outcome.ok || !outcome.pdfBytes) return false;
   return savePdfBytes(outcome.pdfBytes, filename);
-}
+});
 
 // =================================================================================================
 // Generic report (Phase 11b) — docs/v2/12-documents-pdf-excel.md §3 "Reports: a generic report
@@ -758,7 +760,7 @@ function genericReportOptions(columns: GenericReportColumn[]): TemplateOptions {
 }
 
 /** Renders a generic report to PDF and returns its bytes, browser-dev-mode fallback included. */
-export async function renderGenericReport(req: GenericReportRequest): Promise<RenderPdfOutcome> {
+export const renderGenericReport = wrap('core.renderGenericReport', async function renderGenericReport(req: GenericReportRequest): Promise<RenderPdfOutcome> {
   if (!isTauri()) {
     useToast().info(DESKTOP_ONLY_MESSAGE);
     return { ok: false };
@@ -771,14 +773,14 @@ export async function renderGenericReport(req: GenericReportRequest): Promise<Re
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return { ok: true, pdfBytes: bytes, achievedStandard: result.achieved_standard };
-}
+});
 
 /** Saves the rendered generic-report PDF via the native save dialog and opens it. No-op (returns false) outside Tauri. */
-export async function renderGenericReportAndSave(req: GenericReportRequest, filename: string): Promise<boolean> {
+export const renderGenericReportAndSave = wrap('core.renderGenericReportAndSave', async function renderGenericReportAndSave(req: GenericReportRequest, filename: string): Promise<boolean> {
   const outcome = await renderGenericReport(req);
   if (!outcome.ok || !outcome.pdfBytes) return false;
   return savePdfBytes(outcome.pdfBytes, filename);
-}
+});
 
 // =================================================================================================
 // Official reports — `src-tauri/templates/report.typ` renders the same `ReportDocument` model the
@@ -788,7 +790,7 @@ export async function renderGenericReportAndSave(req: GenericReportRequest, file
 // =================================================================================================
 
 /** Renders an official report to PDF bytes (desktop only — returns null in the browser). */
-export async function renderReportPdf(report: ReportDocument): Promise<Uint8Array | null> {
+export const renderReportPdf = wrap('core.renderReportPdf', async function renderReportPdf(report: ReportDocument): Promise<Uint8Array | null> {
   if (!isTauri()) return null;
   const payload = {
     document: { kind: 'report', number: '', date: report.issuedAt, titleAr: report.title, titleEn: '' },
@@ -808,17 +810,17 @@ export async function renderReportPdf(report: ReportDocument): Promise<Uint8Arra
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
-}
+});
 
 /** Renders the report PDF, asks where to save it, writes and opens it. False when cancelled or outside Tauri. */
-export async function saveReportPdf(report: ReportDocument, filename: string): Promise<boolean> {
+export const saveReportPdf = wrap('core.saveReportPdf', async function saveReportPdf(report: ReportDocument, filename: string): Promise<boolean> {
   const bytes = await renderReportPdf(report);
   if (!bytes) return false;
   return savePdfBytes(bytes, filename);
-}
+});
 
 /** Live SVG preview for the label builder — same `render_preview` command the template designer uses, mirroring `renderPreview` above. */
-export async function renderLabelsPreview(picks: LabelPick[], label: LabelOptions): Promise<RenderPreviewOutcome> {
+export const renderLabelsPreview = wrap('core.renderLabelsPreview', async function renderLabelsPreview(picks: LabelPick[], label: LabelOptions): Promise<RenderPreviewOutcome> {
   if (!isTauri()) return { pages: [], warnings: [] };
   const items = await buildLabelItems(picks, { includeQr: label.showQr });
   const payload = buildLabelPayload(items);
@@ -833,4 +835,4 @@ export async function renderLabelsPreview(picks: LabelPick[], label: LabelOption
     const diagnostics = Array.isArray(err) ? (err as PreviewError['diagnostics']) : [{ line: null, column: null, severity: 'error', message: String(err) }];
     throw { diagnostics } satisfies PreviewError;
   }
-}
+});

@@ -4,6 +4,8 @@ import { customerStatement, supplierStatement } from '@/mocks/backend/balances';
 import { getOpenDocumentsFor } from '@/mocks/backend/payments';
 import type { Account, AccountKind } from '@/modules/accounting/types';
 import { SALE_METHOD_LABEL } from '@/modules/core/helpers/labels';
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 import type {
   AccountLedger,
   AgingReportRow,
@@ -82,7 +84,7 @@ function dayBefore(key: string): string {
 
 // --- Trial balance ---------------------------------------------------------------------------
 
-export async function getTrialBalance(range: ReportRangeFilter): Promise<TrialBalanceRow[]> {
+export const getTrialBalance = wrap('reports.getTrialBalance', async function getTrialBalance(range: ReportRangeFilter): Promise<TrialBalanceRow[]> {
   await delay();
   const dim: DimensionFilter = { branchId: range.branchId, costCenterId: range.costCenterId, currency: range.currency };
   const opening = range.from ? movements({ to: dayBefore(range.from) }, dim) : new Map();
@@ -106,7 +108,7 @@ export async function getTrialBalance(range: ReportRangeFilter): Promise<TrialBa
         closingCredit: closing < 0 ? -closing : 0,
       };
     });
-}
+});
 
 // --- Profit & loss ---------------------------------------------------------------------------
 
@@ -134,21 +136,21 @@ function computePnl(range: DateRangeInput, dim?: DimensionFilter): ProfitAndLoss
   return { revenue, netRevenue, cogs, totalCogs, grossProfit, expenses, totalExpenses, netIncome: round2(grossProfit - totalExpenses) };
 }
 
-export async function getProfitAndLoss(range: ReportRangeFilter): Promise<ProfitAndLoss> {
+export const getProfitAndLoss = wrap('reports.getProfitAndLoss', async function getProfitAndLoss(range: ReportRangeFilter): Promise<ProfitAndLoss> {
   await delay();
   return computePnl(range, { branchId: range.branchId, costCenterId: range.costCenterId, currency: range.currency });
-}
+});
 
 /**
  * v2 phase 12 (docs/v2/13-reports.md §1 "comparison mode"): the same P&L for a second period, so
  * the page can show this-period vs previous-period/same-period-last-year side by side. Kept as a
  * thin wrapper (not baked into `getProfitAndLoss`) so every existing caller is unaffected.
  */
-export async function getProfitAndLossComparison(range: ReportRangeFilter, compareRange: DateRangeInput): Promise<{ current: ProfitAndLoss; previous: ProfitAndLoss }> {
+export const getProfitAndLossComparison = wrap('reports.getProfitAndLossComparison', async function getProfitAndLossComparison(range: ReportRangeFilter, compareRange: DateRangeInput): Promise<{ current: ProfitAndLoss; previous: ProfitAndLoss }> {
   await delay();
   const dim: DimensionFilter = { branchId: range.branchId, costCenterId: range.costCenterId, currency: range.currency };
   return { current: computePnl(range, dim), previous: computePnl(compareRange, dim) };
-}
+});
 
 // ---------------------------------------------------------------------------------------------
 // v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md §3): P&L by cost center + budget vs
@@ -184,7 +186,7 @@ function pnlColumnFor(mv: Map<string, { d: number; c: number }>): Omit<import('.
   return { netRevenue, totalCogs, grossProfit, totalExpenses, netIncome: round2(grossProfit - totalExpenses) };
 }
 
-export async function getCostCenterProfitAndLoss(range: DateRangeInput): Promise<import('../types').CostCenterPnl> {
+export const getCostCenterProfitAndLoss = wrap('reports.getCostCenterProfitAndLoss', async function getCostCenterProfitAndLoss(range: DateRangeInput): Promise<import('../types').CostCenterPnl> {
   await delay();
   const byCc = movementsByCostCenter(range);
   const centers = db.costCenters
@@ -199,10 +201,10 @@ export async function getCostCenterProfitAndLoss(range: DateRangeInput): Promise
     unassigned,
     total: { costCenterId: '__total__', name: 'الإجمالي', netRevenue: total.netRevenue, totalCogs: total.totalCogs, grossProfit: total.grossProfit, totalExpenses: total.totalExpenses, netIncome: total.netIncome },
   };
-}
+});
 
 /** Budget vs actual (docs/v2/10 §3): actual = Σ expense-account movement for the cost center within the fiscal year's dates. */
-export async function getCostCenterBudgetVsActual(fiscalYearId: string): Promise<import('../types').CostCenterBudgetRow[]> {
+export const getCostCenterBudgetVsActual = wrap('reports.getCostCenterBudgetVsActual', async function getCostCenterBudgetVsActual(fiscalYearId: string): Promise<import('../types').CostCenterBudgetRow[]> {
   await delay();
   const fy = db.fiscalYears.find((f) => f.id === fiscalYearId);
   if (!fy) throw new ApiError('السنة المالية غير موجودة', 'NOT_FOUND');
@@ -220,11 +222,11 @@ export async function getCostCenterBudgetVsActual(fiscalYearId: string): Promise
     rows.push({ costCenterId: c.id, name: c.name, budget: budgetRow.amount, actual, variancePct, nearBudget: budgetRow.amount > 0 && actual >= budgetRow.amount * 0.9 });
   }
   return rows.sort((a, b) => b.actual - a.actual);
-}
+});
 
 // --- Balance sheet ---------------------------------------------------------------------------
 
-export async function getBalanceSheet(asOf: string, dim?: DimensionFilter): Promise<BalanceSheet> {
+export const getBalanceSheet = wrap('reports.getBalanceSheet', async function getBalanceSheet(asOf: string, dim?: DimensionFilter): Promise<BalanceSheet> {
   await delay();
   const mv = movements({ to: asOf }, dim);
   const assets = lines('ASSET', mv, 1);
@@ -245,11 +247,11 @@ export async function getBalanceSheet(asOf: string, dim?: DimensionFilter): Prom
     totalEquity,
     balanced: Math.abs(totalAssets - totalLiabilities - totalEquity) < 0.01,
   };
-}
+});
 
 // --- Ledgers / statements ---------------------------------------------------------------------
 
-export async function getAccountLedger(accountId: string, range: DateRangeInput): Promise<AccountLedger> {
+export const getAccountLedger = wrap('reports.getAccountLedger', async function getAccountLedger(accountId: string, range: DateRangeInput): Promise<AccountLedger> {
   await delay();
   const account = db.accounts.find((a) => a.id === accountId);
   if (!account) throw new ApiError('الحساب غير موجود', 'NOT_FOUND');
@@ -286,10 +288,10 @@ export async function getAccountLedger(accountId: string, range: DateRangeInput)
     closingBalance: running,
     rowLinks,
   };
-}
+});
 
 /** Customer / supplier statement in the same shape as an account ledger. */
-export async function getPartyLedger(kind: 'customer' | 'supplier', partyId: string, range: DateRangeInput): Promise<AccountLedger> {
+export const getPartyLedger = wrap('reports.getPartyLedger', async function getPartyLedger(kind: 'customer' | 'supplier', partyId: string, range: DateRangeInput): Promise<AccountLedger> {
   await delay();
   const party = (kind === 'customer' ? db.customers : db.suppliers).find((p) => p.id === partyId);
   if (!party) throw new ApiError(kind === 'customer' ? 'العميل غير موجود' : 'المورد غير موجود', 'NOT_FOUND');
@@ -312,11 +314,11 @@ export async function getPartyLedger(kind: 'customer' | 'supplier', partyId: str
     closingBalance: inRange.at(-1)?.balance ?? opening,
     rowLinks,
   };
-}
+});
 
 // --- Sales -----------------------------------------------------------------------------------
 
-export async function getSalesReport(range: DateRangeInput): Promise<SalesReport> {
+export const getSalesReport = wrap('reports.getSalesReport', async function getSalesReport(range: DateRangeInput): Promise<SalesReport> {
   await delay();
   const invoices = db.invoices.filter((i) => i.status !== 'DRAFT' && inDateRange(i.date, range.from, range.to));
   const refunds = db.refunds.filter((r) => inDateRange(r.date, range.from, range.to));
@@ -401,11 +403,11 @@ export async function getSalesReport(range: DateRangeInput): Promise<SalesReport
     byMethod: group((i) => i.paymentMethod, (k) => SALE_METHOD_LABEL[k]).map(({ key, ...v }) => ({ method: key, ...v })),
     byCashier: group((i) => i.cashierId, (k) => db.users.find((u) => u.id === k)?.name ?? '—').map(({ key, ...v }) => ({ name: key, ...v })),
   };
-}
+});
 
 // --- Inventory -------------------------------------------------------------------------------
 
-export async function getInventoryReport(): Promise<InventoryReportRow[]> {
+export const getInventoryReport = wrap('reports.getInventoryReport', async function getInventoryReport(): Promise<InventoryReportRow[]> {
   await delay();
   return db.products
     .filter((p) => p.type === 'product' && p.active)
@@ -423,7 +425,7 @@ export async function getInventoryReport(): Promise<InventoryReportRow[]> {
       status: p.stockQty <= 0 ? 'out' : p.stockQty <= (p.minStock ?? 0) ? 'low' : 'ok',
     }))
     .sort((a, b) => a.category.localeCompare(b.category, 'ar') || a.name.localeCompare(b.name, 'ar'));
-}
+});
 
 // --- VAT -------------------------------------------------------------------------------------
 
@@ -499,7 +501,7 @@ function toBaseInvoice(inv: (typeof db.invoices)[number]): (typeof db.invoices)[
   };
 }
 
-export async function getVatReport(range: DateRangeInput): Promise<VatReport> {
+export const getVatReport = wrap('reports.getVatReport', async function getVatReport(range: DateRangeInput): Promise<VatReport> {
   await delay();
   const invoices = db.invoices.filter((i) => inDateRange(i.date, range.from, range.to)).map(toBaseInvoice);
   const refunds = db.refunds.filter((r) => inDateRange(r.date, range.from, range.to));
@@ -540,13 +542,13 @@ export async function getVatReport(range: DateRangeInput): Promise<VatReport> {
     ledgerInput: round2(inp.d - inp.c),
     salesBoxes: salesBoxData.boxes,
   };
-}
+});
 
 /**
  * v2 phase 12 (docs/v2/13 §2 "VAT detail: line-level listing per document with category, net, VAT
  * — the audit trail behind each box"). Same source rows `salesVatBoxes()` aggregates, kept flat.
  */
-export async function getVatDetail(range: DateRangeInput): Promise<VatDetailRow[]> {
+export const getVatDetail = wrap('reports.getVatDetail', async function getVatDetail(range: DateRangeInput): Promise<VatDetailRow[]> {
   await delay();
   const invoices = db.invoices.filter((i) => inDateRange(i.date, range.from, range.to)).map(toBaseInvoice);
   const refunds = db.refunds.filter((r) => inDateRange(r.date, range.from, range.to));
@@ -582,18 +584,18 @@ export async function getVatDetail(range: DateRangeInput): Promise<VatDetailRow[
     });
   }
   return rows.sort((a, b) => b.date.localeCompare(a.date));
-}
+});
 
 // --- Lookups for report filters ---------------------------------------------------------------
 
-export async function getLedgerTargets(): Promise<{ accounts: { id: string; label: string }[]; customers: { id: string; label: string }[]; suppliers: { id: string; label: string }[] }> {
+export const getLedgerTargets = wrap('reports.getLedgerTargets', async function getLedgerTargets(): Promise<{ accounts: { id: string; label: string }[]; customers: { id: string; label: string }[]; suppliers: { id: string; label: string }[] }> {
   await delay(80);
   return {
     accounts: [...db.accounts].sort((a, b) => a.code.localeCompare(b.code)).map((a) => ({ id: a.id, label: `${a.code} — ${a.name}` })),
     customers: db.customers.map((c) => ({ id: c.id, label: c.name })),
     suppliers: db.suppliers.map((s) => ({ id: s.id, label: s.name })),
   };
-}
+});
 
 // ===============================================================================================
 // v2 phase 12 (docs/v2/13-reports.md §2) — new reports. Everything below reads existing db tables
@@ -607,7 +609,7 @@ function cashLikeAccountIds(): Set<string> {
 
 // --- Cash flow statement (indirect method) ------------------------------------------------------
 
-export async function getCashFlowStatement(range: DateRangeInput): Promise<CashFlowStatement> {
+export const getCashFlowStatement = wrap('reports.getCashFlowStatement', async function getCashFlowStatement(range: DateRangeInput): Promise<CashFlowStatement> {
   await delay();
   const pnl = computePnl(range);
   const cashIds = cashLikeAccountIds();
@@ -659,11 +661,11 @@ export async function getCashFlowStatement(range: DateRangeInput): Promise<CashF
 
   const netChange = round2(operatingCash + investingCash + financingCash);
   return { netIncome: pnl.netIncome, operatingAdjustments, operatingCash, investing, investingCash, financing, financingCash, netChange, openingCash, closingCash };
-}
+});
 
 // --- Day book (دفتر اليومية) --------------------------------------------------------------------
 
-export async function getDayBook(range: DateRangeInput): Promise<DayBookEntry[]> {
+export const getDayBook = wrap('reports.getDayBook', async function getDayBook(range: DateRangeInput): Promise<DayBookEntry[]> {
   await delay();
   return db.journalEntries
     .filter((e) => inDateRange(e.date, range.from, range.to))
@@ -678,12 +680,12 @@ export async function getDayBook(range: DateRangeInput): Promise<DayBookEntry[]>
         return { accountCode: acc?.code ?? '', accountName: acc?.name ?? '', debit: l.debit, credit: l.credit };
       }),
     }));
-}
+});
 
 // --- AR / AP aging --------------------------------------------------------------------------
 
 /** v2 phase 12: the per-party aging (docs/v2/13 §2 "AR aging / AP aging"), across every party with an open balance. Reuses `getOpenDocumentsFor` (Phase 4's per-party aging on the party page) so bucket math stays identical. */
-export async function getAgingReport(kind: 'customer' | 'supplier'): Promise<AgingReportRow[]> {
+export const getAgingReport = wrap('reports.getAgingReport', async function getAgingReport(kind: 'customer' | 'supplier'): Promise<AgingReportRow[]> {
   await delay();
   const today = localDateKey(new Date());
   const parties = kind === 'customer' ? db.customers : db.suppliers;
@@ -704,11 +706,11 @@ export async function getAgingReport(kind: 'customer' | 'supplier'): Promise<Agi
     if (row.total > 0.001) rows.push(row);
   }
   return rows.sort((a, b) => b.total - a.total);
-}
+});
 
 // --- Overdue invoices ------------------------------------------------------------------------
 
-export async function getOverdueReport(kind: 'customer' | 'supplier'): Promise<OverdueRow[]> {
+export const getOverdueReport = wrap('reports.getOverdueReport', async function getOverdueReport(kind: 'customer' | 'supplier'): Promise<OverdueRow[]> {
   await delay();
   const today = localDateKey(new Date());
   const parties = kind === 'customer' ? db.customers : db.suppliers;
@@ -733,7 +735,7 @@ export async function getOverdueReport(kind: 'customer' | 'supplier'): Promise<O
     }
   }
   return rows.sort((a, b) => b.daysOverdue - a.daysOverdue);
-}
+});
 
 // --- Gross profit ---------------------------------------------------------------------------
 
@@ -741,7 +743,7 @@ function marginPct(revenue: number, profit: number): number {
   return revenue > 0 ? round2((profit / revenue) * 100) : 0;
 }
 
-export async function getGrossProfitReport(range: DateRangeInput, groupBy: 'invoice' | 'product' | 'category'): Promise<GrossProfitRow[]> {
+export const getGrossProfitReport = wrap('reports.getGrossProfitReport', async function getGrossProfitReport(range: DateRangeInput, groupBy: 'invoice' | 'product' | 'category'): Promise<GrossProfitRow[]> {
   await delay();
   const invoices = db.invoices.filter((i) => i.status !== 'DRAFT' && inDateRange(i.date, range.from, range.to));
   const map = new Map<string, { label: string; qty: number; revenue: number; cost: number }>();
@@ -767,11 +769,11 @@ export async function getGrossProfitReport(range: DateRangeInput, groupBy: 'invo
   return [...map.entries()]
     .map(([key, r]) => ({ key, label: r.label, qty: round2(r.qty), revenue: r.revenue, cost: r.cost, profit: round2(r.revenue - r.cost), marginPct: marginPct(r.revenue, r.revenue - r.cost) }))
     .sort((a, b) => b.profit - a.profit);
-}
+});
 
 // --- Returns analysis ------------------------------------------------------------------------
 
-export async function getReturnsReport(range: DateRangeInput): Promise<ReturnsReport> {
+export const getReturnsReport = wrap('reports.getReturnsReport', async function getReturnsReport(range: DateRangeInput): Promise<ReturnsReport> {
   await delay();
   const invoices = db.invoices.filter((i) => i.status !== 'DRAFT' && inDateRange(i.date, range.from, range.to));
   const refunds = db.refunds.filter((r) => inDateRange(r.date, range.from, range.to));
@@ -826,11 +828,11 @@ export async function getReturnsReport(range: DateRangeInput): Promise<ReturnsRe
   const totalInvoices = invoices.length;
   const totalRefunds = refunds.length;
   return { totalInvoices, totalRefunds, returnRatePct: totalInvoices > 0 ? round2((totalRefunds / totalInvoices) * 100) : 0, byReason, byProduct, byCashier };
-}
+});
 
 // --- Discounts & price overrides --------------------------------------------------------------
 
-export async function getDiscountsReport(range: DateRangeInput, groupBy: 'cashier' | 'product'): Promise<DiscountReportRow[]> {
+export const getDiscountsReport = wrap('reports.getDiscountsReport', async function getDiscountsReport(range: DateRangeInput, groupBy: 'cashier' | 'product'): Promise<DiscountReportRow[]> {
   await delay();
   const invoices = db.invoices.filter((i) => i.status !== 'DRAFT' && inDateRange(i.date, range.from, range.to));
   const map = new Map<string, { label: string; invoiceCount: number; listValue: number; chargedValue: number }>();
@@ -870,11 +872,11 @@ export async function getDiscountsReport(range: DateRangeInput, groupBy: 'cashie
     }))
     .filter((r) => r.discountValue > 0.001)
     .sort((a, b) => b.discountValue - a.discountValue);
-}
+});
 
 // --- Shifts / Z-report history -----------------------------------------------------------------
 
-export async function getShiftsReport(range: DateRangeInput): Promise<ShiftReportRow[]> {
+export const getShiftsReport = wrap('reports.getShiftsReport', async function getShiftsReport(range: DateRangeInput): Promise<ShiftReportRow[]> {
   await delay();
   return db.shifts
     .filter((s) => s.status === 'CLOSED' && inDateRange(s.openedAt, range.from, range.to))
@@ -898,11 +900,11 @@ export async function getShiftsReport(range: DateRangeInput): Promise<ShiftRepor
       };
     })
     .sort((a, b) => b.openedAt.localeCompare(a.openedAt));
-}
+});
 
 // --- Low / dead stock ------------------------------------------------------------------------
 
-export async function getLowStockReport(): Promise<LowStockRow[]> {
+export const getLowStockReport = wrap('reports.getLowStockReport', async function getLowStockReport(): Promise<LowStockRow[]> {
   await delay();
   return db.products
     .filter((p) => p.type === 'product' && p.active && p.stockQty <= (p.minStock ?? 0))
@@ -917,9 +919,9 @@ export async function getLowStockReport(): Promise<LowStockRow[]> {
       costValue: round2(p.stockQty * p.costPrice),
     }))
     .sort((a, b) => a.qty - b.qty);
-}
+});
 
-export async function getDeadStockReport(days = 60): Promise<DeadStockRow[]> {
+export const getDeadStockReport = wrap('reports.getDeadStockReport', async function getDeadStockReport(days = 60): Promise<DeadStockRow[]> {
   await delay();
   const today = localDateKey(new Date());
   const lastSaleByProduct = new Map<string, string>();
@@ -948,11 +950,11 @@ export async function getDeadStockReport(days = 60): Promise<DeadStockRow[]> {
     })
     .filter((r) => r.daysSinceSale >= days)
     .sort((a, b) => b.costValue - a.costValue);
-}
+});
 
 // --- Stocktake variances ---------------------------------------------------------------------
 
-export async function getStocktakeVariances(countId?: string): Promise<StocktakeVarianceRow[]> {
+export const getStocktakeVariances = wrap('reports.getStocktakeVariances', async function getStocktakeVariances(countId?: string): Promise<StocktakeVarianceRow[]> {
   await delay();
   const counts = db.stockCounts.filter((c) => c.status === 'COMPLETED' && (!countId || c.id === countId));
   const rows: StocktakeVarianceRow[] = [];
@@ -978,11 +980,11 @@ export async function getStocktakeVariances(countId?: string): Promise<Stocktake
     }
   }
   return rows.sort((a, b) => Math.abs(b.valueVariance) - Math.abs(a.valueVariance));
-}
+});
 
 // --- Transfers ------------------------------------------------------------------------------
 
-export async function getTransfersReport(range: DateRangeInput): Promise<TransferReportRow[]> {
+export const getTransfersReport = wrap('reports.getTransfersReport', async function getTransfersReport(range: DateRangeInput): Promise<TransferReportRow[]> {
   await delay();
   return db.stockTransfers
     .filter((t) => inDateRange(t.date, range.from, range.to))
@@ -1003,11 +1005,11 @@ export async function getTransfersReport(range: DateRangeInput): Promise<Transfe
       };
     })
     .sort((a, b) => b.date.localeCompare(a.date));
-}
+});
 
 // --- Purchases summary -----------------------------------------------------------------------
 
-export async function getPurchasesReport(range: DateRangeInput): Promise<PurchasesReport> {
+export const getPurchasesReport = wrap('reports.getPurchasesReport', async function getPurchasesReport(range: DateRangeInput): Promise<PurchasesReport> {
   await delay();
   const pos = db.purchaseOrders.filter((p) => p.status === 'RECEIVED' && inDateRange(p.date, range.from, range.to));
   const returns = db.purchaseReturns.filter((r) => inDateRange(r.date, range.from, range.to));
@@ -1047,11 +1049,11 @@ export async function getPurchasesReport(range: DateRangeInput): Promise<Purchas
     bySupplier,
     byProduct,
   };
-}
+});
 
 // --- Expenses report -------------------------------------------------------------------------
 
-export async function getExpensesReport(range: DateRangeInput): Promise<ExpensesReport> {
+export const getExpensesReport = wrap('reports.getExpensesReport', async function getExpensesReport(range: DateRangeInput): Promise<ExpensesReport> {
   await delay();
   const expenses = db.expenses.filter((e) => inDateRange(e.date, range.from, range.to));
   const byCategoryMap = new Map<string, number>();
@@ -1068,12 +1070,12 @@ export async function getExpensesReport(range: DateRangeInput): Promise<Expenses
   const byMonth = [...byMonthMap.entries()].map(([month, amount]) => ({ month, amount })).sort((a, b) => a.month.localeCompare(b.month));
 
   return { total: sum(expenses, (e) => e.amount), byCategory, byMonth };
-}
+});
 
 // --- Period & branch comparison ----------------------------------------------------------------
 
 /** v2 phase 12 (docs/v2/13 §2 "Period comparison: any two periods, key lines side by side with Δ and Δ%"). */
-export async function getPeriodComparison(rangeA: DateRangeInput, rangeB: DateRangeInput): Promise<PeriodComparisonLine[]> {
+export const getPeriodComparison = wrap('reports.getPeriodComparison', async function getPeriodComparison(rangeA: DateRangeInput, rangeB: DateRangeInput): Promise<PeriodComparisonLine[]> {
   await delay();
   const a = computePnl(rangeA);
   const b = computePnl(rangeB);
@@ -1085,10 +1087,10 @@ export async function getPeriodComparison(rangeA: DateRangeInput, rangeB: DateRa
     { ...delta(a.totalExpenses, b.totalExpenses), label: 'المصروفات' },
     { ...delta(a.netIncome, b.netIncome), label: 'صافي الربح' },
   ];
-}
+});
 
 /** v2 phase 12 (docs/v2/13 §2 "Branch comparison: KPIs per branch"). */
-export async function getBranchComparison(range: DateRangeInput): Promise<BranchComparisonRow[]> {
+export const getBranchComparison = wrap('reports.getBranchComparison', async function getBranchComparison(range: DateRangeInput): Promise<BranchComparisonRow[]> {
   await delay();
   const invoices = db.invoices.filter((i) => i.status !== 'DRAFT' && inDateRange(i.date, range.from, range.to));
   return db.branches
@@ -1109,7 +1111,7 @@ export async function getBranchComparison(range: DateRangeInput): Promise<Branch
       };
     })
     .sort((a, b) => b.sales - a.sales);
-}
+});
 
 // --- Business health ------------------------------------------------------------------------
 
@@ -1118,7 +1120,7 @@ export async function getBranchComparison(range: DateRangeInput): Promise<Branch
  * scored 0–25 from the reference thresholds. Plain, explainable scoring — not a machine-learned
  * model — matching the rest of this codebase's insight rules.
  */
-export async function getBusinessHealthReport(range: DateRangeInput): Promise<BusinessHealthReport> {
+export const getBusinessHealthReport = wrap('reports.getBusinessHealthReport', async function getBusinessHealthReport(range: DateRangeInput): Promise<BusinessHealthReport> {
   await delay();
   const asOf = range.to ?? localDateKey(new Date());
   const bs = await getBalanceSheet(asOf);
@@ -1149,12 +1151,12 @@ export async function getBusinessHealthReport(range: DateRangeInput): Promise<Bu
     { key: 'collection', label: 'التحصيل', score: collectionScore, value: round2(dso), explanation: `متوسط أيام تحصيل الذمم (DSO) ${round2(dso)} يوماً` },
   ];
   return { total: round2(sum(scores, (s) => s.score)), scores };
-}
+});
 
 // --- Profit leakage --------------------------------------------------------------------------
 
 /** v2 phase 12 (docs/v2/13 §2 "Profit leakage: discounts + price overrides + returns + shrinkage + write-offs as % of sales"). */
-export async function getProfitLeakageReport(range: DateRangeInput): Promise<ProfitLeakageReport> {
+export const getProfitLeakageReport = wrap('reports.getProfitLeakageReport', async function getProfitLeakageReport(range: DateRangeInput): Promise<ProfitLeakageReport> {
   await delay();
   const invoices = db.invoices.filter((i) => i.status !== 'DRAFT' && inDateRange(i.date, range.from, range.to));
   const refunds = db.refunds.filter((r) => inDateRange(r.date, range.from, range.to));
@@ -1172,12 +1174,12 @@ export async function getProfitLeakageReport(range: DateRangeInput): Promise<Pro
   );
   const totalLeakage = round2(discounts + returns + writeOffs + shrinkage);
   return { netSales, discounts, returns, writeOffs, shrinkage, totalLeakage, leakagePct: netSales > 0 ? round2((totalLeakage / netSales) * 100) : 0 };
-}
+});
 
 // --- Filter lookups for dimension selects ------------------------------------------------------
 
 /** v2 phase 12 (docs/v2/10 §4): filter options for `ReportShell`'s branch/cost-center/currency selects — empty unless the matching feature switch is on. */
-export async function getDimensionOptions(): Promise<{
+export const getDimensionOptions = wrap('reports.getDimensionOptions', async function getDimensionOptions(): Promise<{
   branches: { id: string; label: string }[];
   costCenters: { id: string; label: string }[];
   currencies: { code: string; label: string }[];
@@ -1188,4 +1190,4 @@ export async function getDimensionOptions(): Promise<{
     costCenters: db.costCenters.filter((c) => c.active).map((c) => ({ id: c.id, label: c.name })),
     currencies: db.currencies.filter((c) => c.active).map((c) => ({ code: c.code, label: `${c.nameAr} (${c.code})` })),
   };
-}
+});

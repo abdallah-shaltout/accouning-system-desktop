@@ -1,3 +1,4 @@
+pub mod diag;
 pub mod pdf;
 pub mod print;
 
@@ -37,6 +38,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_log::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             greet,
             pdf::render_pdf_spike,
@@ -44,7 +46,12 @@ pub fn run() {
             pdf::render::render_preview,
             print::commands::list_printers,
             print::commands::print_thermal_receipt,
-            print::commands::print_test_receipt
+            print::commands::print_test_receipt,
+            diag::diag_append,
+            diag::diag_read,
+            diag::diag_clear,
+            diag::diag_open_folder,
+            diag::diag_rotate
         ])
         .run(context())
         .expect("error while running tauri application");

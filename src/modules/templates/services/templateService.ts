@@ -9,6 +9,8 @@
  */
 import { defaultTemplateOptions, type DocumentKind, type PdfTemplate, type TemplateExport } from '../types';
 
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 const STORAGE_KEY = 'pdf_templates_v1';
 
 function uid(): string {
@@ -63,21 +65,21 @@ function seedDefaults(): PdfTemplate[] {
   return seeded;
 }
 
-export function listTemplates(kind?: DocumentKind): PdfTemplate[] {
+export const listTemplates = wrap('templates.listTemplates', function listTemplates(kind?: DocumentKind): PdfTemplate[] {
   const all = load();
   return kind ? all.filter((t) => t.kind === kind) : all;
-}
+});
 
-export function getTemplate(id: string): PdfTemplate | undefined {
+export const getTemplate = wrap('templates.getTemplate', function getTemplate(id: string): PdfTemplate | undefined {
   return load().find((t) => t.id === id);
-}
+});
 
-export function getDefaultTemplate(kind: DocumentKind): PdfTemplate | undefined {
+export const getDefaultTemplate = wrap('templates.getDefaultTemplate', function getDefaultTemplate(kind: DocumentKind): PdfTemplate | undefined {
   const all = load().filter((t) => t.kind === kind);
   return all.find((t) => t.isDefault) ?? all[0];
-}
+});
 
-export function saveTemplate(template: PdfTemplate): PdfTemplate {
+export const saveTemplate = wrap('templates.saveTemplate', function saveTemplate(template: PdfTemplate): PdfTemplate {
   const all = load();
   const idx = all.findIndex((t) => t.id === template.id);
   const updated: PdfTemplate = { ...template, updatedAt: new Date().toISOString() };
@@ -85,9 +87,9 @@ export function saveTemplate(template: PdfTemplate): PdfTemplate {
   else all.push(updated);
   save(all);
   return updated;
-}
+});
 
-export function setAsDefault(id: string): void {
+export const setAsDefault = wrap('templates.setAsDefault', function setAsDefault(id: string): void {
   const all = load();
   const target = all.find((t) => t.id === id);
   if (!target) return;
@@ -95,9 +97,9 @@ export function setAsDefault(id: string): void {
     if (t.kind === target.kind) t.isDefault = t.id === id;
   }
   save(all);
-}
+});
 
-export function duplicateTemplate(id: string): PdfTemplate | undefined {
+export const duplicateTemplate = wrap('templates.duplicateTemplate', function duplicateTemplate(id: string): PdfTemplate | undefined {
   const all = load();
   const source = all.find((t) => t.id === id);
   if (!source) return undefined;
@@ -114,14 +116,14 @@ export function duplicateTemplate(id: string): PdfTemplate | undefined {
   all.push(copy);
   save(all);
   return copy;
-}
+});
 
-export function deleteTemplate(id: string): void {
+export const deleteTemplate = wrap('templates.deleteTemplate', function deleteTemplate(id: string): void {
   const all = load().filter((t) => t.id !== id);
   save(all);
-}
+});
 
-export function resetTemplateToDefaults(id: string): PdfTemplate | undefined {
+export const resetTemplateToDefaults = wrap('templates.resetTemplateToDefaults', function resetTemplateToDefaults(id: string): PdfTemplate | undefined {
   const all = load();
   const target = all.find((t) => t.id === id);
   if (!target) return undefined;
@@ -130,14 +132,14 @@ export function resetTemplateToDefaults(id: string): PdfTemplate | undefined {
   target.updatedAt = new Date().toISOString();
   save(all);
   return target;
-}
+});
 
-export function exportTemplate(template: PdfTemplate): TemplateExport {
+export const exportTemplate = wrap('templates.exportTemplate', function exportTemplate(template: PdfTemplate): TemplateExport {
   const { id: _id, isDefault: _isDefault, createdAt: _createdAt, updatedAt: _updatedAt, ...rest } = template;
   return { schema: 'pdf-template-v1', template: rest };
-}
+});
 
-export function importTemplate(json: TemplateExport): PdfTemplate {
+export const importTemplate = wrap('templates.importTemplate', function importTemplate(json: TemplateExport): PdfTemplate {
   if (json.schema !== 'pdf-template-v1' || !json.template) {
     throw new Error('ملف القالب غير صالح');
   }
@@ -153,10 +155,10 @@ export function importTemplate(json: TemplateExport): PdfTemplate {
   all.push(imported);
   save(all);
   return imported;
-}
+});
 
 /** A brand-new blank template for "duplicate"/"new" flows the designer's top bar offers. */
-export function createTemplate(kind: DocumentKind, baseTemplateId: PdfTemplate['baseTemplateId'], name: string): PdfTemplate {
+export const createTemplate = wrap('templates.createTemplate', function createTemplate(kind: DocumentKind, baseTemplateId: PdfTemplate['baseTemplateId'], name: string): PdfTemplate {
   const now = new Date().toISOString();
   const template: PdfTemplate = {
     id: uid(),
@@ -173,4 +175,4 @@ export function createTemplate(kind: DocumentKind, baseTemplateId: PdfTemplate['
   all.push(template);
   save(all);
   return template;
-}
+});

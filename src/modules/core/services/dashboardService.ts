@@ -6,6 +6,8 @@ import type { Product } from '@/modules/products/types';
 import type { SystemRole } from '@/modules/accounting/types';
 import type { ActivityEntry, DashboardSummary } from '../types';
 
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 function accountBalance(role: SystemRole): number {
   const id = accountFor(role).id;
   let total = 0;
@@ -14,7 +16,7 @@ function accountBalance(role: SystemRole): number {
 }
 
 /** KPI numbers for the home screen, computed from the same mock data every other screen uses. */
-export async function getDashboardSummary(): Promise<DashboardSummary> {
+export const getDashboardSummary = wrap('core.getDashboardSummary', async function getDashboardSummary(): Promise<DashboardSummary> {
   await delay();
   const today = localDateKey(new Date());
   const sold = db.invoices.filter((i) => i.status !== 'DRAFT');
@@ -45,33 +47,33 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     bankBalance,
     salesTrend: trend,
   };
-}
+});
 
 function lowStock(): Product[] {
   return db.products.filter((p) => p.active && p.type === 'product' && p.stockMode !== 'none' && p.stockQty <= (p.minStock ?? 0));
 }
 
-export async function getLowStockProducts(limit = 6): Promise<Product[]> {
+export const getLowStockProducts = wrap('core.getLowStockProducts', async function getLowStockProducts(limit = 6): Promise<Product[]> {
   await delay();
   return clone(lowStock().sort((a, b) => a.stockQty / (a.minStock || 1) - b.stockQty / (b.minStock || 1)).slice(0, limit));
-}
+});
 
-export async function getRecentInvoices(limit = 8): Promise<(Invoice & { customerName?: string })[]> {
+export const getRecentInvoices = wrap('core.getRecentInvoices', async function getRecentInvoices(limit = 8): Promise<(Invoice & { customerName?: string })[]> {
   await delay();
   return [...db.invoices]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, limit)
     .map((i) => ({ ...clone(i), customerName: db.customers.find((c) => c.id === i.customerId)?.name }));
-}
+});
 
-export async function getRecentActivity(limit = 12): Promise<(ActivityEntry & { userName?: string })[]> {
+export const getRecentActivity = wrap('core.getRecentActivity', async function getRecentActivity(limit = 12): Promise<(ActivityEntry & { userName?: string })[]> {
   await delay();
   return db.activity
     .filter((a) => a.kind !== 'auth')
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, limit)
     .map((a) => ({ ...clone(a), userName: db.users.find((u) => u.id === a.userId)?.name }));
-}
+});
 
 // =================================================================================================
 // v2 phase 10 (docs/v2/11-journal-dashboard-insights.md Part B "simpler home") — 4 KPIs with
@@ -176,7 +178,7 @@ function dailySeries(days: number, to: Date): number[] {
 }
 
 /** Home KPIs (docs/v2/11 Part B.3): 4 KPIs with period-over-period comparison + sparkline. */
-export async function getHomeKpis(period: HomePeriod = 'today'): Promise<HomeKpis> {
+export const getHomeKpis = wrap('core.getHomeKpis', async function getHomeKpis(period: HomePeriod = 'today'): Promise<HomeKpis> {
   await delay();
   const { from, to, prevFrom, prevTo } = periodRange(period);
   const netSales = netSalesFor(from, to);
@@ -225,7 +227,7 @@ export async function getHomeKpis(period: HomePeriod = 'today'): Promise<HomeKpi
     },
     salesTrend: trend,
   };
-}
+});
 
 /** Balance of a system-role account as of a given date (inclusive) — used for the KPI's "previous period" cash snapshot. */
 function accountBalanceAsOf(role: SystemRole, asOf: string): number {
@@ -253,7 +255,7 @@ export interface TopCustomerRow {
 }
 
 /** Top 5 products by gross profit (not revenue — docs/v2/11 Part B.5) for the given period. */
-export async function getTopProducts(period: HomePeriod = 'month', limit = 5): Promise<TopProductRow[]> {
+export const getTopProducts = wrap('core.getTopProducts', async function getTopProducts(period: HomePeriod = 'month', limit = 5): Promise<TopProductRow[]> {
   await delay();
   const { from, to } = periodRange(period);
   const byProduct = new Map<string, { qty: number; profit: number }>();
@@ -273,10 +275,10 @@ export async function getTopProducts(period: HomePeriod = 'month', limit = 5): P
     })
     .sort((a, b) => b.grossProfit - a.grossProfit)
     .slice(0, limit);
-}
+});
 
 /** Top 5 customers by net sales for the given period. */
-export async function getTopCustomers(period: HomePeriod = 'month', limit = 5): Promise<TopCustomerRow[]> {
+export const getTopCustomers = wrap('core.getTopCustomers', async function getTopCustomers(period: HomePeriod = 'month', limit = 5): Promise<TopCustomerRow[]> {
   await delay();
   const { from, to } = periodRange(period);
   const byCustomer = new Map<string, number>();
@@ -288,4 +290,4 @@ export async function getTopCustomers(period: HomePeriod = 'month', limit = 5): 
     .map(([customerId, total]) => ({ id: customerId, name: db.customers.find((c) => c.id === customerId)?.name ?? '—', total }))
     .sort((a, b) => b.total - a.total)
     .slice(0, limit);
-}
+});

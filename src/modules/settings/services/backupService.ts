@@ -29,21 +29,23 @@ import { saveFile } from '@/modules/core/services/saveFile';
 import type { BackupHistoryEntry, BackupKind, BackupManifest, BackupSettings, RestorePreview } from '../types/backup';
 import { DEFAULT_BACKUP_SETTINGS } from '../types/backup';
 
-export function backupSettings(): BackupSettings {
-  return { ...DEFAULT_BACKUP_SETTINGS, ...(db.settings.backup ?? {}) };
-}
+import { wrap } from '@/modules/diagnostics/services/defineService';
 
-export async function saveBackupSettings(patch: Partial<BackupSettings>): Promise<BackupSettings> {
+export const backupSettings = wrap('settings.backupSettings', function backupSettings(): BackupSettings {
+  return { ...DEFAULT_BACKUP_SETTINGS, ...(db.settings.backup ?? {}) };
+});
+
+export const saveBackupSettings = wrap('settings.saveBackupSettings', async function saveBackupSettings(patch: Partial<BackupSettings>): Promise<BackupSettings> {
   const next = { ...backupSettings(), ...patch };
   await updateSettings({ backup: next });
   return next;
-}
+});
 
 // --- Tauri detection -------------------------------------------------------------------------
 
-export function isTauriMode(): boolean {
+export const isTauriMode = wrap('settings.isTauriMode', function isTauriMode(): boolean {
   return isTauri();
-}
+});
 
 // --- browser-mode history (IndexedDB, last N snapshots) --------------------------------------
 
@@ -148,7 +150,7 @@ export interface BackupNowResult {
  * even before a folder is chosen in Tauri mode... but Tauri mode instead lists the real folder,
  * see `listHistory()`).
  */
-export async function backupNow(kind: BackupKind, password?: string, opts?: { suggestedPath?: string }): Promise<BackupNowResult> {
+export const backupNow = wrap('settings.backupNow', async function backupNow(kind: BackupKind, password?: string, opts?: { suggestedPath?: string }): Promise<BackupNowResult> {
   const { bytes, manifest } = await buildBackupArchive(kind, password);
   const filename = backupFileName(manifest.company);
 
@@ -176,7 +178,7 @@ export async function backupNow(kind: BackupKind, password?: string, opts?: { su
   await pruneBrowserHistory(BROWSER_KEEP);
   await afterBackupSaved(manifest, kind);
   return { manifest, sizeBytes: bytes.length };
-}
+});
 
 async function afterBackupSaved(manifest: BackupManifest, kind: BackupKind): Promise<void> {
   // Any successful backup (manual/auto/pre-restore) clears a previously-recorded failure — the
@@ -187,7 +189,7 @@ async function afterBackupSaved(manifest: BackupManifest, kind: BackupKind): Pro
 
 // --- history -----------------------------------------------------------------------------------
 
-export async function listHistory(): Promise<BackupHistoryEntry[]> {
+export const listHistory = wrap('settings.listHistory', async function listHistory(): Promise<BackupHistoryEntry[]> {
   if (isTauriMode()) {
     const folder = backupSettings().folder;
     if (!folder) return [];
@@ -216,19 +218,19 @@ export async function listHistory(): Promise<BackupHistoryEntry[]> {
 
   const all = await browserGetAll();
   return all.map((r) => ({ id: r.id, manifest: r.manifest, path: r.id, sizeBytes: r.sizeBytes, location: 'browser' as const }));
-}
+});
 
-export async function deleteHistoryEntry(entry: BackupHistoryEntry): Promise<void> {
+export const deleteHistoryEntry = wrap('settings.deleteHistoryEntry', async function deleteHistoryEntry(entry: BackupHistoryEntry): Promise<void> {
   if (entry.location === 'file') {
     const { remove } = await import('@tauri-apps/plugin-fs');
     await remove(entry.path);
   } else {
     await browserDelete(entry.path);
   }
-}
+});
 
 /** Re-checksums the archive and compares it to what's recorded in its own manifest. */
-export async function verifyHistoryEntry(entry: BackupHistoryEntry): Promise<{ ok: boolean; detail: string }> {
+export const verifyHistoryEntry = wrap('settings.verifyHistoryEntry', async function verifyHistoryEntry(entry: BackupHistoryEntry): Promise<{ ok: boolean; detail: string }> {
   let bytes: Uint8Array;
   if (entry.location === 'file') {
     const { readFile } = await import('@tauri-apps/plugin-fs');
@@ -246,7 +248,7 @@ export async function verifyHistoryEntry(entry: BackupHistoryEntry): Promise<{ o
   } catch (err) {
     return { ok: false, detail: err instanceof Error ? err.message : 'تعذّرت قراءة الملف' };
   }
-}
+});
 
 async function recomputeChecksum(bytes: Uint8Array, manifest: BackupManifest): Promise<string> {
   const { unzipSync } = await import('fflate');
@@ -268,7 +270,7 @@ async function recomputeChecksum(bytes: Uint8Array, manifest: BackupManifest): P
 
 // --- restore -------------------------------------------------------------------------------------
 
-export async function pickRestoreFile(): Promise<Uint8Array | undefined> {
+export const pickRestoreFile = wrap('settings.pickRestoreFile', async function pickRestoreFile(): Promise<Uint8Array | undefined> {
   if (isTauriMode()) {
     const { open } = await import('@tauri-apps/plugin-dialog');
     const { readFile } = await import('@tauri-apps/plugin-fs');
@@ -287,9 +289,9 @@ export async function pickRestoreFile(): Promise<Uint8Array | undefined> {
     };
     input.click();
   });
-}
+});
 
-export function previewRestore(bytes: Uint8Array): RestorePreview {
+export const previewRestore = wrap('settings.previewRestore', function previewRestore(bytes: Uint8Array): RestorePreview {
   const manifest = readManifest(bytes);
   const compatible = manifest.schemaVersion <= SCHEMA_VERSION;
   const compatibilityNote =
@@ -299,7 +301,7 @@ export function previewRestore(bytes: Uint8Array): RestorePreview {
         ? 'سيتم ترقية بيانات هذه النسخة تلقائياً إلى الإصدار الحالي عند الاستعادة'
         : undefined;
   return { manifest, compatible, compatibilityNote };
-}
+});
 
 function migrateDb(data: unknown, fromVersion: number): typeof db {
   let result = data;
@@ -316,7 +318,7 @@ function migrateDb(data: unknown, fromVersion: number): typeof db {
  * replace the persisted DB + attachments and reload the app. Caller is responsible for the typed
  * "استعادة" confirmation UI before calling this.
  */
-export async function restoreFromArchive(bytes: Uint8Array, password?: string): Promise<void> {
+export const restoreFromArchive = wrap('settings.restoreFromArchive', async function restoreFromArchive(bytes: Uint8Array, password?: string): Promise<void> {
   const parsed = parseArchive(bytes);
   let data: BackupData;
   if (parsed.manifest.encrypted) {
@@ -336,7 +338,7 @@ export async function restoreFromArchive(bytes: Uint8Array, password?: string): 
 
   logActivity('settings', 'استعادة من نسخة احتياطية', session.userId, new Date().toISOString());
   await flushSnapshot();
-}
+});
 
 // --- automatic backup: daily schedule + on-close --------------------------------------------
 
@@ -417,7 +419,7 @@ function delay(ms: number): Promise<void> {
  * a second backup. In the browser, `beforeunload` cannot reliably await an async IndexedDB+zip
  * operation before the tab closes, so that path stays a best-effort, non-blocking approximation.
  */
-export async function initAutoBackup(): Promise<void> {
+export const initAutoBackup = wrap('settings.initAutoBackup', async function initAutoBackup(): Promise<void> {
   if (dailyTimer) return;
   await runAutoBackupIfDue();
   dailyTimer = setInterval(() => void runAutoBackupIfDue(), 60_000);
@@ -450,9 +452,9 @@ export async function initAutoBackup(): Promise<void> {
     };
     window.addEventListener('beforeunload', beforeUnloadHandler);
   }
-}
+});
 
-export function stopAutoBackup(): void {
+export const stopAutoBackup = wrap('settings.stopAutoBackup', function stopAutoBackup(): void {
   if (dailyTimer) {
     clearInterval(dailyTimer);
     dailyTimer = null;
@@ -465,13 +467,13 @@ export function stopAutoBackup(): void {
     window.removeEventListener('beforeunload', beforeUnloadHandler);
     beforeUnloadHandler = null;
   }
-}
+});
 
 // --- folder picker (Tauri only) ---------------------------------------------------------------
 
-export async function pickBackupFolder(): Promise<string | undefined> {
+export const pickBackupFolder = wrap('settings.pickBackupFolder', async function pickBackupFolder(): Promise<string | undefined> {
   const { open } = await import('@tauri-apps/plugin-dialog');
   const path = await open({ directory: true, multiple: false });
   if (!path || Array.isArray(path)) return undefined;
   return path;
-}
+});

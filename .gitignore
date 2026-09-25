@@ -1,6 +1,11 @@
 references/
 .claude/scheduled_tasks.lock
 
+# Diagnostics (18.B3): raw runtime logs from `bun run dev`'s /__diag middleware, e2e runs, and
+# verify runs. Never committed — agents/developers read it locally, docs/diagnostics/ISSUES.md is
+# the tracked summary.
+.diagnostics/
+
 # Logs
 logs
 *.log

@@ -7,6 +7,8 @@
 import { isTauri } from '@tauri-apps/api/core';
 import { useToast } from '@/modules/core/controllers/useToast';
 
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 export type SaveFileKind = 'excel' | 'pdf' | 'backup' | 'json' | 'text';
 
 const EXTENSION_FILTERS: Record<SaveFileKind, { name: string; extensions: string[] }> = {
@@ -87,7 +89,7 @@ export interface SaveFileOptions {
  * the last folder used per file kind), a plain `<a download>` in a browser. Returns the chosen
  * path (desktop) or `true` (browser, path unknown) on success, `null` if the user cancelled.
  */
-export async function saveFile(data: Uint8Array | Blob | string, options: SaveFileOptions): Promise<string | true | null> {
+export const saveFile = wrap('core.saveFile', async function saveFile(data: Uint8Array | Blob | string, options: SaveFileOptions): Promise<string | true | null> {
   const name = safeName(options.suggestedName);
   const bytes = await toBytes(data);
 
@@ -119,4 +121,4 @@ export async function saveFile(data: Uint8Array | Blob | string, options: SaveFi
   }
 
   return path;
-}
+});

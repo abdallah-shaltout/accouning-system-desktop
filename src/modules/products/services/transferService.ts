@@ -7,30 +7,32 @@ import { clone, session } from '@/mocks';
 import * as backend from '@/mocks/backend/transfers';
 import type { ReceiveTransferInput, StockTransfer, StockTransferInput } from '../types';
 
-export async function getTransfers(): Promise<StockTransfer[]> {
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
+export const getTransfers = wrap('products.getTransfers', async function getTransfers(): Promise<StockTransfer[]> {
   return clone(backend.listTransfers());
-}
+});
 
-export async function getTransfer(id: string): Promise<StockTransfer> {
+export const getTransfer = wrap('products.getTransfer', async function getTransfer(id: string): Promise<StockTransfer> {
   return clone(backend.transferById(id));
-}
+});
 
-export async function createTransfer(input: StockTransferInput): Promise<StockTransfer> {
+export const createTransfer = wrap('products.createTransfer', async function createTransfer(input: StockTransferInput): Promise<StockTransfer> {
   return clone(backend.draftTransfer(input, session.userId));
-}
+});
 
-export async function sendTransfer(id: string): Promise<StockTransfer> {
+export const sendTransfer = wrap('products.sendTransfer', async function sendTransfer(id: string): Promise<StockTransfer> {
   return clone(backend.sendTransfer(id, session.userId));
-}
+});
 
-export async function receiveTransfer(id: string, input: ReceiveTransferInput): Promise<StockTransfer> {
+export const receiveTransfer = wrap('products.receiveTransfer', async function receiveTransfer(id: string, input: ReceiveTransferInput): Promise<StockTransfer> {
   return clone(backend.receiveTransfer(id, input, session.userId));
-}
+});
 
-export async function rejectTransfer(id: string, reason: string): Promise<StockTransfer> {
+export const rejectTransfer = wrap('products.rejectTransfer', async function rejectTransfer(id: string, reason: string): Promise<StockTransfer> {
   return clone(backend.rejectTransfer(id, reason, session.userId));
-}
+});
 
-export function branchStockQty(productId: string, branchId: string): number {
+export const branchStockQty = wrap('products.branchStockQty', function branchStockQty(productId: string, branchId: string): number {
   return backend.branchStockQty(productId, branchId);
-}
+});

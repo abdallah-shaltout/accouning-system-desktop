@@ -3,6 +3,8 @@ import { allocatePayment, allocatedTotal, getOpenDocumentsFor, recordPayment, un
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
 import { allocationStatusFor, type AllocationStatus, type OpenDocument, type Payment, type PaymentAllocationInput, type PaymentFilter, type PaymentInput } from '../types';
 
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 export type PaymentRow = Payment & { partyName: string; allocated: number; unallocated: number; allocationStatus: AllocationStatus };
 
 function partyName(p: Payment): string {
@@ -14,7 +16,7 @@ function toRow(p: Payment): PaymentRow {
   return { ...clone(p), partyName: partyName(p), allocated, unallocated: unallocatedAmount(p), allocationStatus: allocationStatusFor(p.amount, allocated) };
 }
 
-export async function getPayments(filter: PaymentFilter = {}): Promise<PaymentRow[]> {
+export const getPayments = wrap('payments.getPayments', async function getPayments(filter: PaymentFilter = {}): Promise<PaymentRow[]> {
   await delay();
   return db.payments
     .filter(
@@ -27,10 +29,10 @@ export async function getPayments(filter: PaymentFilter = {}): Promise<PaymentRo
     .map(toRow)
     .filter((p) => (!filter.unallocatedOnly || p.unallocated > 0.005) && includesText([p.number, p.partyName, p.targetRefNumber, p.note], filter.search))
     .sort((a, b) => b.date.localeCompare(a.date));
-}
+});
 
 /** Server-mode variant of `getPayments` for `DataTable`: paged, sorted and totalled server-side. */
-export async function getPaymentsPaged(query: PagedQuery<PaymentFilter>): Promise<PagedResult<PaymentRow>> {
+export const getPaymentsPaged = wrap('payments.getPaymentsPaged', async function getPaymentsPaged(query: PagedQuery<PaymentFilter>): Promise<PagedResult<PaymentRow>> {
   await delay();
   const filter = query.filters ?? {};
   let rows: PaymentRow[] = db.payments
@@ -61,33 +63,33 @@ export async function getPaymentsPaged(query: PagedQuery<PaymentFilter>): Promis
 
   const start = (query.page - 1) * query.pageSize;
   return { rows: rows.slice(start, start + query.pageSize), total, totals };
-}
+});
 
-export async function getPayment(id: string): Promise<PaymentRow> {
+export const getPayment = wrap('payments.getPayment', async function getPayment(id: string): Promise<PaymentRow> {
   await delay(100);
   const p = db.payments.find((x) => x.id === id);
   if (!p) throw new Error('السند غير موجود');
   return toRow(p);
-}
+});
 
-export async function createPayment(input: PaymentInput): Promise<Payment> {
+export const createPayment = wrap('payments.createPayment', async function createPayment(input: PaymentInput): Promise<Payment> {
   await delay();
   return clone(recordPayment(input, session.userId));
-}
+});
 
 /** Allocate more of an already-saved payment's unallocated money — "allocate later" (docs/v2/08 §3, 09 §3). */
-export async function allocateExistingPayment(paymentId: string, allocations: PaymentAllocationInput[]): Promise<Payment> {
+export const allocateExistingPayment = wrap('payments.allocateExistingPayment', async function allocateExistingPayment(paymentId: string, allocations: PaymentAllocationInput[]): Promise<Payment> {
   await delay();
   return clone(allocatePayment(paymentId, allocations, session.userId));
-}
+});
 
-export async function removeAllocation(paymentId: string, allocationId: string): Promise<Payment> {
+export const removeAllocation = wrap('payments.removeAllocation', async function removeAllocation(paymentId: string, allocationId: string): Promise<Payment> {
   await delay();
   return clone(unallocatePayment(paymentId, allocationId, session.userId));
-}
+});
 
 /** Invoices (customer) or confirmed POs (supplier) that still have something outstanding. */
-export async function getOpenDocuments(targetType: 'customer' | 'supplier', targetId: string): Promise<OpenDocument[]> {
+export const getOpenDocuments = wrap('payments.getOpenDocuments', async function getOpenDocuments(targetType: 'customer' | 'supplier', targetId: string): Promise<OpenDocument[]> {
   await delay(150);
   return getOpenDocumentsFor(targetType, targetId);
-}
+});

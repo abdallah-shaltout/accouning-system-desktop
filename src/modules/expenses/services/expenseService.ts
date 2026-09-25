@@ -1,4 +1,6 @@
 import { ApiError, clone, db, delay, inDateRange, includesText, session } from '@/mocks';
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 import {
   deleteExpenseCategory as deleteExpenseCategoryBackend,
   deleteRecurringExpense as deleteRecurringExpenseBackend,
@@ -20,68 +22,68 @@ import type {
 
 export type ExpenseRow = Expense & { categoryName: string };
 
-export async function getExpenseCategories(): Promise<ExpenseCategory[]> {
+export const getExpenseCategories = wrap('expenses.getExpenseCategories', async function getExpenseCategories(): Promise<ExpenseCategory[]> {
   await delay();
   return clone(db.expenseCategories);
-}
+});
 
-export async function saveExpenseCategory(input: ExpenseCategoryInput, id?: string): Promise<ExpenseCategory> {
+export const saveExpenseCategory = wrap('expenses.saveExpenseCategory', async function saveExpenseCategory(input: ExpenseCategoryInput, id?: string): Promise<ExpenseCategory> {
   await delay();
   return clone(saveExpenseCategoryBackend(input, id));
-}
+});
 
-export async function deleteExpenseCategory(id: string): Promise<void> {
+export const deleteExpenseCategory = wrap('expenses.deleteExpenseCategory', async function deleteExpenseCategory(id: string): Promise<void> {
   await delay();
   deleteExpenseCategoryBackend(id);
-}
+});
 
 function toRow(e: Expense): ExpenseRow {
   return { ...clone(e), categoryName: db.expenseCategories.find((c) => c.id === e.categoryId)?.name ?? '—' };
 }
 
-export async function getExpenses(filter: ExpenseFilter = {}): Promise<ExpenseRow[]> {
+export const getExpenses = wrap('expenses.getExpenses', async function getExpenses(filter: ExpenseFilter = {}): Promise<ExpenseRow[]> {
   await delay();
   return db.expenses
     .filter((e) => (!filter.categoryId || e.categoryId === filter.categoryId) && inDateRange(e.date, filter.from, filter.to))
     .map(toRow)
     .filter((r) => includesText([r.number, r.categoryName, r.description, r.supplierInvoiceNo], filter.search))
     .sort((a, b) => b.date.localeCompare(a.date));
-}
+});
 
-export async function getExpense(id: string): Promise<ExpenseRow> {
+export const getExpense = wrap('expenses.getExpense', async function getExpense(id: string): Promise<ExpenseRow> {
   await delay();
   const e = db.expenses.find((x) => x.id === id);
   if (!e) throw new ApiError('المصروف غير موجود', 'NOT_FOUND');
   return toRow(e);
-}
+});
 
-export async function createExpense(input: ExpenseInput): Promise<Expense> {
+export const createExpense = wrap('expenses.createExpense', async function createExpense(input: ExpenseInput): Promise<Expense> {
   await delay(300);
   return clone(recordExpense(input, session.userId));
-}
+});
 
-export async function getRecurringExpenses(): Promise<RecurringExpense[]> {
+export const getRecurringExpenses = wrap('expenses.getRecurringExpenses', async function getRecurringExpenses(): Promise<RecurringExpense[]> {
   await delay();
   return clone(db.recurringExpenses);
-}
+});
 
-export async function saveRecurringExpense(input: RecurringExpenseInput, id?: string): Promise<RecurringExpense> {
+export const saveRecurringExpense = wrap('expenses.saveRecurringExpense', async function saveRecurringExpense(input: RecurringExpenseInput, id?: string): Promise<RecurringExpense> {
   await delay();
   return clone(saveRecurringExpenseBackend(input, id));
-}
+});
 
-export async function deleteRecurringExpense(id: string): Promise<void> {
+export const deleteRecurringExpense = wrap('expenses.deleteRecurringExpense', async function deleteRecurringExpense(id: string): Promise<void> {
   await delay();
   deleteRecurringExpenseBackend(id);
-}
+});
 
 /** "إيجار أكتوبر مستحق — سجّله" due-list. */
-export async function getDueRecurringExpenses(): Promise<RecurringExpense[]> {
+export const getDueRecurringExpenses = wrap('expenses.getDueRecurringExpenses', async function getDueRecurringExpenses(): Promise<RecurringExpense[]> {
   await delay();
   return clone(dueRecurringExpenses());
-}
+});
 
-export async function postDueRecurringExpense(id: string): Promise<Expense> {
+export const postDueRecurringExpense = wrap('expenses.postDueRecurringExpense', async function postDueRecurringExpense(id: string): Promise<Expense> {
   await delay(300);
   return clone(postRecurringExpense(id, session.userId));
-}
+});

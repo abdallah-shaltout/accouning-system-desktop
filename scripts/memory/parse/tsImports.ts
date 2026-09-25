@@ -64,12 +64,23 @@ const EXPORT_PATTERNS: [RegExp, ExportSymbol['kind']][] = [
   [/^export\s+(?:type|interface|enum|const\s+enum)\s+(\w+)/gm, 'type'],
 ];
 
+// `export const { a, b, c } = defineService(...)` — the shape `defineService()` call sites use
+// (18.B) so a wrapped service still reads as individual named exports, not one opaque object, in
+// the Service API table. Matches only a single-level `{ ... }` destructure (services don't nest).
+const DESTRUCTURED_EXPORT = /^export\s+const\s*\{([^}]*)\}\s*=/gm;
+
 export function parseExports(files: SourceFile[]): Map<string, ExportSymbol[]> {
   const map = new Map<string, ExportSymbol[]>();
   for (const file of files.filter((f) => f.lang === 'ts')) {
     const symbols: ExportSymbol[] = [];
     for (const [re, kind] of EXPORT_PATTERNS) {
       for (const m of file.content.matchAll(re)) symbols.push({ name: m[1], kind });
+    }
+    for (const m of file.content.matchAll(DESTRUCTURED_EXPORT)) {
+      for (const part of m[1].split(',')) {
+        const name = part.trim().split(':').pop()?.trim();
+        if (name) symbols.push({ name, kind: 'const' });
+      }
     }
     for (const m of file.content.matchAll(/^export\s*\{([^}]*)\}\s*;?\s*$/gm)) {
       for (const part of m[1].split(',')) {

@@ -7,6 +7,8 @@ import type { Role } from '@/modules/users/types';
 import { INSIGHT_RULES } from './insightRules';
 import { DEFAULT_THRESHOLDS, type Insight, type InsightSeverity, type InsightThresholds } from './insightTypes';
 
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 /**
  * Insight engine (docs/v2/11-journal-dashboard-insights.md D1 "Service"). Runs the rule catalogue
  * against the mock data, sorts by severity then value-at-stake, and applies per-user
@@ -19,15 +21,15 @@ const SEVERITY_ORDER: Record<InsightSeverity, number> = { critical: 0, warning: 
 
 // --- Thresholds (Settings → التوصيات, persisted like `roleAccessOverrides`) ----------------------
 
-export function getThresholds(): InsightThresholds {
+export const getThresholds = wrap('core.getThresholds', function getThresholds(): InsightThresholds {
   return { ...DEFAULT_THRESHOLDS, ...(db.settings.insightThresholds ?? {}) };
-}
+});
 
-export function setThresholds(patch: Partial<InsightThresholds>): InsightThresholds {
+export const setThresholds = wrap('core.setThresholds', function setThresholds(patch: Partial<InsightThresholds>): InsightThresholds {
   mutate(() => (db.settings.insightThresholds = { ...getThresholds(), ...patch }));
   invalidate();
   return getThresholds();
-}
+});
 
 // --- Dismiss / snooze (per user, localStorage — same pattern as `useAppearance.ts`) --------------
 
@@ -58,14 +60,14 @@ function saveDismissed(userId: string | undefined, state: DismissState) {
 }
 
 /** Permanently hides this insight instance for the given user. */
-export function dismissInsight(userId: string | undefined, insightId: string) {
+export const dismissInsight = wrap('core.dismissInsight', function dismissInsight(userId: string | undefined, insightId: string) {
   const state = loadDismissed(userId);
   state[insightId] = '9999-12-31'; // far future = "forever" until the underlying condition changes id
   saveDismissed(userId, state);
-}
+});
 
 /** Hides this insight instance until `untilIso` (defaults to 7 days from now). */
-export function snoozeInsight(userId: string | undefined, insightId: string, untilIso?: string) {
+export const snoozeInsight = wrap('core.snoozeInsight', function snoozeInsight(userId: string | undefined, insightId: string, untilIso?: string) {
   const until = untilIso ?? (() => {
     const d = new Date();
     d.setDate(d.getDate() + 7);
@@ -74,13 +76,13 @@ export function snoozeInsight(userId: string | undefined, insightId: string, unt
   const state = loadDismissed(userId);
   state[insightId] = until;
   saveDismissed(userId, state);
-}
+});
 
-export function clearDismissal(userId: string | undefined, insightId: string) {
+export const clearDismissal = wrap('core.clearDismissal', function clearDismissal(userId: string | undefined, insightId: string) {
   const state = loadDismissed(userId);
   delete state[insightId];
   saveDismissed(userId, state);
-}
+});
 
 function isHidden(userId: string | undefined, insightId: string, today: string): boolean {
   const state = loadDismissed(userId);
@@ -124,14 +126,14 @@ export interface GetInsightsOptions {
 }
 
 /** `insightService.getInsights` (doc D1) — filters by role, applies dismiss/snooze, sorts, limits. */
-export function getInsights(opts: GetInsightsOptions): Insight[] {
+export const getInsights = wrap('core.getInsights', function getInsights(opts: GetInsightsOptions): Insight[] {
   const today = localDateKey(new Date());
   let list = computeAll().filter((i) => !opts.role || i.roles.includes(opts.role));
   if (opts.ruleKey) list = list.filter((i) => i.ruleKey === opts.ruleKey);
   if (!opts.includeHidden) list = list.filter((i) => !isHidden(opts.userId, i.id, today));
   list = [...list].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || b.value - a.value);
   return opts.limit ? list.slice(0, opts.limit) : list;
-}
+});
 
 /**
  * Insight instances whose id targets exactly this entity — used by inline hints (D1) on a
@@ -143,14 +145,14 @@ export function getInsights(opts: GetInsightsOptions): Insight[] {
  * this way — `productLowStockHint`/`productBelowCostHint` below check those conditions directly
  * for one product instead, reusing the same thresholds the rules use.
  */
-export function getInsightsFor(role: Role | undefined, predicate: (i: Insight) => boolean): Insight[] {
+export const getInsightsFor = wrap('core.getInsightsFor', function getInsightsFor(role: Role | undefined, predicate: (i: Insight) => boolean): Insight[] {
   return computeAll().filter((i) => (!role || i.roles.includes(role)) && predicate(i));
-}
+});
 
 /** insight ids ending in `:${entityId}` and matching one of `ruleKeys` — the common inline-hint case. */
-export function getInsightsForEntity(role: Role | undefined, ruleKeys: string[], entityId: string): Insight[] {
+export const getInsightsForEntity = wrap('core.getInsightsForEntity', function getInsightsForEntity(role: Role | undefined, ruleKeys: string[], entityId: string): Insight[] {
   return getInsightsFor(role, (i) => ruleKeys.includes(i.ruleKey) && i.id.endsWith(`:${entityId}`));
-}
+});
 
 /**
  * Inline hint for ONE product against the company-wide `dead-stock`/`below-cost`/`reorder` rules,
@@ -159,7 +161,7 @@ export function getInsightsForEntity(role: Role | undefined, ruleKeys: string[],
  * `Insight` with the same shape/severity/action style as everywhere else — not separate hardcoded
  * logic, just a per-entity view of the same conditions.
  */
-export function getProductInlineHints(role: Role | undefined, productId: string): Insight[] {
+export const getProductInlineHints = wrap('core.getProductInlineHints', function getProductInlineHints(role: Role | undefined, productId: string): Insight[] {
   const product = db.products.find((p) => p.id === productId);
   if (!product || !product.active || product.type !== 'product') return [];
   const thresholds = getThresholds();
@@ -220,8 +222,8 @@ export function getProductInlineHints(role: Role | undefined, productId: string)
   }
 
   return hints.filter((h) => !role || h.roles.includes(role));
-}
+});
 
-export function forceRefresh() {
+export const forceRefresh = wrap('core.forceRefresh', function forceRefresh() {
   invalidate();
-}
+});

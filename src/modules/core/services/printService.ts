@@ -28,6 +28,8 @@ import type { ThermalPrinterSettings, ThermalWidth } from '@/modules/settings/ty
 import type { DocumentPayload } from './pdfService';
 import * as pdfService from './pdfService';
 
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 /** Mirrors `src-tauri/src/print/payload.rs`'s `ThermalPrinterConfig`. */
 interface ThermalPrinterConfigWire {
   printer_name: string | null;
@@ -174,7 +176,7 @@ export interface PrintReceiptOutcome {
  * and, on failure, an "إعادة الطباعة" action that calls this again with the
  * same `saleId`, plus a PDF fallback offer.
  */
-export async function printReceipt(saleId: string, isCashSale: boolean): Promise<PrintReceiptOutcome> {
+export const printReceipt = wrap('core.printReceipt', async function printReceipt(saleId: string, isCashSale: boolean): Promise<PrintReceiptOutcome> {
   if (!isTauri()) return { ok: false };
 
   const settings = useSettingsStore();
@@ -193,10 +195,10 @@ export async function printReceipt(saleId: string, isCashSale: boolean): Promise
 
   pendingSaleForJob.set(jobId, saleId);
   return { ok: true, jobId };
-}
+});
 
 /** Synchronous-style test print for the settings page's "اختبار الطباعة" button — awaits the actual print result rather than going through the async event. */
-export async function testPrint(thermal: ThermalPrinterSettings, width: ThermalWidth): Promise<{ ok: boolean; error?: string }> {
+export const testPrint = wrap('core.testPrint', async function testPrint(thermal: ThermalPrinterSettings, width: ThermalWidth): Promise<{ ok: boolean; error?: string }> {
   if (!isTauri()) return { ok: false, error: 'غير متاح خارج تطبيق سطح المكتب' };
   const sample = await getInvoicePrintData('sample');
   const payload = await buildReceiptPayloadFromData(sample);
@@ -208,7 +210,7 @@ export async function testPrint(thermal: ThermalPrinterSettings, width: ThermalW
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
-}
+});
 
 async function buildReceiptPayloadFromData(data: Awaited<ReturnType<typeof getInvoicePrintData>>): Promise<DocumentPayload> {
   const inv = data.invoice;
@@ -237,7 +239,7 @@ let listenerInitialized = false;
  * (PDF fallback via `pdfService`) actions — per §5's asynchronous
  * printing + reprint-on-failure + PDF-fallback requirement.
  */
-export async function initPrintResultListener(): Promise<void> {
+export const initPrintResultListener = wrap('core.initPrintResultListener', async function initPrintResultListener(): Promise<void> {
   if (listenerInitialized || !isTauri()) return;
   listenerInitialized = true;
   const { listen } = await import('@tauri-apps/api/event');
@@ -261,4 +263,4 @@ export async function initPrintResultListener(): Promise<void> {
       : [];
     toast.errorWithActions('تعذرت طباعة الإيصال', error ?? undefined, actions);
   });
-}
+});

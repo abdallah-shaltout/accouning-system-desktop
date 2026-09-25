@@ -13,6 +13,8 @@ import { emit } from '@/mocks/events';
 import type { StoreSettings } from '@/modules/settings/types';
 import { roleCanOverrideCreditLimit } from '@/modules/users/helpers/permissions';
 import { invoiceOutstanding } from '../helpers/totals';
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 import type {
   CloseShiftInput,
   HeldSale,
@@ -49,10 +51,10 @@ function toRow(inv: Invoice): InvoiceRow {
 }
 
 /** True when an invoice has an outstanding balance past its due date — drives the "overdue" list-v2 filter. */
-export function isOverdue(inv: Pick<Invoice, 'status' | 'dueDate' | 'grandTotal' | 'refundedAmount' | 'paidAmount'>): boolean {
+export const isOverdue = wrap('invoices.isOverdue', function isOverdue(inv: Pick<Invoice, 'status' | 'dueDate' | 'grandTotal' | 'refundedAmount' | 'paidAmount'>): boolean {
   if (inv.status === 'REFUNDED' || !inv.dueDate) return false;
   return invoiceOutstanding(inv) > 0 && inv.dueDate < new Date().toISOString();
-}
+});
 
 /** Shared predicate for `getInvoices`/`getInvoicesPaged` (docs/v2/06 §6 "Invoice list v2" filters). */
 function matchesFilter(i: Invoice, filter: InvoiceFilter & { openOnly?: boolean }): boolean {
@@ -71,17 +73,17 @@ function matchesFilter(i: Invoice, filter: InvoiceFilter & { openOnly?: boolean 
   );
 }
 
-export async function getInvoices(filter: InvoiceFilter & { openOnly?: boolean } = {}): Promise<InvoiceRow[]> {
+export const getInvoices = wrap('invoices.getInvoices', async function getInvoices(filter: InvoiceFilter & { openOnly?: boolean } = {}): Promise<InvoiceRow[]> {
   await delay();
   return db.invoices
     .filter((i) => matchesFilter(i, filter))
     .map(toRow)
     .filter((r) => includesText([r.number, r.customerName], filter.search))
     .sort((a, b) => b.date.localeCompare(a.date));
-}
+});
 
 /** Server-mode variant of `getInvoices` for `DataTable`: paged, sorted and totalled server-side. */
-export async function getInvoicesPaged(query: PagedQuery<InvoiceFilter & { openOnly?: boolean }>): Promise<PagedResult<InvoiceRow>> {
+export const getInvoicesPaged = wrap('invoices.getInvoicesPaged', async function getInvoicesPaged(query: PagedQuery<InvoiceFilter & { openOnly?: boolean }>): Promise<PagedResult<InvoiceRow>> {
   await delay();
   const filter = query.filters ?? {};
   let rows = db.invoices
@@ -109,9 +111,9 @@ export async function getInvoicesPaged(query: PagedQuery<InvoiceFilter & { openO
 
   const start = (query.page - 1) * query.pageSize;
   return { rows: rows.slice(start, start + query.pageSize), total, totals };
-}
+});
 
-export async function getInvoice(id: string): Promise<InvoiceDetail> {
+export const getInvoice = wrap('invoices.getInvoice', async function getInvoice(id: string): Promise<InvoiceDetail> {
   await delay();
   const inv = db.invoices.find((i) => i.id === id);
   if (!inv) throw new ApiError('الفاتورة غير موجودة', 'NOT_FOUND');
@@ -128,13 +130,13 @@ export async function getInvoice(id: string): Promise<InvoiceDetail> {
       .map((e) => ({ id: e.id, number: e.number, description: e.description })),
     returnedQty: Object.fromEntries(returnedQtyByLine(id)),
   };
-}
+});
 
 /** The double-entry the sale *would* post — nothing is saved. */
-export async function previewSale(input: SaleInput): Promise<JournalPreviewLine[]> {
+export const previewSale = wrap('invoices.previewSale', async function previewSale(input: SaleInput): Promise<JournalPreviewLine[]> {
   await delay(120);
   return previewSaleJournal(input, session.userId);
-}
+});
 
 /**
  * Credit-limit check (docs/v2/02-accounting-review.md D3, Phase 4's item) runs here, in front of
@@ -144,7 +146,7 @@ export async function previewSale(input: SaleInput): Promise<JournalPreviewLine[
  * `paymentTermsDays` and written onto the invoice object already pushed into `db.invoices` by
  * `recordSale`.
  */
-export async function createSale(input: SaleInput): Promise<Invoice> {
+export const createSale = wrap('invoices.createSale', async function createSale(input: SaleInput): Promise<Invoice> {
   await delay(350);
   if (input.customerId) {
     const customer = db.customers.find((c) => c.id === input.customerId);
@@ -169,22 +171,22 @@ export async function createSale(input: SaleInput): Promise<Invoice> {
     if (dueDate) mutate(() => (invoice.dueDate = dueDate));
   }
   return clone(invoice);
-}
+});
 
-export async function createRefund(input: RefundInput): Promise<Refund> {
+export const createRefund = wrap('invoices.createRefund', async function createRefund(input: RefundInput): Promise<Refund> {
   await delay();
   return clone(recordRefund(input, session.userId));
-}
+});
 
 /** v2 phase 11b (docs/v2/12-documents-pdf-excel.md §3 "credit note"): looks up a single refund by
  * id for `pdfService`'s credit-note payload — refunds don't have their own detail route/page
  * (shown inline on the invoice they belong to), so this is the first standalone getter. */
-export async function getRefund(id: string): Promise<Refund> {
+export const getRefund = wrap('invoices.getRefund', async function getRefund(id: string): Promise<Refund> {
   await delay();
   const refund = db.refunds.find((r) => r.id === id);
   if (!refund) throw new ApiError('إشعار الدائن غير موجود', 'NOT_FOUND');
   return clone(refund);
-}
+});
 
 export interface PrintData {
   invoice: Invoice;
@@ -196,7 +198,7 @@ export interface PrintData {
 }
 
 /** Everything a printed invoice needs. `id = 'sample'` returns a demo invoice (not saved) for test prints. */
-export async function getInvoicePrintData(id: string): Promise<PrintData> {
+export const getInvoicePrintData = wrap('invoices.getInvoicePrintData', async function getInvoicePrintData(id: string): Promise<PrintData> {
   await delay(150);
   if (id === 'sample') {
     const now = new Date().toISOString();
@@ -237,7 +239,7 @@ export async function getInvoicePrintData(id: string): Promise<PrintData> {
     cashierName: db.users.find((u) => u.id === inv.cashierId)?.name ?? '—',
     settings: clone(db.settings),
   };
-}
+});
 
 // =================================================================================================
 // v2 phase 7 §5 — Shifts (docs/v2/06-sales-and-pos.md §5)
@@ -255,48 +257,48 @@ function toShiftRow(s: Shift): ShiftRow {
 }
 
 /** The currently-open shift for a terminal, or undefined. Used by the POS shift bar to decide whether to show "open shift" or the running totals. */
-export async function getCurrentShift(terminalId: string): Promise<ShiftRow | undefined> {
+export const getCurrentShift = wrap('invoices.getCurrentShift', async function getCurrentShift(terminalId: string): Promise<ShiftRow | undefined> {
   await delay(80);
   const shift = currentOpenShift(terminalId);
   return shift ? toShiftRow(shift) : undefined;
-}
+});
 
-export async function getShifts(filter: { status?: 'OPEN' | 'CLOSED' } = {}): Promise<ShiftRow[]> {
+export const getShifts = wrap('invoices.getShifts', async function getShifts(filter: { status?: 'OPEN' | 'CLOSED' } = {}): Promise<ShiftRow[]> {
   await delay();
   return db.shifts
     .filter((s) => !filter.status || s.status === filter.status)
     .map(toShiftRow)
     .sort((a, b) => b.openedAt.localeCompare(a.openedAt));
-}
+});
 
-export async function getShift(id: string): Promise<ShiftRow> {
+export const getShift = wrap('invoices.getShift', async function getShift(id: string): Promise<ShiftRow> {
   await delay();
   const shift = db.shifts.find((s) => s.id === id);
   if (!shift) throw new ApiError('الوردية غير موجودة', 'NOT_FOUND');
   return toShiftRow(shift);
-}
+});
 
-export async function openPosShift(input: OpenShiftInput): Promise<Shift> {
+export const openPosShift = wrap('invoices.openPosShift', async function openPosShift(input: OpenShiftInput): Promise<Shift> {
   await delay(200);
   return clone(openShift(input, session.userId));
-}
+});
 
 /** Mid-shift snapshot (§5 "X-report"): same shape as the close screen, just without closing anything. */
-export async function getXReport(shiftId: string): Promise<ShiftRow> {
+export const getXReport = wrap('invoices.getXReport', async function getXReport(shiftId: string): Promise<ShiftRow> {
   await delay(120);
   return getShift(shiftId);
-}
+});
 
-export async function closePosShift(shiftId: string, input: CloseShiftInput): Promise<Shift> {
+export const closePosShift = wrap('invoices.closePosShift', async function closePosShift(shiftId: string, input: CloseShiftInput): Promise<Shift> {
   await delay(250);
   return clone(closeShift(shiftId, input, session.userId));
-}
+});
 
 /** Manager screen (§5 "/pos/shifts"): force-close an open shift left behind by a cashier. */
-export async function forceClosePosShift(shiftId: string, countedCash?: number): Promise<Shift> {
+export const forceClosePosShift = wrap('invoices.forceClosePosShift', async function forceClosePosShift(shiftId: string, countedCash?: number): Promise<Shift> {
   await delay(250);
   return clone(forceCloseShift(shiftId, session.userId, countedCash));
-}
+});
 
 /**
  * Pay-in/pay-out from the shift bar (F10). docs/v2/06-sales-and-pos.md §1 says a pay-out for a
@@ -309,43 +311,43 @@ export async function forceClosePosShift(shiftId: string, countedCash?: number):
  * — only the *separate* expense-side journal entry (for reporting a pay-out as a categorized
  * expense) is the still-missing piece, not the drawer accounting itself.
  */
-export async function recordCashInOut(terminalId: string, kind: 'PAY_IN' | 'PAY_OUT' | 'BANK_DROP', amount: number, note?: string): Promise<void> {
+export const recordCashInOut = wrap('invoices.recordCashInOut', async function recordCashInOut(terminalId: string, kind: 'PAY_IN' | 'PAY_OUT' | 'BANK_DROP', amount: number, note?: string): Promise<void> {
   await delay(150);
   const shift = currentOpenShift(terminalId);
   if (!shift) throw new ApiError('لا توجد وردية مفتوحة', 'CONFLICT');
   if (!(amount > 0)) throw new ApiError('المبلغ يجب أن يكون أكبر من صفر');
   recordShiftMovement(terminalId, kind, amount, session.userId, { note });
   emit('ledger:changed');
-}
+});
 
 // =================================================================================================
 // v2 phase 7 §1 — Held sales (POS "F6")
 // =================================================================================================
 
-export async function getHeldSales(terminalId: string): Promise<HeldSale[]> {
+export const getHeldSales = wrap('invoices.getHeldSales', async function getHeldSales(terminalId: string): Promise<HeldSale[]> {
   await delay(80);
   return clone(db.heldSales.filter((h) => h.terminalId === terminalId)).sort((a, b) => b.heldAt.localeCompare(a.heldAt));
-}
+});
 
-export async function holdSale(input: Omit<HeldSale, 'id' | 'heldAt' | 'heldBy'>): Promise<HeldSale> {
+export const holdSale = wrap('invoices.holdSale', async function holdSale(input: Omit<HeldSale, 'id' | 'heldAt' | 'heldBy'>): Promise<HeldSale> {
   await delay(120);
   const held: HeldSale = { ...input, id: uid('hold'), heldAt: new Date().toISOString(), heldBy: session.userId };
   mutate(() => db.heldSales.push(held));
   return clone(held);
-}
+});
 
-export async function resumeHeldSale(id: string): Promise<HeldSale> {
+export const resumeHeldSale = wrap('invoices.resumeHeldSale', async function resumeHeldSale(id: string): Promise<HeldSale> {
   await delay(80);
   const held = db.heldSales.find((h) => h.id === id);
   if (!held) throw new ApiError('لا يوجد بيع معلّق بهذا المعرف', 'NOT_FOUND');
   mutate(() => (db.heldSales = db.heldSales.filter((h) => h.id !== id)));
   return clone(held);
-}
+});
 
-export async function discardHeldSale(id: string): Promise<void> {
+export const discardHeldSale = wrap('invoices.discardHeldSale', async function discardHeldSale(id: string): Promise<void> {
   await delay(80);
   mutate(() => (db.heldSales = db.heldSales.filter((h) => h.id !== id)));
-}
+});
 
 // =================================================================================================
 // v2 phase 7 §2 — Quotations (docs/v2/06-sales-and-pos.md §2 "Quotations")
@@ -357,24 +359,24 @@ function toQuotationRow(q: Quotation): QuotationRow {
   return { ...clone(q), customerName: db.customers.find((c) => c.id === q.customerId)?.name };
 }
 
-export async function getQuotations(filter: { status?: QuotationStatus; search?: string } = {}): Promise<QuotationRow[]> {
+export const getQuotations = wrap('invoices.getQuotations', async function getQuotations(filter: { status?: QuotationStatus; search?: string } = {}): Promise<QuotationRow[]> {
   await delay();
   return db.quotations
     .filter((q) => !filter.status || q.status === filter.status)
     .map(toQuotationRow)
     .filter((r) => includesText([r.number, r.customerName], filter.search))
     .sort((a, b) => b.date.localeCompare(a.date));
-}
+});
 
-export async function getQuotation(id: string): Promise<QuotationRow> {
+export const getQuotation = wrap('invoices.getQuotation', async function getQuotation(id: string): Promise<QuotationRow> {
   await delay();
   const q = db.quotations.find((x) => x.id === id);
   if (!q) throw new ApiError('عرض السعر غير موجود', 'NOT_FOUND');
   return toQuotationRow(q);
-}
+});
 
 /** Never posts to the ledger or touches stock — see the `Quotation` type's doc comment. */
-export async function saveQuotation(input: {
+export const saveQuotation = wrap('invoices.saveQuotation', async function saveQuotation(input: {
   customerId?: string;
   expiryDate?: string;
   lines: SaleInput['lines'];
@@ -434,18 +436,18 @@ export async function saveQuotation(input: {
   };
   mutate(() => db.quotations.push(quotation));
   return clone(quotation);
-}
+});
 
-export async function setQuotationStatus(id: string, status: QuotationStatus): Promise<Quotation> {
+export const setQuotationStatus = wrap('invoices.setQuotationStatus', async function setQuotationStatus(id: string, status: QuotationStatus): Promise<Quotation> {
   await delay(150);
   const q = db.quotations.find((x) => x.id === id);
   if (!q) throw new ApiError('عرض السعر غير موجود', 'NOT_FOUND');
   mutate(() => (q.status = status));
   return clone(q);
-}
+});
 
 /** "Convert → invoice" (§2): copies every line as-is into a real sale; the quotation is marked ACCEPTED and linked. */
-export async function convertQuotationToInvoice(id: string, payment: { paymentMethod: SaleInput['paymentMethod']; paidAmount: number; tenderedAmount?: number }): Promise<Invoice> {
+export const convertQuotationToInvoice = wrap('invoices.convertQuotationToInvoice', async function convertQuotationToInvoice(id: string, payment: { paymentMethod: SaleInput['paymentMethod']; paidAmount: number; tenderedAmount?: number }): Promise<Invoice> {
   await delay(300);
   const q = db.quotations.find((x) => x.id === id);
   if (!q) throw new ApiError('عرض السعر غير موجود', 'NOT_FOUND');
@@ -465,4 +467,4 @@ export async function convertQuotationToInvoice(id: string, payment: { paymentMe
     q.convertedInvoiceId = invoice.id;
   });
   return invoice;
-}
+});

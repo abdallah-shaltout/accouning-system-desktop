@@ -1,6 +1,8 @@
 import { db, delay, localDateKey, round2, sum } from '@/mocks';
 import { formatDate } from '@/modules/core/helpers/format';
 
+import { wrap } from '@/modules/diagnostics/services/defineService';
+
 /**
  * v2 phase 10 (docs/v2/11-journal-dashboard-insights.md Part C "/analytics"). Depth lives here —
  * a few solid tabs rather than forcing exhaustive coverage (see this phase's report for what was
@@ -37,7 +39,7 @@ export interface SalesAnalytics {
   returnsRatePct: number;
 }
 
-export async function getSalesAnalytics(days = 30): Promise<SalesAnalytics> {
+export const getSalesAnalytics = wrap('analytics.getSalesAnalytics', async function getSalesAnalytics(days = 30): Promise<SalesAnalytics> {
   await delay();
   const today = new Date();
   const trend: SalesTrendPoint[] = [];
@@ -100,7 +102,7 @@ export async function getSalesAnalytics(days = 30): Promise<SalesAnalytics> {
   const returnsRatePct = recent.length ? round2((recentRefunds.length / recent.length) * 100) : 0;
 
   return { trend, trendInsight, byWeekday, weekdayInsight, paymentMix, avgInvoice, avgItemsPerInvoice, returnsRatePct };
-}
+});
 
 function formatShort(v: number) {
   return v >= 1000 ? `${round2(v / 1000)}K` : `${round2(v)}`;
@@ -124,7 +126,7 @@ export interface ProductAnalytics {
   insight: string;
 }
 
-export async function getProductAnalytics(days = 30, limit = 8): Promise<ProductAnalytics> {
+export const getProductAnalytics = wrap('analytics.getProductAnalytics', async function getProductAnalytics(days = 30, limit = 8): Promise<ProductAnalytics> {
   await delay();
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
@@ -162,7 +164,7 @@ export async function getProductAnalytics(days = 30, limit = 8): Promise<Product
     : 'لا توجد مبيعات كافية بعد لهذه الفترة';
 
   return { top, bottom, insight };
-}
+});
 
 // --- العملاء (customers) --------------------------------------------------------------------------
 
@@ -175,7 +177,7 @@ export interface CustomerAnalytics {
   concentrationInsight: string;
 }
 
-export async function getCustomerAnalytics(days = 30, limit = 8): Promise<CustomerAnalytics> {
+export const getCustomerAnalytics = wrap('analytics.getCustomerAnalytics', async function getCustomerAnalytics(days = 30, limit = 8): Promise<CustomerAnalytics> {
   await delay();
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
@@ -210,4 +212,4 @@ export async function getCustomerAnalytics(days = 30, limit = 8): Promise<Custom
   const concentrationInsight = sorted.length >= 10 ? `أفضل 10 عملاء يمثلون ${top10SharePct}% من إجمالي الإيرادات` : 'عدد العملاء غير كافٍ لحساب التركّز بدقة';
 
   return { newCount, returningCount, segmentInsight, topCustomers: sorted.slice(0, limit), top10SharePct, concentrationInsight };
-}
+});

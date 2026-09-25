@@ -28,6 +28,9 @@ serde_json = "1"
 tauri-plugin-sql = { version = "2.4.1", features = ["sqlite"] }
 tauri-plugin-fs = "2.5.2"
 tauri-plugin-dialog = "2.7.3"
+# Diagnostics (18.B3): captures Rust-side panics/logs into the same app-log directory that
+# diag_* (src/diag/mod.rs) writes the TypeScript-side channels into.
+tauri-plugin-log = "2"
 
 # Typst PDF engine (Phase 0 spike + Phase 11a production module,
 # docs/v2/12-documents-pdf-excel.md §1-2)
