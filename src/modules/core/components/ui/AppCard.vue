@@ -6,7 +6,7 @@ withDefaults(defineProps<{ title?: string; subtitle?: string; padding?: 'none' |
 </script>
 
 <template>
-  <Card class="gap-0 rounded-xl border-border bg-surface py-0 shadow-none">
+  <Card as="section" class="gap-0 rounded-xl border-border bg-surface py-0 shadow-none">
     <header v-if="title || $slots.actions" class="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
       <div class="min-w-0">
         <h2 class="truncate text-body font-semibold">{{ title }}</h2>

@@ -2,13 +2,16 @@
 import type { HTMLAttributes } from "vue"
 import { cn } from '@/modules/core/helpers/utils'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   class?: HTMLAttributes["class"]
-}>()
+  /** Root element tag. AppCard.vue uses "section" to keep its original semantic markup. */
+  as?: string
+}>(), { as: "div" })
 </script>
 
 <template>
-  <div
+  <component
+    :is="as"
     data-slot="card"
     :class="
       cn(
@@ -18,5 +21,5 @@ const props = defineProps<{
     "
   >
     <slot />
-  </div>
+  </component>
 </template>
