@@ -1,6 +1,9 @@
 <script setup lang="ts" generic="V extends string | number">
+/** Rebuilt on shadcn's NativeSelect (docs/v2/16-equal-rebrand-and-ui-kit.md Phase C) — same props as
+ * before. Deliberately kept native (not Combobox): fast, keyboard-friendly for dense data entry, and
+ * keeps e2e's `locator("select")` selectors working. Our own `.control` styling, not shadcn's. */
 import { useId } from 'vue';
-import { ChevronDown } from '@lucide/vue';
+import { NativeSelect } from '@/modules/core/components/shadcn/native-select';
 
 defineProps<{
   label?: string;
@@ -21,22 +24,19 @@ const id = useId();
     <label v-if="label" :for="id" class="field-label">
       {{ label }}<span v-if="required" class="text-danger"> *</span>
     </label>
-    <div class="relative">
-      <select
-        :id="id"
-        v-model="model"
-        :disabled="disabled"
-        :aria-invalid="!!error || undefined"
-        class="control appearance-none"
-        :class="model === '' || model === undefined ? 'text-text-secondary' : ''"
-      >
-        <option v-if="placeholder !== undefined" value="">{{ placeholder }}</option>
-        <option v-for="o in options" :key="String(o.value)" :value="o.value" :disabled="o.disabled" class="text-text-primary">
-          {{ o.label }}
-        </option>
-      </select>
-      <ChevronDown class="pointer-events-none absolute end-2.5 top-1/2 size-4 -translate-y-1/2 text-text-secondary" />
-    </div>
+    <NativeSelect
+      :id="id"
+      v-model="model"
+      :disabled="disabled"
+      :aria-invalid="!!error || undefined"
+      class="control w-full rounded-md text-body shadow-none"
+      :class="model === '' || model === undefined ? 'text-text-secondary' : ''"
+    >
+      <option v-if="placeholder !== undefined" value="">{{ placeholder }}</option>
+      <option v-for="o in options" :key="String(o.value)" :value="o.value" :disabled="o.disabled" class="text-text-primary">
+        {{ o.label }}
+      </option>
+    </NativeSelect>
     <p v-if="error" class="mt-1 text-xs text-danger">{{ error }}</p>
     <p v-else-if="hint" class="mt-1 text-xs text-text-secondary">{{ hint }}</p>
   </div>

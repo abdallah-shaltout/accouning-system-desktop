@@ -1,5 +1,10 @@
 <script setup lang="ts">
+/** Rebuilt on shadcn's Input (docs/v2/16-equal-rebrand-and-ui-kit.md Phase C) — same props/slots as
+ * before. Keeps our own `.control` styling rather than switching to shadcn's utility classes, since
+ * `.control` already matches this design system's tokens exactly and a plain `<input>` gains no
+ * accessibility from the wrapper (unlike composite primitives such as Switch or Dialog). */
 import { computed, ref, useId } from 'vue';
+import { Input } from '@/modules/core/components/shadcn/input';
 
 const props = withDefaults(
   defineProps<{
@@ -24,7 +29,7 @@ const props = withDefaults(
 
 const model = defineModel<string | number | undefined | null>();
 const id = useId();
-const input = ref<HTMLInputElement>();
+const input = ref<InstanceType<typeof Input>>();
 
 const value = computed({
   get: () => model.value ?? '',
@@ -34,7 +39,10 @@ const value = computed({
   },
 });
 
-defineExpose({ focus: () => input.value?.focus(), select: () => input.value?.select() });
+defineExpose({
+  focus: () => (input.value?.$el as HTMLInputElement | undefined)?.focus(),
+  select: () => (input.value?.$el as HTMLInputElement | undefined)?.select(),
+});
 </script>
 
 <template>
@@ -46,7 +54,7 @@ defineExpose({ focus: () => input.value?.focus(), select: () => input.value?.sel
       <span v-if="$slots.prefix" class="pointer-events-none absolute start-2.5 flex items-center text-text-secondary">
         <slot name="prefix" />
       </span>
-      <input
+      <Input
         :id="id"
         ref="input"
         v-model="value"
@@ -60,7 +68,7 @@ defineExpose({ focus: () => input.value?.focus(), select: () => input.value?.sel
         :autofocus="autofocus"
         :aria-invalid="!!error || undefined"
         :dir="ltr || type === 'number' || type === 'date' ? 'ltr' : undefined"
-        class="control"
+        class="control h-[34px] rounded-md text-body shadow-none"
         :class="[$slots.prefix && 'ps-8', $slots.suffix && 'pe-10', (ltr || type === 'number') && 'text-right', inputClass]"
       />
       <span v-if="$slots.suffix" class="absolute end-2.5 flex items-center text-xs text-text-secondary">

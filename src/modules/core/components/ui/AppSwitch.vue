@@ -1,24 +1,25 @@
 <script setup lang="ts">
+/** Rebuilt on shadcn's Switch, i.e. reka-ui's SwitchRoot/SwitchThumb (docs/v2/16-equal-rebrand-and-
+ * ui-kit.md Phase C) — same props as before. Unlike a plain input/select, this is a real
+ * accessibility upgrade over the old hand-rolled `<button role="switch">`: reka-ui handles
+ * Space/Enter toggling and focus state itself instead of a manual `@click` handler. */
+import { Switch } from '@/modules/core/components/shadcn/switch';
+
 defineProps<{ label?: string; description?: string; disabled?: boolean }>();
 const model = defineModel<boolean>({ default: false });
 </script>
 
 <template>
   <label class="flex cursor-pointer items-start gap-3" :class="disabled && 'cursor-not-allowed opacity-60'">
-    <button
-      type="button"
-      role="switch"
-      :aria-checked="model"
+    <Switch
+      v-model="model"
       :disabled="disabled"
-      class="relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors"
-      :class="model ? 'border-primary bg-primary' : 'border-border bg-surface-hover'"
-      @click="model = !model"
+      class="mt-0.5 h-5 w-9 border data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=unchecked]:border-border data-[state=unchecked]:bg-surface-hover"
     >
-      <span
-        class="absolute size-3.5 rounded-full bg-white shadow-sm transition-all"
-        :class="model ? 'start-[18px]' : 'start-0.5'"
-      />
-    </button>
+      <template #thumb>
+        <span class="pointer-events-none block size-3.5 rounded-full bg-white shadow-sm" />
+      </template>
+    </Switch>
     <span v-if="label || description" class="min-w-0">
       <span class="block text-body text-text-primary">{{ label }}</span>
       <span v-if="description" class="block text-xs text-text-secondary">{{ description }}</span>

@@ -1,5 +1,8 @@
 <script setup lang="ts">
+/** Rebuilt on shadcn's Textarea (docs/v2/16-equal-rebrand-and-ui-kit.md Phase C) — same props as
+ * before, kept on our own `.control` styling (see AppInput's note). */
 import { useId } from 'vue';
+import { Textarea } from '@/modules/core/components/shadcn/textarea';
 
 withDefaults(defineProps<{ label?: string; placeholder?: string; rows?: number; error?: string; disabled?: boolean }>(), { rows: 3 });
 const model = defineModel<string | undefined>();
@@ -9,14 +12,14 @@ const id = useId();
 <template>
   <div>
     <label v-if="label" :for="id" class="field-label">{{ label }}</label>
-    <textarea
+    <Textarea
       :id="id"
       v-model="model"
       :rows="rows"
       :placeholder="placeholder"
       :disabled="disabled"
       :aria-invalid="!!error || undefined"
-      class="control"
+      class="control min-h-0 rounded-md text-body shadow-none"
     />
     <p v-if="error" class="mt-1 text-xs text-danger">{{ error }}</p>
   </div>
