@@ -95,7 +95,12 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(300)
         check(page.get_by_placeholder(re.compile("ابحث")).count() > 0 or page.locator("[role=dialog], [role=listbox]").count() > 0, "command palette opens")
         page.keyboard.type("INV")
-        page.wait_for_timeout(400)
+        # A fixed short wait here used to be enough, but docs/v2/17 Phase D's notifications drawer
+        # (now a shadcn Sheet closed by the Escape above) restores focus to its trigger button only
+        # once its close animation finishes, racing the palette's own focus() — CommandPalette.vue
+        # now retries focus for ~500ms to reliably win that race, which can push the debounced search
+        # response slightly later too. Wait for the real result instead of a fixed delay.
+        page.wait_for_selector("text=الفواتير", timeout=3000)
         check(page.get_by_text("الفواتير").count() > 0, "the invoices group appears in results")
         shot(page, shots_dir, "3_command_palette_invoices")
         page.keyboard.press("Escape")

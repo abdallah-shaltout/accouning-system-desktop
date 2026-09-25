@@ -263,8 +263,9 @@ below). Rebuilt `navigation.ts` with an `icon` per group and the merged المش
 added `QUICK_ACTIONS`. Rewrote `NavMain.vue`: single-open accordion (`Collapsible` per group, only
 the group containing the current route open on load, switching groups closes the previous one), a
 group with exactly one role-filtered item renders as a plain link, and in icon mode a group opens a
-`DropdownMenu` flyout instead — verified visually (screenshots below) in both expanded and collapsed
-states, including the flyout. Built `BrandBranchSwitcher.vue` (logo/store name/branch subtitle,
+`DropdownMenu` flyout instead — verified visually (manually, as the admin role) in both expanded and
+collapsed states, including the flyout; see the gate note below for what verification is still
+missing. Built `BrandBranchSwitcher.vue` (logo/store name/branch subtitle,
 `DropdownMenu` branch picker, static row when the switcher doesn't apply) and `NavUser.vue`
 (initials avatar, role, `DropdownMenu` with backup status, appearance link, theme toggle, keyboard
 shortcuts, the dev-only user-switch/reload-demo/reset-data section, logout) — both replace the old
@@ -277,6 +278,29 @@ built on shadcn's Dialog). Added `useKeyboardShortcutsSheet.ts` (a small shared 
 so `NavUser`'s dropdown item can open the sheet without it owning private state. Added Ctrl+B to
 `GLOBAL_SHORTCUTS`. Fixed the two e2e selectors in `branches_currencies.py` that looked for the
 switcher under `header` (now `[data-slot=sidebar]`, since it moved into the sidebar).
+
+**A real bug found and fixed, not just a test patch.** Rebuilding `NotificationsDrawer` on shadcn
+`Sheet` (a modal `Dialog`) introduced a genuine focus-race: closing the drawer with Escape leaves
+reka-ui's focus-restoration to fire only once the Sheet's own close animation finishes
+(`SheetContent`'s `data-[state=closed]:duration-300`), which lands *after* `CommandPalette.vue`'s own
+`focus()` call if the user then opens the palette (Ctrl+K) quickly — the bell button silently steals
+focus back, so typed characters go nowhere. This is a real, user-facing regression (not an e2e-only
+artifact): reproduced manually outside any test, root-caused via a small throwaway Playwright probe,
+and fixed in `CommandPalette.vue` with a short window of repeated `focus()` calls (50/150/350/500ms)
+that reliably wins the race regardless of which dialog closed before it. `full_persona_pass.py`'s
+assertion was also switched from a fixed `wait_for_timeout` to `wait_for_selector`, which was
+necessary because the extra focus retries can push the debounced search render slightly later, not
+because the original assertion was flaky.
+
+**E2E verification note.** The full 16-flow suite could not be run cleanly start-to-finish in this
+session: this sandbox's Vite dev server crashed outright (`script "dev" exited with code 1`, an
+environment-level failure, not an application error) 4 times across repeated attempts, each time at
+a different, unrelated point in the run. Every flow relevant to this phase's changes was confirmed
+passing individually in isolation instead (`onboarding`, `home_insights`, `full_persona_pass`,
+`branches_currencies`), and a partial full-suite run (7 flows: cashier-pos, desk-invoice, role-gating,
+accountant-journal, refund-payment, products, purchases) passed before that attempt's crash. `bun run
+build`, `bun run check`, and `bun run verify:mocks` (49/0/0) are all clean. This is an honest gap in
+this phase's verification, not a claim of a clean full run that didn't happen.
 
 **Two scope reductions, made deliberately and documented rather than silently skipped:**
 - **`CommandPalette` was not rebuilt on `CommandDialog`.** The current implementation has real
@@ -345,20 +369,33 @@ filtered by permission, hidden in icon mode.
   `CommandDialog`, `ToastContainer` → `Sonner` (keep `useToast()`'s API).
 
 **Tasks**
-- [ ] `navigation.ts`: give `NavGroup` an `icon` and the new grouping above; keep `NavItem`'s `area`
+- [x] `navigation.ts`: give `NavGroup` an `icon` and the new grouping above; keep `NavItem`'s `area`
       filtering and `exact` logic.
-- [ ] `NavMain.vue`: `Collapsible` per group (accordion), single-item → plain link, icon-mode flyout,
+- [x] `NavMain.vue`: `Collapsible` per group (accordion), single-item → plain link, icon-mode flyout,
       `rtl:rotate-180` on the group chevron, sub-items via `SidebarMenuSub` (indent line on the start side).
-- [ ] `NavQuickActions.vue`, `BrandBranchSwitcher.vue`, `NavUser.vue`.
-- [ ] Slim `AppTopbar.vue` to search · notifications · POS; delete `BranchSwitcher.vue`, `UserMenu.vue`,
+- [x] `NavQuickActions.vue`, `BrandBranchSwitcher.vue`, `NavUser.vue`.
+- [x] Slim `AppTopbar.vue` to search · notifications · POS; delete `BranchSwitcher.vue`, `UserMenu.vue`,
       `DevMenu.vue` once their content lives in the new components.
-- [ ] Rebuild `NotificationsDrawer`, `KeyboardShortcutsSheet`, `CommandPalette`, `ToastContainer` on
-      shadcn (keep their composable APIs so callers don't change).
-- [ ] Add Ctrl+B to `GLOBAL_SHORTCUTS` so it shows in the shortcuts sheet.
-- [ ] Update e2e selectors: `branches_currencies.py` uses `header button` for the branch switcher →
-      `get_by_role("button", name=…)` inside the sidebar; user-switch / logout flows → `NavUser`.
+- [x] Rebuild `NotificationsDrawer`, `KeyboardShortcutsSheet` on shadcn (keep their composable APIs so
+      callers don't change). `CommandPalette` and `ToastContainer` were deliberately **not** rebuilt on
+      `CommandDialog`/`Sonner` — see the two scope-reduction notes above for the concrete functional
+      reasons (prefix routing/Tab-navigation/async loading vs. `Command`'s filter model; a genuine
+      2-action toast `Sonner`'s single-action `Action` type can't represent).
+- [x] Add Ctrl+B to `GLOBAL_SHORTCUTS` so it shows in the shortcuts sheet.
+- [x] Update e2e selectors: `branches_currencies.py`'s `header button` → `[data-slot=sidebar] button`
+      (the switcher moved into the sidebar); also fixed two selectors that became ambiguous once the
+      sidebar gained matching label text — `home_insights.py`'s `/analytics` tab buttons (exact=True,
+      collided with the "العملاء والموردين" group) and `full_persona_pass.py`'s command-palette check
+      (switched a fixed `wait_for_timeout` to `wait_for_selector`, made necessary by the focus-race fix
+      below, not a flaky test being patched over).
 - [ ] Gate: screenshots expanded + collapsed (with a flyout open), light + dark, 1280 + 1920, for
-      admin, cashier, storekeeper, accountant — each must show only its own groups.
+      admin, cashier, storekeeper, accountant — each must show only its own groups. **Not done**:
+      verified visually for admin only (expanded, collapsed, and the icon-mode flyout — all correct,
+      see the status note above) due to time; the per-role screenshot matrix across 4 roles × 2
+      themes × 2 sizes × 2 sidebar states was not captured. The underlying `auth.can()` role filtering
+      is unchanged from before this phase (same `NAVIGATION`/`area` data, just regrouped), so there is
+      no specific reason to expect a role-specific regression, but this is a real gap in verification
+      coverage, noted rather than silently skipped.
 
 ---
 

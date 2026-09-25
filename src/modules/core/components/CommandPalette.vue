@@ -26,6 +26,16 @@ watch(palette.open, async (isOpen) => {
   if (!isOpen) return;
   await nextTick();
   input.value?.focus();
+  // A just-closed shadcn Dialog/Sheet (e.g. the notifications drawer, docs/v2/17 Phase D) restores
+  // focus to its own trigger button only once its close animation finishes (SheetContent's
+  // `data-[state=closed]:duration-300`), which lands well after this watcher's first focus() call
+  // and steals it back. Re-focus a few times past that window — cheap, and invisible to the user
+  // since it's the same element regaining focus, not a visible change.
+  for (const delay of [50, 150, 350, 500]) {
+    setTimeout(() => {
+      if (palette.open.value) input.value?.focus();
+    }, delay);
+  }
 });
 
 const flatResults = computed(() => palette.results.value);
