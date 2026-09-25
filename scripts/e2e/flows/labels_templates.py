@@ -24,7 +24,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, make_check, shot  # noqa: E402
+from common import add_common_args, collect_console_errors, login_as, make_check, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -37,7 +37,7 @@ def run(base: str, shots_dir: Path) -> int:
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         collect_console_errors(page, errors)
 
-        print("admin: voucher print button goes through pdfService (browser fallback, no crash)")
+        safe_print("admin: voucher print button goes through pdfService (browser fallback, no crash)")
         login_as(page, base, "admin")
         page.goto(f"{base}/vouchers")
         page.wait_for_timeout(800)
@@ -58,7 +58,7 @@ def run(base: str, shots_dir: Path) -> int:
         page.go_back()
         page.wait_for_timeout(500)
 
-        print("manager: purchase order print button goes through pdfService (browser fallback, no crash)")
+        safe_print("manager: purchase order print button goes through pdfService (browser fallback, no crash)")
         login_as(page, base, "manager")
         page.goto(f"{base}/purchases")
         page.wait_for_timeout(800)
@@ -74,9 +74,9 @@ def run(base: str, shots_dir: Path) -> int:
             page.wait_for_url(lambda url: "/print/purchases/" in url, timeout=8000)
             check("/print/purchases/" in page.url, "purchase order print falls back to the v1 print route outside Tauri")
         else:
-            print("  (skip: this purchase order isn't in ORDERED status, no طباعة أمر الشراء button)")
+            safe_print("  (skip: this purchase order isn't in ORDERED status, no طباعة أمر الشراء button)")
 
-        print("storekeeper: label builder loads, product search + pick, template picker, print doesn't error")
+        safe_print("storekeeper: label builder loads, product search + pick, template picker, print doesn't error")
         login_as(page, base, "storekeeper")
         page.goto(f"{base}/catalog/labels")
         page.wait_for_timeout(900)
@@ -110,7 +110,7 @@ def run(base: str, shots_dir: Path) -> int:
 
         browser.close()
 
-    print("console/page errors:", errors or "none")
+    safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
 
 

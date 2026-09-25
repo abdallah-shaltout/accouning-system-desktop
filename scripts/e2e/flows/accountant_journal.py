@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, make_check, pick_combobox, shot  # noqa: E402
+from common import add_common_args, collect_console_errors, login_as, make_check, pick_combobox, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -25,7 +25,7 @@ def run(base: str, shots_dir: Path) -> int:
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         collect_console_errors(page, errors)
 
-        print("accountant manual journal (grid entry)")
+        safe_print("accountant manual journal (grid entry)")
         login_as(page, base, "accountant")
         page.goto(f"{base}/accounting/journal/new")
         page.wait_for_timeout(800)
@@ -47,7 +47,7 @@ def run(base: str, shots_dir: Path) -> int:
         page.get_by_text("قيد يدوي").first.wait_for(timeout=5000)
         check("قيد يدوي" in page.inner_text("body"), "detail shows a manual entry")
 
-        print("reversal dialog (date + reason)")
+        safe_print("reversal dialog (date + reason)")
         page.get_by_role("button", name=re.compile("عكس القيد")).first.click()
         page.wait_for_timeout(300)
         dialog = page.get_by_role("dialog")
@@ -61,13 +61,13 @@ def run(base: str, shots_dir: Path) -> int:
         check(re.search(r"/accounting/journal/je-\d+", page.url) is not None, "reversal entry created and opened")
         check("هذا القيد يعكس" in page.inner_text("body"), "reversal entry links back to the original")
 
-        print("journal list: day grouping + drafts view")
+        safe_print("journal list: day grouping + drafts view")
         page.goto(f"{base}/accounting/journal")
         page.wait_for_timeout(600)
         check(page.get_by_text("مسودات بحاجة لترحيل").is_visible(), "drafts-to-post saved view is offered")
         shot(page, shots_dir, "4_journal_list")
 
-        print("fiscal-year close wizard (pre-checks screen)")
+        safe_print("fiscal-year close wizard (pre-checks screen)")
         page.goto(f"{base}/accounting/fiscal-years")
         page.wait_for_timeout(600)
         lock_button = page.get_by_role("button", name=re.compile("إقفال السنة")).first
@@ -80,7 +80,7 @@ def run(base: str, shots_dir: Path) -> int:
 
         browser.close()
 
-    print("console/page errors:", errors or "none")
+    safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
 
 

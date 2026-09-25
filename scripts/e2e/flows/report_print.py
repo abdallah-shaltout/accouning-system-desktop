@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, make_check, shot  # noqa: E402
+from common import add_common_args, collect_console_errors, login_as, make_check, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import Page, sync_playwright
 
@@ -67,7 +67,7 @@ def run(base: str, shots_dir: Path) -> int:
         collect_console_errors(page, errors)
         login_as(page, base, "admin")
 
-        print("report_print: trial balance preview is a real document")
+        safe_print("report_print: trial balance preview is a real document")
         open_report_preview(page, base, "/reports/trial-balance")
         html = frame_html(page)
         check("تقرير رسمي" in html and "ميزان المراجعة" in html, "preview renders the official document (badge + title)")
@@ -87,19 +87,22 @@ def run(base: str, shots_dir: Path) -> int:
         page.get_by_role("switch").first.click()
         page.wait_for_timeout(300)
         check("المدير المالي" not in frame_html(page), "turning off خانات التوقيع removes the signature row")
-        page.get_by_role("tab", name="عرضي").click()
+        # The orientation toggle is SegmentedControl (shadcn ToggleGroup underneath, since the
+        # docs/v2/16-equal-rebrand-and-ui-kit.md Phase C rebuild) — role="group" + aria-pressed per
+        # reka-ui's own toggle-group pattern, not role="tab" like the old hand-rolled version.
+        page.get_by_role("button", name="عرضي").click()
         page.wait_for_timeout(300)
         check("A4 landscape" in frame_html(page), "switching to عرضي re-renders as A4 landscape")
         close_preview(page)
         check(page.locator(DIALOG).count() == 0, "Escape closes the preview")
 
-        print("report_print: Ctrl+P opens the official preview instead of printing the screen")
+        safe_print("report_print: Ctrl+P opens the official preview instead of printing the screen")
         page.keyboard.press("Control+p")
         page.wait_for_selector(DIALOG, timeout=5000)
         check(page.locator(DIALOG).is_visible(), "Ctrl+P on a report opens the print preview")
         close_preview(page)
 
-        print("report_print: statement layouts")
+        safe_print("report_print: statement layouts")
         open_report_preview(page, base, "/reports/balance-sheet")
         model = report_model(page)
         blocks = model.get("blocks", [])
@@ -124,13 +127,13 @@ def run(base: str, shots_dir: Path) -> int:
         check('class="banner"' in html and "رصيد أول المدة" in html, "ledger prints the account banner and the opening-balance row")
         close_preview(page)
 
-        print("report_print: generic conversion (report without its own spec)")
+        safe_print("report_print: generic conversion (report without its own spec)")
         open_report_preview(page, base, "/reports/gross-profit")
         html = frame_html(page)
         check("تقرير رسمي" in html and 'class="total"' in html, "gross profit prints officially with an automatic totals row")
         close_preview(page)
 
-        print("report_print: sales report — pre-tax net sales")
+        safe_print("report_print: sales report — pre-tax net sales")
         open_report_preview(page, base, "/reports/sales")
         kpi_items = [i for b in report_model(page).get("blocks", []) if b.get("type") == "kpis" for i in b["items"]]
         vals = {i["label"]: float(i["value"].replace(",", "")) for i in kpi_items if i["value"].replace(",", "").replace(".", "").replace("-", "").isdigit()}
@@ -139,7 +142,7 @@ def run(base: str, shots_dir: Path) -> int:
         check(abs((net or 0) + (vat or 0) - (gross or 0)) < 0.05 and (net or 0) < (gross or 0), f"net before tax + VAT = total incl. tax ({net} + {vat} = {gross})")
         close_preview(page)
 
-        print("report_print: journal list → day book with the preview already open")
+        safe_print("report_print: journal list → day book with the preview already open")
         page.goto(f"{base}/accounting/journal")
         page.wait_for_timeout(1000)
         page.get_by_role("button", name="دفتر اليومية PDF").click()
@@ -148,7 +151,7 @@ def run(base: str, shots_dir: Path) -> int:
         check("قيد " in frame_html(page) and "بتاريخ" in frame_html(page), "day book prints each entry under its own header band")
         close_preview(page)
 
-        print("report_print: journal entry voucher")
+        safe_print("report_print: journal entry voucher")
         # The day-book screen links every entry to its detail page.
         page.goto(f"{base}/reports/day-book")
         page.wait_for_timeout(1500)
@@ -162,7 +165,7 @@ def run(base: str, shots_dir: Path) -> int:
         check("فقط" in html, "journal voucher states the amount in words")
         close_preview(page)
 
-        print("report_print: invoice register")
+        safe_print("report_print: invoice register")
         page.goto(f"{base}/invoices")
         page.wait_for_timeout(1200)
         page.locator("[data-testid=invoices-print]").click()
@@ -172,7 +175,7 @@ def run(base: str, shots_dir: Path) -> int:
         check("سجل فواتير المبيعات" in html and "A4 landscape" in html, "invoice list prints an official landscape register")
         close_preview(page)
 
-        print("report_print: Z report")
+        safe_print("report_print: Z report")
         page.goto(f"{base}/pos/shifts")
         page.wait_for_timeout(1200)
         z = page.get_by_role("link", name="تقرير Z")
@@ -186,11 +189,11 @@ def run(base: str, shots_dir: Path) -> int:
             check("تقرير إغلاق الوردية" in html and "تسوية النقدية" in html and "الكاشير" in html, "Z report prints the cash reconciliation with signatures")
             close_preview(page)
         else:
-            print("  (skip: no closed shift in this run)")
+            safe_print("  (skip: no closed shift in this run)")
 
         browser.close()
 
-    print("console/page errors:", errors or "none")
+    safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
 
 

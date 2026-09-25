@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, pick_combobox, make_check, shot  # noqa: E402
+from common import add_common_args, collect_console_errors, login_as, pick_combobox, make_check, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -24,7 +24,7 @@ def run(base: str, shots_dir: Path) -> int:
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         collect_console_errors(page, errors)
 
-        print("desk invoice form — accountant")
+        safe_print("desk invoice form — accountant")
         login_as(page, base, "accountant")
         page.goto(f"{base}/sales/invoices/new")
         page.wait_for_timeout(900)
@@ -67,14 +67,14 @@ def run(base: str, shots_dir: Path) -> int:
         check("/invoices/" in page.url, "posting the desk invoice navigates to its detail page")
         shot(page, shots_dir, "2_desk_invoice_posted")
 
-        print("invoice list v2 — filters + footer totals")
+        safe_print("invoice list v2 — filters + footer totals")
         page.goto(f"{base}/invoices")
         page.wait_for_timeout(900)
         check(page.locator("text=آجل متأخر").count() > 0, "saved view 'آجل متأخر' is offered")
         check(page.locator("text=اليوم — فرعي").count() > 0, "saved view 'اليوم — فرعي' is offered")
         shot(page, shots_dir, "3_invoice_list_v2")
 
-        print("quotations — save draft, list, convert")
+        safe_print("quotations — save draft, list, convert")
         page.goto(f"{base}/sales/quotations/new")
         page.wait_for_timeout(900)
         q_row = page.locator("table tbody tr").first
@@ -94,7 +94,7 @@ def run(base: str, shots_dir: Path) -> int:
 
         browser.close()
 
-    print("console/page errors:", errors or "none")
+    safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
 
 

@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, make_check, pick_combobox, shot  # noqa: E402
+from common import add_common_args, collect_console_errors, login_as, make_check, pick_combobox, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -25,14 +25,14 @@ def run(base: str, shots_dir: Path) -> int:
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         collect_console_errors(page, errors)
 
-        print("accountant: expense list — due recurring + month-total chart")
+        safe_print("accountant: expense list — due recurring + month-total chart")
         login_as(page, base, "accountant")
         page.goto(f"{base}/expenses")
         page.wait_for_timeout(900)
         check(page.get_by_text("مصروفات متكررة مستحقة").count() > 0, "due recurring expenses panel shows")
         check(page.get_by_text("إجمالي الشهر حسب التصنيف").count() > 0, "month-total-by-category chart shows")
 
-        print("accountant: new tax-invoice expense")
+        safe_print("accountant: new tax-invoice expense")
         page.goto(f"{base}/expenses/new")
         page.wait_for_timeout(700)
         pick_combobox(page, page.locator("button[aria-haspopup=listbox]").first, "صيانة")
@@ -55,7 +55,7 @@ def run(base: str, shots_dir: Path) -> int:
             page.wait_for_timeout(600)
             check("/accounting/journal/" in page.url, "expense links to its posted journal entry")
 
-        print("admin: general voucher (transfer)")
+        safe_print("admin: general voucher (transfer)")
         login_as(page, base, "admin")
         page.goto(f"{base}/vouchers/new")
         page.wait_for_timeout(700)
@@ -75,7 +75,7 @@ def run(base: str, shots_dir: Path) -> int:
 
         browser.close()
 
-    print("console/page errors:", errors or "none")
+    safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
 
 

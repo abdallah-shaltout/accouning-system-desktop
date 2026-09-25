@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, make_check  # noqa: E402
+from common import add_common_args, collect_console_errors, login_as, make_check, safe_print  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -26,7 +26,7 @@ def run(base: str, shots_dir: Path) -> int:
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         collect_console_errors(page, errors)
 
-        print("reports_v2: hub")
+        safe_print("reports_v2: hub")
         login_as(page, base, "manager")
         page.goto(f"{base}/reports")
         page.wait_for_timeout(800)
@@ -49,13 +49,13 @@ def run(base: str, shots_dir: Path) -> int:
             page.wait_for_timeout(200)
             check(page.get_by_text("المفضلة").is_visible(), "favoriting a report shows the المفضلة section")
 
-        print("reports_v2: trial balance (upgraded)")
+        safe_print("reports_v2: trial balance (upgraded)")
         page.goto(f"{base}/reports/trial-balance")
         page.wait_for_timeout(1000)
         check(page.get_by_text("الميزان متوازن").is_visible(), "trial balance still balances")
         check(page.locator("button:has-text('Excel')").is_visible(), "ReportShell exposes an Excel export button")
 
-        print("reports_v2: profit & loss (upgraded, comparison mode)")
+        safe_print("reports_v2: profit & loss (upgraded, comparison mode)")
         page.goto(f"{base}/reports/profit-loss")
         page.wait_for_selector("text=مجمل الربح", timeout=10000)
         page.wait_for_timeout(300)
@@ -64,22 +64,22 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(900)
         check(page.get_by_text("التغير في صافي الربح").first.is_visible(), "comparison mode shows the delta panel")
 
-        print("reports_v2: VAT summary (upgraded)")
+        safe_print("reports_v2: VAT summary (upgraded)")
         page.goto(f"{base}/reports/vat")
         page.wait_for_timeout(1000)
         check("مطابق لأرصدة حسابات الضريبة" in page.inner_text("body"), "VAT report reconciles with the ledger")
 
-        print("reports_v2: new report — aging")
+        safe_print("reports_v2: new report — aging")
         page.goto(f"{base}/reports/aging")
         page.wait_for_timeout(1000)
         check(page.locator("table").is_visible(), "aging report renders a table")
 
-        print("reports_v2: new report — gross profit")
+        safe_print("reports_v2: new report — gross profit")
         page.goto(f"{base}/reports/gross-profit")
         page.wait_for_timeout(1000)
         check(page.locator("table").is_visible(), "gross profit report renders a table")
 
-        print("reports_v2: Excel export downloads")
+        safe_print("reports_v2: Excel export downloads")
         page.goto(f"{base}/reports/trial-balance")
         page.wait_for_timeout(1000)
         with page.expect_download(timeout=15000) as dl_info:
@@ -87,7 +87,7 @@ def run(base: str, shots_dir: Path) -> int:
         download = dl_info.value
         check(download.suggested_filename.endswith(".xlsx"), f"Excel export downloads an .xlsx file ({download.suggested_filename})")
 
-        print("reports_v2: branch/cost-center/currency filters follow feature switches")
+        safe_print("reports_v2: branch/cost-center/currency filters follow feature switches")
         page.goto(f"{base}/reports/trial-balance")
         page.wait_for_timeout(800)
         # The demo seed has branches/currencies/cost centers ON (Phase 9's seed) — the filter bar
@@ -98,7 +98,7 @@ def run(base: str, shots_dir: Path) -> int:
 
         browser.close()
 
-    print("console/page errors:", errors or "none")
+    safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
 
 

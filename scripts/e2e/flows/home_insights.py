@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, make_check, shot  # noqa: E402
+from common import add_common_args, collect_console_errors, login_as, make_check, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -26,7 +26,7 @@ def run(base: str, shots_dir: Path) -> int:
         collect_console_errors(page, errors)
 
         # --- Manager home: KPIs, needs-attention panel, insights -------------------------------
-        print("manager home — KPIs + needs attention")
+        safe_print("manager home — KPIs + needs attention")
         login_as(page, base, "manager")
         page.wait_for_selector("text=يحتاج انتباهك", timeout=15000)
         check("/" in page.url or page.url.endswith("#/"), "manager lands on the home page")
@@ -53,7 +53,7 @@ def run(base: str, shots_dir: Path) -> int:
             page.wait_for_selector("text=يحتاج انتباهك", timeout=15000)
 
         # --- Dismiss / snooze -------------------------------------------------------------------
-        print("dismiss / snooze")
+        safe_print("dismiss / snooze")
         before_count = insight_cards.count()
         if before_count:
             first_card = insight_cards.first
@@ -70,7 +70,7 @@ def run(base: str, shots_dir: Path) -> int:
                     check(after_count == before_count - 1, f"dismiss hides that one insight ({before_count} -> {after_count})")
 
         # --- /analytics --------------------------------------------------------------------------
-        print("/analytics tabs")
+        safe_print("/analytics tabs")
         page.goto(f"{base}/analytics")
         page.wait_for_selector("text=التحليلات", timeout=15000)
         check(page.get_by_text("التحليلات").count() > 0, "analytics page loads")
@@ -84,7 +84,7 @@ def run(base: str, shots_dir: Path) -> int:
         check(page.get_by_text("عملاء جدد مقابل عائدين").count() > 0, "customers tab renders")
 
         # --- Inline hint on a low-stock product ---------------------------------------------------
-        print("inline hint on product page")
+        safe_print("inline hint on product page")
         page.goto(f"{base}/products?stock=low")
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(500)
@@ -96,7 +96,7 @@ def run(base: str, shots_dir: Path) -> int:
             check(page.locator("a:has-text('منخفض المخزون'), a:has-text('هامش'), a:has-text('راكد')").count() >= 0, "product page loads (inline hint checked best-effort)")
 
         # --- Storekeeper home ----------------------------------------------------------------------
-        print("storekeeper home")
+        safe_print("storekeeper home")
         login_as(page, base, "storekeeper")
         page.wait_for_selector("text=قيمة المخزون", timeout=15000)
         check(page.get_by_text("قيمة المخزون").count() > 0, "storekeeper home shows the stock-value KPI")
@@ -104,7 +104,7 @@ def run(base: str, shots_dir: Path) -> int:
         shot(page, shots_dir, "home_storekeeper")
 
         # --- Cashier home --------------------------------------------------------------------------
-        print("cashier home")
+        safe_print("cashier home")
         login_as(page, base, "cashier")
         page.wait_for_load_state("networkidle")
         check("/pos" in page.url, "cashier lands on the POS (home = POS itself, per docs/v2/11 Part B)")
@@ -113,14 +113,14 @@ def run(base: str, shots_dir: Path) -> int:
         check(page.get_by_text("ورديتي").count() > 0, "cashier home shows the shift panel")
 
         # --- Accountant home -------------------------------------------------------------------------
-        print("accountant home")
+        safe_print("accountant home")
         login_as(page, base, "accountant")
         page.wait_for_selector("text=مسودات بحاجة لترحيل", timeout=15000)
         check(page.get_by_text("مسودات بحاجة لترحيل").count() > 0, "accountant home shows the drafts-to-post KPI")
         check(page.get_by_text("يحتاج انتباهك").count() > 0, "accountant home has the needs-attention panel")
 
         # --- Thresholds settings ---------------------------------------------------------------------
-        print("thresholds settings")
+        safe_print("thresholds settings")
         login_as(page, base, "admin")
         page.goto(f"{base}/settings/recommendations")
         page.wait_for_selector("main >> text=التوصيات", timeout=15000)
@@ -128,7 +128,7 @@ def run(base: str, shots_dir: Path) -> int:
 
         browser.close()
 
-    print("console/page errors:", errors or "none")
+    safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
 
 

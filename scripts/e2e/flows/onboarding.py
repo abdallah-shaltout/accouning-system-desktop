@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, make_check, shot  # noqa: E402
+from common import add_common_args, collect_console_errors, make_check, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import Page, sync_playwright
 
@@ -78,7 +78,7 @@ def run(base: str, shots_dir: Path) -> int:
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         collect_console_errors(page, errors)
 
-        print("fresh company: welcome screen -> setup wizard")
+        safe_print("fresh company: welcome screen -> setup wizard")
         clear_snapshot(page, base)
         check("/welcome" in page.url, "a clean install lands on the welcome screen")
         page.get_by_role("button", name="ابدأ الآن").first.click()
@@ -99,41 +99,41 @@ def run(base: str, shots_dir: Path) -> int:
             page.wait_for_timeout(800)
 
         # --- Step 1: business type -----------------------------------------------------------
-        print("step 1 — business type")
+        safe_print("step 1 — business type")
         check(page.get_by_text("نوع النشاط").count() > 0, "step 1 heading renders")
         page.get_by_text("تجزئة عامة").first.click()
         next_step("businessType")
 
         # --- Step 2: company details ----------------------------------------------------------
-        print("step 2 — company details")
+        safe_print("step 2 — company details")
         page.get_by_label("اسم المنشأة (عربي)").fill("شركتي التجريبية")
         next_step("company")
 
         # --- Step 3: country/currency/tax -------------------------------------------------------
-        print("step 3 — country, currency, tax")
+        safe_print("step 3 — country, currency, tax")
         next_step("countryTax")
 
         # --- Step 4: fiscal year + go-live -----------------------------------------------------
-        print("step 4 — fiscal year & go-live date")
+        safe_print("step 4 — fiscal year & go-live date")
         next_step("fiscalYear")
 
         # --- Step 5: branches --------------------------------------------------------------------
-        print("step 5 — branches")
+        safe_print("step 5 — branches")
         check(page.get_by_text("الفرع الرئيسي").count() > 0, "the main branch is pre-filled")
         next_step("branches")
 
         # --- Step 6: chart of accounts (live tree preview) --------------------------------------
-        print("step 6 — chart of accounts template picker")
+        safe_print("step 6 — chart of accounts template picker")
         check(page.get_by_text("معاينة الشجرة").count() > 0, "the CoA step shows a live tree preview")
         check(page.get_by_text("1110").count() > 0, "the standard template's cash account (1110) appears in the preview")
         next_step("coa")
 
         # --- Step 7: payment methods --------------------------------------------------------------
-        print("step 7 — payment methods")
+        safe_print("step 7 — payment methods")
         next_step("paymentMethods")
 
         # --- Step 8: opening balances --------------------------------------------------------------
-        print("step 8 — opening balances")
+        safe_print("step 8 — opening balances")
         check("الأرصدة الافتتاحية" in page.locator("h2").first.inner_text(), "step 8 is the opening-balances step")
 
         # Cash tab: enter a cash-drawer balance.
@@ -142,7 +142,7 @@ def run(base: str, shots_dir: Path) -> int:
         amount_inputs.first.fill("10000")
 
         # Customers tab: import a real .xlsx via the generic ImportWizard.
-        print("importing customers from a real .xlsx")
+        safe_print("importing customers from a real .xlsx")
         page.get_by_role("tab", name="العملاء").click()
         page.wait_for_timeout(300)
         page.get_by_role("button", name="استيراد من إكسل").click()
@@ -162,7 +162,7 @@ def run(base: str, shots_dir: Path) -> int:
         check(not errors, f"customer import has no console errors ({errors})")
 
         # Stock tab: inline-create a product, then set its opening quantity.
-        print("stock tab — inline-create a missing product")
+        safe_print("stock tab — inline-create a missing product")
         page.get_by_role("tab", name="المخزون").click()
         page.wait_for_timeout(300)
         page.get_by_role("button", name="إضافة صنف").click()
@@ -180,7 +180,7 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(200)
 
         # Review tab: post the opening entry + closing entry.
-        print("review tab — post the opening entry")
+        safe_print("review tab — post the opening entry")
         page.get_by_role("tab", name="المراجعة").click()
         page.wait_for_timeout(400)
         shot(page, shots_dir, "opening_review_light")
@@ -198,7 +198,7 @@ def run(base: str, shots_dir: Path) -> int:
         skip_step()  # printing
 
         # --- Step 11: ready ------------------------------------------------------------------------
-        print("step 11 — ready")
+        safe_print("step 11 — ready")
         check("جاهز" in page.locator("h2").first.inner_text(), "the wizard reaches the final 'ready' step")
         check("0.00" in page.locator("body").inner_text(), "the ready step shows the opening-balance-equity account at zero (invariant 9)")
         page.get_by_role("button", name="ابدأ العمل").click()
@@ -206,7 +206,7 @@ def run(base: str, shots_dir: Path) -> int:
         check("/login" in page.url, "finishing the wizard goes to the login screen")
 
         # --- Login as the admin the wizard created ------------------------------------------------
-        print("login as the wizard-created admin")
+        safe_print("login as the wizard-created admin")
         page.wait_for_selector("input[type=password]")
         page.fill("input[type=text]", "admin")
         page.fill("input[type=password]", "admin123")
@@ -216,7 +216,7 @@ def run(base: str, shots_dir: Path) -> int:
         check("/login" not in page.url, "logs in with the wizard-created admin credentials")
 
         # --- First sale via POS ----------------------------------------------------------------
-        print("first sale via POS")
+        safe_print("first sale via POS")
         page.goto(f"{base}/pos")
         page.wait_for_timeout(1000)
         open_btn = page.get_by_role("button", name="فتح وردية")
@@ -253,7 +253,7 @@ def run(base: str, shots_dir: Path) -> int:
 
         browser.close()
 
-    print("console/page errors:", errors or "none")
+    safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
 
 

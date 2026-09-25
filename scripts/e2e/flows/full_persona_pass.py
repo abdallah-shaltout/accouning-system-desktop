@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, make_check, shot  # noqa: E402
+from common import add_common_args, collect_console_errors, login_as, make_check, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -35,7 +35,7 @@ def run(base: str, shots_dir: Path) -> int:
         # 1. Cashier's day (docs/v2/01-personas.md §1): sells, tries a discount over their limit
         #    with no manager around, so it queues an async approval request instead of blocking.
         # =========================================================================================
-        print("[cashier] opens the drawer, scans, requests a discount without a manager present")
+        safe_print("[cashier] opens the drawer, scans, requests a discount without a manager present")
         login_as(page, base, "cashier")
         check("/pos" in page.url, "cashier lands on the POS")
         page.wait_for_timeout(500)
@@ -76,7 +76,7 @@ def run(base: str, shots_dir: Path) -> int:
         #    queued approval, browses the command palette (a new provider group), opens the
         #    keyboard-shortcuts sheet, then visits the approvals page directly.
         # =========================================================================================
-        print("[manager] notifications drawer, command palette, shortcuts sheet, decides the approval")
+        safe_print("[manager] notifications drawer, command palette, shortcuts sheet, decides the approval")
         login_as(page, base, "manager")
         page.wait_for_timeout(500)
 
@@ -90,7 +90,7 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(200)
 
         # Command palette: a provider this phase adds (invoices), by group.
-        print("[manager] command palette — invoices provider")
+        safe_print("[manager] command palette — invoices provider")
         page.keyboard.press("Control+k")
         page.wait_for_timeout(300)
         check(page.get_by_placeholder(re.compile("ابحث")).count() > 0 or page.locator("[role=dialog], [role=listbox]").count() > 0, "command palette opens")
@@ -102,7 +102,7 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(200)
 
         # Keyboard shortcuts sheet (F1) — not on POS, which has its own.
-        print("[manager] keyboard shortcuts sheet")
+        safe_print("[manager] keyboard shortcuts sheet")
         page.goto(f"{base}/accounting/journal")
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(400)
@@ -114,7 +114,7 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(200)
 
         # Approvals page: decide the cashier's queued request.
-        print("[manager] approvals page — decide the queued discount request")
+        safe_print("[manager] approvals page — decide the queued discount request")
         page.goto(f"{base}/approvals")
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(500)
@@ -126,7 +126,9 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(300)
         page.get_by_role("dialog").get_by_role("button", name="اعتماد").click()
         page.wait_for_timeout(500)
-        page.get_by_role("tab", name="معتمدة").click()
+        # SegmentedControl (shadcn ToggleGroup underneath since the Phase C rebuild) — role="group"
+        # + aria-pressed, not role="tab" like the old hand-rolled version.
+        page.get_by_role("button", name="معتمدة").click()
         page.wait_for_timeout(400)
         check(page.get_by_text("لا توجد طلبات").count() == 0, "the decided request now shows under 'معتمدة' (approved tab, not empty)")
 
@@ -134,7 +136,7 @@ def run(base: str, shots_dir: Path) -> int:
         # 3. Storekeeper's day (docs/v2/01-personas.md §2): checks the stock-panel home, opens the
         #    inventory reports (whose insight box now surfaces real rule-catalogue hits).
         # =========================================================================================
-        print("[storekeeper] stock-panel home, inventory report insights")
+        safe_print("[storekeeper] stock-panel home, inventory report insights")
         login_as(page, base, "storekeeper")
         page.wait_for_timeout(500)
         check(page.get_by_text("قيمة المخزون").count() > 0, "storekeeper home shows the stock-value KPI")
@@ -150,7 +152,7 @@ def run(base: str, shots_dir: Path) -> int:
         #    opens the official document preview (letterhead, signatures); the native PDF path
         #    (`report.typ`) is covered by `cargo run --bin report_smoke`.
         # =========================================================================================
-        print("[accountant] trial balance — official print preview")
+        safe_print("[accountant] trial balance — official print preview")
         login_as(page, base, "accountant")
         page.wait_for_timeout(400)
         page.goto(f"{base}/reports/trial-balance")
@@ -167,7 +169,7 @@ def run(base: str, shots_dir: Path) -> int:
 
         browser.close()
 
-    print("console/page errors:", errors or "none")
+    safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
 
 

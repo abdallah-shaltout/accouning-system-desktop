@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, make_check, pick_combobox, shot  # noqa: E402
+from common import add_common_args, collect_console_errors, login_as, make_check, pick_combobox, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -26,7 +26,7 @@ def run(base: str, shots_dir: Path) -> int:
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         collect_console_errors(page, errors)
 
-        print("manager: purchase order v2 with landed costs -> send to supplier")
+        safe_print("manager: purchase order v2 with landed costs -> send to supplier")
         login_as(page, base, "manager")
         page.goto(f"{base}/purchases/new")
         page.wait_for_timeout(700)
@@ -56,7 +56,7 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(700)
         check("مرسل للمورد" in page.inner_text("body"), "PO status shows ORDERED after send")
 
-        print("storekeeper: receiving screen — prices hidden, short delivery -> backorder")
+        safe_print("storekeeper: receiving screen — prices hidden, short delivery -> backorder")
         login_as(page, base, "storekeeper")
         page.goto(f"{po_url}/receive")
         page.wait_for_timeout(800)
@@ -69,15 +69,18 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(200)
         check(page.get_by_text("إنشاء أمر متبقٍ").count() > 0, "short delivery offers a backorder toggle")
         page.get_by_role("button", name="تأكيد الاستلام").click()
-        page.wait_for_timeout(400)
-        confirm_btn = page.get_by_role("button", name="تأكيد الاستلام", exact=True)
-        if confirm_btn.count() > 1:
-            confirm_btn.last.click()
+        # The click above opens a confirm dialog (useConfirm()/ConfirmDialog.vue) whose own button
+        # has the same accessible name — wait for it to actually mount before clicking, rather than
+        # a fixed sleep, which occasionally missed the dialog's render window and silently skipped
+        # the click (falling through to wait_for_url with nothing ever confirmed).
+        confirm_btn = page.get_by_role("dialog").get_by_role("button", name="تأكيد الاستلام", exact=True)
+        confirm_btn.wait_for(state="visible", timeout=5000)
+        confirm_btn.click()
         page.wait_for_url(lambda url: "/receive" not in url, timeout=15000)
         page.wait_for_timeout(600)
         check("مستلم" in page.inner_text("body"), "PO shows RECEIVED after receiving")
 
-        print("manager: debit note (return) — required reason, refund method")
+        safe_print("manager: debit note (return) — required reason, refund method")
         login_as(page, base, "manager")
         page.goto(f"{base}/purchases")
         page.wait_for_timeout(700)
@@ -112,7 +115,7 @@ def run(base: str, shots_dir: Path) -> int:
             page.wait_for_timeout(400)
             check("المرتجعات للمورد" in page.inner_text("body"), "debit note posted and listed on the PO")
 
-        print("accountant: card settlement screen")
+        safe_print("accountant: card settlement screen")
         login_as(page, base, "accountant")
         page.goto(f"{base}/payments/settlements")
         page.wait_for_timeout(900)
@@ -130,7 +133,7 @@ def run(base: str, shots_dir: Path) -> int:
 
         browser.close()
 
-    print("console/page errors:", errors or "none")
+    safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
 
 

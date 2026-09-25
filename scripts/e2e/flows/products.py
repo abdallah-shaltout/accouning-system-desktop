@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, make_check, shot  # noqa: E402
+from common import add_common_args, collect_console_errors, login_as, make_check, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -25,7 +25,7 @@ def run(base: str, shots_dir: Path) -> int:
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         collect_console_errors(page, errors)
 
-        print("product form — units & barcodes tab")
+        safe_print("product form — units & barcodes tab")
         login_as(page, base, "admin")
         page.goto(f"{base}/products")
         page.wait_for_timeout(600)
@@ -41,7 +41,7 @@ def run(base: str, shots_dir: Path) -> int:
         check(page.get_by_text("الوحدة الأساسية").count() > 0, "units tab shows the base-unit row")
         check(page.locator("table").locator("text=علبة").count() > 0 or page.get_by_text("box").count() >= 0, "box unit row is present")
 
-        print("product detail — batches tab")
+        safe_print("product detail — batches tab")
         page.goto(f"{base}/products")
         page.wait_for_timeout(500)
         page.fill("input[placeholder*='الاسم']", "بانادول")
@@ -54,12 +54,12 @@ def run(base: str, shots_dir: Path) -> int:
             page.wait_for_timeout(300)
             check(page.locator("table").count() > 0, "batches table renders")
 
-        print("expiry report")
+        safe_print("expiry report")
         page.goto(f"{base}/inventory/expiry")
         page.wait_for_timeout(700)
         check("/inventory/expiry" in page.url, "expiry report page loads")
 
-        print("stocktake v2 — scope -> count -> review -> apply")
+        safe_print("stocktake v2 — scope -> count -> review -> apply")
         page.goto(f"{base}/inventory/counts/new")
         page.wait_for_timeout(500)
         page.get_by_role("button", name="بدء الجرد").click()
@@ -93,7 +93,7 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(400)
         check("/inventory/adjustments/" in page.url, "applying the count routes to its posted adjustment")
 
-        print("storekeeper role — home + gating + price-hidden receiving")
+        safe_print("storekeeper role — home + gating + price-hidden receiving")
         login_as(page, base, "storekeeper")
         page.wait_for_timeout(500)
         check("/pos" not in page.url, "storekeeper does not land on the POS")
@@ -110,7 +110,7 @@ def run(base: str, shots_dir: Path) -> int:
 
         browser.close()
 
-    print("console/page errors:", errors or "none")
+    safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
 
 
