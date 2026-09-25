@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, LoaderCircle }
 import { rowsPerPage as settingsRowsPerPage, zebraRows } from '../../controllers/useAppearance';
 import { exportXlsx, type ExportColumn } from '../../helpers/exportXlsx';
 import { formatNumber } from '../../helpers/format';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableFooter } from '@/modules/core/components/shadcn/table';
 import EmptyState from './EmptyState.vue';
 import ErrorState from './ErrorState.vue';
 
@@ -252,82 +253,80 @@ async function exportRows() {
         تصدير
       </button>
     </div>
-    <div class="overflow-x-auto">
-      <table class="w-full border-collapse text-body">
-        <thead :class="sticky && 'sticky top-0 z-10'">
-          <tr class="bg-surface">
-            <th
-              v-for="col in columns"
-              :key="col.key"
-              scope="col"
-              class="whitespace-nowrap border-b border-border px-3 py-2.5 text-xs font-medium text-text-secondary"
-              :class="[alignClass(col), col.sortable && 'cursor-pointer select-none hover:text-text-primary', col.noPrint && 'no-print']"
-              :style="col.width ? { width: col.width } : undefined"
-              @click="toggleSort(col)"
-            >
-              <span class="inline-flex items-center gap-1">
-                {{ col.label }}
-                <template v-if="sortKey === col.key">
-                  <ArrowUp v-if="sortDir === 'asc'" class="size-3" />
-                  <ArrowDown v-else class="size-3" />
-                </template>
-              </span>
-            </th>
-          </tr>
-        </thead>
-        <tbody v-if="effectiveLoading && !visible.length">
-          <tr v-for="i in skeletonRows" :key="i" class="border-b border-border last:border-0">
-            <td v-for="col in columns" :key="col.key" class="px-3 py-3">
-              <div class="h-3.5 animate-shimmer rounded bg-surface-hover" :style="{ width: `${50 + ((i * 7 + col.key.length * 13) % 45)}%` }" />
-            </td>
-          </tr>
-        </tbody>
-        <tbody v-else-if="effectiveError">
-          <tr>
-            <td :colspan="columns.length"><ErrorState :message="effectiveError" compact @retry="retry" /></td>
-          </tr>
-        </tbody>
-        <tbody v-else-if="!visible.length">
-          <tr>
-            <td :colspan="columns.length">
-              <slot name="empty">
-                <EmptyState :title="emptyTitle" :description="emptyDescription" :icon="emptyIcon" compact />
-              </slot>
-            </td>
-          </tr>
-        </tbody>
-        <tbody v-else :class="effectiveLoading && 'opacity-60 transition-opacity'">
-          <tr
-            v-for="(row, i) in visible"
-            :key="row[rowKey]"
-            class="border-b border-border transition-colors last:border-0"
-            :style="{ height: 'var(--density-row-h)' }"
-            :class="[
-              clickable && 'cursor-pointer hover:bg-surface-hover',
-              highlightKey && row[rowKey] === highlightKey && 'bg-primary/8',
-              zebraRows && i % 2 === 1 && !(highlightKey && row[rowKey] === highlightKey) && 'bg-surface/60',
-            ]"
-            @click="onRowClick(row)"
+    <Table class="w-full border-collapse text-body" container-class="overflow-x-auto">
+      <TableHeader :class="sticky && 'sticky top-0 z-10'">
+        <TableRow class="bg-surface hover:bg-surface">
+          <TableHead
+            v-for="col in columns"
+            :key="col.key"
+            scope="col"
+            class="h-auto whitespace-nowrap border-b border-border px-3 py-2.5 text-xs font-medium text-text-secondary"
+            :class="[alignClass(col), col.sortable && 'cursor-pointer select-none hover:text-text-primary', col.noPrint && 'no-print']"
+            :style="col.width ? { width: col.width } : undefined"
+            @click="toggleSort(col)"
           >
-            <td
-              v-for="col in columns"
-              :key="col.key"
-              class="px-3 align-middle"
-              :style="{ paddingBlock: 'var(--density-padding)' }"
-              :class="[alignClass(col), col.class, col.noPrint && 'no-print']"
-            >
-              <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]">
-                <span v-if="col.numeric" class="num">{{ formatNumber(row[col.key]) }}</span>
-                <template v-else>{{ row[col.key] ?? '—' }}</template>
-              </slot>
-            </td>
-          </tr>
-        </tbody>
-        <tfoot v-if="$slots.footer && visible.length" class="border-t border-border bg-surface font-medium">
-          <slot name="footer" />
-        </tfoot>
-      </table>
-    </div>
+            <span class="inline-flex items-center gap-1">
+              {{ col.label }}
+              <template v-if="sortKey === col.key">
+                <ArrowUp v-if="sortDir === 'asc'" class="size-3" />
+                <ArrowDown v-else class="size-3" />
+              </template>
+            </span>
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody v-if="effectiveLoading && !visible.length">
+        <TableRow v-for="i in skeletonRows" :key="i" class="border-b border-border last:border-0">
+          <TableCell v-for="col in columns" :key="col.key" class="px-3 py-3">
+            <div class="h-3.5 animate-shimmer rounded bg-surface-hover" :style="{ width: `${50 + ((i * 7 + col.key.length * 13) % 45)}%` }" />
+          </TableCell>
+        </TableRow>
+      </TableBody>
+      <TableBody v-else-if="effectiveError">
+        <TableRow>
+          <TableCell :colspan="columns.length" class="whitespace-normal"><ErrorState :message="effectiveError" compact @retry="retry" /></TableCell>
+        </TableRow>
+      </TableBody>
+      <TableBody v-else-if="!visible.length">
+        <TableRow>
+          <TableCell :colspan="columns.length" class="whitespace-normal">
+            <slot name="empty">
+              <EmptyState :title="emptyTitle" :description="emptyDescription" :icon="emptyIcon" compact />
+            </slot>
+          </TableCell>
+        </TableRow>
+      </TableBody>
+      <TableBody v-else :class="effectiveLoading && 'opacity-60 transition-opacity'">
+        <TableRow
+          v-for="(row, i) in visible"
+          :key="row[rowKey]"
+          class="border-b border-border transition-colors last:border-0"
+          :style="{ height: 'var(--density-row-h)' }"
+          :class="[
+            clickable && 'cursor-pointer hover:bg-surface-hover',
+            highlightKey && row[rowKey] === highlightKey && 'bg-primary/8',
+            zebraRows && i % 2 === 1 && !(highlightKey && row[rowKey] === highlightKey) && 'bg-surface/60',
+          ]"
+          @click="onRowClick(row)"
+        >
+          <TableCell
+            v-for="col in columns"
+            :key="col.key"
+            class="px-3 align-middle"
+            :style="{ paddingBlock: 'var(--density-padding)' }"
+            :class="[alignClass(col), col.class, col.noPrint && 'no-print']"
+          >
+            <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]">
+              <span v-if="col.numeric" class="num">{{ formatNumber(row[col.key]) }}</span>
+              <template v-else>{{ row[col.key] ?? '—' }}</template>
+            </slot>
+          </TableCell>
+        </TableRow>
+      </TableBody>
+      <TableFooter v-if="$slots.footer && visible.length" class="border-t border-border bg-surface font-medium">
+        <slot name="footer" />
+      </TableFooter>
+    </Table>
     <div
       v-if="effectivePageSize && pageCount > 1"
       class="no-print flex items-center justify-between border-t border-border bg-surface px-3 py-2 text-xs text-text-secondary"
