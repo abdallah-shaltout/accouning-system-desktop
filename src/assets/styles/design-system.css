@@ -154,13 +154,13 @@
   --color-on-primary: #ffffff;
 }
 :root[data-accent="teal"] {
-  --color-primary: #0d9488;
-  --color-primary-hover: #0f766e;
+  --color-primary: #0f766e;
+  --color-primary-hover: #115e59;
   --color-on-primary: #ffffff;
 }
 :root.dark[data-accent="teal"] {
-  --color-primary: #2dd4bf;
-  --color-primary-hover: #5eead4;
+  --color-primary: #0f766e;
+  --color-primary-hover: #134e4a;
   --color-on-primary: #ffffff;
 }
 :root[data-accent="rose"] {
@@ -169,13 +169,13 @@
   --color-on-primary: #ffffff;
 }
 :root.dark[data-accent="rose"] {
-  --color-primary: #fb7185;
-  --color-primary-hover: #fda4af;
+  --color-primary: #be123c;
+  --color-primary-hover: #9f1239;
   --color-on-primary: #ffffff;
 }
 :root[data-accent="amber"] {
-  --color-primary: #b45309;
-  --color-primary-hover: #92400e;
+  --color-primary: #d97706;
+  --color-primary-hover: #b45309;
   --color-on-primary: #1c1400;
 }
 :root.dark[data-accent="amber"] {
@@ -198,6 +198,116 @@
   --color-primary: #0f7d63;
   --color-primary-hover: #0d6b54;
   --color-on-primary: #ffffff;
+}
+
+/*
+ * Base palettes (docs/v2/17-ui-system-rtl-themes.md Phase E) — an alternative to the fixed
+ * "neutral" grey scale above, switched via `data-base` on <html> by useAppearance.ts. "neutral"
+ * needs no override block: it's simply the values already set at :root/:root.dark. Each other
+ * base only overrides the 6 grey/text tokens — accent, danger, success, warning are untouched, so
+ * base and accent combine freely. Modeled on shadcn's own base-color picker (zinc/stone/slate/gray).
+ */
+:root[data-base="zinc"] {
+  --color-background: #ffffff;
+  --color-surface: #f4f4f5;
+  --color-surface-hover: #e4e4e7;
+  --color-border: #d4d4d8;
+  --color-text-primary: #18181b;
+  --color-text-secondary: #71717a;
+}
+:root.dark[data-base="zinc"] {
+  --color-background: #09090b;
+  --color-surface: #18181b;
+  --color-surface-hover: #27272a;
+  --color-border: #3f3f46;
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a1a1aa;
+}
+:root[data-base="stone"] {
+  --color-background: #ffffff;
+  --color-surface: #f5f5f4;
+  --color-surface-hover: #e7e5e4;
+  --color-border: #d6d3d1;
+  --color-text-primary: #1c1917;
+  --color-text-secondary: #78716c;
+}
+:root.dark[data-base="stone"] {
+  --color-background: #0c0a09;
+  --color-surface: #1c1917;
+  --color-surface-hover: #292524;
+  --color-border: #44403c;
+  --color-text-primary: #fafaf9;
+  --color-text-secondary: #a8a29e;
+}
+:root[data-base="slate"] {
+  --color-background: #ffffff;
+  --color-surface: #f1f5f9;
+  --color-surface-hover: #e2e8f0;
+  --color-border: #cbd5e1;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #64748b;
+}
+:root.dark[data-base="slate"] {
+  --color-background: #0b1120;
+  --color-surface: #1e293b;
+  --color-surface-hover: #293548;
+  --color-border: #334155;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #94a3b8;
+}
+:root[data-base="gray"] {
+  --color-background: #ffffff;
+  --color-surface: #f3f4f6;
+  --color-surface-hover: #e5e7eb;
+  --color-border: #d1d5db;
+  --color-text-primary: #111827;
+  --color-text-secondary: #6b7280;
+}
+:root.dark[data-base="gray"] {
+  --color-background: #0a0b0f;
+  --color-surface: #1f2937;
+  --color-surface-hover: #2a3646;
+  --color-border: #374151;
+  --color-text-primary: #f9fafb;
+  --color-text-secondary: #9ca3af;
+}
+
+/*
+ * 3 extra accents (docs/v2/17-ui-system-rtl-themes.md Phase E), same shape as the 5 above.
+ * `scripts/check-contrast.ts` (in `bun run check`) verifies every accent × mode combination clears
+ * 4.5:1 white/dark-on-accent by reading these exact values — it caught the first pass of teal/
+ * amber (pre-existing) and these 3 new ones using shades too light for their fixed text color, so
+ * the numbers here are the checker-verified ones, not estimates.
+ */
+:root[data-accent="blue"] {
+  --color-primary: #1d4ed8;
+  --color-primary-hover: #1e40af;
+  --color-on-primary: #ffffff;
+}
+:root.dark[data-accent="blue"] {
+  --color-primary: #1d4ed8;
+  --color-primary-hover: #1e3a8a;
+  --color-on-primary: #ffffff;
+}
+:root[data-accent="violet"] {
+  --color-primary: #6d28d9;
+  --color-primary-hover: #5b21b6;
+  --color-on-primary: #ffffff;
+}
+:root.dark[data-accent="violet"] {
+  --color-primary: #6d28d9;
+  --color-primary-hover: #4c1d95;
+  --color-on-primary: #ffffff;
+}
+:root[data-accent="orange"] {
+  --color-primary: #ea580c;
+  --color-primary-hover: #c2410c;
+  --color-on-primary: #1c1400;
+}
+:root.dark[data-accent="orange"] {
+  --color-primary: #fb923c;
+  --color-primary-hover: #fdba74;
+  --color-on-primary: #1c1400;
 }
 
 /*

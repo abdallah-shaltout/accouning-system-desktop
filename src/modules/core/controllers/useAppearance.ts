@@ -2,10 +2,10 @@ import { ref, watch } from 'vue';
 
 /**
  * Appearance settings v2 (docs/v2/14-platform.md §3) — font family, text size, density, accent,
- * date format, week start, table prefs, motion, sidebar default. All **per-device/per-user**,
- * stored in localStorage exactly like `useTheme.ts` and `format.ts`'s numeral setting — there is no
- * per-user record in the mock backend for UI prefs, so this matches the existing pattern rather
- * than inventing a new storage layer.
+ * base palette + radius (docs/v2/17 Phase E), date format, week start, table prefs, motion, sidebar
+ * default. All **per-device/per-user**, stored in localStorage exactly like `useTheme.ts` and
+ * `format.ts`'s numeral setting — there is no per-user record in the mock backend for UI prefs, so
+ * this matches the existing pattern rather than inventing a new storage layer.
  */
 
 // --- Font family ---------------------------------------------------------------------------
@@ -90,27 +90,76 @@ function applyDensity(density: Density) {
 
 // --- Accent ------------------------------------------------------------------------------------
 
-export type AccentPreset = 'equal' | 'indigo' | 'teal' | 'rose' | 'amber';
-
 /**
- * 5 presets, each with light/dark values. Indigo matches the pre-Equal default primary so switching
- * to it is a no-op visually. All were sanity-checked against white text (`--color-on-primary`)
- * for roughly WCAG AA (>= 4.5:1) at the "hover"/base shade used for text-on-accent surfaces
- * (buttons, badges): indigo ~4.8:1, teal ~4.6:1, rose ~4.7:1, amber (dark text) ~8.1:1, equal ~5.9:1
- * light / ~5.1:1 dark (docs/v2/16-equal-rebrand-and-ui-kit.md Phase B — the logo green #10886C
- * itself only clears ~4.4:1, so both shades here are picked a touch darker to clear 4.5:1 for real).
+ * 8 presets, each with light/dark values. Indigo matches the pre-Equal default primary so switching
+ * to it is a no-op visually. Every preset's `--color-primary`/`--color-on-primary` pair (the actual
+ * text-on-accent combination used by buttons/badges) is verified >= 4.5:1 by
+ * `scripts/check-contrast.ts` (wired into `bun run check`), which reads the same hex values straight
+ * out of design-system.css — so this doc comment states what the checker enforces, not a one-time
+ * estimate that could drift. (The Equal green itself, logo mark #10886C, only clears ~4.4:1, which is
+ * why both its shades are picked a touch darker — docs/v2/16-equal-rebrand-and-ui-kit.md Phase B.)
  */
+export type AccentPreset = 'equal' | 'indigo' | 'teal' | 'rose' | 'amber' | 'blue' | 'violet' | 'orange';
+
 export const ACCENTS: Record<AccentPreset, { label: string; light: string; lightHover: string; dark: string; darkHover: string; onAccent: string }> = {
   equal: { label: 'إيكوال (الأساسي)', light: '#0e7259', lightHover: '#0b6350', dark: '#0f7d63', darkHover: '#0d6b54', onAccent: '#ffffff' },
   indigo: { label: 'نيلي', light: '#4f46e5', lightHover: '#4338ca', dark: '#5e6ad2', darkHover: '#6b79e4', onAccent: '#ffffff' },
-  teal: { label: 'فيروزي', light: '#0d9488', lightHover: '#0f766e', dark: '#2dd4bf', darkHover: '#5eead4', onAccent: '#ffffff' },
-  rose: { label: 'وردي', light: '#e11d48', lightHover: '#be123c', dark: '#fb7185', darkHover: '#fda4af', onAccent: '#ffffff' },
-  amber: { label: 'كهرماني', light: '#b45309', lightHover: '#92400e', dark: '#f0a33a', darkHover: '#f6b856', onAccent: '#1c1400' },
+  teal: { label: 'فيروزي', light: '#0f766e', lightHover: '#115e59', dark: '#0f766e', darkHover: '#134e4a', onAccent: '#ffffff' },
+  rose: { label: 'وردي', light: '#e11d48', lightHover: '#be123c', dark: '#be123c', darkHover: '#9f1239', onAccent: '#ffffff' },
+  amber: { label: 'كهرماني', light: '#d97706', lightHover: '#b45309', dark: '#f0a33a', darkHover: '#f6b856', onAccent: '#1c1400' },
+  blue: { label: 'أزرق', light: '#1d4ed8', lightHover: '#1e40af', dark: '#1d4ed8', darkHover: '#1e3a8a', onAccent: '#ffffff' },
+  violet: { label: 'بنفسجي', light: '#6d28d9', lightHover: '#5b21b6', dark: '#6d28d9', darkHover: '#4c1d95', onAccent: '#ffffff' },
+  orange: { label: 'برتقالي', light: '#ea580c', lightHover: '#c2410c', dark: '#fb923c', darkHover: '#fdba74', onAccent: '#1c1400' },
 };
 
 function applyAccent(accent: AccentPreset) {
   document.documentElement.setAttribute('data-accent', accent);
 }
+
+// --- Base palette (docs/v2/17 Phase E) -----------------------------------------------------
+
+export type BasePalette = 'neutral' | 'zinc' | 'stone' | 'slate' | 'gray';
+
+export const BASES: Record<BasePalette, { label: string; swatch: string; swatchDark: string }> = {
+  neutral: { label: 'محايد', swatch: '#f4f4f5', swatchDark: '#17181c' },
+  zinc: { label: 'زنك', swatch: '#f4f4f5', swatchDark: '#18181b' },
+  stone: { label: 'حجري', swatch: '#f5f5f4', swatchDark: '#1c1917' },
+  slate: { label: 'أردوازي', swatch: '#f1f5f9', swatchDark: '#1e293b' },
+  gray: { label: 'رمادي', swatch: '#f3f4f6', swatchDark: '#1f2937' },
+};
+
+function applyBase(base: BasePalette) {
+  if (base === 'neutral') {
+    document.documentElement.removeAttribute('data-base');
+  } else {
+    document.documentElement.setAttribute('data-base', base);
+  }
+}
+
+// --- Radius (docs/v2/17 Phase E) -------------------------------------------------------------
+
+export type ThemeRadius = 0 | 0.25 | 0.375 | 0.5 | 0.75 | 1;
+export const RADII: ThemeRadius[] = [0, 0.25, 0.375, 0.5, 0.75, 1];
+
+function applyRadius(radius: ThemeRadius) {
+  document.documentElement.style.setProperty('--radius', `${radius}rem`);
+}
+
+// --- Named theme presets (docs/v2/17 Phase E) -------------------------------------------------
+
+export interface ThemePreset {
+  label: string;
+  base: BasePalette;
+  accent: AccentPreset;
+  radius: ThemeRadius;
+}
+
+export const THEME_PRESETS: Record<string, ThemePreset> = {
+  equal: { label: 'إيكوال', base: 'neutral', accent: 'equal', radius: 0.375 },
+  classic: { label: 'كلاسيكي', base: 'slate', accent: 'indigo', radius: 0.5 },
+  soft: { label: 'ناعم', base: 'stone', accent: 'teal', radius: 0.75 },
+  sharp: { label: 'حاد', base: 'zinc', accent: 'equal', radius: 0 },
+};
 
 // --- Date format ---------------------------------------------------------------------------------
 
@@ -152,6 +201,11 @@ const textSizeSetting = makeSetting<TextSize>('app_text_size', 100, (raw) => {
 });
 const densitySetting = makeSetting<Density>('app_density', 'comfortable', (raw) => (raw === 'compact' || raw === 'comfortable' ? raw : undefined));
 const accentSetting = makeSetting<AccentPreset>('app_accent', 'equal', (raw) => (raw in ACCENTS ? (raw as AccentPreset) : undefined));
+const baseSetting = makeSetting<BasePalette>('app_base', 'neutral', (raw) => (raw in BASES ? (raw as BasePalette) : undefined));
+const radiusSetting = makeSetting<ThemeRadius>('app_radius', 0.375, (raw) => {
+  const n = Number(raw);
+  return RADII.includes(n as ThemeRadius) ? (n as ThemeRadius) : undefined;
+});
 const dateFormatSetting = makeSetting<DateFormatStyle>('app_date_format', 'dmy', (raw) => (raw === 'dmy' || raw === 'ymd' ? raw : undefined));
 const hijriSetting = makeSetting<boolean>('app_show_hijri', false, (raw) => (raw === 'true' ? true : raw === 'false' ? false : undefined));
 const weekStartSetting = makeSetting<WeekStart>('app_week_start', 'sun', (raw) => (raw === 'sat' || raw === 'sun' || raw === 'mon' ? raw : undefined));
@@ -166,6 +220,8 @@ export const fontFamily = fontSetting.state;
 export const textSize = textSizeSetting.state;
 export const density = densitySetting.state;
 export const accent = accentSetting.state;
+export const base = baseSetting.state;
+export const radius = radiusSetting.state;
 export const dateFormatStyle = dateFormatSetting.state;
 export const showHijri = hijriSetting.state;
 export const weekStart = weekStartSetting.state;
@@ -185,6 +241,19 @@ export function setDensity(v: Density) {
 }
 export function setAccent(v: AccentPreset) {
   accentSetting.set(v);
+}
+export function setBase(v: BasePalette) {
+  baseSetting.set(v);
+}
+export function setRadius(v: ThemeRadius) {
+  radiusSetting.set(v);
+}
+/** Sets base + accent + radius together from a named preset (the customizer's preset cards). */
+export function applyThemePreset(name: keyof typeof THEME_PRESETS) {
+  const preset = THEME_PRESETS[name];
+  setBase(preset.base);
+  setAccent(preset.accent);
+  setRadius(preset.radius);
 }
 export function setDateFormatStyle(v: DateFormatStyle) {
   dateFormatSetting.set(v);
@@ -211,11 +280,15 @@ export function initAppearance() {
   applyTextSize(textSize.value);
   applyDensity(density.value);
   applyAccent(accent.value);
+  applyBase(base.value);
+  applyRadius(radius.value);
 
   watch(fontFamily, (v) => void applyFont(v));
   watch(textSize, applyTextSize);
   watch(density, applyDensity);
   watch(accent, applyAccent);
+  watch(base, applyBase);
+  watch(radius, applyRadius);
 
   // Motion always runs at full power — remove the stale localStorage key if an earlier
   // version of the app left it behind (docs/v2/17-ui-system-rtl-themes.md Phase B).

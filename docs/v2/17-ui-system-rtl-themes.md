@@ -405,6 +405,34 @@ filtered by permission, hidden in icon mode.
 
 ## Phase E — Themes like shadcn
 
+**Status: done** (2026-09-26). Added 5 base palettes (`data-base`, neutral/zinc/stone/slate/gray) and 3
+accents (blue, violet, orange — 8 total), each light+dark; a runtime-settable `--radius` (0/0.25/
+0.375/0.5/0.75/1rem) that every existing `rounded-md`/`rounded-lg`/`rounded-xl` usage already follows
+for free through the existing shadcn token bridge (`@theme inline` in `design-system.css`) — no
+component edits needed, confirmed by grepping for hard-coded `rounded-[…]` pixel radii (0 hits). 4
+named presets (إيكوال، كلاسيكي، ناعم، حاد) set base+accent+radius together via `applyThemePreset()`.
+Built the theme customizer into Settings → المظهر (`AppearanceSettingsPage.vue`): preset cards, base
+swatches, 8 accent swatches, a radius `SegmentedControl`, a live preview panel (buttons, input,
+switch, 2 status badges, a data-table-style row, and a dialog trigger — all reflecting the current
+radius/accent instantly), and "إعادة التعيين" back to إيكوال. Wrote `scripts/check-contrast.ts`
+(wired into `bun run check`) — it parses `--color-primary`/`--color-on-primary` straight out of
+design-system.css for every `data-accent` block and fails under 4.5:1; running it against the initial
+draft of the 3 new accents plus the two **pre-existing** ones (teal, amber) caught 7 real failures
+(the doc comments' hand-estimated ratios had drifted from what was actually shipped), all fixed with
+verified replacement shades — see the CSS comment above the accent blocks for the checker-confirmed
+numbers. Added the "printed documents are not themed" note to docs/v2/12 §3 (confirmed accurate: the
+Typst templates in `src-tauri/templates/*.typ` have no dependency on any `--color-*`/`data-accent`/
+`data-base` token, and the existing `@media print` block already fixes screen-preview colors
+regardless of the active theme). `docs/design_system.md` updated with the new accent count, base
+palette, and radius behavior.
+
+**One naming deviation from this section's original sketch, not functionally different:** rather than
+a single `ThemeConfig` object + `applyTheme()` call, `base`/`accent`/`radius` are three independent
+`makeSetting()` fields with their own `setBase`/`setAccent`/`setRadius` — the same shape every other
+field in `useAppearance.ts` (font, density, text size, …) already uses. `applyThemePreset()` covers
+the "set all three at once" case the sketch's `applyTheme()` was for. Existing users' `app_accent`
+key is untouched (same values, same storage key), so no migration was needed.
+
 **Today:** one fixed neutral palette + 5 accent presets (`data-accent`) + a fixed `--radius: 0.375rem`.
 shadcn's own theme page lets you pick a **base color**, an **accent**, a **radius**, and see it live.
 
@@ -435,16 +463,21 @@ interface ThemeConfig {
   can't regress.
 
 **Tasks**
-- [ ] Define the 5 base palettes (light + dark) in `design-system.css`; add 3 accents (blue, violet, orange).
-- [ ] `ThemeConfig` + `applyTheme()` in `useAppearance.ts` (sets `data-base`, `data-accent`, `--radius`);
-      migrate existing keys without losing current users' choices.
-- [ ] Settings → المظهر: a **theme customizer** — preset cards, base swatches, accent swatches, radius
+- [x] Define the 5 base palettes (light + dark) in `design-system.css`; add 3 accents (blue, violet, orange).
+- [x] `base`/`accent`/`radius` settings + `applyThemePreset()` in `useAppearance.ts` (sets `data-base`,
+      `data-accent`, `--radius`) — see the naming-deviation note above; existing `app_accent` key and
+      values are untouched, so no migration was needed.
+- [x] Settings → المظهر: a **theme customizer** — preset cards, base swatches, accent swatches, radius
       segmented control, mode, and a **live preview panel** (a card with buttons, input, switch, badge,
       table rows, a dialog trigger) that updates instantly. "إعادة التعيين" returns to the إيكوال preset.
-- [ ] Remove hard-coded radius values found by the audit.
-- [ ] `scripts/check-contrast.ts` wired into `bun run check`.
-- [ ] Printed documents (Typst PDFs, receipts) are **not** themed — they keep the brand look. Note it in 12.
-- [ ] Gate: screenshots of 3 presets × light/dark on the dashboard and an invoice form.
+- [x] Remove hard-coded radius values found by the audit — audit found **zero** (`rounded-[…]` grep
+      came back empty); every existing `rounded-md`/`rounded-lg`/`rounded-xl` already derives from
+      `--radius` via the pre-existing shadcn token bridge, so no components needed changes.
+- [x] `scripts/check-contrast.ts` wired into `bun run check`.
+- [x] Printed documents (Typst PDFs, receipts) are **not** themed — they keep the brand look. Note it in 12.
+- [x] Gate: screenshots of 3 presets (إيكوال، كلاسيكي، ناعم) × light/dark on the dashboard and the
+      new-invoice form (`/sales/invoices/new`) — all 12 confirmed correct, zero console errors; the
+      full 16-flow e2e suite passed clean (16/16, no console errors) on the first attempt this phase.
 
 ---
 

@@ -56,16 +56,30 @@ Source of truth for tokens: `src/assets/styles/design-system.css` (already scaff
 
 `--color-primary`/`--color-primary-hover` above are the **default accent preset**, `equal` (the
 Equal brand green, logo mark `#10886C`, darkened slightly to clear 4.5:1 white-text contrast —
-docs/v2/16-equal-rebrand-and-ui-kit.md Phase B). Users can switch to indigo/teal/rose/amber in
-Settings → Appearance; see `useAppearance.ts`'s `ACCENTS` map for every preset's values.
+docs/v2/16-equal-rebrand-and-ui-kit.md Phase B). Users can switch to indigo/teal/rose/amber/blue/
+violet/orange (8 total) in Settings → Appearance; see `useAppearance.ts`'s `ACCENTS` map for every
+preset's values. Every accent's text-on-accent pair is enforced >= 4.5:1 by `scripts/check-contrast.ts`
+(part of `bun run check`), so a new or edited accent can't silently regress contrast.
+
+**Base palette** (docs/v2/17-ui-system-rtl-themes.md Phase E): the 6 grey/text tokens above
+(`background`/`surface`/`surface-hover`/`border`/`text-primary`/`text-secondary`) can also be swapped
+as a set — neutral (default) / zinc / stone / slate / gray — via `data-base` on `<html>`
+(`useAppearance.ts`'s `setBase`/`BASES`), independent of the accent. **4 named presets** (إيكوال,
+كلاسيكي, ناعم, حاد) set base + accent + radius together in one click (`THEME_PRESETS`/
+`applyThemePreset`). None of this reaches printed documents (invoices, receipts) — see
+docs/v2/12-documents-pdf-excel.md §3, which keep their own fixed brand colors regardless of the UI
+theme.
 
 Font: `--font-sans` = Cairo (Arabic) → Inter → system-ui fallback stack. Cairo is the correct choice over pure Inter here since this is an Arabic-first UI (Inter has no Arabic glyphs).
 
 ## Radii & spacing (carry over from the Linear reference)
 
-- Buttons/inputs: 6px radius
-- Cards/panels: 12px radius
-- Pills/badges: 9999px (status chips) or 4px (small badges)
+- Buttons/inputs: 6px radius (**default** — user-configurable 0/0.25/0.375/0.5/0.75/1rem via
+  Settings → Appearance's radius control, `useAppearance.ts`'s `setRadius`; every `rounded-md`/
+  `rounded-lg`/`rounded-xl` utility already resolves through `--radius` via the shadcn token bridge
+  in `design-system.css`, so no component needs to change to follow it)
+- Cards/panels: 12px radius (also follows `--radius`, since `rounded-xl` derives from it)
+- Pills/badges: 9999px (status chips) or 4px (small badges) — fixed, not part of the radius scale
 - Spacing ladder: 4/8/12/16/24/32/48/64px — base unit 4px
 - Card padding: 24px (16px on compact/dense tables)
 

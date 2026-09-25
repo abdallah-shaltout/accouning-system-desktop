@@ -147,6 +147,13 @@ bar), مضغوط (compact; dense, many lines), ثنائي اللغة (bilingual;
 - **Everyday use:** documents print with the default template. The print button has a dropdown to
   pick another template.
 
+**Not themed by the app's UI theme** (docs/v2/17-ui-system-rtl-themes.md Phase E): a template's own
+brand/paper options (logo, accent color, paper size) are the only source of its look. Switching the
+app's base palette, accent color or radius in Settings → المظهر has no effect on printed documents or
+their preview — they always render with the brand's own fixed colors, never `--color-primary`/
+`--color-background`/`--radius` etc., so a change to a user's on-screen theme preference can never
+alter what a customer-facing invoice or receipt looks like.
+
 ## 4. Labels
 
 Label templates are Typst too (sheet grid or one-per-page), with barcodes from `bwip-js` (SVG).
