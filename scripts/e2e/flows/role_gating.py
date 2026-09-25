@@ -30,7 +30,9 @@ def run(base: str, shots_dir: Path) -> int:
         page.goto(f"{base}/accounting/accounts")
         page.wait_for_timeout(700)
         check("/forbidden" in page.url, "cashier is blocked from the chart of accounts")
-        nav = page.locator("nav[aria-label='القائمة الرئيسية']").inner_text()
+        # v2 phase D shell rewrite: the sidebar nav landmark is now shadcn's SidebarContent
+        # (a <div role="navigation">), not a plain <nav>, so match by ARIA role/name.
+        nav = page.get_by_role("navigation", name="القائمة الرئيسية").inner_text()
         check("دليل الحسابات" not in nav and "التقارير" not in nav, "cashier sidebar hides accounting & reports")
 
         page.goto(f"{base}/invoices")

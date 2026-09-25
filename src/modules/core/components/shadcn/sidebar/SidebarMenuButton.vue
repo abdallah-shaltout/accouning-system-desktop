@@ -35,7 +35,7 @@ const delegatedProps = reactiveOmit(props, "tooltip")
       </SidebarMenuButtonChild>
     </TooltipTrigger>
     <TooltipContent
-      side="right"
+      side="left"
       align="center"
       :hidden="state !== 'collapsed' || isMobile"
     >
