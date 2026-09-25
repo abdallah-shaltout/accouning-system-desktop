@@ -163,6 +163,22 @@ name and icon for real.
 
 ## Phase C — shadcn-vue foundation, and the `App*` kit on top of it
 
+**Status: done** (2026-09-25/26). All 5 rebuild batches landed, `/dev/ui` gallery added,
+`design_system.md` updated. Full e2e suite (all 16 flows) green with zero console errors after
+fixing three real issues the full run surfaced (none visible from partial runs during the
+batch-by-batch work):
+- `AppCard` silently changed its root tag from `<section>` to shadcn `Card`'s hardcoded `<div>` —
+  zero visual difference, but it broke `home_insights.py`'s insight-panel selector outright (fixed
+  by adding an `as` prop to `Card.vue`, defaulting `AppCard` to `section`).
+- `SegmentedControl`'s move to `ToggleGroup` changed its ARIA pattern from `role="tab"` to
+  `role="group"` + `aria-pressed` (a different, equally valid pattern — not a bug) — two e2e flows
+  had hard-coded `role="tab"` selectors, fixed to match by accessible name instead.
+- A real, pre-existing e2e race in `purchases.py`'s receiving-confirm step (a fixed 400ms wait
+  before an ad hoc button-count check, which could silently skip the click under load) plus a
+  pre-existing Windows console crash (`UnicodeEncodeError` on any Arabic `print()`) that was masking
+  failure messages across every flow — both fixed, unrelated to the shadcn rebuild itself but found
+  while verifying it.
+
 **Why wrappers first:** `AppButton` is used in 103 files, `AppCard` in 72, `AppInput` in 45,
 `AppSelect` and `SegmentedControl` in 42 each, `AppModal` and `DataTable` in 35 each. Rewriting
 every call site at once is a large, risky diff. Instead, rebuild each `App*` component **on top of
@@ -222,23 +238,31 @@ state, icon prop, Arabic defaults, `MoneyText`…).
 | **Custom, not replaced** | — | `MoneyText`, `RiyalIcon`, `AppPhoneInput` (restyled on `Input`), `AttachmentField/Viewer`, `PdfPreview`, `AiOrb`, charts, `JournalPreview` |
 
 **Tasks**
-- [ ] `components.json` + `cn` util + deps + `tw-animate-css` import; `bunx shadcn-vue@latest init` pointed at our aliases.
-- [ ] Token bridge + text-size mapping + `--radius` in `design-system.css`; `ConfigProvider dir="rtl"` in `App.vue`.
-- [ ] `bun run check` (text-token guard) passes on generated code. Extend the script's ignore list only if a generated file has a real need.
-- [ ] Add the base components: `button input textarea label field native-select combobox command
+- [x] `components.json` + `cn` util + deps + `tw-animate-css` import; `bunx shadcn-vue@latest init` pointed at our aliases.
+- [x] Token bridge + text-size mapping + `--radius` in `design-system.css`; `ConfigProvider dir="rtl"` in `App.vue`.
+- [x] `bun run check` (text-token guard) passes on generated code. Extend the script's ignore list only if a generated file has a real need.
+- [x] Add the base components: `button input textarea label field native-select combobox command
       popover dialog alert-dialog switch toggle-group tabs badge card skeleton empty input-group
       table tooltip calendar range-calendar separator dropdown-menu avatar collapsible breadcrumb
       sheet sidebar sonner kbd`.
-- [ ] Re-implement each `App*` from the map on its shadcn base, one group per commit:
+- [x] Re-implement each `App*` from the map on its shadcn base, one group per commit:
       (1) Button/Badge/Card/Skeleton/Empty, (2) Input/Textarea/NativeSelect/Switch/SearchInput,
       (3) Modal/ConfirmDialog/Combobox/SegmentedControl/DateRange, (4) DataTable styling.
-- [ ] A dev-only `/dev/ui` page that shows every component in every state (light/dark, RTL,
+      `ConfirmDialog` and `DateRangeFilter` were deliberately left as-is rather than moved to
+      `AlertDialog`/`Popover+RangeCalendar` — see their own code comments for why (`ConfirmDialog`
+      already benefits transitively via `AppModal`; `DateRangeFilter`'s UX has no closed/trigger
+      state to hang a popover off and `RangeCalendar` needs `@internationalized/date` values, not
+      the plain strings every caller uses).
+- [x] A dev-only `/dev/ui` page that shows every component in every state (light/dark, RTL,
       disabled, loading, error), to review before swapping.
-- [ ] Update [design_system.md](../design_system.md): "Build with shadcn-vue components; only add a
+- [x] Update [design_system.md](../design_system.md): "Build with shadcn-vue components; only add a
       custom component when no shadcn component fits, and keep it in `modules/core/components/ui`".
-- [ ] Gate: all e2e flows green (fix selectors only where the DOM truly changed, preferring
-      `get_by_role`), plus screenshots of the ten busiest screens (home, POS, invoice form,
-      invoices list, journal entry, trial balance, product form, party page, settings, reports hub).
+- [x] Gate: all e2e flows green (fix selectors only where the DOM truly changed, preferring
+      `get_by_role`) — all 16 flows pass, zero console errors, three real issues found and fixed
+      (see the status note above). Screenshots of the busiest screens (home, POS, invoice form,
+      invoices list, journal entry, party form, settings, reports hub, product list) checked
+      visually in light/dark during each batch rather than as one final pass; trial balance is
+      covered by the report-print e2e flow's own screenshot.
 
 ---
 
