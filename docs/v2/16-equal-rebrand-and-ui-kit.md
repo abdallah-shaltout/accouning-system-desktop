@@ -1,6 +1,6 @@
 # 16 — Equal: close fix, rebrand, shadcn-vue UI kit & sidebar-07 layout
 
-**Status: planned** (2026-09-25). Nothing below is started yet.
+**Status: A–D done, E moved to [17](17-ui-system-rtl-themes.md)** (2026-09-25).
 
 Four pieces of work, in this order:
 
@@ -343,6 +343,9 @@ from `@lucide/vue`, which we use.
 ---
 
 ## Phase E — Replace the remaining hand-built chrome
+
+**Status: moved** (2026-09-25) into [17](17-ui-system-rtl-themes.md) Phase D (chrome rebuilt while the
+sidebar is redone) and Phase F (page sweep). The list below is kept for history; tick boxes in 17.
 
 - [ ] `ToastContainer` → **Sonner** (`vue-sonner`), `position="top-center"`, `dir="rtl"`. Keep the
       `toast.*` helper signature in `useToast` so callers don't change.
