@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { ChevronDown, ChevronLeft, ChevronsDownUp, ChevronsUpDown, FileText, Folder, FolderOpen, Lock, Pencil, Plus, Trash } from '@lucide/vue';
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, FileText, Folder, FolderOpen, Lock, Pencil, Plus, Trash } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
+import DirIcon from '@/modules/core/components/ui/DirIcon.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import { dirIcon } from '@/modules/core/helpers/dirIcon';
 import SearchInput from '@/modules/core/components/ui/SearchInput.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
@@ -183,7 +185,7 @@ async function onDrop(row: TreeRow) {
             :aria-label="collapsed.has(row.id) ? 'توسيع' : 'طي'"
             @click="toggle(row.id)"
           >
-            <ChevronLeft v-if="collapsed.has(row.id) && !search" class="size-4" />
+            <DirIcon v-if="collapsed.has(row.id) && !search" :icon="dirIcon.open" class="size-4" />
             <ChevronDown v-else class="size-4" />
           </button>
           <span v-else class="w-5" />

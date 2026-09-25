@@ -69,7 +69,7 @@ defineExpose({
         :aria-invalid="!!error || undefined"
         :dir="ltr || type === 'number' || type === 'date' ? 'ltr' : undefined"
         class="control h-[34px] rounded-md text-body shadow-none"
-        :class="[$slots.prefix && 'ps-8', $slots.suffix && 'pe-10', (ltr || type === 'number') && 'text-right', inputClass]"
+        :class="[$slots.prefix && 'ps-8', $slots.suffix && 'pe-10', (ltr || type === 'number') && 'text-end', inputClass]"
       />
       <span v-if="$slots.suffix" class="absolute end-2.5 flex items-center text-xs text-text-secondary">
         <slot name="suffix" />

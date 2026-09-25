@@ -5,12 +5,13 @@
 // approach InvoicePrintPage.vue uses for the v1 print path).
 import { computed, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowRight, Printer } from '@lucide/vue';
+import { Printer } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { useHotkeys } from '@/modules/core/controllers/useHotkeys';
+import { dirIcon } from '@/modules/core/helpers/dirIcon';
 import { formatDate, formatNumber } from '@/modules/core/helpers/format';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
@@ -44,7 +45,7 @@ const total = computed(() => (data.value?.lines ?? []).reduce((a, l) => a + line
   <div class="min-h-screen bg-surface">
     <div class="no-print sticky top-0 z-10 flex h-12 items-center justify-between gap-3 border-b border-border bg-background px-4">
       <div class="flex items-center gap-2">
-        <AppButton size="sm" variant="ghost" :icon="ArrowRight" @click="close">رجوع</AppButton>
+        <AppButton size="sm" variant="ghost" :icon="dirIcon.back" icon-rtl-flip @click="close">رجوع</AppButton>
         <span class="text-body font-medium">أمر شراء</span>
         <span v-if="data" class="num text-body text-text-secondary">{{ data.number }}</span>
       </div>

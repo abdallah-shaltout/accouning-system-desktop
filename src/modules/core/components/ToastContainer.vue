@@ -11,10 +11,10 @@ const tones = { success: 'text-success', error: 'text-danger', warning: 'text-wa
 </script>
 
 <template>
-  <div class="no-print pointer-events-none fixed bottom-4 left-4 z-[70] flex w-[340px] max-w-[calc(100vw-2rem)] flex-col gap-2" aria-live="polite">
+  <div class="no-print pointer-events-none fixed bottom-4 start-4 z-[70] flex w-[340px] max-w-[calc(100vw-2rem)] flex-col gap-2" aria-live="polite">
     <TransitionGroup
       enter-active-class="transition duration-200 ease-out"
-      enter-from-class="opacity-0 -translate-x-4"
+      enter-from-class="opacity-0 -translate-x-4 rtl:translate-x-4"
       leave-active-class="transition duration-150 ease-in absolute"
       leave-to-class="opacity-0"
       move-class="transition duration-200"

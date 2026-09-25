@@ -12,7 +12,7 @@
     "desktop": "node scripts/stop-dev.js && tauri dev",
     "scaffold": "node scripts/scaffold.js",
     "verify:mocks": "bun run scripts/verify/run.ts",
-    "check": "node scripts/check-text-tokens.js"
+    "check": "node scripts/check-text-tokens.js && node scripts/check-rtl.js"
   },
   "dependencies": {
     "@fontsource-variable/cairo": "^5.3.0",

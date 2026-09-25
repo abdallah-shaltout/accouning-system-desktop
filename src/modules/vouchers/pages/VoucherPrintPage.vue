@@ -4,12 +4,13 @@
 // this minimal browser print route is the sanctioned fallback for every voucher kind.
 import { onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowRight, Printer } from '@lucide/vue';
+import { Printer } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { useHotkeys } from '@/modules/core/controllers/useHotkeys';
+import { dirIcon } from '@/modules/core/helpers/dirIcon';
 import { formatDate, formatMoney } from '@/modules/core/helpers/format';
 import { tafqit } from '@/modules/core/helpers/tafqit';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
@@ -43,7 +44,7 @@ useHotkeys({ 'ctrl+p': print, Escape: close });
   <div class="min-h-screen bg-surface">
     <div class="no-print sticky top-0 z-10 flex h-12 items-center justify-between gap-3 border-b border-border bg-background px-4">
       <div class="flex items-center gap-2">
-        <AppButton size="sm" variant="ghost" :icon="ArrowRight" @click="close">رجوع</AppButton>
+        <AppButton size="sm" variant="ghost" :icon="dirIcon.back" icon-rtl-flip @click="close">رجوع</AppButton>
         <span class="text-body font-medium">{{ data ? KIND_LABEL[data.kind] : 'سند' }}</span>
       </div>
       <AppButton size="sm" variant="primary" :icon="Printer" kbd="Ctrl+P" :disabled="!data" @click="print">طباعة</AppButton>

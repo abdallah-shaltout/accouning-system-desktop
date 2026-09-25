@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ArrowRight } from '@lucide/vue';
 import type { RouteLocationRaw } from 'vue-router';
+import DirIcon from '@/modules/core/components/ui/DirIcon.vue';
+import { dirIcon } from '@/modules/core/helpers/dirIcon';
 
 defineProps<{ title: string; subtitle?: string; back?: RouteLocationRaw }>();
 </script>
@@ -14,7 +15,7 @@ defineProps<{ title: string; subtitle?: string; back?: RouteLocationRaw }>();
         class="no-print mt-0.5 rounded-md p-1 text-text-secondary hover:bg-surface-hover hover:text-text-primary"
         aria-label="رجوع"
       >
-        <ArrowRight class="size-4" />
+        <DirIcon :icon="dirIcon.back" class="size-4" />
       </RouterLink>
       <div class="min-w-0">
         <h1 class="flex flex-wrap items-center gap-2 text-lg font-semibold tracking-tight">

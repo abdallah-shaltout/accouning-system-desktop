@@ -3,7 +3,6 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router';
 import { isTauri } from '@tauri-apps/api/core';
 import {
-  ArrowRight,
   CircleCheck,
   Keyboard,
   Minus,
@@ -32,6 +31,7 @@ import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useHotkeys } from '@/modules/core/controllers/useHotkeys';
 import { resolvedTheme, toggleTheme } from '@/modules/core/controllers/useTheme';
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
+import { dirIcon } from '@/modules/core/helpers/dirIcon';
 import { formatNumber, formatTime } from '@/modules/core/helpers/format';
 import { matchesSearch } from '@/modules/core/helpers/search';
 import * as printService from '@/modules/core/services/printService';
@@ -574,7 +574,7 @@ const shortcuts = [
     <!-- Top bar -->
     <header class="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-4">
       <div class="flex items-center gap-3">
-        <AppButton size="sm" variant="ghost" :icon="ArrowRight" to="/">لوحة التحكم</AppButton>
+        <AppButton size="sm" variant="ghost" :icon="dirIcon.back" icon-rtl-flip to="/">لوحة التحكم</AppButton>
         <div class="h-5 w-px bg-border" />
         <span class="text-body font-semibold">نقطة البيع</span>
         <span class="text-body text-text-secondary">{{ settings.settings?.storeName }}</span>

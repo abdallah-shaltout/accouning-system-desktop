@@ -8,11 +8,13 @@
  */
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bookmark, ChevronDown, ChevronLeft, FileDown, Paperclip, Plus, Printer, Wallet, X } from '@lucide/vue';
+import { Bookmark, ChevronDown, FileDown, Paperclip, Plus, Printer, Wallet, X } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
+import DirIcon from '@/modules/core/components/ui/DirIcon.vue';
+import { dirIcon } from '@/modules/core/helpers/dirIcon';
 import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
@@ -412,7 +414,7 @@ function openDayBook() {
           >
             <div class="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-surface-hover" @click="openEntry(row)">
               <button type="button" class="rounded p-0.5 text-text-secondary hover:bg-surface-hover" @click.stop="toggleExpand(row.id)" aria-label="عرض الأسطر">
-                <ChevronLeft class="size-4 transition-transform" :class="expanded.has(row.id) && '-rotate-90'" />
+                <DirIcon :icon="dirIcon.open" class="size-4 transition-transform" :class="expanded.has(row.id) && '-rotate-90'" />
               </button>
               <span class="num w-24 shrink-0 font-medium">{{ row.number }}</span>
               <div class="min-w-0 flex-1">

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from '@lucide/vue';
+import { ZoomIn, ZoomOut } from '@lucide/vue';
+import { dirIcon } from '../../helpers/dirIcon';
 import AppButton from './AppButton.vue';
 import SkeletonBlock from './SkeletonBlock.vue';
 
@@ -43,11 +44,11 @@ function resetZoom() {
   <div class="flex h-full flex-col">
     <div class="flex items-center justify-between gap-2 border-b border-border bg-surface px-3 py-2">
       <div class="flex items-center gap-1">
-        <AppButton size="sm" variant="ghost" :icon="ChevronRight" :disabled="currentPage <= 0" aria-label="الصفحة السابقة" @click="currentPage--" />
+        <AppButton size="sm" variant="ghost" :icon="dirIcon.prev" icon-rtl-flip :disabled="currentPage <= 0" aria-label="الصفحة السابقة" @click="currentPage--" />
         <span class="num min-w-16 text-center text-xs text-text-secondary">
           {{ pages.length ? `${currentPage + 1} / ${pages.length}` : '—' }}
         </span>
-        <AppButton size="sm" variant="ghost" :icon="ChevronLeft" :disabled="currentPage >= pages.length - 1" aria-label="الصفحة التالية" @click="currentPage++" />
+        <AppButton size="sm" variant="ghost" :icon="dirIcon.next" icon-rtl-flip :disabled="currentPage >= pages.length - 1" aria-label="الصفحة التالية" @click="currentPage++" />
       </div>
       <div class="flex items-center gap-1">
         <AppButton size="sm" variant="ghost" :icon="ZoomOut" aria-label="تصغير" @click="zoomOut" />

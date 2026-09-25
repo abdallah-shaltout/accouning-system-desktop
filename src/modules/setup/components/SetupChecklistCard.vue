@@ -12,8 +12,10 @@
  * shape, not a gap.
  */
 import { onMounted, ref } from 'vue';
-import { Check, ChevronLeft } from '@lucide/vue';
+import { Check } from '@lucide/vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
+import DirIcon from '@/modules/core/components/ui/DirIcon.vue';
+import { dirIcon } from '@/modules/core/helpers/dirIcon';
 import { getOnboardingProgress } from '../services/setupService';
 import { WIZARD_STEPS } from '../types';
 
@@ -37,7 +39,7 @@ onMounted(async () => {
       <li v-for="p in pending" :key="p.key">
         <RouterLink to="/setup" class="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-surface-hover">
           <span>{{ p.label }}</span>
-          <ChevronLeft class="size-3.5 text-text-secondary" />
+          <DirIcon :icon="dirIcon.open" class="size-3.5 text-text-secondary" />
         </RouterLink>
       </li>
     </ul>

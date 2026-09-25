@@ -1,9 +1,11 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { computed, ref, shallowRef, watch, type Component } from 'vue';
-import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Download, LoaderCircle } from '@lucide/vue';
+import { ArrowDown, ArrowUp, Download, LoaderCircle } from '@lucide/vue';
 import { rowsPerPage as settingsRowsPerPage, zebraRows } from '../../controllers/useAppearance';
 import { exportXlsx, type ExportColumn } from '../../helpers/exportXlsx';
+import { dirIcon } from '../../helpers/dirIcon';
 import { formatNumber } from '../../helpers/format';
+import DirIcon from './DirIcon.vue';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableFooter } from '@/modules/core/components/shadcn/table';
 import EmptyState from './EmptyState.vue';
 import ErrorState from './ErrorState.vue';
@@ -343,7 +345,7 @@ async function exportRows() {
           aria-label="الصفحة السابقة"
           @click="page--"
         >
-          <ChevronRight class="size-4" />
+          <DirIcon :icon="dirIcon.prev" class="size-4" />
         </button>
         <span class="num min-w-12 text-center">{{ formatNumber(page) }} / {{ formatNumber(pageCount) }}</span>
         <button
@@ -353,7 +355,7 @@ async function exportRows() {
           aria-label="الصفحة التالية"
           @click="page++"
         >
-          <ChevronLeft class="size-4" />
+          <DirIcon :icon="dirIcon.next" class="size-4" />
         </button>
       </div>
     </div>

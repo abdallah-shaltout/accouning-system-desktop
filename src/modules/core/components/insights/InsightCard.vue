@@ -52,7 +52,7 @@ function onSnooze() {
       >
         <MoreHorizontal class="size-4" />
       </button>
-      <div v-if="menuOpen" class="absolute left-0 top-7 z-10 w-32 rounded-lg border border-border bg-surface py-1 shadow-lg">
+      <div v-if="menuOpen" class="absolute start-0 top-7 z-10 w-32 rounded-lg border border-border bg-surface py-1 shadow-lg">
         <button type="button" class="flex w-full items-center gap-2 px-3 py-1.5 text-start text-xs hover:bg-surface-hover" @click="onSnooze">
           تأجيل أسبوع
         </button>

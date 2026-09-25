@@ -7,9 +7,10 @@
  */
 import { computed, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Check, ChevronLeft, ChevronRight } from '@lucide/vue';
+import { Check } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
+import { dirIcon } from '@/modules/core/helpers/dirIcon';
 import { flushSnapshot } from '@/mocks/persist';
 import { seedEmptyCompany } from '@/mocks/seed';
 import { db } from '@/mocks/db';
@@ -182,10 +183,10 @@ function goToStep(i: number) {
       </div>
 
       <footer class="flex items-center justify-between gap-2 border-t border-border bg-surface px-4 py-3 sm:px-8">
-        <AppButton type="button" :icon="ChevronRight" :disabled="stepIndex === 0 || saving" @click="back">السابق</AppButton>
+        <AppButton type="button" :icon="dirIcon.prev" icon-rtl-flip :disabled="stepIndex === 0 || saving" @click="back">السابق</AppButton>
         <div class="flex items-center gap-2">
           <AppButton v-if="canSkip" type="button" :disabled="saving" @click="skip">تخطي الآن</AppButton>
-          <AppButton type="button" variant="primary" :icon="isLast ? Check : ChevronLeft" :loading="saving" @click="next">
+          <AppButton type="button" variant="primary" :icon="isLast ? Check : dirIcon.next" :icon-rtl-flip="!isLast" :loading="saving" @click="next">
             {{ isLast ? 'ابدأ العمل' : 'التالي' }}
           </AppButton>
         </div>

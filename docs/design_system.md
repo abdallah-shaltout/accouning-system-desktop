@@ -7,6 +7,36 @@ Source of truth for tokens: `src/assets/styles/design-system.css` (already scaff
 - **Midnight precision instrument**: near-black/near-white surfaces, hairline borders instead of heavy shadows, one accent color used sparingly for the single primary action per view.
 - **Compact density**: tight paddings (8–12px), small radii (6px buttons/inputs, 12px cards), Inter-family type at 400–510 weight — never bold (700+).
 - **RTL-first**: Arabic is the primary UI language. Layout mirrors for RTL; numbers and currency values stay LTR-oriented within RTL text blocks (see `toHindi()`-style numeral handling in `references/vat-invoice-app`).
+  Real RTL is directional meaning, not "swap left and right" (docs/v2/17-ui-system-rtl-themes.md Phase A):
+  - **Use logical Tailwind utilities, never physical ones**: `ms-`/`me-` not `ml-`/`mr-`, `ps-`/`pe-`
+    not `pl-`/`pr-`, `start-`/`end-` not `left-`/`right-`, `border-s-`/`border-e-` not `border-l-`/
+    `border-r-`, `rounded-s-`/`rounded-e-` not `rounded-l-`/`rounded-r-`, `text-start`/`text-end` not
+    `text-left`/`text-right`. `scripts/check-rtl.js` (part of `bun run check`) fails the build on any
+    physical class in `class`/`:class`/`cn(...)`, with an `/* rtl-ok: <reason> */` escape hatch for the
+    legitimate physical cases below.
+  - **Not bugs — genuinely physical, leave as `left`/`right`**: anything driven by an explicit
+    physical `side` prop (Floating UI's `data-[side=left]`, `Sheet`'s `side="left|right"`, `Sidebar`'s
+    `side` branches), and a dialog centered with `left-[50%] translate-x-[-50%]`.
+  - **Navigation icons mirror, physical/numeric icons don't.** Back points right in Arabic, forward
+    points left. Never import `ChevronLeft`/`ChevronRight`/`ArrowLeft`/`ArrowRight` from `@lucide/vue`
+    directly for anything meaning back/next/prev/open — use `dirIcon` + `DirIcon.vue`
+    (`modules/core/helpers/dirIcon.ts`) so it flips under `rtl:`. Icons with a real physical or
+    numeric direction (trend up/down, sort asc/desc, undo/redo's circular arrow, a transfer
+    from→to arrow, a media ▶) are **not** mirrored — `scripts/check-rtl.js` also fails on a raw
+    directional-icon import outside the shadcn primitives that already handle their own mirroring.
+  - **Slides come from the direction they're anchored to.** A toast pinned to `start-4` must enter
+    from that same side, not a hard-coded `-translate-x-4` — see `ToastContainer.vue`'s
+    `rtl:translate-x-4` override. The same applies to wizard-step transitions, sheet drawers and any
+    other `<Transition>` using `translate-x`.
+  - **Progress bars and sliders** fill from the right in RTL.
+  - **Numbers stay LTR** inside RTL text (the `num` class / `MoneyText`); phone and IBAN inputs stay
+    `dir="ltr"` with `text-end` alignment (not `text-right` — same visual result, but consistent with
+    the logical-utilities rule and passes the guard).
+  - **Keyboard**: in menus/toggle groups, ArrowRight moves to the *previous* item in RTL — reka-ui
+    does this automatically once it gets `dir="rtl"`; any custom keyboard handler for Left/Right
+    (there are none as of Phase A — only vertical Up/Down handlers exist in this codebase) must be
+    checked the same way if one is added later.
+  - See `/dev/ui`'s "RTL — الاتجاه الحقيقي" section for a live example of every case above.
 - **Light + dark**, both first-class (unlike the pure-dark Linear marketing site) — this app already scaffolds both via `:root` and `:root.dark`.
 
 ## Tokens (already in `design-system.css`)

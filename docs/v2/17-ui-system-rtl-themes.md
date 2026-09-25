@@ -35,6 +35,40 @@ search for new tables and entities. Phase C touches Tauri capabilities, so it al
 
 ## Phase A — Real RTL, not "swap left and right"
 
+**Status: done** (2026-09-25). Fixed all 11 rows of the component survey table (switch thumb,
+breadcrumb separator, calendar/range-calendar prev/next buttons, calendar month/year native
+selects, input-group addon padding, native-select chevron, toggle-group rounded ends,
+range-calendar cell rounding, dialog/alert-dialog header alignment, dialog/sheet close buttons,
+command shortcut, field error list, sidebar inset margin). Added `DirIcon.vue` +
+`modules/core/helpers/dirIcon.ts` and migrated every real back/forward/prev/next/open icon usage
+found across the codebase (PageHeader, 3 print pages' "رجوع" button, PosPage's dashboard button,
+DataTable + PdfPreview pagination, SetupWizardPage's step nav, KpiCard's "view more" chevron,
+SetupChecklistCard, ChartOfAccountsPage's tree chevron, JournalListPage's row-expand chevron) —
+confirmed by a full-codebase grep that no direct `ChevronLeft/Right`/`ArrowLeft/Right` imports
+remain outside the shadcn primitives themselves (which mirror internally with `rtl:-scale-x-100`).
+Physical/numeric icons (trend arrows, the bidirectional transfer icon, sort direction) were
+deliberately left unmirrored, matching the doc's exception list.
+
+`scripts/check-rtl.js` (wired into `bun run check`) scans `class`/`:class` attributes and
+multi-line `cn(...)` call bodies for physical Tailwind utilities and raw directional-icon imports,
+with an `rtl-ok:` comment escape hatch; it found and led to fixing three real bugs beyond the
+table: `ToastContainer`'s toast stack was pinned with `left-4` and slid in with a hard-coded
+`-translate-x-4` (now `start-4` + `rtl:translate-x-4` so it enters from the side it's anchored to),
+`InsightCard`'s dropdown menu was positioned with `left-0` instead of `start-0`, and `AppInput`/
+`AppPhoneInput`'s forced-LTR numeric/phone fields used `text-right` instead of `text-end`. The two
+shadcn dialog components' `left-[50%]` centering and the `Sidebar`/`Sheet` physical `side`-prop
+branches are marked with `rtl-ok` / exemption lists per the doc's documented exceptions. No custom
+keyboard handler for Left/Right arrows exists anywhere in the codebase (only vertical Up/Down
+handlers), so that audit task found nothing to fix.
+
+Added an "RTL — الاتجاه الحقيقي" section to `/dev/ui` covering every case above (switch, toggle
+group, breadcrumb, calendar + range calendar, input-group start/end addons, native select, sheet
+from both sides, dialog close button, pagination, back button), screenshotted light + dark at
+1280px. Expanded `docs/design_system.md`'s "RTL-first" bullet into the full mirror/don't-mirror
+rule set. Gate: `bun run build`, `bun run check` (both guards clean), `bun run verify:mocks`
+(49 ok / 0 todo / 0 failed, unchanged), and the full 16-flow e2e suite — all green, zero console
+errors.
+
 **The problem.** shadcn-vue is written LTR-first. 16 Phase D fixed the sidebar and dropdown menu
 only. A survey of `modules/core/components/shadcn/*` on 2026-09-25 still finds:
 
@@ -88,18 +122,18 @@ and on direct `ChevronLeft|ChevronRight|ArrowLeft|ArrowRight` imports in `src/**
 allow-list comment (`/* rtl-ok: <reason> */`) for the legitimate cases above.
 
 **Tasks**
-- [ ] Fix every row of the table above.
-- [ ] Add `DirIcon.vue` + `dirIcon.ts`; migrate the 30 files, deciding per icon (mirror vs keep) and
+- [x] Fix every row of the table above.
+- [x] Add `DirIcon.vue` + `dirIcon.ts`; migrate the 30 files, deciding per icon (mirror vs keep) and
       noting any "keep" with an `rtl-ok` comment.
-- [ ] Audit slide directions: `SheetContent`, wizard step transitions, toasts, `SetupWizardPage`,
+- [x] Audit slide directions: `SheetContent`, wizard step transitions, toasts, `SetupWizardPage`,
       any `<Transition>` using `translate-x`.
-- [ ] Audit custom keyboard handlers for Arrow keys under RTL.
-- [ ] Add the RTL guard to `bun run check`; get it to zero findings.
-- [ ] Add an **RTL section** to `/dev/ui` showing: switch off/on, toggle group, breadcrumb, calendar
+- [x] Audit custom keyboard handlers for Arrow keys under RTL.
+- [x] Add the RTL guard to `bun run check`; get it to zero findings.
+- [x] Add an **RTL section** to `/dev/ui` showing: switch off/on, toggle group, breadcrumb, calendar
       + range, input group with start/end addons, native select, sheet from both sides, dialog close
       button, pagination, back button.
-- [ ] Update `docs/design_system.md` "RTL-first" with the mirror / don't-mirror rules above.
-- [ ] Gate: screenshot of the `/dev/ui` RTL section light + dark; full e2e suite.
+- [x] Update `docs/design_system.md` "RTL-first" with the mirror / don't-mirror rules above.
+- [x] Gate: screenshot of the `/dev/ui` RTL section light + dark; full e2e suite.
 
 ---
 

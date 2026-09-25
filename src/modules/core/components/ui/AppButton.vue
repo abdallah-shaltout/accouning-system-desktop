@@ -21,6 +21,8 @@ const props = withDefaults(
     loading?: boolean;
     disabled?: boolean;
     icon?: Component;
+    /** Mirror `icon` in RTL — for back/forward/prev/next navigation icons (see dirIcon.ts). */
+    iconRtlFlip?: boolean;
     to?: RouteLocationRaw;
     block?: boolean;
     /** Keyboard hint rendered inside the button, e.g. "F12". */
@@ -68,7 +70,13 @@ const isDisabled = computed(() => props.disabled || props.loading);
     :class="[extraClass[variant], sizeClass[size], block && 'w-full', isDisabled && to && 'pointer-events-none opacity-55']"
   >
     <LoaderCircle v-if="loading" class="size-4 animate-spin" />
-    <component :is="icon" v-else-if="icon" class="size-4 shrink-0" :stroke-width="1.75" />
+    <component
+      :is="icon"
+      v-else-if="icon"
+      class="size-4 shrink-0"
+      :class="iconRtlFlip && 'rtl:-scale-x-100'"
+      :stroke-width="1.75"
+    />
     <slot />
     <kbd
       v-if="kbd"

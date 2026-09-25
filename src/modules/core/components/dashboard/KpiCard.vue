@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { Component } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
-import { ChevronLeft, TrendingDown, TrendingUp } from '@lucide/vue';
+import { TrendingDown, TrendingUp } from '@lucide/vue';
+import { dirIcon } from '../../helpers/dirIcon';
 import { formatNumber } from '../../helpers/format';
+import DirIcon from '../ui/DirIcon.vue';
 
 /** Stat tile: label · value · optional context line. Big values use proportional digits.
  *  v2 phase 10 (docs/v2/11 Part B.3): optional `changePct` (vs the previous period) + a `#spark`
@@ -29,7 +31,7 @@ defineProps<{
         <component :is="icon" class="size-4" :stroke-width="1.75" />
         {{ label }}
       </span>
-      <ChevronLeft v-if="to" class="size-4 opacity-0 transition-opacity group-hover:opacity-100" />
+      <DirIcon v-if="to" :icon="dirIcon.open" class="size-4 opacity-0 transition-opacity group-hover:opacity-100" />
     </div>
     <div v-if="loading" class="h-8 w-2/3 animate-shimmer rounded-md bg-surface-hover" />
     <div v-else class="text-stat font-semibold leading-tight tracking-tight" :class="tone === 'danger' ? 'text-danger' : tone === 'warning' ? 'text-warning' : ''">
