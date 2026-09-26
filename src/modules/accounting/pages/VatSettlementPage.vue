@@ -126,7 +126,7 @@ const netLabel = computed(() => {
         ترحيل قيد التسوية
       </AppButton>
       <AppButton v-if="data && data.net > 0" @click="payOpen = true">سداد الضريبة</AppButton>
-      <AppButton v-if="lastEntryId" variant="ghost" :to="`/accounting/journal/${lastEntryId}`">عرض آخر قيد تسوية</AppButton>
+      <AppButton v-if="lastEntryId" variant="ghost" :to="{ name: 'journal-entry', params: { id: lastEntryId } }">عرض آخر قيد تسوية</AppButton>
     </div>
 
     <AppModal v-model:open="payOpen" title="سداد ضريبة القيمة المضافة" size="sm">

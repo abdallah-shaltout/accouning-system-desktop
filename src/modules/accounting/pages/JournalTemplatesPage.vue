@@ -70,7 +70,7 @@ const dueCount = computed(() => (data.value ?? []).filter(isDue).length);
   <div>
     <PageHeader title="قوالب القيود والقيود المتكررة" subtitle="قوالب جاهزة (إيجار، رواتب، إهلاك…) — احفظ قالباً من نموذج قيد يومية جديد">
       <template v-if="auth.can('accounting', 'write')" #actions>
-        <AppButton variant="primary" :icon="Plus" to="/accounting/journal/new">قيد جديد لحفظه كقالب</AppButton>
+        <AppButton variant="primary" :icon="Plus" :to="{ name: 'journal-new' }">قيد جديد لحفظه كقالب</AppButton>
       </template>
     </PageHeader>
 

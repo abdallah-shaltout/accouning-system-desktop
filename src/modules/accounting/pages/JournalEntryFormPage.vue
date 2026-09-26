@@ -374,7 +374,7 @@ async function submit(mode: 'draft' | 'post' | 'postAndNew') {
     if (mode === 'postAndNew') {
       resetForm();
     } else {
-      router.push(`/accounting/journal/${entry.id}`);
+      router.push({ name: 'journal-entry', params: { id: entry.id } });
     }
   } catch (err) {
     toast.error(err);
@@ -404,7 +404,7 @@ useHotkeys({
     <PageHeader
       :title="draftId ? 'تعديل مسودة قيد' : 'قيد يومية يدوي'"
       subtitle="للمصروفات، التسويات، والإيداعات — يجب أن يتساوى المدين والدائن قبل الترحيل"
-      back="/accounting/journal"
+      :back="{ name: 'journal' }"
     />
 
     <AppCard padding="sm" class="mb-4">
@@ -563,7 +563,7 @@ useHotkeys({
           </ul>
         </div>
         <div class="flex flex-wrap gap-2">
-          <AppButton to="/accounting/journal">إلغاء</AppButton>
+          <AppButton :to="{ name: 'journal' }">إلغاء</AppButton>
           <AppButton :icon="FileDown" :loading="saving" @click="submit('draft')">حفظ كمسودة</AppButton>
           <AppButton variant="ghost" @click="openSaveAsTemplate">حفظ كقالب</AppButton>
           <AppButton

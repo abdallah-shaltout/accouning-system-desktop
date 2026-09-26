@@ -234,8 +234,8 @@ function openActive() {
   if (row) openEntry(row);
 }
 function openEntry(row: JournalRow) {
-  if (row.status === 'DRAFT') router.push(`/accounting/journal/new?draft=${row.id}`);
-  else router.push(`/accounting/journal/${row.id}`);
+  if (row.status === 'DRAFT') router.push({ name: 'journal-new', query: { draft: row.id } });
+  else router.push({ name: 'journal-entry', params: { id: row.id } });
 }
 useHotkeys({
   j: () => {
@@ -304,7 +304,7 @@ async function exportEntriesWithLines() {
 
 /** Opens the day-book report for the same period with its official print preview already open. */
 function openDayBook() {
-  void router.push({ path: '/reports/day-book', query: { from: from.value || undefined, to: to.value || undefined, print: '1' } });
+  void router.push({ name: 'report-day-book', query: { from: from.value || undefined, to: to.value || undefined, print: '1' } });
 }
 </script>
 
@@ -315,7 +315,7 @@ function openDayBook() {
         <AppButton :icon="Printer" @click="openDayBook">دفتر اليومية PDF</AppButton>
         <AppButton :icon="FileDown" :loading="exporting" @click="exportEntries">تصدير</AppButton>
         <AppButton variant="ghost" :loading="exporting" @click="exportEntriesWithLines">تصدير بالأسطر</AppButton>
-        <AppButton v-if="auth.can('accounting', 'write')" variant="primary" :icon="Plus" to="/accounting/journal/new" kbd="N">قيد يدوي</AppButton>
+        <AppButton v-if="auth.can('accounting', 'write')" variant="primary" :icon="Plus" :to="{ name: 'journal-new' }" kbd="N">قيد يدوي</AppButton>
       </template>
     </PageHeader>
 
