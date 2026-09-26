@@ -79,7 +79,7 @@ function print() {
   <div>
     <ErrorState v-if="error" :message="error" @retry="reload" />
     <template v-else>
-      <PageHeader :title="shift ? `تقرير Z — وردية ${shift.number}` : '…'" back="/pos/shifts">
+      <PageHeader :title="shift ? `تقرير Z — وردية ${shift.number}` : '…'" :back="{ name: 'pos-shifts' }">
         <template #actions><AppButton variant="primary" :icon="Printer" :disabled="!shift" data-testid="shift-print" @click="print">طباعة</AppButton></template>
       </PageHeader>
 

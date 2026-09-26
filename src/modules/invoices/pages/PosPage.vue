@@ -130,7 +130,7 @@ async function closeShiftNow(countedCash: number, denominations: any, handoverMo
     await closePosShift(shift.value.id, { countedCash, closingDenominations: denominations, handoverMode, note });
     closeShiftDialogOpen.value = false;
     toast.success('تم إغلاق الوردية', 'تم ترحيل الفرق للحساب المناسب');
-    router.push('/pos/shifts');
+    router.push({ name: 'pos-shifts' });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -502,7 +502,7 @@ async function printReceipt(invoiceId?: string) {
       return;
     }
   }
-  router.push({ path: `/print/invoices/${id}`, query: { auto: '1', back: '/pos' } });
+  router.push({ name: 'invoice-print', params: { id }, query: { auto: '1', from: 'pos' } });
 }
 
 const anyModal = computed(
@@ -579,7 +579,7 @@ const shortcuts = [
     <!-- Top bar -->
     <header class="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-border px-4">
       <div class="flex items-center gap-3">
-        <AppButton size="sm" variant="ghost" :icon="dirIcon.back" icon-rtl-flip to="/">لوحة التحكم</AppButton>
+        <AppButton size="sm" variant="ghost" :icon="dirIcon.back" icon-rtl-flip :to="{ name: 'home' }">لوحة التحكم</AppButton>
         <div class="h-5 w-px bg-border" />
         <span class="text-body font-semibold">نقطة البيع</span>
         <span class="text-body text-text-secondary">{{ settings.settings?.storeName }}</span>

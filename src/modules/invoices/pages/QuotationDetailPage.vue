@@ -44,7 +44,7 @@ async function convert(payment: { tenders: Tender[]; paidAmount: number; tendere
   try {
     const invoice = await convertQuotationToInvoice(id, { paymentMethod: 'cash', paidAmount: payment.paidAmount, tenderedAmount: payment.tenderedAmount });
     toast.success('تم تحويل العرض إلى فاتورة', invoice.number);
-    router.push(`/invoices/${invoice.id}`);
+    router.push({ name: 'invoice', params: { id: invoice.id } });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -64,7 +64,7 @@ const draft = computed(() => ({
   <div>
     <ErrorState v-if="error" :message="error" @retry="reload" />
     <template v-else>
-      <PageHeader :title="q ? `عرض سعر ${q.number}` : '…'" back="/sales/quotations">
+      <PageHeader :title="q ? `عرض سعر ${q.number}` : '…'" :back="{ name: 'quotations' }">
         <template v-if="q" #badge><StatusBadge :tone="STATUS_LABEL[q.status].tone" :label="STATUS_LABEL[q.status].label" /></template>
         <template #actions>
           <template v-if="q && q.status === 'DRAFT'">
@@ -74,7 +74,7 @@ const draft = computed(() => ({
             <AppButton :icon="X" @click="setStatus('REJECTED')">رفض</AppButton>
             <AppButton variant="primary" :icon="FileCheck" @click="tenderOpen = true">تحويل إلى فاتورة</AppButton>
           </template>
-          <AppButton v-if="q?.convertedInvoiceId" variant="primary" :to="`/invoices/${q.convertedInvoiceId}`">عرض الفاتورة</AppButton>
+          <AppButton v-if="q?.convertedInvoiceId" variant="primary" :to="{ name: 'invoice', params: { id: q.convertedInvoiceId } }">عرض الفاتورة</AppButton>
         </template>
       </PageHeader>
 

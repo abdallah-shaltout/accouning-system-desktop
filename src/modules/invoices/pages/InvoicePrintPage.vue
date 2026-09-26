@@ -11,6 +11,7 @@ import { useHotkeys } from '@/modules/core/controllers/useHotkeys';
 import { dirIcon } from '@/modules/core/helpers/dirIcon';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
 import type { PrinterMode, ThermalWidth } from '@/modules/settings/types';
+import type { AppRoute } from '@/modules/core/types/route';
 import InvoiceA4 from '../components/InvoiceA4.vue';
 import InvoiceThermal from '../components/InvoiceThermal.vue';
 import { getInvoicePrintData } from '../services/invoiceService';
@@ -58,7 +59,7 @@ watch(data, (d) => {
   if (d && route.query.auto === '1') setTimeout(print, 300);
 });
 
-const backTo = computed(() => (typeof route.query.back === 'string' ? route.query.back : id === 'sample' ? '/settings/printing' : `/invoices/${id}`));
+const backTo = computed<AppRoute>(() => (route.query.from === 'pos' ? { name: 'pos' } : id === 'sample' ? { name: 'settings-printing' } : { name: 'invoice', params: { id } }));
 function close() {
   router.push(backTo.value);
 }

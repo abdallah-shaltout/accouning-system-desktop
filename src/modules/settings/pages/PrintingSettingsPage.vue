@@ -115,7 +115,7 @@ watch(
 );
 
 function testPrint() {
-  router.push({ path: '/print/invoices/sample', query: { mode: mode.value, width: String(width.value), back: '/settings/printing' } });
+  router.push({ name: 'invoice-print', params: { id: 'sample' }, query: { mode: mode.value, width: String(width.value) } });
 }
 
 async function testThermalPrint() {

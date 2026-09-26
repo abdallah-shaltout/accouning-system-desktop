@@ -84,7 +84,7 @@ async function submit() {
         .map((l) => ({ invoiceLineId: l.id, qty: num0(qty.value[l.id]), restock: restock.value[l.id] })),
     });
     toast.success('تم تسجيل المرتجع', `${refund.number} — ${refund.cashBack > 0 ? `يُرد للعميل ${refund.cashBack.toFixed(2)}` : 'خُصم من حساب العميل'}`);
-    router.push(`/invoices/${id}`);
+    router.push({ name: 'invoice', params: { id } });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -95,7 +95,7 @@ async function submit() {
 
 <template>
   <div>
-    <PageHeader :title="data ? `إرجاع من الفاتورة ${data.number}` : 'مرتجع مبيعات'" :subtitle="data?.customerName ?? 'عميل نقدي'" :back="`/invoices/${id}`" />
+    <PageHeader :title="data ? `إرجاع من الفاتورة ${data.number}` : 'مرتجع مبيعات'" :subtitle="data?.customerName ?? 'عميل نقدي'" :back="{ name: 'invoice', params: { id } }" />
 
     <ErrorState v-if="error" :message="error" @retry="reload" />
     <div v-else class="grid items-start gap-5 xl:grid-cols-[1fr_320px]">

@@ -63,7 +63,7 @@ async function forceClose(row: ShiftRow) {
       </template>
       <template #cell-actions="{ row }">
         <AppButton v-if="row.status === 'OPEN' && canManage" size="sm" variant="ghost" :icon="RotateCcw" @click="forceClose(row)">إغلاق إجباري</AppButton>
-        <AppButton v-if="row.status === 'CLOSED'" size="sm" variant="ghost" :icon="Printer" :to="`/pos/shifts/${row.id}`">تقرير Z</AppButton>
+        <AppButton v-if="row.status === 'CLOSED'" size="sm" variant="ghost" :icon="Printer" :to="{ name: 'pos-shift-report', params: { id: row.id } }">تقرير Z</AppButton>
       </template>
     </DataTable>
   </div>

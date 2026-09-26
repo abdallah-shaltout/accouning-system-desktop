@@ -234,7 +234,7 @@ function printAll() {
       <template #actions>
         <AppButton :icon="Download" :loading="zipping" @click="downloadPdfsZip">تنزيل PDF (مضغوط)</AppButton>
         <AppButton :icon="Printer" :disabled="loading && !data" data-testid="invoices-print" @click="printAll">طباعة</AppButton>
-        <AppButton v-if="auth.can('pos', 'write')" variant="primary" :icon="ShoppingCart" to="/pos">بيع جديد</AppButton>
+        <AppButton v-if="auth.can('pos', 'write')" variant="primary" :icon="ShoppingCart" :to="{ name: 'pos' }">بيع جديد</AppButton>
       </template>
     </PageHeader>
 
@@ -277,7 +277,7 @@ function printAll() {
       empty-description="غيّر الفترة أو الفلتر لعرض فواتير أخرى"
       export-file-name="invoices"
       @retry="reload"
-      @row-click="(r) => router.push(`/invoices/${r.id}`)"
+      @row-click="(r) => router.push({ name: 'invoice', params: { id: r.id } })"
     >
       <template #cell-number="{ row }"><span class="num font-medium">{{ row.number }}</span></template>
       <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDateTime(row.date) }}</span></template>
