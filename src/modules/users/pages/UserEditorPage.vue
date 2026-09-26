@@ -9,7 +9,9 @@ import AppPhoneInput from '@/modules/core/components/ui/AppPhoneInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import FormActions from '@/modules/core/components/blocks/FormActions.vue';
+import FormSection from '@/modules/core/components/blocks/FormSection.vue';
+import FormPage from '@/modules/core/components/layouts/FormPage.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { errorMessage } from '@/modules/core/controllers/useToast';
@@ -122,53 +124,49 @@ async function save() {
 </script>
 
 <template>
-  <div>
-    <PageHeader :title="id ? 'تعديل مستخدم' : 'مستخدم جديد'" :subtitle="id ? form.name : 'أضف حساباً لموظف وحدد صلاحياته'" :back="{ name: 'users' }" />
-
+  <FormPage :title="id ? 'تعديل مستخدم' : 'مستخدم جديد'" :subtitle="id ? form.name : 'أضف حساباً لموظف وحدد صلاحياته'" :back="{ name: 'users' }">
     <ErrorState v-if="loadError" :message="loadError" @retry="load" />
     <div v-else-if="loading" class="grid gap-5 lg:grid-cols-[1fr_320px]">
       <AppCard><SkeletonBlock :lines="8" height="h-8" /></AppCard>
       <AppCard><SkeletonBlock :lines="6" /></AppCard>
     </div>
 
-    <form v-else class="grid items-start gap-5 lg:grid-cols-[1fr_320px]" novalidate @submit.prevent="save">
-      <div class="space-y-5">
-        <AppCard title="البيانات الأساسية">
-          <div class="grid gap-4 sm:grid-cols-2">
-            <AppInput v-model="form.name" label="الاسم الكامل" required :error="errors.name" />
-            <AppPhoneInput v-model="form.phone" label="الجوال" kind="mobile" :error="errors.phone" />
-            <AppInput v-model="form.username" label="اسم المستخدم" required ltr :error="errors.username" hint="يستخدم لتسجيل الدخول" />
-            <AppInput
-              v-model="form.password"
-              :label="id ? 'كلمة مرور جديدة' : 'كلمة المرور'"
-              type="password"
-              ltr
-              :required="!id"
-              :error="errors.password"
-              :hint="id ? 'اتركها فارغة للإبقاء على كلمة المرور الحالية' : undefined"
-            />
-          </div>
-        </AppCard>
+    <form v-else novalidate @submit.prevent="save">
+      <FormSection title="البيانات الأساسية" :columns="2">
+        <AppInput v-model="form.name" label="الاسم الكامل" required :error="errors.name" />
+        <AppPhoneInput v-model="form.phone" label="الجوال" kind="mobile" :error="errors.phone" />
+        <AppInput v-model="form.username" label="اسم المستخدم" required ltr :error="errors.username" hint="يستخدم لتسجيل الدخول" />
+        <AppInput
+          v-model="form.password"
+          :label="id ? 'كلمة مرور جديدة' : 'كلمة المرور'"
+          type="password"
+          ltr
+          :required="!id"
+          :error="errors.password"
+          :hint="id ? 'اتركها فارغة للإبقاء على كلمة المرور الحالية' : undefined"
+        />
+      </FormSection>
 
-        <AppCard title="الصلاحيات ونقطة البيع">
-          <div class="grid gap-4 sm:grid-cols-3">
-            <AppSelect v-model="form.role" label="الصلاحية" :options="roleOptions" :disabled="isSelf" :hint="isSelf ? 'لا يمكنك تغيير صلاحيتك' : undefined" />
-            <AppInput v-model="form.maxDiscount" label="أقصى نسبة خصم" type="number" min="0" max="100" :error="errors.maxDiscount" hint="يُطبق في نقطة البيع">
-              <template #suffix>%</template>
-            </AppInput>
-            <AppSelect v-model="form.priceListId" label="قائمة الأسعار" :options="priceListOptions" placeholder="السعر الأساسي" hint="الأسعار التي يبيع بها" />
-          </div>
-          <div class="mt-5 border-t border-border pt-4">
-            <AppSwitch v-model="form.active" label="الحساب نشط" description="الحساب الموقوف لا يمكنه تسجيل الدخول" :disabled="isSelf" />
-          </div>
-        </AppCard>
+      <FormSection title="الصلاحيات ونقطة البيع" :columns="3">
+        <AppSelect v-model="form.role" label="الصلاحية" :options="roleOptions" :disabled="isSelf" :hint="isSelf ? 'لا يمكنك تغيير صلاحيتك' : undefined" />
+        <AppInput v-model="form.maxDiscount" label="أقصى نسبة خصم" type="number" min="0" max="100" :error="errors.maxDiscount" hint="يُطبق في نقطة البيع">
+          <template #suffix>%</template>
+        </AppInput>
+        <AppSelect v-model="form.priceListId" label="قائمة الأسعار" :options="priceListOptions" placeholder="السعر الأساسي" hint="الأسعار التي يبيع بها" />
+        <div class="sm:col-span-3 border-t border-border pt-4">
+          <AppSwitch v-model="form.active" label="الحساب نشط" description="الحساب الموقوف لا يمكنه تسجيل الدخول" :disabled="isSelf" />
+        </div>
+      </FormSection>
 
-        <div class="flex justify-end gap-2">
+      <FormActions>
+        <template #primary>
           <AppButton :to="{ name: 'users' }">إلغاء</AppButton>
           <AppButton type="submit" variant="primary" :icon="Save" :loading="saving">حفظ</AppButton>
-        </div>
-      </div>
+        </template>
+      </FormActions>
+    </form>
 
+    <template v-if="!loadError && !loading" #aside>
       <AppCard :title="`صلاحيات ${ROLE_LABEL[form.role]}`" padding="none">
         <ul class="divide-y divide-border">
           <li v-for="r in accessRows" :key="r.area" class="flex items-center justify-between px-4 py-2 text-body">
@@ -188,6 +186,6 @@ async function save() {
           <Check class="mt-0.5 size-3.5 shrink-0" /> الصلاحيات قوالب ثابتة حسب الدور — لا حاجة لضبط كل صلاحية على حدة.
         </p>
       </AppCard>
-    </form>
-  </div>
+    </template>
+  </FormPage>
 </template>
