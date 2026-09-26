@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **715 files / 74,153 lines** (json 3, md 41, rust 22, ts 220, vue 429).
+Indexed: **721 files / 74,511 lines** (json 3, md 47, rust 22, ts 220, vue 429).
 
 **Lookup order:** Where-to-find → Open diagnostics → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -38,7 +38,24 @@ Indexed: **715 files / 74,153 lines** (json 3, md 41, rust 22, ts 220, vue 429).
 
 ## Open diagnostics (docs/diagnostics — 18.G)
 
-_No open issues._ Full ledger: `docs/diagnostics/ISSUES.md` (`bun run diag`/`diag:check`).
+Known failures not yet fixed — check before starting work in an affected area. Full ledger: `docs/diagnostics/ISSUES.md` (regenerate with `bun run diag`; `bun run diag:check` is part of the definition of done).
+
+**By kind:** | Kind | Open count |
+|---|---|
+| خلل | 6 |
+
+**By area:** `branches-currencies (1)`, `full-persona-pass (1)`, `onboarding (1)`, `purchases (1)`, `reports-v2 (1)`, `setup-wizard-eg (1)`
+
+
+
+| ID | Kind | Area | Status | Occurrences | Last seen | Debug namespace | File |
+|---|---|---|---|---|---|---|---|
+| `BUG-0001` | خلل | onboarding | مفتوح | 2 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0001-onboarding-flow-crashed-unhandled-except.md` |
+| `BUG-0002` | خلل | setup-wizard-eg | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0002-setup-wizard-eg-flow-crashed-unhandled-e.md` |
+| `BUG-0004` | خلل | purchases | مفتوح | 2 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0004-purchases-flow-crashed-unhandled-excepti.md` |
+| `BUG-0005` | خلل | branches-currencies | مفتوح | 2 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0005-branches-currencies-flow-failed-an-asser.md` |
+| `BUG-0006` | خلل | reports-v2 | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0006-reports-v2-flow-crashed-unhandled-except.md` |
+| `BUG-0007` | خلل | full-persona-pass | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0007-full-persona-pass-flow-failed-an-asserti.md` |
 
 ## Architecture (layers & data flow)
 
@@ -62,7 +79,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **accounting** | 12 / 3370 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
 | **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
 | **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
-| **core** | 348 / 19517 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 10, types 5 | 5 |  |
+| **core** | 348 / 19528 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 10, types 5 | 5 |  |
 | **diagnostics** | 20 / 2061 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 1 | 0 | yes |
 | **expenses** | 8 / 947 | pages 5, routes 1, services 1, types 1 | 5 |  |
 | **invoices** | 30 / 5383 | commands 1, components 13, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
@@ -71,7 +88,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **products** | 32 / 5090 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
 | **purchases** | 11 / 1712 | commands 1, components 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
 | **reports** | 44 / 6208 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
-| **settings** | 33 / 4924 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
+| **settings** | 33 / 4964 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
 | **setup** | 17 / 1673 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
 | **templates** | 4 / 919 | pages 2, services 1, types 1 | 0 |  |
 | **users** | 11 / 966 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
@@ -431,6 +448,12 @@ _none_
 | `docs/action_plan.md` | Execution Plan — Frontend-Only Rebuild |
 | `docs/design_system.md` | Design System — "Linear-style" Light/Dark |
 | `docs/diagnostics/ISSUES.md` | سجل المشاكل (Issues) — ملف مُولَّد |
+| `docs/diagnostics/issues/BUG-0001-onboarding-flow-crashed-unhandled-except.md` |  |
+| `docs/diagnostics/issues/BUG-0002-setup-wizard-eg-flow-crashed-unhandled-e.md` |  |
+| `docs/diagnostics/issues/BUG-0004-purchases-flow-crashed-unhandled-excepti.md` |  |
+| `docs/diagnostics/issues/BUG-0005-branches-currencies-flow-failed-an-asser.md` |  |
+| `docs/diagnostics/issues/BUG-0006-reports-v2-flow-crashed-unhandled-except.md` |  |
+| `docs/diagnostics/issues/BUG-0007-full-persona-pass-flow-failed-an-asserti.md` |  |
 | `docs/diagnostics/issues/DBG-0001-example-entry.md` |  |
 | `docs/domain_model.md` | Domain Model (Frontend Mock Data Reference) |
 | `docs/project_specs.md` | Desktop Accounting & POS UI — Product Spec (Frontend-Only) |

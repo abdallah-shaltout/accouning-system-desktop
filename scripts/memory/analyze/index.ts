@@ -4,6 +4,7 @@ import { exists } from '../scan/scanner';
 import type { Analysis, ParsedRepo } from '../types';
 import { analyzeBoundaries } from './boundaries';
 import { analyzeMocks, analyzeModuleEdges, analyzePackages } from './dependencies';
+import { analyzeOpenDiagnostics } from './diagnostics';
 import { analyzeKit } from './kit';
 import { analyzeModules } from './modules';
 
@@ -23,5 +24,6 @@ export function analyze(repo: ParsedRepo, config: Config): Analysis {
       lines: repo.files.reduce((n, f) => n + f.lines, 0),
       byLang,
     },
+    openDiagnostics: analyzeOpenDiagnostics(repo, config),
   };
 }

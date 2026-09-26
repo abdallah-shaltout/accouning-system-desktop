@@ -15,7 +15,7 @@ export interface Config {
   ignorePrefixes: string[];
   aliases: Record<string, string>;
   resolveSuffixes: string[];
-  paths: Record<'modules' | 'mocks' | 'rust' | 'rustEntry' | 'packageJson' | 'tauriConf' | 'cargoToml' | 'coreKit' | 'docs' | 'plans', string>;
+  paths: Record<'modules' | 'mocks' | 'rust' | 'rustEntry' | 'packageJson' | 'tauriConf' | 'cargoToml' | 'coreKit' | 'docs' | 'plans' | 'diagnosticsIssues', string>;
   seam: { allowedLayers: string[]; forbiddenTarget: string; compositionRoots: string[]; knownLegacy: string[] };
   maxPageLines: number;
   landmarks: [label: string, path: string][];
@@ -58,6 +58,8 @@ export const config: Config = {
     coreKit: 'src/modules/core/components',
     docs: 'docs',
     plans: 'plans',
+    /** 18.G "Open diagnostics" section — the same ledger `bun run diag` builds ISSUES.md from. */
+    diagnosticsIssues: 'docs/diagnostics/issues',
   },
 
   /** Seam rule (CLAUDE.md): only these module layers may import the mock backend. */

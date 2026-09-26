@@ -130,4 +130,11 @@ export interface Analysis {
   };
   landmarks: { label: string; path: string; exists: boolean }[];
   totals: { files: number; lines: number; byLang: Record<string, number> };
+  /** 18.G — open issues from docs/diagnostics/issues/*.md, by kind and area. */
+  openDiagnostics: {
+    issues: { id: string; kind: string; area: string; status: string; occurrences: number; lastSeen: string; debugNamespace?: string; file: string }[];
+    byKind: Record<string, number>;
+    byArea: { area: string; count: number }[];
+    debugNamespaces: string[];
+  };
 }

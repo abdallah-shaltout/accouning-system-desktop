@@ -13,7 +13,7 @@ export function header({ analysis }: Ctx): string {
     '> **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes\n' +
       '> (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.',
     `Indexed: **${files} files / ${lines.toLocaleString('en-US')} lines** (${langs}).`,
-    '**Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.',
+    '**Lookup order:** Where-to-find → Open diagnostics → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.',
   ].join('\n\n');
 }
 
@@ -149,4 +149,32 @@ export function landmarks({ analysis }: Ctx): string {
 
 export function docs({ repo }: Ctx): string {
   return section('Docs index', table(['Doc', 'Title'], repo.docs.map((d) => [code(d.path), d.title])));
+}
+
+const KIND_LABEL: Record<string, string> = { bug: 'خلل', perf: 'أداء', debug: 'تتبع', accounting: 'محاسبة' };
+
+export function openDiagnostics({ analysis }: Ctx): string {
+  const d = analysis.openDiagnostics;
+  if (d.issues.length === 0) {
+    return section(
+      'Open diagnostics (docs/diagnostics — 18.G)',
+      '_No open issues._ Full ledger: `docs/diagnostics/ISSUES.md` (`bun run diag`/`diag:check`).',
+    );
+  }
+  const byKindRows = Object.entries(d.byKind).map(([k, n]) => [KIND_LABEL[k] ?? k, n]);
+  const rows = d.issues.map((i) => [
+    code(i.id), KIND_LABEL[i.kind] ?? i.kind, i.area, i.status === 'investigating' ? 'قيد الفحص' : 'مفتوح',
+    i.occurrences, i.lastSeen, i.debugNamespace ? code(i.debugNamespace) : '', code(i.file),
+  ]);
+  return section(
+    'Open diagnostics (docs/diagnostics — 18.G)',
+    `Known failures not yet fixed — check before starting work in an affected area. Full ledger: ` +
+      `${code('docs/diagnostics/ISSUES.md')} (regenerate with ${code('bun run diag')}; ${code('bun run diag:check')} is part of the definition of done).`,
+    `**By kind:** ${table(['Kind', 'Open count'], byKindRows)}`,
+    `**By area:** ${list(d.byArea.map((a) => `${a.area} (${a.count})`), 30)}`,
+    d.debugNamespaces.length
+      ? `**Debug namespaces to try** (${code("localStorage['equal.debug']")} or the التتبع tab): ${list(d.debugNamespaces, 20)}`
+      : '',
+    table(['ID', 'Kind', 'Area', 'Status', 'Occurrences', 'Last seen', 'Debug namespace', 'File'], rows),
+  );
 }

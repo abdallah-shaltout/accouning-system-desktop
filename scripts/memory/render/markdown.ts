@@ -4,7 +4,7 @@ import type { Analysis, ParsedRepo } from '../types';
 import * as s from './sections';
 
 const ORDER = [
-  s.header, s.landmarks, s.architecture, s.domainMap, s.serviceApi, s.routes, s.dependencies,
+  s.header, s.landmarks, s.openDiagnostics, s.architecture, s.domainMap, s.serviceApi, s.routes, s.dependencies,
   s.ipc, s.mocks, s.kit, s.boundaries, s.stack, s.docs,
 ];
 
