@@ -148,6 +148,7 @@ function goToStep(i: number) {
             type="button"
             class="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-start text-xs transition-colors"
             :class="i === stepIndex ? 'bg-primary/10 font-semibold text-primary' : doneSteps.has(s.key) ? 'text-text-primary hover:bg-surface-hover' : 'text-text-secondary hover:bg-surface-hover'"
+            :aria-current="i === stepIndex ? 'step' : undefined"
             @click="goToStep(i)"
           >
             <span

@@ -7,7 +7,7 @@
  * and a `getBoundingClientRect()` positioning calculation. `ignoreFilter` keeps our own
  * Arabic-normalized `matchesSearch()` filtering rather than reka-ui's plain substring match.
  */
-import { computed, ref } from 'vue';
+import { computed, ref, useId } from 'vue';
 import { Check, ChevronDown, X } from '@lucide/vue';
 import {
   Combobox,
@@ -51,6 +51,8 @@ const props = withDefaults(
 const model = defineModel<string | undefined>();
 const emit = defineEmits<{ select: [option: ComboOption] }>();
 
+const id = useId();
+const errorId = computed(() => (props.error ? `${id}-error` : undefined));
 const open = ref(false);
 const query = ref('');
 
@@ -80,8 +82,8 @@ defineExpose({ open: () => (open.value = true) });
 
 <template>
   <div>
-    <label v-if="label" class="field-label">
-      {{ label }}<span v-if="required" class="text-danger"> *</span>
+    <label v-if="label" :for="id" class="field-label">
+      {{ label }}<span v-if="required" class="text-danger" aria-hidden="true"> *</span>
     </label>
     <Combobox
       :model-value="model"
@@ -94,9 +96,12 @@ defineExpose({ open: () => (open.value = true) });
       <ComboboxAnchor class="w-full">
         <ComboboxTrigger as-child aria-haspopup="listbox" class="w-full">
           <button
+            :id="id"
             type="button"
             :disabled="disabled"
             :aria-invalid="!!error || undefined"
+            :aria-describedby="errorId"
+            :aria-required="required || undefined"
             class="control flex w-full items-center gap-2 text-start"
             :class="dense ? 'h-8 border-transparent bg-transparent hover:border-border' : ''"
           >
@@ -116,7 +121,7 @@ defineExpose({ open: () => (open.value = true) });
           </button>
         </ComboboxTrigger>
       </ComboboxAnchor>
-      <p v-if="error" class="mt-1 text-xs text-danger">{{ error }}</p>
+      <p v-if="error" :id="errorId" class="mt-1 text-xs text-danger" role="alert">{{ error }}</p>
 
       <ComboboxList dir="rtl" class="w-[--reka-combobox-trigger-width] min-w-60 rounded-lg border-border bg-background shadow-xl">
         <ComboboxInput v-model="query" :placeholder="searchPlaceholder" class="text-body" />
