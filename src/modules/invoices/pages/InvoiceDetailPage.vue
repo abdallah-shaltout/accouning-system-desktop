@@ -4,11 +4,12 @@ import { useRoute } from 'vue-router';
 import { BookOpen, HandCoins, Printer, Undo2 } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
+import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
-import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import DetailPage, { type DetailTab } from '@/modules/core/components/layouts/DetailPage.vue';
+import type { MetaChip } from '@/modules/core/components/blocks/DetailHeader.vue';
 import { isTauri } from '@tauri-apps/api/core';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDateTime, formatNumber } from '@/modules/core/helpers/format';
@@ -18,7 +19,7 @@ import { useToast } from '@/modules/core/controllers/useToast';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { useRouter } from 'vue-router';
 import { round2 } from '../helpers/totals';
-import { getInvoice } from '../services/invoiceService';
+import { getInvoice, type InvoiceDetail } from '../services/invoiceService';
 
 const route = useRoute('invoice');
 const router = useRouter();
@@ -30,6 +31,38 @@ const inv = computed(() => data.value);
 
 const canRefund = computed(() => auth.can('sales', 'write') && inv.value?.status === 'COMPLETED');
 const canPay = computed(() => auth.can('payments', 'write') && !!inv.value?.customerId && (inv.value?.outstanding ?? 0) > 0);
+
+const status = computed(() => {
+  if (!inv.value) return undefined;
+  return inv.value.status === 'REFUNDED' ? INVOICE_STATUS.REFUNDED : PAYMENT_STATUS[inv.value.paymentStatus];
+});
+
+const chips = computed<MetaChip[]>(() => {
+  if (!inv.value) return [];
+  return [
+    { label: 'التاريخ', value: formatDateTime(inv.value.date) },
+    { label: 'الكاشير', value: inv.value.cashierName },
+  ];
+});
+
+const tabs = computed<DetailTab[]>(() => {
+  const t: DetailTab[] = [{ key: 'lines', label: 'الأصناف' }];
+  if (inv.value?.refunds.length) t.push({ key: 'refunds', label: 'المرتجعات' });
+  if (inv.value?.payments.length) t.push({ key: 'payments', label: 'الدفعات اللاحقة' });
+  return t;
+});
+
+const lineColumns: Column<InvoiceDetail['lines'][number]>[] = [
+  { key: 'name', label: 'الصنف' },
+  { key: 'qty', label: 'الكمية', type: 'number' },
+  { key: 'price', label: 'السعر', type: 'money' },
+  { key: 'returned', label: 'المرتجع', type: 'number' },
+  { key: 'total', label: 'الإجمالي', type: 'money' },
+];
+
+function lineTotal(l: InvoiceDetail['lines'][number]): number {
+  return round2(l.qty * l.price - l.discount);
+}
 
 /**
  * Phase 11a integration point (docs/v2/12-documents-pdf-excel.md §2): in the
@@ -52,88 +85,76 @@ async function print() {
 <template>
   <div>
     <ErrorState v-if="error" :message="error" @retry="reload" />
-    <template v-else>
-      <PageHeader :title="inv ? `فاتورة ${inv.number}` : '…'" :back="{ name: 'invoices' }">
-        <template v-if="inv" #badge>
-          <StatusBadge v-if="inv.status === 'REFUNDED'" :tone="INVOICE_STATUS.REFUNDED.tone" :label="INVOICE_STATUS.REFUNDED.label" />
-          <StatusBadge v-else :tone="PAYMENT_STATUS[inv.paymentStatus].tone" :label="PAYMENT_STATUS[inv.paymentStatus].label" />
-        </template>
-        <template v-if="inv" #subtitle>
-          <span class="num">{{ formatDateTime(inv.date) }}</span> · الكاشير {{ inv.cashierName }}
-        </template>
-        <template #actions>
-          <AppButton v-if="canRefund" :icon="Undo2" :to="{ name: 'invoice-refund', params: { id } }">إرجاع</AppButton>
-          <AppButton v-if="canPay" :icon="HandCoins" :to="{ name: 'payment-new', query: { type: 'RECEIVED', party: inv?.customerId, ref: id } }">تسجيل دفعة</AppButton>
-          <AppButton variant="primary" :icon="Printer" @click="print">طباعة</AppButton>
-        </template>
-      </PageHeader>
+    <DetailPage
+      v-else
+      :title="inv ? `فاتورة ${inv.number}` : '…'"
+      :status="status"
+      :chips="chips"
+      :back="{ name: 'invoices' }"
+      :tabs="tabs"
+    >
+      <template #actions>
+        <AppButton v-if="canRefund" :icon="Undo2" :to="{ name: 'invoice-refund', params: { id } }">إرجاع</AppButton>
+        <AppButton v-if="canPay" :icon="HandCoins" :to="{ name: 'payment-new', query: { type: 'RECEIVED', party: inv?.customerId, ref: id } }">تسجيل دفعة</AppButton>
+        <AppButton variant="primary" :icon="Printer" @click="print">طباعة</AppButton>
+      </template>
 
-      <div class="grid items-start gap-5 xl:grid-cols-[1fr_320px]">
-        <div class="space-y-5">
-          <AppCard padding="none">
-            <div v-if="!inv" class="p-4"><SkeletonBlock :lines="6" /></div>
-            <table v-else class="w-full text-body">
-              <thead class="bg-surface text-xs text-text-secondary">
-                <tr class="border-b border-border">
-                  <th class="px-4 py-2.5 text-start font-medium">الصنف</th>
-                  <th class="px-3 py-2.5 text-start font-medium">الكمية</th>
-                  <th class="px-3 py-2.5 text-start font-medium">السعر</th>
-                  <th class="px-3 py-2.5 text-start font-medium">المرتجع</th>
-                  <th class="px-4 py-2.5 text-start font-medium">الإجمالي</th>
-                </tr>
-              </thead>
-              <tbody class="bg-background">
-                <tr v-for="l in inv.lines" :key="l.id" class="border-b border-border last:border-0">
-                  <td class="px-4 py-2.5">
-                    <RouterLink :to="{ name: 'product', params: { id: l.productId } }" class="hover:text-primary">{{ l.name }}</RouterLink>
-                  </td>
-                  <td class="px-3 py-2.5"><span class="num">{{ formatNumber(l.qty) }}</span></td>
-                  <td class="px-3 py-2.5"><MoneyText :value="l.price" plain /></td>
-                  <td class="px-3 py-2.5">
-                    <span v-if="inv.returnedQty[l.id]" class="num text-danger">{{ formatNumber(inv.returnedQty[l.id]) }}</span>
-                    <span v-else class="text-text-secondary">—</span>
-                  </td>
-                  <td class="px-4 py-2.5"><MoneyText :value="round2(l.qty * l.price - l.discount)" /></td>
-                </tr>
-              </tbody>
-            </table>
-          </AppCard>
+      <template #tab-lines>
+        <AppCard padding="none">
+          <div v-if="!inv" class="p-4"><SkeletonBlock :lines="6" /></div>
+          <DataTable v-else :columns="lineColumns" :rows="inv.lines" row-key="id">
+            <template #cell-name="{ row }">
+              <RouterLink :to="{ name: 'product', params: { id: row.productId } }" class="hover:text-primary">{{ row.name }}</RouterLink>
+            </template>
+            <template #cell-returned="{ row }">
+              <span v-if="inv!.returnedQty[row.id]" class="num text-danger">{{ formatNumber(inv!.returnedQty[row.id]) }}</span>
+              <span v-else class="text-text-secondary">—</span>
+            </template>
+            <template #cell-total="{ row }">
+              <MoneyText :value="lineTotal(row)" />
+            </template>
+          </DataTable>
+        </AppCard>
+      </template>
 
-          <AppCard v-if="inv?.refunds.length" title="المرتجعات" padding="none">
-            <ul class="divide-y divide-border text-body">
-              <li v-for="r in inv.refunds" :key="r.id" class="flex items-center justify-between gap-3 px-4 py-2.5">
-                <div>
-                  <span class="num font-medium">{{ r.number }}</span>
-                  <span class="ms-2 text-text-secondary">{{ r.reason ?? 'بدون سبب' }}</span>
-                  <span class="num block text-xs text-text-secondary">{{ formatDateTime(r.date) }}</span>
-                </div>
-                <div class="text-end">
-                  <MoneyText :value="r.grandTotal" class="text-danger" />
-                  <span class="block text-tiny text-text-secondary">
-                    <template v-if="r.cashBack">مسترد نقداً <MoneyText :value="r.cashBack" plain /></template>
-                    <template v-if="r.cashBack && r.settledToReceivable"> · </template>
-                    <template v-if="r.settledToReceivable">خصم من الحساب <MoneyText :value="r.settledToReceivable" plain /></template>
-                  </span>
-                </div>
-              </li>
-            </ul>
-          </AppCard>
+      <template v-if="inv?.refunds.length" #tab-refunds>
+        <AppCard padding="none">
+          <ul class="divide-y divide-border text-body">
+            <li v-for="r in inv.refunds" :key="r.id" class="flex items-center justify-between gap-3 px-4 py-2.5">
+              <div>
+                <span class="num font-medium">{{ r.number }}</span>
+                <span class="ms-2 text-text-secondary">{{ r.reason ?? 'بدون سبب' }}</span>
+                <span class="num block text-xs text-text-secondary">{{ formatDateTime(r.date) }}</span>
+              </div>
+              <div class="text-end">
+                <MoneyText :value="r.grandTotal" class="text-danger" />
+                <span class="block text-tiny text-text-secondary">
+                  <template v-if="r.cashBack">مسترد نقداً <MoneyText :value="r.cashBack" plain /></template>
+                  <template v-if="r.cashBack && r.settledToReceivable"> · </template>
+                  <template v-if="r.settledToReceivable">خصم من الحساب <MoneyText :value="r.settledToReceivable" plain /></template>
+                </span>
+              </div>
+            </li>
+          </ul>
+        </AppCard>
+      </template>
 
-          <AppCard v-if="inv?.payments.length" title="الدفعات اللاحقة" padding="none">
-            <ul class="divide-y divide-border text-body">
-              <li v-for="p in inv.payments" :key="p.id" class="flex items-center justify-between px-4 py-2.5">
-                <div>
-                  <span class="num font-medium">{{ p.number }}</span>
-                  <span class="ms-2 text-text-secondary">{{ PAYMENT_METHOD_LABEL[p.method] }}</span>
-                  <span class="num block text-xs text-text-secondary">{{ formatDateTime(p.date) }}</span>
-                </div>
-                <MoneyText :value="p.amount" class="text-success" />
-              </li>
-            </ul>
-          </AppCard>
-        </div>
+      <template v-if="inv?.payments.length" #tab-payments>
+        <AppCard padding="none">
+          <ul class="divide-y divide-border text-body">
+            <li v-for="p in inv.payments" :key="p.id" class="flex items-center justify-between px-4 py-2.5">
+              <div>
+                <span class="num font-medium">{{ p.number }}</span>
+                <span class="ms-2 text-text-secondary">{{ PAYMENT_METHOD_LABEL[p.method] }}</span>
+                <span class="num block text-xs text-text-secondary">{{ formatDateTime(p.date) }}</span>
+              </div>
+              <MoneyText :value="p.amount" class="text-success" />
+            </li>
+          </ul>
+        </AppCard>
+      </template>
 
-        <div class="space-y-4">
+      <template #aside>
           <AppCard title="الملخص" padding="sm">
             <SkeletonBlock v-if="!inv" :lines="5" />
             <dl v-else class="space-y-1.5 text-body">
@@ -191,8 +212,7 @@ async function print() {
               </li>
             </ul>
           </AppCard>
-        </div>
-      </div>
-    </template>
+      </template>
+    </DetailPage>
   </div>
 </template>
