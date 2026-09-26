@@ -1,3 +1,4 @@
+import type { AppRoute } from '@/modules/core/types/route';
 import type { PaletteSearchProvider } from '@/modules/core/types/commandPalette';
 import { normalizeArabic } from '@/modules/core/helpers/search';
 
@@ -7,7 +8,7 @@ import { normalizeArabic } from '@/modules/core/helpers/search';
  * matching the `/dev/ui` gallery's own "not linked, dev-only" treatment.
  */
 
-const DEV_PAGES: { title: string; to: string }[] = [{ title: 'التشخيص', to: '/dev/diagnostics' }];
+const DEV_PAGES: { title: string; to: AppRoute }[] = [{ title: 'التشخيص', to: { name: 'dev-diagnostics' } }];
 
 export const searchProviders: PaletteSearchProvider[] = [
   {
@@ -17,7 +18,7 @@ export const searchProviders: PaletteSearchProvider[] = [
       if (!import.meta.env.DEV) return [];
       const q = normalizeArabic(query);
       return DEV_PAGES.filter((p) => normalizeArabic(p.title).includes(q)).map((p) => ({
-        id: `diagnostics:${p.to}`,
+        id: `diagnostics:${p.to.name}`,
         group: 'pages' as const,
         title: p.title,
         to: p.to,
