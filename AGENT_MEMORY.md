@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **692 files / 71,287 lines** (md 41, rust 22, ts 209, vue 420).
+Indexed: **696 files / 72,194 lines** (md 41, rust 22, ts 213, vue 420).
 
 **Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -41,7 +41,7 @@ Indexed: **692 files / 71,287 lines** (md 41, rust 22, ts 209, vue 420).
 ```text
 pages (112) / components (344) / controllers (23)   src/modules/<domain>/…
         │  may call ONLY ▼                  (seam rule — see Boundary report)
-services (34)   src/modules/<domain>/services/*   ← swap point for a real backend
+services (35)   src/modules/<domain>/services/*   ← swap point for a real backend
    │                                   │
    ▼                                   ▼
 mock backend  src/mocks/     Tauri IPC invoke('<cmd>') → src-tauri/src/lib.rs
@@ -58,17 +58,17 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **accounting** | 12 / 3340 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
 | **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
 | **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
-| **core** | 340 / 18416 | commandPalette 1, components 294, controllers 14, helpers 15, pages 4, routes 1, services 7, types 4 | 5 |  |
-| **diagnostics** | 18 / 1391 | commands 1, components 7, config 1, controllers 1, pages 1, services 6, types 1 | 0 | yes |
+| **core** | 340 / 18427 | commandPalette 1, components 294, controllers 14, helpers 15, pages 4, routes 1, services 7, types 4 | 5 |  |
+| **diagnostics** | 19 / 1629 | commands 1, components 7, config 1, controllers 1, pages 1, services 7, types 1 | 0 | yes |
 | **expenses** | 8 / 962 | pages 5, routes 1, services 1, types 1 | 5 |  |
-| **invoices** | 29 / 5247 | commands 1, components 12, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
-| **parties** | 9 / 1766 | components 1, helpers 1, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
-| **payments** | 6 / 887 | pages 3, routes 1, services 1, types 1 | 3 |  |
+| **invoices** | 29 / 5248 | commands 1, components 12, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
+| **parties** | 10 / 1793 | components 1, helpers 2, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
+| **payments** | 6 / 888 | pages 3, routes 1, services 1, types 1 | 3 |  |
 | **products** | 30 / 5045 | components 6, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
 | **purchases** | 10 / 1633 | commands 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
 | **reports** | 44 / 6198 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
 | **settings** | 29 / 5093 | commands 1, components 1, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
-| **setup** | 17 / 1607 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
+| **setup** | 17 / 1608 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
 | **templates** | 4 / 919 | pages 2, services 1, types 1 | 0 |  |
 | **users** | 11 / 963 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
 | **vouchers** | 9 / 819 | commands 1, pages 5, routes 1, services 1, types 1 | 5 | yes |
@@ -87,6 +87,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | core | `pdfService` | `render`, `renderAndSave`, `renderPreview`, `sampleInvoicePayload`, `buildLabelItems`, `renderLabels`, `renderLabelsAndSave`, `renderGenericReport`, `renderGenericReportAndSave`, `renderReportPdf`, `saveReportPdf`, `renderLabelsPreview` |
 | core | `printService` | `printReceipt`, `testPrint`, `initPrintResultListener` |
 | core | `saveFile` | `saveFile` |
+| diagnostics | `accountingDebugService` | `listRecentDocuments`, `getPostingTrace`, `getJournalEntryRaw`, `getBalancesAround`, `getInvariantResults`, `getDriftReport`, `explainAccountBalance` |
 | diagnostics | `auditService` | `getAuditEntries`, `getAuditEntities`, `getAuditEntityKinds` |
 | diagnostics | `defineService` | `wrap` |
 | diagnostics | `diagnosticsReadService` | `loadChannel`, `groupByFingerprint`, `computePerfStats`, `slowestLongTasks` |
@@ -250,12 +251,12 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **app** | core (14), settings (5), diagnostics (4), users (3), accounting (2), approvals (2), invoices (2), mocks (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), parties (1), payments (1), products (1), setup (1) | 1 |
 | **approvals** | core (11), mocks (2), diagnostics (1), users (1) | 4 |
 | **core** | mocks (21), users (19), invoices (13), products (12), settings (10), diagnostics (7), parties (3), purchases (3), accounting (2), templates (2), vouchers (2), app (1), payments (1), reports (1), setup (1) | 18 |
-| **diagnostics** | core (17), mocks (2) | 18 |
+| **diagnostics** | core (17), mocks (3) | 18 |
 | **expenses** | core (59), mocks (3), users (3), accounting (2), parties (2), settings (2), diagnostics (1) | 2 |
-| **invoices** | core (163), mocks (9), settings (9), parties (8), products (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
-| **mocks** | invoices (9), products (8), accounting (7), settings (5), core (3), vouchers (3), approvals (2), diagnostics (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 17 |
-| **parties** | core (50), mocks (8), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), setup (1) | 10 |
-| **payments** | core (43), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
+| **invoices** | core (164), mocks (9), settings (9), parties (8), products (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
+| **mocks** | invoices (9), accounting (8), products (8), settings (5), diagnostics (4), core (3), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 17 |
+| **parties** | core (52), mocks (8), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), setup (1) | 10 |
+| **payments** | core (44), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
 | **products** | core (202), mocks (15), users (13), settings (7), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
 | **purchases** | core (76), mocks (4), products (4), users (4), invoices (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
 | **reports** | core (158), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
@@ -304,10 +305,12 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `backend/core.ts` | `resolvePosting`, `assertOpenPeriod`, `postJournal`, `draftJournal`, `updateDraftJournal`, `deleteDraftJournal`, `postDraftJournal`, `productById`, `applyStockChange`, `round4`, `logActivity`, `logAudit`, `diffFields`, `salesTaxRate`, `purchaseTaxRate`, `userById`, `closeYearPreChecks`, `closeFiscalYear`, `reopenFiscalYear` | accounting, parties, products, settings, users |
 | `backend/currency.ts` | `baseCurrency`, `isBaseCurrency`, `currencyByCode`, `activeCurrencies`, `createCurrency`, `updateCurrency`, `isBaseCurrencyLocked`, `setBaseCurrency`, `saveExchangeRate`, `latestRate`, `requireRate`, `convertLinesToBase`, `toBase` | settings, setup |
 | `backend/expenses.ts` | `saveExpenseCategory`, `deleteExpenseCategory`, `recordExpense`, `getExpenseById`, `saveRecurringExpense`, `deleteRecurringExpense`, `dueRecurringExpenses`, `postRecurringExpense` | expenses |
+| `backend/invariants.ts` | `checkBalancedEntries`, `checkTrialBalance`, `checkArApControl`, `checkInventoryGl`, `checkVatControl`, `checkPartyAllocation`, `checkSourceRefIntegrity`, `checkLockDate`, `checkOpeningBalanceEquity`, `checkClearingAccounts`, `checkShiftVariance`, `checkDraftsIsolated`, `checkAllocationsWithinTotal`, `checkFxConversion`, `runAllInvariants` | — |
 | `backend/inventory.ts` | `activeBatchesFor`, `isBatchExpired`, `isBatchNearExpiry`, `receiveBatch`, `consumeFefo`, `recordStockAdjustment`, `completeStockAdjustment`, `startStockCount`, `setStockCountLine`, `submitStockCountForReview`, `backToCounting`, `applyStockCount`, `writeOffBatches`, `draftReturnToSupplier` | products, purchases |
 | `backend/journal.ts` | `splitLineByCostCenters`, `recordManualJournal`, `editDraftJournal`, `reverseJournal`, `saveJournalTemplate`, `deleteJournalTemplate`, `advanceRecurrence`, `vatTotalsForPeriod`, `postVatSettlement`, `payVatSettlement` | accounting |
 | `backend/opening.ts` | `hasFirstUsePosted`, `openingBalanceEquityNet`, `buildOpeningLines`, `postOpeningEntry`, `closeOpeningBalanceEquity`, `postOpeningBalancesAndClose`, `postOpeningStockForBranch`, `postOpeningStockDefault`, `postPartyOpeningBalance`, `reversePartyOpeningBalance` | setup |
 | `backend/payments.ts` | `getOpenDocumentsFor`, `allocatedTotal`, `unallocatedAmount`, `unallocatedCreditFor`, `recordPayment`, `allocatePayment`, `unallocatePayment` | core, parties, payments, reports |
+| `backend/posting-trace.ts` | `recordPostingTrace`, `recentPostingTraces`, `postingTraceFor`, `clearPostingTraces` | — |
 | `backend/purchases.ts` | `computePurchaseTotals`, `purchaseOutstanding`, `missingSupplierInvoice`, `duplicateSupplierInvoice`, `baseQty`, `baseUnitCost`, `savePurchase`, `sendPurchaseToSupplier`, `receivePurchase`, `confirmPurchase`, `cancelPurchase`, `returnedQtyByProduct`, `recordPurchaseReturn`, `supplierOutstandingTotal`, `getDebitNoteDrafts`, `postDebitNoteFromDraft` | purchases |
 | `backend/revaluation.ts` | `openFcBalances`, `defaultRevaluationRates`, `postRevaluation` | settings |
 | `backend/sales.ts` | `previewSaleJournal`, `recordSale`, `returnedQtyByLine`, `recordRefund` | invoices |
@@ -377,13 +380,13 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `src/modules/settings/pages/AppearanceSettingsPage.vue` | 670 |
 | `src/modules/accounting/pages/JournalEntryFormPage.vue` | 593 |
 | `src/modules/core/pages/DevUiPage.vue` | 556 |
-| `src/modules/parties/pages/PartyFormPage.vue` | 538 |
+| `src/modules/parties/pages/PartyFormPage.vue` | 539 |
 | `src/modules/products/pages/ProductFormPage.vue` | 483 |
 | `src/modules/accounting/pages/JournalListPage.vue` | 478 |
 | `src/modules/products/pages/StockAdjustmentFormPage.vue` | 456 |
 | `src/modules/invoices/pages/InvoiceFormPage.vue` | 447 |
 | `src/modules/templates/pages/TemplateDesignerPage.vue` | 446 |
-| `src/modules/parties/pages/PartyDetailPage.vue` | 407 |
+| `src/modules/parties/pages/PartyDetailPage.vue` | 409 |
 | `src/modules/purchases/pages/PurchaseFormPage.vue` | 400 |
 | `src/modules/accounting/pages/ChartOfAccountsPage.vue` | 392 |
 | `src/modules/settings/pages/BackupSettingsPage.vue` | 390 |

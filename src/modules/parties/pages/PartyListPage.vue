@@ -13,6 +13,7 @@ import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatNumber } from '@/modules/core/helpers/format';
 import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import { partyRoute } from '../helpers/partyRoutes';
 // v2 phase 5 (docs/v2/05-onboarding.md §5): generic Excel import, wired in here for "import
 // customers/suppliers" — the same descriptor pattern the opening-balances step uses.
 import ImportWizard from '@/modules/core/components/import/ImportWizard.vue';
@@ -76,7 +77,7 @@ const columns = computed<Column<Party>[]>(() => [
     >
       <template #actions>
         <AppButton v-if="canWrite" :icon="Upload" @click="importOpen = true">استيراد من إكسل</AppButton>
-        <AppButton v-if="canWrite" :icon="FileText" :to="isCustomer ? '/customers/new' : '/suppliers/new'">نموذج كامل</AppButton>
+        <AppButton v-if="canWrite" :icon="FileText" :to="partyRoute(kind, 'new')">نموذج كامل</AppButton>
         <AppButton v-if="canWrite" variant="primary" :icon="Plus" @click="formOpen = true">{{ isCustomer ? 'عميل جديد' : 'مورد جديد' }}</AppButton>
       </template>
     </PageHeader>
@@ -96,7 +97,7 @@ const columns = computed<Column<Party>[]>(() => [
       :empty-icon="isCustomer ? Users : Truck"
       :empty-title="isCustomer ? 'لا يوجد عملاء' : 'لا يوجد موردون'"
       @retry="reload"
-      @row-click="(p) => router.push(`/${isCustomer ? 'customers' : 'suppliers'}/${p.id}`)"
+      @row-click="(p) => router.push(partyRoute(kind, 'detail', p.id))"
     >
       <template #cell-name="{ row }">
         <span class="inline-flex items-center gap-2 font-medium">
@@ -120,7 +121,7 @@ const columns = computed<Column<Party>[]>(() => [
       <MoneyText :value="totalBalance" class="text-text-primary" />
     </p>
 
-    <PartyFormModal v-model:open="formOpen" :kind="kind" @saved="(p) => router.push(`/${isCustomer ? 'customers' : 'suppliers'}/${p.id}`)" />
+    <PartyFormModal v-model:open="formOpen" :kind="kind" @saved="(p) => router.push(partyRoute(kind, 'detail', p.id))" />
     <ImportWizard v-if="importOpen" :descriptor="importDescriptor" @close="importOpen = false" @imported="() => { importOpen = false; reload(); }" />
   </div>
 </template>

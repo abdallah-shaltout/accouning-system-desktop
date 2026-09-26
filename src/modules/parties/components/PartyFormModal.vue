@@ -15,6 +15,7 @@ import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { validate } from '@/modules/core/helpers/validation';
+import { partyRoute, partyRouteById } from '../helpers/partyRoutes';
 import { checkDuplicates, saveCustomer, saveSupplier, type DuplicateWarning } from '../services/partyService';
 import type { Customer, Supplier } from '../types';
 import { partyQuickSchema } from '../validators/partySchema';
@@ -63,8 +64,7 @@ watch([() => form.phone, () => form.vatNumber], () => {
 });
 
 function duplicateLink(d: DuplicateWarning) {
-  // Guess the kind from the id prefix (cus-/sup-) since findDuplicates searches both lists.
-  return d.existingId.startsWith('sup') ? `/suppliers/${d.existingId}` : `/customers/${d.existingId}`;
+  return partyRouteById(d.existingId);
 }
 
 async function save() {
@@ -88,7 +88,7 @@ async function save() {
 
 function openFullForm() {
   open.value = false;
-  router.push(props.kind === 'customer' ? '/customers/new' : '/suppliers/new');
+  router.push(partyRoute(props.kind, 'new'));
 }
 </script>
 

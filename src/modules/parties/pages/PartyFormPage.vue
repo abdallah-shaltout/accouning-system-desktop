@@ -26,6 +26,7 @@ import { errorMessage } from '@/modules/core/controllers/useToast';
 import { COUNTRIES } from '@/modules/core/helpers/countries';
 import { PHONE_LABEL } from '@/modules/core/helpers/labels';
 import { uid } from '@/mocks';
+import { partyRoute, partyRouteById } from '../helpers/partyRoutes';
 import {
   checkDuplicates,
   getCustomer,
@@ -194,7 +195,7 @@ watch([primaryPhone, () => form.vatNumber], () => {
 });
 
 function duplicateLink(d: DuplicateWarning) {
-  return d.existingId.startsWith('sup') ? `/suppliers/${d.existingId}` : `/customers/${d.existingId}`;
+  return partyRouteById(d.existingId);
 }
 
 const ibanError = computed(() => (form.iban && !isValidIban(form.iban) ? 'رقم آيبان غير صحيح' : undefined));
@@ -260,7 +261,7 @@ async function save() {
       await postOpening(saved.id);
     }
     toast.success(id.value || !wasNew ? 'تم حفظ التعديلات' : isCustomer.value ? 'تمت إضافة العميل' : 'تمت إضافة المورد', saved.name);
-    router.push(isCustomer.value ? `/customers/${saved.id}` : `/suppliers/${saved.id}`);
+    router.push(partyRoute(props.kind, 'detail', saved.id));
   } catch (err) {
     toast.error(err);
   } finally {
@@ -341,7 +342,7 @@ const countryOptions = COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} 
     <PageHeader
       :title="id ? `تعديل ${isCustomer ? 'العميل' : 'المورد'}` : isCustomer ? 'عميل جديد' : 'مورد جديد'"
       :subtitle="id ? form.name : undefined"
-      :back="id ? `/${isCustomer ? 'customers' : 'suppliers'}/${id}` : `/${isCustomer ? 'customers' : 'suppliers'}`"
+      :back="id ? partyRoute(kind, 'detail', id) : partyRoute(kind, 'list')"
     />
 
     <ErrorState v-if="loadError" :message="loadError" @retry="load" />
@@ -496,7 +497,7 @@ const countryOptions = COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} 
         </AppCard>
 
         <div class="flex justify-end gap-2">
-          <AppButton :to="id ? `/${isCustomer ? 'customers' : 'suppliers'}/${id}` : `/${isCustomer ? 'customers' : 'suppliers'}`">إلغاء</AppButton>
+          <AppButton :to="id ? partyRoute(kind, 'detail', id) : partyRoute(kind, 'list')">إلغاء</AppButton>
           <AppButton type="submit" variant="primary" :icon="Save" :loading="saving">حفظ</AppButton>
         </div>
       </div>
@@ -511,7 +512,7 @@ const countryOptions = COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} 
           <p class="mt-3 text-xs text-text-secondary">احفظ البطاقة أولاً لتتمكن من الربط.</p>
         </template>
         <template v-else-if="linkedId">
-          <RouterLink :to="`/${isCustomer ? 'suppliers' : 'customers'}/${linkedId}`" class="mt-3 block text-sm text-primary hover:underline">
+          <RouterLink :to="partyRoute(isCustomer ? 'supplier' : 'customer', 'detail', linkedId)" class="mt-3 block text-sm text-primary hover:underline">
             عرض سجل {{ isCustomer ? 'المورد' : 'العميل' }} المرتبط
           </RouterLink>
           <AppButton type="button" size="sm" class="mt-2" @click="unlink">إلغاء الربط</AppButton>
