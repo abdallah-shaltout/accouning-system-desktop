@@ -2,11 +2,9 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ArrowLeftRight } from '@lucide/vue';
-import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
-import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
-import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import ListPage from '@/modules/core/components/layouts/ListPage.vue';
+import FilterBar from '@/modules/core/components/blocks/FilterBar.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { daysAgoKey, formatDateTime, formatNumber, todayKey } from '@/modules/core/helpers/format';
 import { MOVEMENT_REASON } from '@/modules/core/helpers/labels';
@@ -17,22 +15,19 @@ import type { Product, StockMovementReason } from '../types';
 const route = useRoute();
 const router = useRouter();
 
-const productId = ref<string | undefined>(typeof route.query.product === 'string' ? route.query.product : undefined);
-const reason = ref<StockMovementReason | ''>('');
-const from = ref(daysAgoKey(29));
-const to = ref(todayKey());
+const productId = computed(() => (typeof route.query.product === 'string' ? route.query.product : undefined));
+const reason = computed(() => (typeof route.query.reason === 'string' ? (route.query.reason as StockMovementReason) : undefined));
+const from = computed(() => (typeof route.query.from === 'string' ? route.query.from : daysAgoKey(29)));
+const to = computed(() => (typeof route.query.to === 'string' ? route.query.to : todayKey()));
 const products = ref<Product[]>([]);
 
 const movements = useAsync(() =>
   getStockMovements({ productId: productId.value, reason: reason.value || undefined, from: from.value || undefined, to: to.value || undefined }),
 );
 onMounted(async () => (products.value = await getProducts({ type: 'product', includeInactive: true })));
-watch([productId, reason, from, to], () => {
-  router.replace({ query: { product: productId.value } });
-  movements.reload();
-});
+watch([productId, reason, from, to], () => movements.reload());
 
-const productOptions = computed(() => products.value.map((p) => ({ value: p.id, label: p.name, sublabel: p.sku, keywords: `${p.sku} ${p.barcode ?? ''}` })));
+const productOptions = computed(() => products.value.map((p) => ({ value: p.id, label: p.name })));
 const reasonOptions = (Object.keys(MOVEMENT_REASON) as StockMovementReason[]).map((r) => ({ value: r, label: MOVEMENT_REASON[r] }));
 
 const totals = computed(() => {
@@ -55,16 +50,16 @@ const columns = computed<Column<Row>[]>(() => [
 </script>
 
 <template>
-  <div>
-    <PageHeader title="حركة المخزون" subtitle="سجل كل ما دخل وخرج من المخزون ومصدره — للقراءة فقط" />
-
-    <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
-      <div class="flex flex-wrap items-end gap-2">
-        <AppCombobox v-model="productId" class="w-64" :options="productOptions" placeholder="كل الأصناف" clearable />
-        <AppSelect v-model="reason" class="w-40" placeholder="كل الحركات" :options="reasonOptions" />
-      </div>
-      <DateRangeFilter v-model:from="from" v-model:to="to" />
-    </div>
+  <ListPage title="حركة المخزون" subtitle="سجل كل ما دخل وخرج من المخزون ومصدره — للقراءة فقط">
+    <template #filters>
+      <FilterBar
+        :filters="[
+          { key: 'product', label: 'الصنف', placeholder: 'كل الأصناف', options: productOptions },
+          { key: 'reason', label: 'نوع الحركة', placeholder: 'كل الحركات', options: reasonOptions },
+        ]"
+        date-range
+      />
+    </template>
 
     <DataTable
       :columns="columns"
@@ -89,5 +84,5 @@ const columns = computed<Column<Row>[]>(() => [
       {{ formatNumber(movements.data.value.length) }} حركة · وارد <span class="num text-success">+{{ formatNumber(totals.in) }}</span> · صادر
       <span class="num text-danger">−{{ formatNumber(totals.out) }}</span>
     </p>
-  </div>
+  </ListPage>
 </template>

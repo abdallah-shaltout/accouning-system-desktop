@@ -1,17 +1,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import { useRouter } from "vue-router";
-import { CalendarClock, Plus, Receipt } from "@lucide/vue";
+import { useRoute, useRouter } from "vue-router";
+import { CalendarClock, Receipt } from "@lucide/vue";
 import AppButton from "@/modules/core/components/ui/AppButton.vue";
 import AppCard from "@/modules/core/components/ui/AppCard.vue";
-import AppSelect from "@/modules/core/components/ui/AppSelect.vue";
 import DataTable, {
     type Column,
 } from "@/modules/core/components/ui/DataTable.vue";
-import DateRangeFilter from "@/modules/core/components/ui/DateRangeFilter.vue";
 import MoneyText from "@/modules/core/components/ui/MoneyText.vue";
-import PageHeader from "@/modules/core/components/ui/PageHeader.vue";
-import SearchInput from "@/modules/core/components/ui/SearchInput.vue";
+import ListPage from "@/modules/core/components/layouts/ListPage.vue";
+import FilterBar from "@/modules/core/components/blocks/FilterBar.vue";
 import { useAsync } from "@/modules/core/controllers/useAsync";
 import { useToast } from "@/modules/core/controllers/useToast";
 import { formatDate, startOfMonthKey } from "@/modules/core/helpers/format";
@@ -26,12 +24,13 @@ import {
 import type { ExpenseCategory, RecurringExpense } from "../types";
 
 const router = useRouter();
+const route = useRoute();
 const auth = useAuthStore();
 const toast = useToast();
-const categoryId = ref("");
-const search = ref("");
-const from = ref("");
-const to = ref("");
+const categoryId = computed(() => (typeof route.query.categoryId === "string" ? route.query.categoryId : ""));
+const search = computed(() => (typeof route.query.q === "string" ? route.query.q : ""));
+const from = computed(() => (typeof route.query.from === "string" ? route.query.from : ""));
+const to = computed(() => (typeof route.query.to === "string" ? route.query.to : ""));
 const categories = ref<ExpenseCategory[]>([]);
 const due = ref<RecurringExpense[]>([]);
 const posting = ref<string | null>(null);
@@ -65,10 +64,9 @@ async function postDue(id: string) {
     }
 }
 
-const categoryOptions = computed(() => [
-    { value: "", label: "كل التصنيفات" },
-    ...categories.value.map((c) => ({ value: c.id, label: c.name })),
-]);
+const categoryOptions = computed(() =>
+    categories.value.map((c) => ({ value: c.id, label: c.name })),
+);
 
 // Month total by category (mini bar chart) — current month's posted expenses.
 const monthTotals = computed(() => {
@@ -95,32 +93,24 @@ function round(n: number) {
 
 const columns: Column<ExpenseRow>[] = [
     { key: "number", label: "الرقم", sortable: true },
-    { key: "date", label: "التاريخ", sortable: true },
+    { key: "date", label: "التاريخ", type: "date", sortable: true },
     { key: "categoryName", label: "التصنيف", sortable: true },
     { key: "description", label: "الوصف" },
-    { key: "amount", label: "المبلغ", numeric: true, sortable: true },
+    { key: "amount", label: "المبلغ", type: "money", sortable: true },
 ];
 </script>
 
 <template>
-    <div>
-        <PageHeader
-            title="المصروفات"
-            subtitle="تسجيل المصروفات التشغيلية وربطها بحسابات شجرة الحسابات"
-        >
-            <template
-                v-if="
-                    auth.can('purchases', 'write') ||
-                    auth.can('accounting', 'write')
-                "
-                #actions
-            >
-                <AppButton variant="primary" :icon="Plus" :to="{ name: 'expense-new' }"
-                    >مصروف جديد</AppButton
-                >
-            </template>
-        </PageHeader>
-
+    <ListPage
+        title="المصروفات"
+        subtitle="تسجيل المصروفات التشغيلية وربطها بحسابات شجرة الحسابات"
+        :primary-action-label="
+            auth.can('purchases', 'write') || auth.can('accounting', 'write')
+                ? 'مصروف جديد'
+                : undefined
+        "
+        :primary-action-to="{ name: 'expense-new' }"
+    >
         <AppCard
             v-if="due.length"
             title="مصروفات متكررة مستحقة"
@@ -184,13 +174,13 @@ const columns: Column<ExpenseRow>[] = [
             </div>
         </AppCard>
 
-        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <div class="flex flex-wrap items-center gap-2">
-                <AppSelect v-model="categoryId" :options="categoryOptions" />
-                <DateRangeFilter v-model:from="from" v-model:to="to" />
-            </div>
-            <SearchInput v-model="search" placeholder="الرقم أو الوصف" />
-        </div>
+        <template #filters>
+            <FilterBar
+                search-placeholder="الرقم أو الوصف"
+                :filters="[{ key: 'categoryId', label: 'التصنيف', options: categoryOptions }]"
+                date-range
+            />
+        </template>
 
         <DataTable
             :columns="columns"
@@ -206,14 +196,6 @@ const columns: Column<ExpenseRow>[] = [
             <template #cell-number="{ row }"
                 ><span class="num font-medium">{{ row.number }}</span></template
             >
-            <template #cell-date="{ row }"
-                ><span class="num text-text-secondary">{{
-                    formatDate(row.date)
-                }}</span></template
-            >
-            <template #cell-amount="{ row }"
-                ><MoneyText :value="row.amount"
-            /></template>
         </DataTable>
-    </div>
+    </ListPage>
 </template>

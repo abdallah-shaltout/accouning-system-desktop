@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import { ClipboardCheck, Plus } from '@lucide/vue';
-import AppButton from '@/modules/core/components/ui/AppButton.vue';
+import { ClipboardCheck } from '@lucide/vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import ListPage from '@/modules/core/components/layouts/ListPage.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDateTime, formatNumber } from '@/modules/core/helpers/format';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
@@ -33,13 +32,12 @@ const columns: Column<StockCount>[] = [
 </script>
 
 <template>
-  <div>
-    <PageHeader title="الجرد" subtitle="جرد بنطاق محدد مع لقطة رصيد النظام لحظة البدء — عد أعمى واختياري بالمسح">
-      <template v-if="auth.can('inventory', 'write')" #actions>
-        <AppButton variant="primary" :icon="Plus" :to="{ name: 'count-new' }">جرد جديد</AppButton>
-      </template>
-    </PageHeader>
-
+  <ListPage
+    title="الجرد"
+    subtitle="جرد بنطاق محدد مع لقطة رصيد النظام لحظة البدء — عد أعمى واختياري بالمسح"
+    :primary-action-label="auth.can('inventory', 'write') ? 'جرد جديد' : undefined"
+    :primary-action-to="{ name: 'count-new' }"
+  >
     <DataTable
       :columns="columns"
       :rows="data"
@@ -57,5 +55,5 @@ const columns: Column<StockCount>[] = [
       <template #cell-blind="{ row }"><StatusBadge v-if="row.blind" tone="primary" label="أعمى" :dot="false" /><span v-else class="text-text-secondary">—</span></template>
       <template #cell-status="{ row }"><StatusBadge :tone="STATUS[row.status].tone" :label="STATUS[row.status].label" /></template>
     </DataTable>
-  </div>
+  </ListPage>
 </template>

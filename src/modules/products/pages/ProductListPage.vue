@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Package, PackagePlus, Plus } from '@lucide/vue';
+import { Package, PackagePlus } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
-import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
-import SearchInput from '@/modules/core/components/ui/SearchInput.vue';
-import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import ListPage from '@/modules/core/components/layouts/ListPage.vue';
+import FilterBar from '@/modules/core/components/blocks/FilterBar.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatNumber } from '@/modules/core/helpers/format';
 import { matchesSearch } from '@/modules/core/helpers/search';
@@ -24,25 +22,19 @@ const auth = useAuthStore();
 const catalog = useCatalogStore();
 const canWrite = computed(() => auth.can('inventory', 'write'));
 
-const search = ref(String(route.query.q ?? ''));
-const categoryId = ref<string>(String(route.query.category ?? ''));
-const view = ref<'all' | 'product' | 'service' | 'low' | 'inactive'>(route.query.stock === 'low' ? 'low' : 'all');
+// `FilterBar` syncs `q`/`category`/`view` to the URL itself; `stock=low` is a legacy deep-link
+// (dashboard "low stock" widget) folded into the same `view` filter key.
+const search = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''));
+const categoryId = computed(() => (typeof route.query.category === 'string' ? route.query.category : ''));
+const view = computed<'all' | 'product' | 'service' | 'low' | 'inactive'>(() => {
+  if (route.query.stock === 'low') return 'low';
+  const v = route.query.view;
+  if (v === 'product' || v === 'service' || v === 'low' || v === 'inactive') return v;
+  return 'all';
+});
 
 const { data, loading, error, reload } = useAsync(() => getProducts({ includeInactive: true }));
 onMounted(() => catalog.load());
-
-// Keep filters in the URL so back/forward and dashboard deep links work.
-watch([search, categoryId, view], () => {
-  router.replace({
-    query: {
-      q: search.value || undefined,
-      category: categoryId.value || undefined,
-      stock: view.value === 'low' ? 'low' : undefined,
-      view: !['all', 'low'].includes(view.value) ? view.value : undefined,
-    },
-  });
-});
-if (route.query.view && ['product', 'service', 'inactive'].includes(String(route.query.view))) view.value = route.query.view as typeof view.value;
 
 const rows = computed(() => {
   return (data.value ?? []).filter((p) => {
@@ -55,24 +47,13 @@ const rows = computed(() => {
   });
 });
 
-const counts = computed(() => {
-  const list = data.value ?? [];
-  return {
-    all: list.filter((p) => p.active).length,
-    product: list.filter((p) => p.active && p.type === 'product').length,
-    service: list.filter((p) => p.active && p.type === 'service').length,
-    low: list.filter((p) => p.active && isLowStock(p)).length,
-    inactive: list.filter((p) => !p.active).length,
-  };
-});
-
-const viewOptions = computed(() => [
-  { value: 'all' as const, label: 'الكل', count: counts.value.all },
-  { value: 'product' as const, label: 'منتجات', count: counts.value.product },
-  { value: 'service' as const, label: 'خدمات', count: counts.value.service },
-  { value: 'low' as const, label: 'مخزون منخفض', count: counts.value.low },
-  { value: 'inactive' as const, label: 'موقوفة', count: counts.value.inactive },
-]);
+const viewOptions = [
+  { value: 'all', label: 'الكل' },
+  { value: 'product', label: 'منتجات' },
+  { value: 'service', label: 'خدمات' },
+  { value: 'low', label: 'مخزون منخفض' },
+  { value: 'inactive', label: 'موقوفة' },
+];
 
 const stockValue = computed(() => rows.value.reduce((a, p) => a + (p.type === 'product' ? p.stockQty * p.costPrice : 0), 0));
 
@@ -91,26 +72,24 @@ function margin(p: Product) {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="المنتجات" subtitle="الأصناف والخدمات، الأسعار، ومستويات المخزون">
+    <ListPage
+      title="المنتجات"
+      subtitle="الأصناف والخدمات، الأسعار، ومستويات المخزون"
+      :primary-action-label="canWrite ? 'منتج جديد' : undefined"
+      :primary-action-to="{ name: 'product-new' }"
+    >
       <template #actions>
         <AppButton v-if="canWrite" :icon="PackagePlus" :to="{ name: 'adjustment-new', query: { type: 'STOCK_IN' } }">إدخال مخزون</AppButton>
-        <AppButton v-if="canWrite" variant="primary" :icon="Plus" :to="{ name: 'product-new' }">منتج جديد</AppButton>
       </template>
-    </PageHeader>
-
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-      <SegmentedControl v-model="view" :options="viewOptions" />
-      <div class="flex flex-wrap items-center gap-2">
-        <AppSelect
-          v-model="categoryId"
-          class="w-44"
-          placeholder="كل التصنيفات"
-          :options="catalog.categories.map((c) => ({ value: c.id, label: c.name }))"
+      <template #filters>
+        <FilterBar
+          search-placeholder="الاسم، SKU، أو الباركود"
+          :filters="[
+            { key: 'view', label: 'العرض', options: viewOptions },
+            { key: 'category', label: 'التصنيف', placeholder: 'كل التصنيفات', options: catalog.categories.map((c) => ({ value: c.id, label: c.name })) },
+          ]"
         />
-        <SearchInput v-model="search" placeholder="الاسم، SKU، أو الباركود" />
-      </div>
-    </div>
+      </template>
 
     <DataTable
       :columns="columns"
@@ -148,5 +127,5 @@ function margin(p: Product) {
     <p v-if="rows.length" class="mt-3 text-xs text-text-secondary">
       {{ formatNumber(rows.length) }} صنف · قيمة المخزون بالتكلفة <MoneyText :value="stockValue" />
     </p>
-  </div>
+    </ListPage>
 </template>

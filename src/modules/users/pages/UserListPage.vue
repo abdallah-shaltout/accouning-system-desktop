@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { Plus, UserCog } from '@lucide/vue';
-import AppButton from '@/modules/core/components/ui/AppButton.vue';
+import { computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { UserCog } from '@lucide/vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
-import SearchInput from '@/modules/core/components/ui/SearchInput.vue';
-import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import ListPage from '@/modules/core/components/layouts/ListPage.vue';
+import FilterBar from '@/modules/core/components/blocks/FilterBar.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatPercent } from '@/modules/core/helpers/format';
 import { ROLE_LABEL } from '@/modules/core/helpers/labels';
@@ -18,9 +16,11 @@ import { getUsers } from '../services/userService';
 import type { Role, User } from '../types';
 
 const router = useRouter();
+const route = useRoute();
 const auth = useAuthStore();
-const search = ref('');
-const role = ref<Role | 'all'>('all');
+
+const search = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''));
+const role = computed(() => (typeof route.query.role === 'string' ? (route.query.role as Role) : undefined));
 
 const { data, loading, error, reload } = useAsync(async () => {
   const [users, priceLists] = await Promise.all([getUsers(), getPriceLists()]);
@@ -29,18 +29,14 @@ const { data, loading, error, reload } = useAsync(async () => {
 
 const rows = computed(() =>
   (data.value?.users ?? []).filter(
-    (u) => (role.value === 'all' || u.role === role.value) && matchesSearch([u.name, u.username, u.phone], search.value),
+    (u) => (!role.value || u.role === role.value) && matchesSearch([u.name, u.username, u.phone], search.value),
   ),
 );
 
-const roleOptions = computed(() => [
-  { value: 'all' as const, label: 'الكل', count: data.value?.users.length },
-  ...(['admin', 'manager', 'accountant', 'cashier', 'storekeeper'] as Role[]).map((r) => ({
-    value: r,
-    label: ROLE_LABEL[r],
-    count: data.value?.users.filter((u) => u.role === r).length,
-  })),
-]);
+const roleOptions = (['admin', 'manager', 'accountant', 'cashier', 'storekeeper'] as Role[]).map((r) => ({
+  value: r,
+  label: ROLE_LABEL[r],
+}));
 
 const priceListName = (id?: string) => data.value?.priceLists.find((p) => p.id === id)?.name ?? 'السعر الأساسي';
 
@@ -55,17 +51,15 @@ const columns: Column<User>[] = [
 </script>
 
 <template>
-  <div>
-    <PageHeader title="المستخدمين" subtitle="الصلاحيات، حدود الخصم، وقوائم الأسعار لكل مستخدم">
-      <template #actions>
-        <AppButton variant="primary" :icon="Plus" :to="{ name: 'user-editor', params: { id: 'new' } }">مستخدم جديد</AppButton>
-      </template>
-    </PageHeader>
-
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-      <SegmentedControl v-model="role" :options="roleOptions" />
-      <SearchInput v-model="search" placeholder="بحث بالاسم أو اسم المستخدم" />
-    </div>
+  <ListPage
+    title="المستخدمين"
+    subtitle="الصلاحيات، حدود الخصم، وقوائم الأسعار لكل مستخدم"
+    primary-action-label="مستخدم جديد"
+    :primary-action-to="{ name: 'user-editor', params: { id: 'new' } }"
+  >
+    <template #filters>
+      <FilterBar search-placeholder="بحث بالاسم أو اسم المستخدم" :filters="[{ key: 'role', label: 'الصلاحية', options: roleOptions }]" />
+    </template>
 
     <DataTable
       :columns="columns"
@@ -89,5 +83,5 @@ const columns: Column<User>[] = [
         <StatusBadge :tone="row.active ? 'success' : 'neutral'" :label="row.active ? 'نشط' : 'موقوف'" />
       </template>
     </DataTable>
-  </div>
+  </ListPage>
 </template>

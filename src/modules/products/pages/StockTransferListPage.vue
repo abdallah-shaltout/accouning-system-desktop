@@ -1,34 +1,26 @@
 <script setup lang="ts">
 /**
  * v2 phase 9 (docs/v2/07-products-and-inventory.md §4 "Branch stock & transfers", deferred from
- * phase 6): draft -> send -> receive (with shortage) / reject, all on one page — list + a create
- * modal + a receive modal, since the flow is short enough not to need separate routes.
+ * phase 6): draft -> send -> receive (with shortage) / reject, all on one page. doc 17 F-1: migrated
+ * onto `ListPage` + `DataTable`; the create/receive modals live in `StockTransferModals.vue` to keep
+ * this page under ~250 lines (rule 12).
  */
-import { computed, onMounted, reactive, ref } from 'vue';
-import { ArrowLeftRight, Check, Plus, Printer, Trash2, Truck } from '@lucide/vue';
+import { onMounted, ref } from 'vue';
+import { ArrowLeftRight, Check, Printer, Trash2, Truck } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
-import AppCard from '@/modules/core/components/ui/AppCard.vue';
-import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
-import AppInput from '@/modules/core/components/ui/AppInput.vue';
-import AppModal from '@/modules/core/components/ui/AppModal.vue';
-import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
-import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
-import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
+import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
-import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import ListPage from '@/modules/core/components/layouts/ListPage.vue';
 import { isTauri } from '@tauri-apps/api/core';
-import { useGridTab } from '@/modules/core/controllers/useGridTab';
 import { useToast } from '@/modules/core/controllers/useToast';
-import { formatDateTime, formatNumber } from '@/modules/core/helpers/format';
-import { toNum } from '@/modules/core/helpers/numbers';
 import { renderAndSave } from '@/modules/core/services/pdfService';
 import { getBranches } from '@/modules/settings/services/branchesService';
 import type { Branch } from '@/modules/settings/types';
 import { getProducts } from '../services/productService';
-import { branchStockQty, createTransfer, getTransfers, receiveTransfer, rejectTransfer, sendTransfer } from '../services/transferService';
+import { createTransfer, getTransfers, receiveTransfer, rejectTransfer, sendTransfer } from '../services/transferService';
 import type { Product, StockTransfer } from '../types';
+import StockTransferModals from '../components/StockTransferModals.vue';
 
 const toast = useToast();
 const loading = ref(true);
@@ -37,7 +29,6 @@ const branches = ref<Branch[]>([]);
 const products = ref<Product[]>([]);
 
 const branchName = (id: string) => branches.value.find((b) => b.id === id)?.name ?? id;
-const productName = (id: string) => products.value.find((p) => p.id === id)?.name ?? id;
 
 const STATUS_LABEL: Record<StockTransfer['status'], { label: string; tone: 'neutral' | 'success' | 'warning' | 'danger' | 'primary' }> = {
   DRAFT: { label: 'مسودة', tone: 'neutral' },
@@ -58,55 +49,30 @@ onMounted(async () => {
   loading.value = false;
 });
 
-// --- Create (draft) ---
+const columns: Column<StockTransfer>[] = [
+  { key: 'number', label: 'الرقم', sortable: true },
+  { key: 'fromBranchId', label: 'من' },
+  { key: 'toBranchId', label: 'إلى' },
+  { key: 'date', label: 'التاريخ', type: 'date', sortable: true },
+  { key: 'status', label: 'الحالة' },
+  { key: 'actions', label: '', type: 'actions', noPrint: true },
+];
+
+const modalsRef = ref<InstanceType<typeof StockTransferModals>>();
 const createOpen = ref(false);
 const saving = ref(false);
-interface DraftLine {
-  key: number;
-  productId?: string;
-  qty?: number;
-}
-let seq = 0;
-const form = reactive({ fromBranchId: '', toBranchId: '', note: '' });
-const draftLines = ref<DraftLine[]>([]);
-
-const branchOptions = computed(() => branches.value.filter((b) => b.active).map((b) => ({ value: b.id, label: b.name })));
-const productOptions = computed(() =>
-  products.value.map((p) => ({
-    value: p.id,
-    label: p.name,
-    sublabel: form.fromBranchId ? `المتوفر بالفرع: ${formatNumber(branchStockQty(p.id, form.fromBranchId))}` : p.sku,
-  })),
-);
 
 function openCreate() {
-  Object.assign(form, { fromBranchId: branches.value[0]?.id ?? '', toBranchId: '', note: '' });
-  draftLines.value = [{ key: seq++ }];
-  createOpen.value = true;
+  modalsRef.value?.openCreate();
 }
 
-function addLine() {
-  draftLines.value.push({ key: seq++ });
-}
-const draftLinesEl = ref<HTMLElement>();
-const onDraftLinesKeydown = useGridTab({
-  container: draftLinesEl,
-  rowSelector: ':scope > div',
-  addRow: addLine,
-  isFilled: (i) => !!draftLines.value[i]?.productId,
-});
-function removeLine(key: number) {
-  draftLines.value = draftLines.value.filter((l) => l.key !== key);
-}
-
-async function saveDraft() {
-  if (!form.fromBranchId || !form.toBranchId) return toast.warning('اختر الفرع المرسل والمستقبل');
-  if (form.fromBranchId === form.toBranchId) return toast.warning('لا يمكن التحويل لنفس الفرع');
-  const lines = draftLines.value.filter((l) => l.productId && toNum(l.qty)).map((l) => ({ productId: l.productId!, qty: toNum(l.qty)! }));
-  if (!lines.length) return toast.warning('أضف صنفاً واحداً على الأقل');
+async function saveDraft(payload: { fromBranchId: string; toBranchId: string; note: string; lines: { productId: string; qty: number }[] }) {
+  if (!payload.fromBranchId || !payload.toBranchId) return toast.warning('اختر الفرع المرسل والمستقبل');
+  if (payload.fromBranchId === payload.toBranchId) return toast.warning('لا يمكن التحويل لنفس الفرع');
+  if (!payload.lines.length) return toast.warning('أضف صنفاً واحداً على الأقل');
   saving.value = true;
   try {
-    await createTransfer({ fromBranchId: form.fromBranchId, toBranchId: form.toBranchId, date: new Date().toISOString(), note: form.note || undefined, lines });
+    await createTransfer({ fromBranchId: payload.fromBranchId, toBranchId: payload.toBranchId, date: new Date().toISOString(), note: payload.note || undefined, lines: payload.lines });
     await reload();
     toast.success('تم إنشاء مسودة التحويل');
     createOpen.value = false;
@@ -130,23 +96,19 @@ async function doSend(t: StockTransfer) {
 // --- Receive ---
 const receiveOpen = ref(false);
 const receiving = ref<StockTransfer | null>(null);
-const receiveQty = reactive<Record<string, number>>({});
 const savingReceive = ref(false);
 
 function openReceive(t: StockTransfer) {
   receiving.value = t;
-  for (const l of t.lines) receiveQty[l.productId] = l.qty;
+  modalsRef.value?.resetReceiveQty(t);
   receiveOpen.value = true;
 }
 
-async function confirmReceive() {
+async function confirmReceive(receiveQty: Record<string, number>) {
   if (!receiving.value) return;
   savingReceive.value = true;
   try {
-    await receiveTransfer(
-      receiving.value.id,
-      { lines: receiving.value.lines.map((l) => ({ productId: l.productId, receivedQty: toNum(receiveQty[l.productId]) ?? 0 })) },
-    );
+    await receiveTransfer(receiving.value.id, { lines: receiving.value.lines.map((l) => ({ productId: l.productId, receivedQty: receiveQty[l.productId] ?? 0 })) });
     await reload();
     toast.success('تم استلام التحويل');
     receiveOpen.value = false;
@@ -171,9 +133,6 @@ async function doReject(t: StockTransfer) {
 
 /**
  * v2 phase 11b (docs/v2/12-documents-pdf-excel.md §3 "transfer note" now has a real template).
- * Phase 9 never added a print action for transfers at all (no browser-print fallback route
- * existed either) — this is a new entry point, desktop-only like every other `pdfService.render`
- * call, since there's no v1 print route to fall back to here.
  */
 async function printTransferNote(t: StockTransfer) {
   if (!isTauri()) {
@@ -186,88 +145,47 @@ async function printTransferNote(t: StockTransfer) {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="تحويلات المخزون بين الفروع" subtitle="مسودة ← إرسال (بضاعة بالطريق) ← استلام، مع معالجة العجز والرفض" />
-
-    <SkeletonBlock v-if="loading" :lines="4" height="h-14" />
-    <AppCard v-else padding="none">
-      <template #actions>
-        <AppButton size="sm" :icon="Plus" @click="openCreate">تحويل جديد</AppButton>
+  <ListPage
+    title="تحويلات المخزون بين الفروع"
+    subtitle="مسودة ← إرسال (بضاعة بالطريق) ← استلام، مع معالجة العجز والرفض"
+    primary-action-label="تحويل جديد"
+    @primary-action="openCreate"
+  >
+    <DataTable
+      :columns="columns"
+      :rows="transfers"
+      :loading="loading"
+      :empty-icon="ArrowLeftRight"
+      empty-title="لا توجد تحويلات"
+    >
+      <template #cell-number="{ row }"><span class="num font-medium">{{ row.number }}</span></template>
+      <template #cell-fromBranchId="{ row }">{{ branchName(row.fromBranchId) }}</template>
+      <template #cell-toBranchId="{ row }">{{ branchName(row.toBranchId) }}</template>
+      <template #cell-status="{ row }">
+        <StatusBadge :label="STATUS_LABEL[row.status].label" :tone="STATUS_LABEL[row.status].tone" />
+        <span v-if="row.shortageValue" class="ms-1.5 text-tiny text-warning">عجز <MoneyText :value="row.shortageValue" /></span>
       </template>
-      <EmptyState v-if="!transfers.length" title="لا توجد تحويلات" :icon="ArrowLeftRight" />
-      <table v-else class="w-full text-body">
-        <thead class="text-xs text-text-secondary">
-          <tr class="border-b border-border">
-            <th class="px-4 py-2 text-start font-medium">الرقم</th>
-            <th class="px-2 py-2 text-start font-medium">من</th>
-            <th class="px-2 py-2 text-start font-medium">إلى</th>
-            <th class="px-2 py-2 text-start font-medium">التاريخ</th>
-            <th class="px-2 py-2 text-start font-medium">الحالة</th>
-            <th class="px-4 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="t in transfers" :key="t.id" class="border-b border-border last:border-0">
-            <td class="px-4 py-2 num font-medium">{{ t.number }}</td>
-            <td class="px-2 py-2">{{ branchName(t.fromBranchId) }}</td>
-            <td class="px-2 py-2">{{ branchName(t.toBranchId) }}</td>
-            <td class="px-2 py-2 num text-text-secondary">{{ formatDateTime(t.date) }}</td>
-            <td class="px-2 py-2">
-              <StatusBadge :label="STATUS_LABEL[t.status].label" :tone="STATUS_LABEL[t.status].tone" />
-              <span v-if="t.shortageValue" class="ms-1.5 text-tiny text-warning">عجز <MoneyText :value="t.shortageValue" /></span>
-            </td>
-            <td class="px-4 py-2 text-end">
-              <div class="flex justify-end gap-1.5">
-                <AppButton v-if="t.status === 'DRAFT'" size="sm" variant="ghost" :icon="Truck" @click="doSend(t)">إرسال</AppButton>
-                <AppButton v-if="t.status === 'SENT'" size="sm" variant="primary" :icon="Check" @click="openReceive(t)">استلام</AppButton>
-                <AppButton v-if="t.status === 'SENT'" size="sm" variant="ghost" :icon="Trash2" @click="doReject(t)">رفض</AppButton>
-                <AppButton v-if="t.status === 'SENT' || t.status === 'RECEIVED'" size="sm" variant="ghost" :icon="Printer" @click="printTransferNote(t)">طباعة</AppButton>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </AppCard>
-
-    <AppModal v-model:open="createOpen" title="تحويل مخزون جديد" :persistent="saving" size="lg">
-      <form class="space-y-4" novalidate @submit.prevent="saveDraft">
-        <div class="grid grid-cols-2 gap-3">
-          <AppSelect v-model="form.fromBranchId" label="من فرع" :options="branchOptions" />
-          <AppSelect v-model="form.toBranchId" label="إلى فرع" :options="branchOptions.filter((o) => o.value !== form.fromBranchId)" />
+      <template #cell-actions="{ row }">
+        <div class="flex justify-end gap-1.5" @click.stop>
+          <AppButton v-if="row.status === 'DRAFT'" size="sm" variant="ghost" :icon="Truck" @click="doSend(row)">إرسال</AppButton>
+          <AppButton v-if="row.status === 'SENT'" size="sm" variant="primary" :icon="Check" @click="openReceive(row)">استلام</AppButton>
+          <AppButton v-if="row.status === 'SENT'" size="sm" variant="ghost" :icon="Trash2" @click="doReject(row)">رفض</AppButton>
+          <AppButton v-if="row.status === 'SENT' || row.status === 'RECEIVED'" size="sm" variant="ghost" :icon="Printer" @click="printTransferNote(row)">طباعة</AppButton>
         </div>
-        <div class="space-y-2">
-          <p class="text-tiny font-medium text-text-secondary">الأصناف</p>
-          <div ref="draftLinesEl" class="space-y-2" @keydown="onDraftLinesKeydown">
-            <div v-for="l in draftLines" :key="l.key" class="flex items-center gap-2">
-              <AppCombobox v-model="l.productId" class="flex-1" placeholder="اختر منتجاً" :options="productOptions" />
-              <AppInput v-model="l.qty" type="number" min="0" class="w-28" placeholder="الكمية" />
-              <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger" data-grid-skip @click="removeLine(l.key)">
-                <Trash2 class="size-4" />
-              </button>
-            </div>
-          </div>
-          <AppButton size="sm" variant="ghost" :icon="Plus" @click="addLine">إضافة صنف</AppButton>
-        </div>
-        <AppTextarea v-model="form.note" label="ملاحظة" :rows="2" />
-      </form>
-      <template #footer>
-        <AppButton :disabled="saving" @click="createOpen = false">إلغاء</AppButton>
-        <AppButton variant="primary" :loading="saving" @click="saveDraft">حفظ كمسودة</AppButton>
       </template>
-    </AppModal>
+    </DataTable>
 
-    <AppModal v-model:open="receiveOpen" :title="`استلام التحويل ${receiving?.number ?? ''}`" :persistent="savingReceive">
-      <div v-if="receiving" class="space-y-3">
-        <p class="text-tiny text-text-secondary">عدّل الكمية المستلمة إن اختلفت عن المرسلة — الفرق يُرحّل تلقائياً كعجز على فروقات جرد المخزون.</p>
-        <div v-for="l in receiving.lines" :key="l.productId" class="flex items-center justify-between gap-3">
-          <span class="flex-1 truncate text-body">{{ productName(l.productId) }} <span class="num text-tiny text-text-secondary">(أُرسل {{ formatNumber(l.qty) }})</span></span>
-          <AppInput v-model="receiveQty[l.productId]" type="number" min="0" :max="l.qty" class="w-28" />
-        </div>
-      </div>
-      <template #footer>
-        <AppButton :disabled="savingReceive" @click="receiveOpen = false">إلغاء</AppButton>
-        <AppButton variant="primary" :loading="savingReceive" @click="confirmReceive">تأكيد الاستلام</AppButton>
-      </template>
-    </AppModal>
-  </div>
+    <StockTransferModals
+      ref="modalsRef"
+      v-model:create-open="createOpen"
+      v-model:receive-open="receiveOpen"
+      :branches="branches"
+      :products="products"
+      :saving="saving"
+      :saving-receive="savingReceive"
+      :receiving="receiving"
+      @save-draft="saveDraft"
+      @confirm-receive="confirmReceive"
+    />
+  </ListPage>
 </template>

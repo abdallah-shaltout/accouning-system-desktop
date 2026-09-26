@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ClipboardCheck, ClipboardList, PackageMinus, PackagePlus } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
-import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
-import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import ListPage from '@/modules/core/components/layouts/ListPage.vue';
+import FilterBar from '@/modules/core/components/blocks/FilterBar.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDateTime, formatNumber, toDateKey } from '@/modules/core/helpers/format';
 import { ADJUSTMENT_TYPE } from '@/modules/core/helpers/labels';
@@ -17,28 +16,26 @@ import { adjustmentValue, getStockAdjustments } from '../services/inventoryServi
 import type { StockAdjustment, StockAdjustmentType } from '../types';
 
 const router = useRouter();
+const route = useRoute();
 const auth = useAuthStore();
-const type = ref<StockAdjustmentType | 'all'>('all');
-const from = ref('');
-const to = ref('');
+
+const type = computed(() => (typeof route.query.type === 'string' ? (route.query.type as StockAdjustmentType) : undefined));
+const from = computed(() => (typeof route.query.from === 'string' ? route.query.from : ''));
+const to = computed(() => (typeof route.query.to === 'string' ? route.query.to : ''));
 
 const { data, loading, error, reload } = useAsync(() => getStockAdjustments());
 
 const rows = computed(() =>
   (data.value ?? []).filter((a) => {
     const key = toDateKey(a.date);
-    return (type.value === 'all' || a.type === type.value) && (!from.value || key >= from.value) && (!to.value || key <= to.value);
+    return (!type.value || a.type === type.value) && (!from.value || key >= from.value) && (!to.value || key <= to.value);
   }),
 );
 
-const typeOptions = computed(() => [
-  { value: 'all' as const, label: 'الكل', count: data.value?.length },
-  ...(['STOCK_IN', 'LOSS', 'STOCKTAKE'] as StockAdjustmentType[]).map((t) => ({
-    value: t,
-    label: ADJUSTMENT_TYPE[t].label,
-    count: data.value?.filter((a) => a.type === t).length,
-  })),
-]);
+const typeOptions = (['STOCK_IN', 'LOSS', 'STOCKTAKE'] as StockAdjustmentType[]).map((t) => ({
+  value: t,
+  label: ADJUSTMENT_TYPE[t].label,
+}));
 
 const columns: Column<StockAdjustment>[] = [
   { key: 'number', label: 'الرقم', sortable: true },
@@ -52,19 +49,15 @@ const columns: Column<StockAdjustment>[] = [
 </script>
 
 <template>
-  <div>
-    <PageHeader title="تسويات المخزون" subtitle="إدخال بضاعة، إتلاف وفقد، والجرد الدوري — كل تسوية تنشئ قيداً محاسبياً">
-      <template v-if="auth.can('inventory', 'write')" #actions>
-        <AppButton :icon="PackageMinus" :to="{ name: 'adjustment-new', query: { type: 'LOSS' } }">إتلاف / فقد</AppButton>
-        <AppButton :icon="ClipboardCheck" :to="{ name: 'adjustment-new', query: { type: 'STOCKTAKE' } }">جرد جديد</AppButton>
-        <AppButton variant="primary" :icon="PackagePlus" :to="{ name: 'adjustment-new', query: { type: 'STOCK_IN' } }">إدخال مخزون</AppButton>
-      </template>
-    </PageHeader>
-
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-      <SegmentedControl v-model="type" :options="typeOptions" />
-      <DateRangeFilter v-model:from="from" v-model:to="to" />
-    </div>
+  <ListPage title="تسويات المخزون" subtitle="إدخال بضاعة، إتلاف وفقد، والجرد الدوري — كل تسوية تنشئ قيداً محاسبياً">
+    <template #actions>
+      <AppButton v-if="auth.can('inventory', 'write')" :icon="PackageMinus" :to="{ name: 'adjustment-new', query: { type: 'LOSS' } }">إتلاف / فقد</AppButton>
+      <AppButton v-if="auth.can('inventory', 'write')" :icon="ClipboardCheck" :to="{ name: 'adjustment-new', query: { type: 'STOCKTAKE' } }">جرد جديد</AppButton>
+      <AppButton v-if="auth.can('inventory', 'write')" variant="primary" :icon="PackagePlus" :to="{ name: 'adjustment-new', query: { type: 'STOCK_IN' } }">إدخال مخزون</AppButton>
+    </template>
+    <template #filters>
+      <FilterBar :filters="[{ key: 'type', label: 'النوع', options: typeOptions }]" date-range />
+    </template>
 
     <DataTable
       :columns="columns"
@@ -87,5 +80,5 @@ const columns: Column<StockAdjustment>[] = [
         <StatusBadge :tone="row.status === 'COMPLETED' ? 'success' : 'neutral'" :label="row.status === 'COMPLETED' ? 'معتمدة' : 'مسودة'" />
       </template>
     </DataTable>
-  </div>
+  </ListPage>
 </template>

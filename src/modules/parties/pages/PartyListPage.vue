@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Building, FileText, Plus, Truck, Upload, Users } from '@lucide/vue';
+import { Building, FileText, Truck, Upload, Users } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
-import SearchInput from '@/modules/core/components/ui/SearchInput.vue';
-import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import ListPage from '@/modules/core/components/layouts/ListPage.vue';
+import FilterBar from '@/modules/core/components/blocks/FilterBar.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatNumber } from '@/modules/core/helpers/format';
 import { matchesSearch } from '@/modules/core/helpers/search';
@@ -33,8 +32,8 @@ const auth = useAuthStore();
 const isCustomer = computed(() => props.kind === 'customer');
 const canWrite = computed(() => auth.can('parties', 'write'));
 
-const search = ref('');
-const view = ref<'active' | 'balance' | 'inactive'>(route.query.view === 'balance' ? 'balance' : 'active');
+const search = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''));
+const view = computed<'active' | 'balance' | 'inactive'>(() => (route.query.view === 'balance' || route.query.view === 'inactive' ? route.query.view : 'active'));
 const formOpen = ref(false);
 const importOpen = ref(false);
 const importDescriptor = computed(() => (isCustomer.value ? customersDescriptor : suppliersDescriptor));
@@ -55,9 +54,9 @@ const rows = computed(() => {
 const totalBalance = computed(() => (data.value ?? []).filter((p) => p.active).reduce((a, p) => a + p.balance, 0));
 
 const viewOptions = computed(() => [
-  { value: 'active' as const, label: 'النشطون', count: data.value?.filter((p) => p.active).length },
-  { value: 'balance' as const, label: isCustomer.value ? 'عليهم رصيد' : 'لهم رصيد', count: data.value?.filter((p) => p.active && p.balance > 0).length },
-  { value: 'inactive' as const, label: 'موقوفون', count: data.value?.filter((p) => !p.active).length },
+  { value: 'active', label: 'النشطون' },
+  { value: 'balance', label: isCustomer.value ? 'عليهم رصيد' : 'لهم رصيد' },
+  { value: 'inactive', label: 'موقوفون' },
 ]);
 
 const columns = computed<Column<Party>[]>(() => [
@@ -70,22 +69,19 @@ const columns = computed<Column<Party>[]>(() => [
 </script>
 
 <template>
-  <div>
-    <PageHeader
-      :title="isCustomer ? 'العملاء' : 'الموردين'"
-      :subtitle="isCustomer ? 'بيانات العملاء وأرصدتهم المستحقة (الذمم المدينة)' : 'بيانات الموردين والمبالغ المستحقة لهم (الذمم الدائنة)'"
-    >
-      <template #actions>
-        <AppButton v-if="canWrite" :icon="Upload" @click="importOpen = true">استيراد من إكسل</AppButton>
-        <AppButton v-if="canWrite" :icon="FileText" :to="partyRoute(kind, 'new')">نموذج كامل</AppButton>
-        <AppButton v-if="canWrite" variant="primary" :icon="Plus" @click="formOpen = true">{{ isCustomer ? 'عميل جديد' : 'مورد جديد' }}</AppButton>
-      </template>
-    </PageHeader>
-
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-      <SegmentedControl v-model="view" :options="viewOptions" />
-      <SearchInput v-model="search" placeholder="الاسم، الهاتف، أو الرقم الضريبي" />
-    </div>
+  <ListPage
+    :title="isCustomer ? 'العملاء' : 'الموردين'"
+    :subtitle="isCustomer ? 'بيانات العملاء وأرصدتهم المستحقة (الذمم المدينة)' : 'بيانات الموردين والمبالغ المستحقة لهم (الذمم الدائنة)'"
+    :primary-action-label="canWrite ? (isCustomer ? 'عميل جديد' : 'مورد جديد') : undefined"
+    @primary-action="formOpen = true"
+  >
+    <template #actions>
+      <AppButton v-if="canWrite" :icon="Upload" @click="importOpen = true">استيراد من إكسل</AppButton>
+      <AppButton v-if="canWrite" :icon="FileText" :to="partyRoute(kind, 'new')">نموذج كامل</AppButton>
+    </template>
+    <template #filters>
+      <FilterBar search-placeholder="الاسم، الهاتف، أو الرقم الضريبي" :filters="[{ key: 'view', label: 'العرض', options: viewOptions }]" />
+    </template>
 
     <DataTable
       :columns="columns"
@@ -123,5 +119,5 @@ const columns = computed<Column<Party>[]>(() => [
 
     <PartyFormModal v-model:open="formOpen" :kind="kind" @saved="(p) => router.push(partyRoute(kind, 'detail', p.id))" />
     <ImportWizard v-if="importOpen" :descriptor="importDescriptor" @close="importOpen = false" @imported="() => { importOpen = false; reload(); }" />
-  </div>
+  </ListPage>
 </template>
