@@ -8,16 +8,17 @@ menu) is folded into Phases D and F below.
 
 Six phases, in this order. Each one leaves the app working, so you can stop after any of them:
 
-| Phase | What | Size |
-|---|---|---|
-| A | **Real RTL** in every shadcn component: logical sides, mirrored icons, switch thumb, sliding animations | M |
-| B | **Full motion**: remove every reduced-motion path | S |
-| C | **Native "Save as…"** for every Excel / JSON / backup file | S |
-| D | **Simple sidebar** (the sidebar-07 screenshot): collapsible groups, brand + branch at the top, user at the bottom | M |
-| E | **Themes**: base color, accent, radius, font… with presets and a live preview, like shadcn's theme page | M |
-| F | **One UI system**: shared layouts, form, table and line-item building blocks; every page migrated onto them; a guard script so new pages can't drift | L |
+| Phase | What                                                                                                                                                 | Size |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| A     | **Real RTL** in every shadcn component: logical sides, mirrored icons, switch thumb, sliding animations                                              | M    |
+| B     | **Full motion**: remove every reduced-motion path                                                                                                    | S    |
+| C     | **Native "Save as…"** for every Excel / JSON / backup file                                                                                           | S    |
+| D     | **Simple sidebar** (the sidebar-07 screenshot): collapsible groups, brand + branch at the top, user at the bottom                                    | M    |
+| E     | **Themes**: base color, accent, radius, font… with presets and a live preview, like shadcn's theme page                                              | M    |
+| F     | **One UI system**: shared layouts, form, table and line-item building blocks; every page migrated onto them; a guard script so new pages can't drift | L    |
 
 **Agent instructions** (same rules as [15](15-action-plan.md) and [16](16-equal-rebrand-and-ui-kit.md)):
+
 - Still **UI-only against the mock backend**. Pages touch only `modules/*/services`.
 - Tick the boxes here as you go and add a status note at the top of a phase when it ends.
 - Decide yourself; ask the user only about scope-changing or irreversible choices.
@@ -72,36 +73,37 @@ errors.
 **The problem.** shadcn-vue is written LTR-first. 16 Phase D fixed the sidebar and dropdown menu
 only. A survey of `modules/core/components/shadcn/*` on 2026-09-25 still finds:
 
-| Component | Problem | Fix |
-|---|---|---|
-| `switch/Switch.vue` | Thumb moves with `translate-x-[calc(100%-2px)]` → in RTL "on" slides the **wrong way** | `rtl:-translate-x-[calc(100%-2px)]` (or `data-[state=checked]:translate-x-[…]` + `rtl:` negation); checked thumb must sit at the **start** edge's opposite, i.e. left in RTL — **superseded by doc 18.A2 (2026-09-26):** the product decision is now "on" = thumb on the **right** in every direction (not mirrored), so the fix became `dir="ltr"` on the track instead. See CLAUDE.md rule 18. |
-| `breadcrumb/BreadcrumbSeparator.vue` | `ChevronRight` points away from the next crumb | `ChevronLeft` in RTL (`rtl:rotate-180`) |
-| `calendar/*PrevButton`, `*NextButton`, `range-calendar/*` | Prev = `ChevronLeft`, Next = `ChevronRight`, placed with `left-1`/`right-1` | Mirror icons, `start-1`/`end-1`; month grid already follows `dir` via reka-ui — verify |
-| `calendar/Calendar.vue` | `pl-2`, `pr-6`, `right-1` on the month/year selects | `ps-2`, `pe-6`, `end-1` |
-| `input-group/*` | `pl-2`/`pr-2`/`pl-3`/`pr-3`, `ml-[-0.45rem]`, `mr-[-0.45rem]` on addons | `ps`/`pe`/`ms`/`me`; inline-start addon must sit on the **right** in RTL |
-| `native-select/NativeSelect.vue` | Chevron at `right-3.5`, `pr-9` | `end-3.5`, `pe-9` |
-| `toggle-group/ToggleGroupItem.vue` | `first:rounded-l-md last:rounded-r-md border-l` | `first:rounded-s-md last:rounded-e-md border-s` (this is **SegmentedControl** — the rounded ends are currently on the wrong items) |
-| `range-calendar/RangeCalendarCell.vue` | Range start/end use `rounded-l`/`rounded-r` | `rounded-s`/`rounded-e` |
-| `dialog/DialogHeader.vue`, `alert-dialog/AlertDialogHeader.vue` | `sm:text-left` | `sm:text-start` |
-| `dialog/DialogScrollContent.vue`, `sheet/SheetContent.vue` | Close button at `right-4` | `end-4` (close ✕ belongs top-**left** in RTL) |
-| `command/CommandShortcut.vue`, `field/FieldError.vue` | `ml-auto`, `ml-4` | `ms-auto`, `ms-4` |
-| `sidebar/SidebarInset.vue` | `ml-0` / `ml-2` for the inset variant | `ms-0` / `ms-2` |
+| Component                                                       | Problem                                                                                | Fix                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `switch/Switch.vue`                                             | Thumb moves with `translate-x-[calc(100%-2px)]` → in RTL "on" slides the **wrong way** | `rtl:-translate-x-[calc(100%-2px)]` (or `data-[state=checked]:translate-x-[…]` + `rtl:` negation); checked thumb must sit at the **start** edge's opposite, i.e. left in RTL — **superseded by doc 18.A2 (2026-09-26):** the product decision is now "on" = thumb on the **right** in every direction (not mirrored), so the fix became `dir="ltr"` on the track instead. See CLAUDE.md rule 18. |
+| `breadcrumb/BreadcrumbSeparator.vue`                            | `ChevronRight` points away from the next crumb                                         | `ChevronLeft` in RTL (`rtl:rotate-180`)                                                                                                                                                                                                                                                                                                                                                          |
+| `calendar/*PrevButton`, `*NextButton`, `range-calendar/*`       | Prev = `ChevronLeft`, Next = `ChevronRight`, placed with `left-1`/`right-1`            | Mirror icons, `start-1`/`end-1`; month grid already follows `dir` via reka-ui — verify                                                                                                                                                                                                                                                                                                           |
+| `calendar/Calendar.vue`                                         | `pl-2`, `pr-6`, `right-1` on the month/year selects                                    | `ps-2`, `pe-6`, `end-1`                                                                                                                                                                                                                                                                                                                                                                          |
+| `input-group/*`                                                 | `pl-2`/`pr-2`/`pl-3`/`pr-3`, `ml-[-0.45rem]`, `mr-[-0.45rem]` on addons                | `ps`/`pe`/`ms`/`me`; inline-start addon must sit on the **right** in RTL                                                                                                                                                                                                                                                                                                                         |
+| `native-select/NativeSelect.vue`                                | Chevron at `right-3.5`, `pr-9`                                                         | `end-3.5`, `pe-9`                                                                                                                                                                                                                                                                                                                                                                                |
+| `toggle-group/ToggleGroupItem.vue`                              | `first:rounded-l-md last:rounded-r-md border-l`                                        | `first:rounded-s-md last:rounded-e-md border-s` (this is **SegmentedControl** — the rounded ends are currently on the wrong items)                                                                                                                                                                                                                                                               |
+| `range-calendar/RangeCalendarCell.vue`                          | Range start/end use `rounded-l`/`rounded-r`                                            | `rounded-s`/`rounded-e`                                                                                                                                                                                                                                                                                                                                                                          |
+| `dialog/DialogHeader.vue`, `alert-dialog/AlertDialogHeader.vue` | `sm:text-left`                                                                         | `sm:text-start`                                                                                                                                                                                                                                                                                                                                                                                  |
+| `dialog/DialogScrollContent.vue`, `sheet/SheetContent.vue`      | Close button at `right-4`                                                              | `end-4` (close ✕ belongs top-**left** in RTL)                                                                                                                                                                                                                                                                                                                                                    |
+| `command/CommandShortcut.vue`, `field/FieldError.vue`           | `ml-auto`, `ml-4`                                                                      | `ms-auto`, `ms-4`                                                                                                                                                                                                                                                                                                                                                                                |
+| `sidebar/SidebarInset.vue`                                      | `ml-0` / `ml-2` for the inset variant                                                  | `ms-0` / `ms-2`                                                                                                                                                                                                                                                                                                                                                                                  |
 
 **Not bugs — leave alone** (they are driven by an explicit physical `side` prop, so they are
 already correct): popover/tooltip/dropdown/combobox `data-[side=left]:slide-in-from-right-2`
 (Floating UI sides are physical), `Sheet`'s `side="left|right"` classes, `Sidebar.vue`'s
 `side === 'left' ? …` branches, and dialogs centered with `left-[50%] translate-x-[-50%]`.
 
-**Directional meaning, not just position.** RTL is also about which way *things point and move*:
+**Directional meaning, not just position.** RTL is also about which way _things point and move_:
+
 - **Back / next.** "Back" in Arabic points **right** (→), "next/forward" points **left** (←). 30 files
   in `src/` use `ChevronLeft/Right` or `ArrowLeft/Right` (PageHeader's back button, DataTable
   pagination, PdfPreview paging, SetupWizard steps, PosPage, KpiCard trends, row "open" chevrons…).
-  Each must be checked for *meaning*, not flipped blindly:
-  - navigation/sequence icons (back, next, pagination, wizard steps, "open detail" row chevrons,
-    breadcrumbs, submenu chevrons) → mirror;
-  - icons that show a **real physical or numeric direction** (trend up/down, sort asc/desc, an
-    undo/redo "circular" arrow, a clock, a media-play ▶, a transfer "from → to" arrow between two
-    LTR amounts) → do **not** mirror.
+  Each must be checked for _meaning_, not flipped blindly:
+    - navigation/sequence icons (back, next, pagination, wizard steps, "open detail" row chevrons,
+      breadcrumbs, submenu chevrons) → mirror;
+    - icons that show a **real physical or numeric direction** (trend up/down, sort asc/desc, an
+      undo/redo "circular" arrow, a clock, a media-play ▶, a transfer "from → to" arrow between two
+      LTR amounts) → do **not** mirror.
 - **Slides and swipes.** Anything that slides in from "the next page" (wizard steps, sheet drawers,
   carousel-like transitions, toasts) must come from the **left** in RTL.
 - **Progress & sliders.** Progress bars and any future slider fill from the **right**.
@@ -122,6 +124,7 @@ and on direct `ChevronLeft|ChevronRight|ArrowLeft|ArrowRight` imports in `src/**
 allow-list comment (`/* rtl-ok: <reason> */`) for the legitimate cases above.
 
 **Tasks**
+
 - [x] Fix every row of the table above.
 - [x] Add `DirIcon.vue` + `dirIcon.ts`; migrate the 30 files, deciding per icon (mirror vs keep) and
       noting any "keep" with an `rtl-ok` comment.
@@ -129,8 +132,7 @@ allow-list comment (`/* rtl-ok: <reason> */`) for the legitimate cases above.
       any `<Transition>` using `translate-x`.
 - [x] Audit custom keyboard handlers for Arrow keys under RTL.
 - [x] Add the RTL guard to `bun run check`; get it to zero findings.
-- [x] Add an **RTL section** to `/dev/ui` showing: switch off/on, toggle group, breadcrumb, calendar
-      + range, input group with start/end addons, native select, sheet from both sides, dialog close
+- [x] Add an **RTL section** to `/dev/ui` showing: switch off/on, toggle group, breadcrumb, calendar + range, input group with start/end addons, native select, sheet from both sides, dialog close
       button, pagination, back button.
 - [x] Update `docs/design_system.md` "RTL-first" with the mirror / don't-mirror rules above.
 - [x] Gate: screenshot of the `/dev/ui` RTL section light + dark; full e2e suite.
@@ -161,13 +163,14 @@ is gone.
 
 **Why animations look dead today.** `design-system.css` (lines ~252–265) sets every animation and
 transition to ~0 ms whenever **either** the in-app "تقليل الحركة" toggle is on **or** Windows reports
-`prefers-reduced-motion: reduce` — which it does whenever *Settings → Accessibility → Visual effects →
-Animation effects* is off, a common setting on office PCs. So on many machines motion is disabled
+`prefers-reduced-motion: reduce` — which it does whenever _Settings → Accessibility → Visual effects →
+Animation effects_ is off, a common setting on office PCs. So on many machines motion is disabled
 with no way to turn it back on from inside the app.
 
 **Decision (user request):** motion always runs at full power. Remove the feature entirely.
 
 **Tasks**
+
 - [x] Delete the `@media (prefers-reduced-motion: reduce)` block and the `:root.motion-reduce …` rule
       in `src/assets/styles/design-system.css`.
 - [x] Delete from `useAppearance.ts`: `prefersReducedMotionMedia`, `applyMotion`, `reduceMotionSetting`,
@@ -226,17 +229,18 @@ run, same as Phase B's equivalent manual gate.
 
 **The problem.** PDFs already open the native Save dialog (`pdfService.ts` → `@tauri-apps/plugin-dialog`
 `save()` + `plugin-fs` `writeFile()`). Everything else uses a browser `<a download>`, which WebView2
-silently drops into *Downloads* with no prompt:
+silently drops into _Downloads_ with no prompt:
 
-| Call site | File |
-|---|---|
-| `core/helpers/exportXlsx.ts:78` | every DataTable / list "تصدير Excel" |
-| `reports/helpers/export.ts:60` | report Excel export |
-| `core/components/import/importXlsx.ts:46, :134` | import template, import error file |
-| `settings/services/backupService.ts:177` | backup archive |
-| `templates/pages/TemplateDesignerPage.vue:159` | template JSON export |
+| Call site                                       | File                                 |
+| ----------------------------------------------- | ------------------------------------ |
+| `core/helpers/exportXlsx.ts:78`                 | every DataTable / list "تصدير Excel" |
+| `reports/helpers/export.ts:60`                  | report Excel export                  |
+| `core/components/import/importXlsx.ts:46, :134` | import template, import error file   |
+| `settings/services/backupService.ts:177`        | backup archive                       |
+| `templates/pages/TemplateDesignerPage.vue:159`  | template JSON export                 |
 
 **Tasks**
+
 - [x] Add `core/services/saveFile.ts`: `saveFile(bytes | Blob, { suggestedName, filters })` →
       Tauri `save()` + `writeFile()` in the desktop app; falls back to `<a download>` in a plain
       browser (dev / e2e). Returns the chosen path, or `null` if the user cancels.
@@ -282,7 +286,7 @@ switcher under `header` (now `[data-slot=sidebar]`, since it moved into the side
 **A real bug found and fixed, not just a test patch.** Rebuilding `NotificationsDrawer` on shadcn
 `Sheet` (a modal `Dialog`) introduced a genuine focus-race: closing the drawer with Escape leaves
 reka-ui's focus-restoration to fire only once the Sheet's own close animation finishes
-(`SheetContent`'s `data-[state=closed]:duration-300`), which lands *after* `CommandPalette.vue`'s own
+(`SheetContent`'s `data-[state=closed]:duration-300`), which lands _after_ `CommandPalette.vue`'s own
 `focus()` call if the user then opens the palette (Ctrl+K) quickly — the bell button silently steals
 focus back, so typed characters go nowhere. This is a real, user-facing regression (not an e2e-only
 artifact): reproduced manually outside any test, root-caused via a small throwaway Playwright probe,
@@ -307,6 +311,7 @@ uninterrupted 16/16 run was never achieved in this sandbox; this is an honest ga
 verification method, not a claim that one happened.
 
 **Two scope reductions, made deliberately and documented rather than silently skipped:**
+
 - **`CommandPalette` was not rebuilt on `CommandDialog`.** The current implementation has real
   behavior `Command`/`ListboxRoot` doesn't model out of the box: prefix routing (`>`/`@`/`#`/`$`/`?`
   switch search domain), Tab-to-next-group navigation, an async loading state, and search via this
@@ -325,10 +330,11 @@ verification method, not a claim that one happened.
   unaffected either way, so this is purely an internal decision, invisible to every one of its 73
   call sites.
 
-**What the user wants** (screenshot, 2026-09-25): the sidebar should feel *small and easy*, not
+**What the user wants** (screenshot, 2026-09-25): the sidebar should feel _small and easy_, not
 a wall of 30 links. sidebar-07 does this with:
+
 - a **brand/team switcher** at the top (logo + name + subtitle, `⌃⌄` chevron);
-- **collapsible groups** — each shows as *one* row (icon + name + chevron); only the group you are
+- **collapsible groups** — each shows as _one_ row (icon + name + chevron); only the group you are
   in is open, with a thin indent line for its items;
 - a short flat list (**Projects** in the demo);
 - the **user** at the bottom (avatar + name + email, opens a menu);
@@ -339,22 +345,23 @@ switcher / user menu in the top bar. This phase does the rest.
 
 **New information architecture** (≈ 9 rows closed instead of ~33 links):
 
-| Row | Icon | Opens to |
-|---|---|---|
-| الرئيسية | House | (single link) |
-| المبيعات | ShoppingCart | نقطة البيع · الورديات · الفواتير · فاتورة جديدة · عروض الأسعار |
-| المخزون | Package | المنتجات · التصنيفات والوحدات · قوائم الأسعار · التسويات · الجرد · الحركة · الصلاحية · التحويلات |
-| العملاء والموردين | Users | العملاء · الموردين |
-| المشتريات والمصروفات | ShoppingBag | أوامر الشراء · المصروفات (two tiny groups merged) |
-| الحسابات | BookOpen | دليل الحسابات · القيود · القوالب المتكررة · تسوية الضريبة · السنة المالية |
-| المدفوعات | HandCoins | السندات · تسوية البطاقات · السندات العامة |
-| التقارير | ChartColumn | التقارير · التحليلات |
-| الإدارة | Settings | طلبات الاعتماد · المستخدمين · الإعدادات |
+| Row                  | Icon         | Opens to                                                                                         |
+| -------------------- | ------------ | ------------------------------------------------------------------------------------------------ |
+| الرئيسية             | House        | (single link)                                                                                    |
+| المبيعات             | ShoppingCart | نقطة البيع · الورديات · الفواتير · فاتورة جديدة · عروض الأسعار                                   |
+| المخزون              | Package      | المنتجات · التصنيفات والوحدات · قوائم الأسعار · التسويات · الجرد · الحركة · الصلاحية · التحويلات |
+| العملاء والموردين    | Users        | العملاء · الموردين                                                                               |
+| المشتريات والمصروفات | ShoppingBag  | أوامر الشراء · المصروفات (two tiny groups merged)                                                |
+| الحسابات             | BookOpen     | شجرة الحسابات · القيود · القوالب المتكررة · تسوية الضريبة · السنة المالية                        |
+| المدفوعات            | HandCoins    | السندات · تسوية البطاقات · السندات العامة                                                        |
+| التقارير             | ChartColumn  | التقارير · التحليلات                                                                             |
+| الإدارة              | Settings     | طلبات الاعتماد · المستخدمين · الإعدادات                                                          |
 
 Below the groups, a small **إجراءات سريعة** list (the "Projects" slot): بيع جديد, فاتورة جديدة, سند قبض —
 filtered by permission, hidden in icon mode.
 
 **Decisions**
+
 - Only the group containing the current route is open on load; opening another group closes the
   previous one (accordion). Open state is not persisted — fewer surprises for non-technical users.
 - A group whose role filter leaves **one** item renders as a plain link (a cashier never sees a
@@ -373,6 +380,7 @@ filtered by permission, hidden in icon mode.
   `CommandDialog`, `ToastContainer` → `Sonner` (keep `useToast()`'s API).
 
 **Tasks**
+
 - [x] `navigation.ts`: give `NavGroup` an `icon` and the new grouping above; keep `NavItem`'s `area`
       filtering and `exact` logic.
 - [x] `NavMain.vue`: `Collapsible` per group (accordion), single-item → plain link, icon-mode flyout,
@@ -441,12 +449,12 @@ shadcn's own theme page lets you pick a **base color**, an **accent**, a **radiu
 
 ```ts
 interface ThemeConfig {
-  base: 'neutral' | 'zinc' | 'stone' | 'slate' | 'gray';   // background/surface/border/text greys
-  accent: AccentPreset;                                    // existing: equal, indigo, teal, rose, amber (+ blue, violet, orange)
-  radius: 0 | 0.25 | 0.375 | 0.5 | 0.75 | 1;               // rem → --radius (sm/md/lg/xl derive from it)
-  mode: 'light' | 'dark' | 'system';                        // existing useTheme
-  font: FontFamily;                                         // existing
-  density: Density;                                         // existing
+    base: "neutral" | "zinc" | "stone" | "slate" | "gray"; // background/surface/border/text greys
+    accent: AccentPreset; // existing: equal, indigo, teal, rose, amber (+ blue, violet, orange)
+    radius: 0 | 0.25 | 0.375 | 0.5 | 0.75 | 1; // rem → --radius (sm/md/lg/xl derive from it)
+    mode: "light" | "dark" | "system"; // existing useTheme
+    font: FontFamily; // existing
+    density: Density; // existing
 }
 ```
 
@@ -456,13 +464,14 @@ interface ThemeConfig {
   ours, so every shadcn component follows automatically.
 - **Radius** sets `--radius` on `<html>`; audit components that hard-code `rounded-md`/`rounded-lg`
   outside the token scale (`rounded-[…]`) and move them to `rounded-(--radius-*)`-based utilities.
-- **Presets**: a few named full themes (e.g. *إيكوال* = neutral + equal + 0.375, *كلاسيكي* = slate +
-  indigo + 0.5, *ناعم* = stone + teal + 0.75, *حاد* = zinc + equal + 0) — one click sets all fields.
+- **Presets**: a few named full themes (e.g. _إيكوال_ = neutral + equal + 0.375, _كلاسيكي_ = slate +
+  indigo + 0.5, _ناعم_ = stone + teal + 0.75, _حاد_ = zinc + equal + 0) — one click sets all fields.
 - **Contrast check** kept from 16 Phase B: every accent × base × mode combination must clear 4.5:1 for
   white-on-accent; a small script (`scripts/check-contrast.ts`) computes it from the CSS so new presets
   can't regress.
 
 **Tasks**
+
 - [x] Define the 5 base palettes (light + dark) in `design-system.css`; add 3 accents (blue, violet, orange).
 - [x] `base`/`accent`/`radius` settings + `applyThemePreset()` in `useAppearance.ts` (sets `data-base`,
       `data-accent`, `--radius`) — see the naming-deviation note above; existing `app_accent` key and
@@ -493,6 +502,7 @@ interface ThemeConfig {
 hand-written structure. Next session picks up at F-1 (list pages).
 
 **The problem** (survey of 109 `*Page.vue` files, 2026-09-25):
+
 - 39 pages build their own `<table>` markup instead of `DataTable`; 36 use `DataTable`.
 - Forms have no shared structure: labels, hints, errors, sections, the save/cancel bar, the
   "unsaved changes" guard and Ctrl+S are rewritten per page. 9 pages exceed 400 lines
@@ -503,7 +513,7 @@ hand-written structure. Next session picks up at F-1 (list pages).
   rows, keyboard entry) exists separately in invoice, purchase, journal, stock adjustment, stock count
   and transfer forms.
 
-**Goal:** a page should be *assembled* from a small set of layouts and blocks, so every new page
+**Goal:** a page should be _assembled_ from a small set of layouts and blocks, so every new page
 automatically looks and behaves like the rest ("same soul"), and a fix in one block fixes every page.
 
 ### F1. The building blocks
@@ -512,28 +522,28 @@ Layer 1 — **primitives** (exist): `modules/core/components/shadcn/*` + `ui/App
 
 Layer 2 — **blocks** (new, in `modules/core/components/blocks/`):
 
-| Block | Replaces | Contract |
-|---|---|---|
-| `FormField` | hand-written label + input + hint + error | `label`, `hint`, `error`, `required`, `name`; wraps shadcn `Field`; slot for any control; RTL + `aria-describedby` wired |
-| `FormSection` | ad-hoc `<AppCard>` + heading per form part | `title`, `description`, optional collapsible; 1/2/3-column responsive grid |
-| `FormActions` | per-page save/cancel rows | sticky bottom bar; primary + secondary + danger slots; shows "تغييرات غير محفوظة" |
-| `useForm()` | per-page `ref` + manual validation | Zod schema → values, errors, `dirty`, `submit()`, `reset()`; route-leave guard when dirty; Ctrl+S = submit |
-| `FilterBar` | per-page search + selects + date range rows | `SearchInput` + declared filters + `DateRangeFilter` + saved views + "مسح" ; syncs to the URL query |
-| `DataTable` (extend) | 39 raw tables | column defs with `type: 'money' \| 'date' \| 'number' \| 'status' \| 'party' \| 'actions'` → formatting + alignment automatic; totals footer; row click → detail; selection + bulk actions; empty/loading/error states; Excel export via Phase C |
-| `LineItemsEditor` | 6 copies of the line grid | generic over a line type; column config; keyboard (Enter = next cell, Ctrl+Enter = new line, Del = remove); totals emitted; used by invoice, purchase, journal, adjustment, count, transfer |
-| `TotalsPanel` | per-form totals cards | rows (label, amount, emphasis); tafqit line optional |
-| `DetailHeader` | per-page detail tops | title, number, `StatusBadge`, meta chips, action buttons (print, edit, more ⋯) |
-| `StatCards` | per-page KPI rows | array of `{ label, value, trend, to }` |
+| Block                | Replaces                                    | Contract                                                                                                                                                                                                                                         |
+| -------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `FormField`          | hand-written label + input + hint + error   | `label`, `hint`, `error`, `required`, `name`; wraps shadcn `Field`; slot for any control; RTL + `aria-describedby` wired                                                                                                                         |
+| `FormSection`        | ad-hoc `<AppCard>` + heading per form part  | `title`, `description`, optional collapsible; 1/2/3-column responsive grid                                                                                                                                                                       |
+| `FormActions`        | per-page save/cancel rows                   | sticky bottom bar; primary + secondary + danger slots; shows "تغييرات غير محفوظة"                                                                                                                                                                |
+| `useForm()`          | per-page `ref` + manual validation          | Zod schema → values, errors, `dirty`, `submit()`, `reset()`; route-leave guard when dirty; Ctrl+S = submit                                                                                                                                       |
+| `FilterBar`          | per-page search + selects + date range rows | `SearchInput` + declared filters + `DateRangeFilter` + saved views + "مسح" ; syncs to the URL query                                                                                                                                              |
+| `DataTable` (extend) | 39 raw tables                               | column defs with `type: 'money' \| 'date' \| 'number' \| 'status' \| 'party' \| 'actions'` → formatting + alignment automatic; totals footer; row click → detail; selection + bulk actions; empty/loading/error states; Excel export via Phase C |
+| `LineItemsEditor`    | 6 copies of the line grid                   | generic over a line type; column config; keyboard (Enter = next cell, Ctrl+Enter = new line, Del = remove); totals emitted; used by invoice, purchase, journal, adjustment, count, transfer                                                      |
+| `TotalsPanel`        | per-form totals cards                       | rows (label, amount, emphasis); tafqit line optional                                                                                                                                                                                             |
+| `DetailHeader`       | per-page detail tops                        | title, number, `StatusBadge`, meta chips, action buttons (print, edit, more ⋯)                                                                                                                                                                   |
+| `StatCards`          | per-page KPI rows                           | array of `{ label, value, trend, to }`                                                                                                                                                                                                           |
 
 Layer 3 — **page layouts** (new, in `modules/core/components/layouts/`):
 
-| Layout | Slots | Used by |
-|---|---|---|
-| `ListPage` | header (title, primary action) · `FilterBar` · `DataTable` · pagination | invoices, products, customers, suppliers, POs, expenses, payments, journal, stock movements… |
-| `FormPage` | header · `FormSection`s · aside (totals / help) · `FormActions` | product, party, invoice, purchase, journal entry, expense, adjustment… |
-| `DetailPage` | `DetailHeader` · optional `StatCards` · tabs (details / lines / payments / history / attachments) · aside | invoice, purchase, party, product, journal entry… |
-| `SettingsPage` | nav list · section content | all settings pages |
-| `ReportPage` | already exists as `ReportShell` — align it with `FilterBar` | reports |
+| Layout         | Slots                                                                                                     | Used by                                                                                      |
+| -------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `ListPage`     | header (title, primary action) · `FilterBar` · `DataTable` · pagination                                   | invoices, products, customers, suppliers, POs, expenses, payments, journal, stock movements… |
+| `FormPage`     | header · `FormSection`s · aside (totals / help) · `FormActions`                                           | product, party, invoice, purchase, journal entry, expense, adjustment…                       |
+| `DetailPage`   | `DetailHeader` · optional `StatCards` · tabs (details / lines / payments / history / attachments) · aside | invoice, purchase, party, product, journal entry…                                            |
+| `SettingsPage` | nav list · section content                                                                                | all settings pages                                                                           |
+| `ReportPage`   | already exists as `ReportShell` — align it with `FilterBar`                                               | reports                                                                                      |
 
 ### F2. The rules (written into `docs/design_system.md` → new "Building pages" section)
 
@@ -578,10 +588,10 @@ math helpers and `TotalsPanel`; the template designer stays custom.
 
 ## Risks
 
-| Risk | Handling |
-|---|---|
-| Mirroring an icon whose direction is *physical* (trend arrow, transfer from→to) | Per-icon decision in Phase A, documented with `rtl-ok` comments; `/dev/ui` shows both kinds |
-| Collapsible groups hide pages users used to see at a glance | Command palette (Ctrl K) finds every page; quick actions list; active group always open |
-| `LineItemsEditor` changes accounting math | It only renders + emits; totals/VAT math stays in the existing `helpers` (tax-inclusive, discount order) and is covered by `verify:mocks` + e2e |
-| Theme presets break contrast | `check-contrast.ts` in `bun run check` |
-| Big migration churn | Layout-first (F-0), then batches with the full suite after each; pages keep their services untouched |
+| Risk                                                                            | Handling                                                                                                                                        |
+| ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mirroring an icon whose direction is _physical_ (trend arrow, transfer from→to) | Per-icon decision in Phase A, documented with `rtl-ok` comments; `/dev/ui` shows both kinds                                                     |
+| Collapsible groups hide pages users used to see at a glance                     | Command palette (Ctrl K) finds every page; quick actions list; active group always open                                                         |
+| `LineItemsEditor` changes accounting math                                       | It only renders + emits; totals/VAT math stays in the existing `helpers` (tax-inclusive, discount order) and is covered by `verify:mocks` + e2e |
+| Theme presets break contrast                                                    | `check-contrast.ts` in `bun run check`                                                                                                          |
+| Big migration churn                                                             | Layout-first (F-0), then batches with the full suite after each; pages keep their services untouched                                            |

@@ -12,7 +12,7 @@ import { emit } from '../events';
 import { mutate } from '../persist';
 import { ApiError, round2, uid } from '../utils';
 import { accountById } from './accounts';
-import { logActivity } from './core';
+import { diffFields, logActivity, logAudit } from './core';
 
 /** Single default branch id — matches `DEFAULT_BRANCH_ID` in `./core.ts` (every pre-phase-9 line/document already uses this id). */
 export const MAIN_BRANCH_ID = 'branch-main';
@@ -134,6 +134,7 @@ export function updateBranch(id: string, input: Partial<BranchInput>, userId: st
   if (input.code && input.code.trim().toLowerCase() !== branch.code.toLowerCase() && db.branches.some((b) => b.id !== id && b.code.toLowerCase() === input.code!.trim().toLowerCase())) {
     throw new ApiError('رمز الفرع مستخدم بالفعل');
   }
+  const before = { name: branch.name, code: branch.code, address: branch.address, phone: branch.phone, receiptHeader: branch.receiptHeader, bankAccountId: branch.bankAccountId, defaultPriceListId: branch.defaultPriceListId };
   mutate(() =>
     Object.assign(branch, {
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
@@ -149,7 +150,20 @@ export function updateBranch(id: string, input: Partial<BranchInput>, userId: st
     const acc = db.accounts.find((a) => a.id === branch.cashAccountId);
     if (acc) mutate(() => (acc.name = `الصندوق — ${branch.name}`));
   }
-  logActivity('settings', `تعديل بيانات الفرع "${branch.name}"`, userId, new Date().toISOString(), '/settings/branches');
+  const after = { name: branch.name, code: branch.code, address: branch.address, phone: branch.phone, receiptHeader: branch.receiptHeader, bankAccountId: branch.bankAccountId, defaultPriceListId: branch.defaultPriceListId };
+  const { before: beforeDiff, after: afterDiff } = diffFields(before, after);
+  logAudit({
+    entity: 'branch',
+    entityId: branch.id,
+    entityLabel: branch.name,
+    action: 'update',
+    before: beforeDiff,
+    after: afterDiff,
+    userId,
+    message: `تعديل بيانات الفرع "${branch.name}"`,
+    link: '/settings/branches',
+    activityKind: 'settings',
+  });
   return branch;
 }
 

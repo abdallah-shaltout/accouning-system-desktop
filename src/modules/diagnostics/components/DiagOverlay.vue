@@ -62,7 +62,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
   display: flex;
   flex-direction: column;
   background: color-mix(in srgb, black 88%, transparent);
-  color: #e5e7eb;
+  color: color-mix(in srgb, white 90%, transparent);
   font-family: ui-monospace, monospace;
   font-size: 11px;
   border-top: 1px solid color-mix(in srgb, white 20%, transparent);
@@ -108,15 +108,15 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
   opacity: 0.85;
 }
 .diag-overlay__channel[data-level='error'] {
-  color: #f87171;
+  color: var(--color-danger);
 }
 .diag-overlay__channel[data-level='warn'] {
-  color: #fbbf24;
+  color: var(--color-warning);
 }
 
 .diag-overlay__source {
   flex-shrink: 0;
-  color: #60a5fa;
+  color: var(--color-primary);
 }
 
 .diag-overlay__msg {
