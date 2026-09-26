@@ -10,6 +10,7 @@ import { CircleAlert, CircleCheck, Copy, FileDown, Plus, SendHorizontal, Trash }
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
@@ -393,8 +394,8 @@ function resetForm() {
 }
 
 useHotkeys({
-  'ctrl+Enter': () => void submit('post'),
-  'ctrl+s': () => void submit('draft'),
+  'ctrl+Enter': { id: 'journal.post', label: 'ترحيل القيد', group: 'القيود المالية', handler: () => void submit('post') },
+  'ctrl+s': { id: 'journal.saveDraft', label: 'حفظ كمسودة', group: 'القيود المالية', handler: () => void submit('draft') },
 });
 </script>
 
@@ -408,7 +409,7 @@ useHotkeys({
 
     <AppCard padding="sm" class="mb-4">
       <div class="grid gap-4 sm:grid-cols-[160px_1fr_220px]">
-        <AppInput v-model="date" type="date" label="التاريخ" required />
+        <AppDatePicker v-model="date" label="التاريخ" required />
         <AppInput
           v-model="description"
           label="البيان"

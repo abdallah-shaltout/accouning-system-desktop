@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { CreditCard, Landmark } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
@@ -118,7 +119,7 @@ async function submit() {
 
       <AppCard title="التسوية" padding="sm">
         <div class="space-y-4">
-          <AppInput v-model="date" type="date" label="تاريخ الإيداع" />
+          <AppDatePicker v-model="date" label="تاريخ الإيداع" />
           <div class="flex items-center justify-between text-body">
             <span class="text-text-secondary">إجمالي المحدد</span>
             <MoneyText :value="grossTotal" />

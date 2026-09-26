@@ -4,6 +4,7 @@ import { Pencil, Plus, Repeat, Trash } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
@@ -152,7 +153,7 @@ async function remove(t: RecurringExpense) {
         </div>
         <div class="grid grid-cols-2 gap-3">
           <AppInput v-model.number="form.day" type="number" min="1" max="28" label="يوم الاستحقاق (من الشهر)" />
-          <AppInput v-model="form.nextDate" type="date" label="الاستحقاق التالي" />
+          <AppDatePicker v-model="form.nextDate" label="الاستحقاق التالي" />
         </div>
         <AppSelect v-model="form.paymentMethodId" label="طريقة الدفع" :options="methodOptions" :error="errors.paymentMethodId" />
         <div class="grid grid-cols-2 gap-3">

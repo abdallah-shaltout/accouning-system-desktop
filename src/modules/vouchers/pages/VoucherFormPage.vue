@@ -5,6 +5,7 @@ import { Save } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
@@ -116,7 +117,7 @@ async function save() {
         <div class="space-y-4">
           <SegmentedControl v-model="kind" :options="kindOptions" />
           <div class="grid gap-4 sm:grid-cols-2">
-            <AppInput v-model="date" type="date" label="التاريخ" required />
+            <AppDatePicker v-model="date" label="التاريخ" required />
             <AppInput v-model.number="amount" type="number" min="0" step="0.01" label="المبلغ" required />
           </div>
 

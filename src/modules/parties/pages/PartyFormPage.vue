@@ -10,6 +10,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Plus, Save, Trash2, TriangleAlert } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppPhoneInput from '@/modules/core/components/ui/AppPhoneInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
@@ -474,7 +475,7 @@ const countryOptions = COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} 
                 size="sm"
               />
             </div>
-            <AppInput v-model="form.openingAsOf" type="date" label="كما في تاريخ" :disabled="!!openingStub?.locked" />
+            <AppDatePicker v-model="form.openingAsOf" label="كما في تاريخ" :disabled="!!openingStub?.locked" />
           </div>
           <div v-if="id && !openingStub?.locked" class="mt-3 flex gap-2">
             <AppButton v-if="!openingStub?.journalEntryId" type="button" size="sm" :loading="openingPosting" :disabled="!form.openingAmount" @click="postOpeningForExisting">

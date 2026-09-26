@@ -2,7 +2,7 @@
 /** v2 phase 12 (docs/v2/13-reports.md §2 "Period comparison: any two periods, key lines side by side with Δ and Δ%"). */
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import AppInput from '@/modules/core/components/ui/AppInput.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { daysAgoKey, formatNumber, todayKey } from '@/modules/core/helpers/format';
@@ -40,12 +40,12 @@ const table = computed<ExportTable | undefined>(() =>
   <ReportShell title="مقارنة الفترات" subtitle="أي فترتين جنباً إلى جنب — البنود الرئيسية من قائمة الدخل" :loading="loading && !data" :error="error" :table="table" :insights="insights" @retry="reload">
     <template #filters>
       <div class="flex items-end gap-2">
-        <AppInput v-model="aFrom" type="date" label="الفترة الأولى من" class="w-40" />
-        <AppInput v-model="aTo" type="date" label="إلى" class="w-40" />
+        <AppDatePicker v-model="aFrom" label="الفترة الأولى من" class="w-40" />
+        <AppDatePicker v-model="aTo" label="إلى" class="w-40" />
       </div>
       <div class="flex items-end gap-2">
-        <AppInput v-model="bFrom" type="date" label="الفترة الثانية من" class="w-40" />
-        <AppInput v-model="bTo" type="date" label="إلى" class="w-40" />
+        <AppDatePicker v-model="bFrom" label="الفترة الثانية من" class="w-40" />
+        <AppDatePicker v-model="bTo" label="إلى" class="w-40" />
       </div>
     </template>
 

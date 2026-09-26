@@ -5,6 +5,7 @@ import { AlertTriangle, PackageCheck, PackageX, Plus, Save, Send, Trash } from '
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
@@ -268,7 +269,7 @@ const spreadOptions: { value: LandedCostSpread; label: string }[] = [
               placeholder="اختر المورد…"
               :error="submitted && !supplierId ? 'اختر المورد' : undefined"
             />
-            <AppInput v-model="date" type="date" label="التاريخ" required />
+            <AppDatePicker v-model="date" label="التاريخ" required />
           </div>
         </AppCard>
 
@@ -364,7 +365,7 @@ const spreadOptions: { value: LandedCostSpread; label: string }[] = [
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
             <AppInput v-model="supplierInvoiceNo" label="رقم فاتورة المورد" ltr />
-            <AppInput v-model="supplierInvoiceDate" type="date" label="تاريخ فاتورة المورد" />
+            <AppDatePicker v-model="supplierInvoiceDate" label="تاريخ فاتورة المورد" />
           </div>
           <div class="mt-3">
             <AttachmentField :owner-ref="draftOwnerRef" />

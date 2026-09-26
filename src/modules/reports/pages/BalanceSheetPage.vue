@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { CircleAlert, CircleCheck } from '@lucide/vue';
-import AppInput from '@/modules/core/components/ui/AppInput.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatNumber, todayKey } from '@/modules/core/helpers/format';
@@ -103,7 +103,7 @@ const print = computed<ReportPrintSpec | null>(() => {
     @retry="reload"
   >
     <template #filters>
-      <AppInput v-model="asOf" type="date" label="كما في تاريخ" class="w-44" />
+      <AppDatePicker v-model="asOf" label="كما في تاريخ" class="w-44" />
       <DimensionFilters
         v-model:branch-id="branchId"
         v-model:cost-center-id="costCenterId"

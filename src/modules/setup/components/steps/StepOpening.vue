@@ -10,6 +10,7 @@ import { Plus, Trash2 } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox, { type ComboOption } from '@/modules/core/components/ui/AppCombobox.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
@@ -302,7 +303,7 @@ function onImportedCustomers(rows: { id: string; name: string; openingAmount?: n
             <td class="py-2"><AppInput v-model.number="r.qty" type="number" min="0" class="w-24" /></td>
             <td class="py-2"><AppInput v-model.number="r.unitCost" type="number" min="0" class="w-24" /></td>
             <td class="py-2"><AppInput v-model="r.batchNo" class="w-24" /></td>
-            <td class="py-2"><AppInput v-model="r.expiryDate" type="date" class="w-32" /></td>
+            <td class="py-2"><AppDatePicker v-model="r.expiryDate" class="w-32" compact /></td>
             <td class="py-2"><button type="button" class="rounded p-1 text-text-secondary hover:text-danger" @click="removeStockRow(i)"><Trash2 class="size-4" /></button></td>
           </tr>
         </tbody>

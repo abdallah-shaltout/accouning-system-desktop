@@ -9,6 +9,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { CalendarRange, CheckCircle2, CircleX, Lock, LockOpen, Pencil, Plus } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
@@ -166,7 +167,7 @@ const columns: Column<FiscalYear>[] = [
     </PageHeader>
 
     <div v-if="canWrite" class="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-border p-3">
-      <AppInput v-model="lockDate" type="date" label="تاريخ قفل الترحيل" hint="لا يمكن الترحيل في تاريخ يساويه أو يسبقه إلا بصلاحية المدير" class="w-52" />
+      <AppDatePicker v-model="lockDate" label="تاريخ قفل الترحيل" hint="لا يمكن الترحيل في تاريخ يساويه أو يسبقه إلا بصلاحية المدير" class="w-52" />
       <AppButton :loading="lockSaving" @click="saveLock">حفظ تاريخ القفل</AppButton>
       <AppButton v-if="lockDate" variant="ghost" @click="((lockDate = ''), saveLock())">إزالة القفل</AppButton>
     </div>
@@ -195,8 +196,8 @@ const columns: Column<FiscalYear>[] = [
       <form id="fy-form" class="space-y-4" @submit.prevent="save">
         <AppInput v-model="form.name" label="الاسم" required />
         <div class="grid grid-cols-2 gap-3">
-          <AppInput v-model="form.startDate" type="date" label="تاريخ البداية" required />
-          <AppInput v-model="form.endDate" type="date" label="تاريخ النهاية" required />
+          <AppDatePicker v-model="form.startDate" label="تاريخ البداية" required />
+          <AppDatePicker v-model="form.endDate" label="تاريخ النهاية" required />
         </div>
         <AppSwitch v-model="form.isClosed" label="مقفلة" description="علامة للعرض فقط — استخدم معالج الإقفال للإقفال الفعلي" />
         <p v-if="formError" class="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">{{ formError }}</p>

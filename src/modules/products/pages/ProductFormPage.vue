@@ -5,6 +5,7 @@ import { Box, PackageX, Save, Wrench } from '@lucide/vue';
 import { getAccounts, type AccountWithBalance } from '@/modules/accounting/services/accountingService';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
@@ -459,7 +460,7 @@ async function save() {
             <template v-for="f in catalog.customFieldDefs.filter((x) => x.active)" :key="f.id">
               <AppInput v-if="f.type === 'text'" v-model="form.customFields[f.id] as any" :label="f.name" />
               <AppInput v-else-if="f.type === 'number'" v-model="form.customFields[f.id] as any" :label="f.name" type="number" />
-              <AppInput v-else-if="f.type === 'date'" v-model="form.customFields[f.id] as any" :label="f.name" type="date" />
+              <AppDatePicker v-else-if="f.type === 'date'" v-model="form.customFields[f.id] as any" :label="f.name" />
               <AppSelect v-else-if="f.type === 'list'" v-model="form.customFields[f.id] as any" :label="f.name" placeholder="—" :options="(f.options ?? []).map((o) => ({ value: o, label: o }))" />
               <AppSwitch v-else-if="f.type === 'yesno'" :model-value="!!form.customFields[f.id]" :label="f.name" @update:model-value="(v) => (form.customFields[f.id] = v)" />
             </template>

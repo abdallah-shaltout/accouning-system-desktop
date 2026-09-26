@@ -8,7 +8,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Copy, ExternalLink, Printer, Undo2 } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
-import AppInput from '@/modules/core/components/ui/AppInput.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
@@ -299,9 +299,8 @@ watch(
 
     <AppModal v-model:open="reverseOpen" title="عكس القيد" description="سيُنشأ قيد جديد بنفس المبالغ مع تبديل المدين والدائن. يبقى القيد الأصلي في السجل." size="sm">
       <div class="space-y-4">
-        <AppInput
+        <AppDatePicker
           v-model="reverseDate"
-          type="date"
           label="تاريخ قيد العكس"
           required
           :error="reverseSubmitted && !reverseDate ? 'التاريخ مطلوب' : undefined"

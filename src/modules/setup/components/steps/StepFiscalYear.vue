@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /** docs/v2/05-onboarding.md §2 step 4: fiscal year start + go-live (opening-balance) date. */
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import type { WizardState } from '../../types';
@@ -23,7 +24,7 @@ const MONTHS = [
       </div>
     </AppCard>
     <AppCard title="تاريخ البدء (Go-live)">
-      <AppInput v-model="state.fiscalYear.goLiveDate" type="date" label="تاريخ بدء العمل بالنظام" required />
+      <AppDatePicker v-model="state.fiscalYear.goLiveDate" label="تاريخ بدء العمل بالنظام" required />
       <p class="mt-2 text-xs text-text-secondary">هذا هو تاريخ الأرصدة الافتتاحية — يُقفل بعد ترحيلها في الخطوة 8.</p>
     </AppCard>
   </div>

@@ -7,6 +7,7 @@ import { ClipboardCheck, PackageMinus, PackagePlus, Plus, ScanBarcode, Trash } f
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
@@ -296,7 +297,7 @@ function onApproved(userId: string) {
               <span class="field-label">نوع التسوية</span>
               <SegmentedControl v-model="type" :options="typeOptions" />
             </div>
-            <AppInput v-model="date" type="date" label="التاريخ" class="w-40" />
+            <AppDatePicker v-model="date" label="التاريخ" class="w-40" />
             <AppSelect
               v-if="type === 'STOCKTAKE'"
               v-model="stocktakeCategory"
@@ -388,7 +389,7 @@ function onApproved(userId: string) {
                   <td v-if="type === 'STOCK_IN'" class="px-2 py-1.5">
                     <template v-if="line.productId && byId.get(line.productId)?.trackBatches">
                       <input v-model="line.batchNo" class="control mb-1 h-8 w-32" placeholder="رقم التشغيلة" dir="ltr" />
-                      <input v-model="line.expiryDate" type="date" class="control h-8 w-32" />
+                      <AppDatePicker v-model="line.expiryDate" class="w-32" compact />
                     </template>
                     <span v-else class="text-xs text-text-secondary">—</span>
                   </td>

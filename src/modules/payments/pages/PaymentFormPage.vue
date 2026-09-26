@@ -7,6 +7,7 @@ import { Banknote, CircleCheck, CreditCard, Landmark, Save, Wand2, X } from '@lu
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
 import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
@@ -254,7 +255,7 @@ const methodOptions = [
             <span class="field-label">طريقة الدفع</span>
             <SegmentedControl v-model="method" :options="methodOptions" size="sm" />
           </div>
-          <AppInput v-model="date" type="date" label="التاريخ" />
+          <AppDatePicker v-model="date" label="التاريخ" />
           <AppInput v-model="note" label="ملاحظات" />
           <div>
             <span class="field-label">المرفقات</span>

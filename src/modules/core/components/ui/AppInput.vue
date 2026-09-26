@@ -9,7 +9,7 @@ import { Input } from '@/modules/core/components/shadcn/input';
 const props = withDefaults(
   defineProps<{
     label?: string;
-    type?: 'text' | 'number' | 'password' | 'date' | 'email' | 'tel' | 'search';
+    type?: 'text' | 'number' | 'password' | 'email' | 'tel' | 'search';
     placeholder?: string;
     error?: string;
     hint?: string;
@@ -67,7 +67,7 @@ defineExpose({
         :step="step ?? (type === 'number' ? 'any' : undefined)"
         :autofocus="autofocus"
         :aria-invalid="!!error || undefined"
-        :dir="ltr || type === 'number' || type === 'date' ? 'ltr' : undefined"
+        :dir="ltr || type === 'number' ? 'ltr' : undefined"
         class="control h-[34px] rounded-md text-body shadow-none"
         :class="[$slots.prefix && 'ps-8', $slots.suffix && 'pe-10', (ltr || type === 'number') && 'text-end', inputClass]"
       />

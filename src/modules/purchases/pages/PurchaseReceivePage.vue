@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { AlertTriangle, PackageCheck, Printer } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
-import AppInput from '@/modules/core/components/ui/AppInput.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
@@ -155,7 +155,7 @@ function printLabels() {
                   <span v-else class="text-tiny text-text-secondary">—</span>
                 </td>
                 <td class="px-3 py-2">
-                  <input v-if="data.products[l.productId]?.trackBatches" v-model="expiryDate[l.productId]" type="date" class="control h-8 w-36" />
+                  <AppDatePicker v-if="data.products[l.productId]?.trackBatches" v-model="expiryDate[l.productId]" class="w-36" compact />
                   <span v-else class="text-tiny text-text-secondary">—</span>
                 </td>
               </tr>
@@ -168,7 +168,7 @@ function printLabels() {
       <div class="space-y-4">
         <AppCard title="تأكيد الاستلام" padding="sm">
           <div class="space-y-3">
-            <AppInput v-model="date" type="date" label="تاريخ الاستلام" />
+            <AppDatePicker v-model="date" label="تاريخ الاستلام" />
             <p class="text-xs text-text-secondary">إجمالي الكمية المستلمة: <span class="num font-medium text-text-primary">{{ formatNumber(totalToReceive) }}</span></p>
             <AppSwitch v-if="hasShortDelivery" v-model="createBackorder" label="إنشاء أمر متبقٍ للفرق" description="أمر شراء مسودة جديد بالكمية غير المستلمة" />
             <p v-if="hasShortDelivery" class="rounded-lg border border-warning/40 bg-warning/10 px-2.5 py-2 text-xs text-warning">

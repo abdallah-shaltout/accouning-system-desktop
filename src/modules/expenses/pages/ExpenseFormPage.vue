@@ -5,6 +5,7 @@ import { Save } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
@@ -108,7 +109,7 @@ async function save() {
       <AppCard padding="sm">
         <div class="space-y-4">
           <div class="grid gap-4 sm:grid-cols-2">
-            <AppInput v-model="date" type="date" label="التاريخ" required />
+            <AppDatePicker v-model="date" label="التاريخ" required />
             <AppCombobox v-model="categoryId" label="التصنيف" required :options="categoryOptions" :error="submitted && !categoryId ? 'اختر التصنيف' : undefined" />
           </div>
           <AppInput v-model.number="amount" type="number" min="0" step="0.01" label="المبلغ" required />

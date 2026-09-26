@@ -9,6 +9,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { Plus } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
@@ -206,7 +207,7 @@ async function saveRate() {
 
     <AppModal v-model:open="rateFormOpen" :title="`سعر صرف جديد — ${rateCurrency}`" :persistent="savingRate">
       <form class="space-y-4" novalidate @submit.prevent="saveRate">
-        <AppInput v-model="rateForm.date" type="date" label="التاريخ" required />
+        <AppDatePicker v-model="rateForm.date" label="التاريخ" required />
         <div class="flex gap-2 text-tiny">
           <button type="button" class="rounded-md border px-2 py-1" :class="rateDirection === 'direct' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-text-secondary'" @click="rateDirection = 'direct'">
             1 {{ rateCurrency }} = ؟ {{ settingsStore.currency }}
