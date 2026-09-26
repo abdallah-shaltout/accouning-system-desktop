@@ -38,12 +38,13 @@ import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import { matchesSearch } from '@/modules/core/helpers/search';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
+import type { AppRoute } from '@/modules/core/types/route';
 
 const settingsStore = useSettingsStore();
 onMounted(() => settingsStore.load());
 
 interface ReportLink {
-  to: string;
+  to: AppRoute;
   title: string;
   description: string;
   icon: Component;
@@ -60,64 +61,64 @@ const ALL_GROUPS: ReportGroup[] = [
   {
     title: 'التقارير المالية',
     reports: [
-      { to: '/reports/trial-balance', title: 'ميزان المراجعة', description: 'أرصدة جميع الحسابات والتأكد من توازن المدين والدائن', icon: Scale },
-      { to: '/reports/profit-loss', title: 'قائمة الدخل', description: 'الإيرادات وتكلفة المبيعات والمصروفات وصافي الربح — مع مقارنة الفترات', icon: ChartColumn },
-      { to: '/reports/balance-sheet', title: 'الميزانية العمومية', description: 'الأصول والالتزامات وحقوق الملكية في تاريخ محدد', icon: Landmark },
-      { to: '/reports/cash-flow', title: 'قائمة التدفقات النقدية', description: 'الطريقة غير المباشرة من صافي الربح إلى التغير في النقدية', icon: Wallet },
-      { to: '/reports/ledger', title: 'كشف حساب', description: 'حركة أي حساب أو عميل أو مورد مع الرصيد التراكمي', icon: BookText },
-      { to: '/reports/day-book', title: 'دفتر اليومية', description: 'كل القيود المرحّلة خلال الفترة بتفاصيلها، جاهز للطباعة', icon: FileClock },
-      { to: '/reports/cost-centers', title: 'الأرباح حسب مركز التكلفة', description: 'عمود لكل مركز تكلفة، مع تفاصيل عند الضغط على اسم المركز', icon: PieChart, requires: 'costCenters' },
+      { to: { name: 'report-trial-balance' }, title: 'ميزان المراجعة', description: 'أرصدة جميع الحسابات والتأكد من توازن المدين والدائن', icon: Scale },
+      { to: { name: 'report-profit-loss' }, title: 'قائمة الدخل', description: 'الإيرادات وتكلفة المبيعات والمصروفات وصافي الربح — مع مقارنة الفترات', icon: ChartColumn },
+      { to: { name: 'report-balance-sheet' }, title: 'الميزانية العمومية', description: 'الأصول والالتزامات وحقوق الملكية في تاريخ محدد', icon: Landmark },
+      { to: { name: 'report-cash-flow' }, title: 'قائمة التدفقات النقدية', description: 'الطريقة غير المباشرة من صافي الربح إلى التغير في النقدية', icon: Wallet },
+      { to: { name: 'report-ledger' }, title: 'كشف حساب', description: 'حركة أي حساب أو عميل أو مورد مع الرصيد التراكمي', icon: BookText },
+      { to: { name: 'report-day-book' }, title: 'دفتر اليومية', description: 'كل القيود المرحّلة خلال الفترة بتفاصيلها، جاهز للطباعة', icon: FileClock },
+      { to: { name: 'report-cost-centers' }, title: 'الأرباح حسب مركز التكلفة', description: 'عمود لكل مركز تكلفة، مع تفاصيل عند الضغط على اسم المركز', icon: PieChart, requires: 'costCenters' },
     ],
   },
   {
     title: 'العملاء والموردون',
     reports: [
-      { to: '/reports/aging', title: 'أعمار الديون', description: 'أرصدة العملاء أو الموردين موزعة حسب أيام التأخر (0-30 / 31-60 / 61-90 / 90+)', icon: Clock },
-      { to: '/reports/overdue', title: 'المستندات المتأخرة', description: 'فواتير وأوامر شراء تجاوزت الاستحقاق، مع رابط تواصل واتساب', icon: FileText },
+      { to: { name: 'report-aging' }, title: 'أعمار الديون', description: 'أرصدة العملاء أو الموردين موزعة حسب أيام التأخر (0-30 / 31-60 / 61-90 / 90+)', icon: Clock },
+      { to: { name: 'report-overdue' }, title: 'المستندات المتأخرة', description: 'فواتير وأوامر شراء تجاوزت الاستحقاق، مع رابط تواصل واتساب', icon: FileText },
     ],
   },
   {
     title: 'المبيعات',
     reports: [
-      { to: '/reports/sales', title: 'تقرير المبيعات', description: 'المبيعات حسب اليوم والمنتج والتصنيف وطريقة الدفع والكاشير', icon: ReceiptText },
-      { to: '/reports/gross-profit', title: 'تقرير مجمل الربح', description: 'المبيعات ناقص التكلفة، بالهامش، لكل فاتورة أو منتج أو تصنيف', icon: TrendingUp },
-      { to: '/reports/returns', title: 'تحليل المرتجعات', description: 'المرتجعات حسب السبب والمنتج والكاشير، ومعدل الإرجاع', icon: Undo2 },
-      { to: '/reports/discounts', title: 'الخصومات وتجاوزات السعر', description: 'السعر المعلن مقابل المحصّل، لكل كاشير أو منتج', icon: BadgePercent },
-      { to: '/reports/shifts', title: 'سجل الورديات', description: 'النقدية المتوقعة مقابل المعدودة لكل وردية مغلقة (تقارير Z)', icon: ListChecks },
+      { to: { name: 'report-sales' }, title: 'تقرير المبيعات', description: 'المبيعات حسب اليوم والمنتج والتصنيف وطريقة الدفع والكاشير', icon: ReceiptText },
+      { to: { name: 'report-gross-profit' }, title: 'تقرير مجمل الربح', description: 'المبيعات ناقص التكلفة، بالهامش، لكل فاتورة أو منتج أو تصنيف', icon: TrendingUp },
+      { to: { name: 'report-returns' }, title: 'تحليل المرتجعات', description: 'المرتجعات حسب السبب والمنتج والكاشير، ومعدل الإرجاع', icon: Undo2 },
+      { to: { name: 'report-discounts' }, title: 'الخصومات وتجاوزات السعر', description: 'السعر المعلن مقابل المحصّل، لكل كاشير أو منتج', icon: BadgePercent },
+      { to: { name: 'report-shifts' }, title: 'سجل الورديات', description: 'النقدية المتوقعة مقابل المعدودة لكل وردية مغلقة (تقارير Z)', icon: ListChecks },
     ],
   },
   {
     title: 'المخزون',
     reports: [
-      { to: '/reports/inventory', title: 'تقرير المخزون', description: 'الكميات وقيمة المخزون بالتكلفة وسعر البيع والأصناف المنخفضة', icon: Boxes },
-      { to: '/reports/stock-health', title: 'المخزون المنخفض والراكد', description: 'أصناف بحاجة لإعادة طلب، وأصناف بلا حركة منذ فترة طويلة', icon: TrendingDown },
-      { to: '/inventory/expiry', title: 'تقرير الصلاحية', description: 'الأصناف منتهية أو قريبة الانتهاء، مجمّعة حسب المورد', icon: CalendarClock },
-      { to: '/reports/stocktake-variances', title: 'فروقات الجرد', description: 'الفرق بين الكمية بالنظام والمعدودة، بالقيمة', icon: Combine },
-      { to: '/reports/transfers', title: 'تقرير التحويلات', description: 'تحويلات المخزون بين الفروع، وأي عجز عند الاستلام', icon: ArrowLeftRight, requires: 'branches' },
+      { to: { name: 'report-inventory' }, title: 'تقرير المخزون', description: 'الكميات وقيمة المخزون بالتكلفة وسعر البيع والأصناف المنخفضة', icon: Boxes },
+      { to: { name: 'report-stock-health' }, title: 'المخزون المنخفض والراكد', description: 'أصناف بحاجة لإعادة طلب، وأصناف بلا حركة منذ فترة طويلة', icon: TrendingDown },
+      { to: { name: 'expiry' }, title: 'تقرير الصلاحية', description: 'الأصناف منتهية أو قريبة الانتهاء، مجمّعة حسب المورد', icon: CalendarClock },
+      { to: { name: 'report-stocktake-variances' }, title: 'فروقات الجرد', description: 'الفرق بين الكمية بالنظام والمعدودة، بالقيمة', icon: Combine },
+      { to: { name: 'report-transfers' }, title: 'تقرير التحويلات', description: 'تحويلات المخزون بين الفروع، وأي عجز عند الاستلام', icon: ArrowLeftRight, requires: 'branches' },
     ],
   },
   {
     title: 'المشتريات والمصروفات',
     reports: [
-      { to: '/reports/purchases', title: 'تقرير المشتريات', description: 'حسب المورد والمنتج، مع متوسط سعر الشراء', icon: ShoppingCart },
-      { to: '/reports/expenses', title: 'تقرير المصروفات', description: 'حسب الفئة والشهر، مع الاتجاه', icon: Banknote },
-      { to: '/reports/budget-vs-actual', title: 'الميزانية مقابل الفعلي', description: 'لكل مركز تكلفة له ميزانية، مع نسبة الانحراف', icon: Gauge, requires: 'costCenters' },
+      { to: { name: 'report-purchases' }, title: 'تقرير المشتريات', description: 'حسب المورد والمنتج، مع متوسط سعر الشراء', icon: ShoppingCart },
+      { to: { name: 'report-expenses' }, title: 'تقرير المصروفات', description: 'حسب الفئة والشهر، مع الاتجاه', icon: Banknote },
+      { to: { name: 'report-budget-vs-actual' }, title: 'الميزانية مقابل الفعلي', description: 'لكل مركز تكلفة له ميزانية، مع نسبة الانحراف', icon: Gauge, requires: 'costCenters' },
     ],
   },
   {
     title: 'الضرائب',
     reports: [
-      { to: '/reports/vat', title: 'ملخص ضريبة القيمة المضافة', description: 'ضريبة المخرجات والمدخلات وصافي الضريبة المستحقة للفترة', icon: Percent },
-      { to: '/reports/vat-detail', title: 'التفصيل الضريبي', description: 'السجل التفصيلي وراء كل مربع في ملخص الضريبة', icon: ReceiptText },
+      { to: { name: 'report-vat' }, title: 'ملخص ضريبة القيمة المضافة', description: 'ضريبة المخرجات والمدخلات وصافي الضريبة المستحقة للفترة', icon: Percent },
+      { to: { name: 'report-vat-detail' }, title: 'التفصيل الضريبي', description: 'السجل التفصيلي وراء كل مربع في ملخص الضريبة', icon: ReceiptText },
     ],
   },
   {
     title: 'تقارير الإدارة',
     reports: [
-      { to: '/reports/period-comparison', title: 'مقارنة الفترات', description: 'أي فترتين جنباً إلى جنب، بالفرق والفرق %', icon: CalendarRange },
-      { to: '/reports/branch-comparison', title: 'مقارنة الفروع', description: 'مؤشرات المبيعات والربحية لكل فرع', icon: Split, requires: 'branches' },
-      { to: '/reports/business-health', title: 'الصحة المالية', description: 'مؤشر مركّب من السيولة والربحية والمديونية والتحصيل', icon: Gauge },
-      { to: '/reports/profit-leakage', title: 'تسرب الربح', description: 'الخصومات والمرتجعات والهالك كنسبة من المبيعات', icon: TrendingDown },
+      { to: { name: 'report-period-comparison' }, title: 'مقارنة الفترات', description: 'أي فترتين جنباً إلى جنب، بالفرق والفرق %', icon: CalendarRange },
+      { to: { name: 'report-branch-comparison' }, title: 'مقارنة الفروع', description: 'مؤشرات المبيعات والربحية لكل فرع', icon: Split, requires: 'branches' },
+      { to: { name: 'report-business-health' }, title: 'الصحة المالية', description: 'مؤشر مركّب من السيولة والربحية والمديونية والتحصيل', icon: Gauge },
+      { to: { name: 'report-profit-leakage' }, title: 'تسرب الربح', description: 'الخصومات والمرتجعات والهالك كنسبة من المبيعات', icon: TrendingDown },
     ],
   },
 ];
@@ -158,7 +159,7 @@ const visibleGroups = computed<ReportGroup[]>(() =>
 );
 
 const allVisibleReports = computed(() => visibleGroups.value.flatMap((g) => g.reports));
-const favoriteReports = computed(() => allVisibleReports.value.filter((r) => isFavorite(r.to)));
+const favoriteReports = computed(() => allVisibleReports.value.filter((r) => isFavorite(r.to.name)));
 </script>
 
 <template>
@@ -173,7 +174,7 @@ const favoriteReports = computed(() => allVisibleReports.value.filter((r) => isF
       <section v-if="favoriteReports.length && !search">
         <h2 class="mb-2.5 flex items-center gap-1.5 text-xs font-medium text-text-secondary"><Star class="size-3.5 fill-current text-warning" /> المفضلة</h2>
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div v-for="r in favoriteReports" :key="r.to" class="group relative flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-primary/50 hover:bg-surface-hover">
+          <div v-for="r in favoriteReports" :key="r.to.name" class="group relative flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-primary/50 hover:bg-surface-hover">
             <RouterLink :to="r.to" class="contents">
               <span class="flex size-9 items-center justify-center rounded-lg border border-border bg-background text-text-secondary group-hover:text-primary">
                 <component :is="r.icon" class="size-4.5" :stroke-width="1.75" />
@@ -183,7 +184,7 @@ const favoriteReports = computed(() => allVisibleReports.value.filter((r) => isF
                 <span class="mt-1 block text-xs leading-5 text-text-secondary">{{ r.description }}</span>
               </span>
             </RouterLink>
-            <button type="button" class="no-print absolute end-3 top-3 text-warning" title="إزالة من المفضلة" @click.stop.prevent="toggleFavorite(r.to)">
+            <button type="button" class="no-print absolute end-3 top-3 text-warning" title="إزالة من المفضلة" @click.stop.prevent="toggleFavorite(r.to.name)">
               <Star class="size-4 fill-current" />
             </button>
           </div>
@@ -193,7 +194,7 @@ const favoriteReports = computed(() => allVisibleReports.value.filter((r) => isF
       <section v-for="g in visibleGroups" :key="g.title">
         <h2 class="mb-2.5 text-xs font-medium text-text-secondary">{{ g.title }}</h2>
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div v-for="r in g.reports" :key="r.to" class="group relative flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-primary/50 hover:bg-surface-hover">
+          <div v-for="r in g.reports" :key="r.to.name" class="group relative flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 transition-colors hover:border-primary/50 hover:bg-surface-hover">
             <RouterLink :to="r.to" class="contents">
               <span class="flex size-9 items-center justify-center rounded-lg border border-border bg-background text-text-secondary group-hover:text-primary">
                 <component :is="r.icon" class="size-4.5" :stroke-width="1.75" />
@@ -206,11 +207,11 @@ const favoriteReports = computed(() => allVisibleReports.value.filter((r) => isF
             <button
               type="button"
               class="no-print absolute end-3 top-3 text-text-secondary opacity-0 hover:text-warning group-hover:opacity-100"
-              :class="isFavorite(r.to) && 'text-warning opacity-100'"
-              :title="isFavorite(r.to) ? 'إزالة من المفضلة' : 'إضافة للمفضلة'"
-              @click.stop.prevent="toggleFavorite(r.to)"
+              :class="isFavorite(r.to.name) && 'text-warning opacity-100'"
+              :title="isFavorite(r.to.name) ? 'إزالة من المفضلة' : 'إضافة للمفضلة'"
+              @click.stop.prevent="toggleFavorite(r.to.name)"
             >
-              <Star class="size-4" :class="isFavorite(r.to) && 'fill-current'" />
+              <Star class="size-4" :class="isFavorite(r.to.name) && 'fill-current'" />
             </button>
           </div>
         </div>
