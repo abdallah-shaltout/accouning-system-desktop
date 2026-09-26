@@ -1,5 +1,55 @@
 # TODO
 
+## doc-17 F-3 (simple forms) done: expense/payment/voucher/product/party/user forms
+
+This session migrated the 6 non-line-item forms in F-3's list onto `FormPage` + `FormSection`
++ `FormActions`: `ExpenseFormPage`, `PaymentFormPage`, `VoucherFormPage` (`6980304`),
+`ProductFormPage` (`dc20027`), `PartyFormPage` (`9b71288`), `UserEditorPage` (`19a8d1d`).
+Structural-only refactor — no validation, submission, or domain logic changed.
+
+**`useForm()` was NOT used** for any of these forms, and this is a real gap worth fixing rather
+than a shortcut: none of the six forms had a route-leave guard, Ctrl+S, or (except Product/User)
+even a Zod schema before — they use ad-hoc `problems`/`submitted` refs (Expense/Payment/Voucher)
+or call `validate()` directly against a local `errors` ref (Product/User). Rewriting that
+validation architecture to fit `useForm()`'s Zod-schema contract was out of scope per the task's
+"don't change validation rules or submission behavior" instruction, so structure and validation
+were kept separate. **Next step for whoever picks up `useForm()` adoption:** the six forms above
+are exactly the migration targets, but plan for real work — porting `problems`-array forms to a
+Zod schema first, then wiring `useForm()`.
+
+**`FormField` is not actually usable with any existing `App*` control today.** Every `App*`
+control (`AppInput`, `AppSelect`, `AppCombobox`, `AppDatePicker`, `AppTextarea`, `AppSwitch`)
+renders its own internal `<label>`/hint/error and its own `useId()` — none accepts an external
+`id` to receive `FormField`'s scoped-slot `fieldId`/`describedBy`. Wrapping any of them in
+`FormField` as written today either double-renders the label or silently drops `FormField`'s
+wiring. This session used `App*` controls directly (already satisfying CLAUDE.md rule 7 — no
+*raw* `<input>`/`<select>`/`<label>`) and left `FormField` unused rather than force a bad fit.
+Fixing this needs one of: (a) give `App*` controls an optional external `id`/`described-by` prop
+so `FormField` can drive them, or (b) accept that `FormField` is only for raw shadcn primitives /
+custom pickers that don't already have their own label chrome, and update doc 17 Phase F's F2
+rule 3 language accordingly. Left as a report — not attempted here, matches the "report unrelated
+issues, don't fix" instruction and is arguably a decision for whoever owns F-0's block contracts.
+
+**Out of scope, left for F-1/F-5, not F-3:** `CategoriesUnitsPage`, `PriceListsPage`,
+`BranchesSettingsPage`, `CurrenciesSettingsPage` were checked against F-3's "category/unit, price
+list, branch, currency" wording, but all four are list/CRUD settings pages built around
+`NamedListManager` + inline dialogs (`AppModal`), not single-record routed forms — they don't fit
+`FormPage`/`useForm()`'s contract at all. They're `SettingsPage`/`ListPage` migration targets.
+
+**Verification:** `bun run build` and `bun run check` (exit 0, warning-mode findings dropped
+111→85 as other agents' F-1 also landed) both clean for all 6 files, `bun run verify:mocks`
+49/0/0 immediately after each of the four commits. e2e: `expenses` (covers the voucher-transfer
+flow too), `products` (one transient unrelated flake on re-run, then green), and
+`refund_payment` (covers `PaymentFormPage`'s allocation grid) all green with no console errors.
+`desk_invoice` failed, but that's `InvoiceFormPage` (a different agent's concurrent, uncommitted
+F-2 work on `invoices/services/invoiceService.ts` etc., confirmed via `git status`) — not
+anything F-3 touched. A later `bun run verify:mocks` run showed 7 failures, but that was against
+the live working tree with `scripts/verify/run.ts` itself mid-edit by another agent
+(uncommitted) — re-run it clean once the tree settles; it was 49/0/0 right after every F-3
+commit in this session. No dedicated e2e flow exists for parties or users specifically to
+directly exercise `PartyFormPage`/`UserEditorPage`'s happy path end-to-end — only the static
+gates (build/check/verify:mocks) cover them; consider adding `parties`/`users` flow files.
+
 ## doc-17 F-1 (list pages) done; e2e blocked by concurrent F-2 churn, not F-1 bugs
 
 F-1 (this session, 2026-09-26): all 14 list pages in scope migrated onto `ListPage` +
