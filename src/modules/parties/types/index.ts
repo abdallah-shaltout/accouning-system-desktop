@@ -15,7 +15,13 @@ export interface PartyContact {
   email?: string;
 }
 
-/** National address (docs/v2/08 §1 "العنوان الوطني"). */
+/**
+ * National address (docs/v2/08 §1 "العنوان الوطني").
+ * @deprecated doc 18.E replaces this with `core/types/address`'s `Address` (cascading region/city/
+ * district picker + ids, so a printed document keeps its exact address even if the geo dataset is
+ * refreshed later). Kept only so existing seeded/legacy records still type-check and render via
+ * `formatAddress`'s legacy fallback — new code should read/write `PartyCommon.structuredAddress`.
+ */
 export interface NationalAddress {
   country?: string;
   city?: string;
@@ -49,7 +55,7 @@ export interface PartyBankInfo {
   accountName?: string;
 }
 
-interface PartyCommon {
+export interface PartyCommon {
   id: string;
   /** Individual / company (customers only distinguish this today; suppliers are mostly companies). */
   type: 'individual' | 'company';
@@ -68,7 +74,10 @@ interface PartyCommon {
   contacts?: PartyContact[];
 
   address?: string;
+  /** @deprecated see `NationalAddress`'s deprecation note — prefer `structuredAddress`. */
   nationalAddress?: NationalAddress;
+  /** doc 18.E: the address picker's output. Preferred over `nationalAddress`/`address` when present. */
+  structuredAddress?: import('@/modules/core/types/address').Address;
 
   vatNumber?: string;
   crNumber?: string;

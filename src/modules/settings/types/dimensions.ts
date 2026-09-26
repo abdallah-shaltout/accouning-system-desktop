@@ -16,6 +16,8 @@ export interface Branch {
   /** Business key used as the numbering-series prefix, e.g. "RYD" → "RYD-INV-00042". */
   code: string;
   address?: string;
+  /** doc 18.E: structured address (region/city/district picker + street/building). Preferred over the legacy `address` string when present. */
+  nationalAddress?: import('@/modules/core/types/address').Address;
   phone?: string;
   /** Printed at the top of receipts issued from this branch. */
   receiptHeader?: string;

@@ -9,8 +9,10 @@ import { computed, onMounted, ref, watch } from 'vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppPhoneInput from '@/modules/core/components/ui/AppPhoneInput.vue';
+import AddressFields from '@/modules/core/components/blocks/AddressFields.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import { countryProfile } from '@/modules/core/helpers/countryProfiles';
+import { formatAddress } from '@/modules/core/helpers/format';
 import { getSettings, updateSettings } from '@/modules/settings/services/settingsService';
 import type { WizardState } from '../../types';
 
@@ -18,6 +20,14 @@ const props = defineProps<{ state: WizardState }>();
 const vatError = ref('');
 
 const profile = computed(() => countryProfile(props.state.countryTax.country));
+
+watch(
+  () => props.state.countryTax.country,
+  (country) => {
+    props.state.company.nationalAddress.country = country;
+  },
+  { immediate: true },
+);
 
 watch(
   () => props.state.company.vatNumber,
@@ -45,7 +55,8 @@ watch(
         storeName: props.state.company.nameAr || 'شركتي',
         vatNumber: props.state.company.vatNumber || undefined,
         phone: props.state.company.phone || undefined,
-        address: [props.state.company.nationalAddress.city, props.state.company.nationalAddress.district, props.state.company.nationalAddress.street].filter(Boolean).join('، ') || undefined,
+        nationalAddress: props.state.company.nationalAddress,
+        address: formatAddress(props.state.company.nationalAddress) || undefined,
       });
     }, 400);
   },
@@ -71,13 +82,7 @@ watch(
     </AppCard>
 
     <AppCard title="العنوان الوطني">
-      <div class="grid gap-4 sm:grid-cols-3">
-        <AppInput v-model="state.company.nationalAddress.city" label="المدينة" />
-        <AppInput v-model="state.company.nationalAddress.district" label="الحي" />
-        <AppInput v-model="state.company.nationalAddress.street" label="الشارع" />
-        <AppInput v-model="state.company.nationalAddress.buildingNo" label="رقم المبنى" ltr />
-        <AppInput v-model="state.company.nationalAddress.postalCode" label="الرمز البريدي" ltr />
-      </div>
+      <AddressFields v-model="state.company.nationalAddress" :country="state.countryTax.country" />
     </AppCard>
   </div>
 </template>

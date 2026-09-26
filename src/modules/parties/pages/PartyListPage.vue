@@ -13,6 +13,7 @@ import { formatNumber } from '@/modules/core/helpers/format';
 import { matchesSearch } from '@/modules/core/helpers/search';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { partyRoute } from '../helpers/partyRoutes';
+import { resolvePartyAddressLine } from '../helpers/partyAddress';
 // v2 phase 5 (docs/v2/05-onboarding.md §5): generic Excel import, wired in here for "import
 // customers/suppliers" — the same descriptor pattern the opening-balances step uses.
 import ImportWizard from '@/modules/core/components/import/ImportWizard.vue';
@@ -100,7 +101,7 @@ const columns = computed<Column<Party>[]>(() => [
           <Building v-if="(row as Customer).type === 'company' || !isCustomer" class="size-3.5 text-text-secondary" />
           {{ row.name }}
         </span>
-        <span v-if="row.address" class="block text-xs text-text-secondary">{{ row.address }}</span>
+        <span v-if="resolvePartyAddressLine(row)" class="block text-xs text-text-secondary">{{ resolvePartyAddressLine(row) }}</span>
       </template>
       <template #cell-phone="{ row }"><span class="num text-text-secondary">{{ row.phone ?? '—' }}</span></template>
       <template #cell-contactPerson="{ row }"><span class="text-text-secondary">{{ (row as Supplier).contactPerson ?? '—' }}</span></template>

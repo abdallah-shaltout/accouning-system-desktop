@@ -12,6 +12,7 @@ import { mutate } from "../persist";
 import { ApiError, localDateKey, uid } from "../utils";
 import { createBranch } from "./branches";
 import type { CountryCode } from "@/modules/core/helpers/countryProfiles";
+import { formatAddress } from "@/modules/core/helpers/format";
 
 /**
  * Business-type defaults (docs/v2/05 §2 step 1 "Sets the defaults: units, product fields…"). Only
@@ -89,7 +90,7 @@ export function setFiscalYear(
 export interface WizardBranchInput {
     name: string;
     code: string;
-    address?: string;
+    address?: import('@/modules/core/types/address').Address;
 }
 
 /**
@@ -112,7 +113,8 @@ export function applyBranches(
         if (main) {
             main.name = first.name;
             main.code = first.code.toUpperCase();
-            main.address = first.address;
+            main.nationalAddress = first.address;
+            main.address = first.address ? formatAddress(first.address) || undefined : undefined;
         }
     });
     for (const b of rest) {
@@ -123,7 +125,13 @@ export function applyBranches(
         )
             continue;
         createBranch(
-            { name: b.name, code: b.code, address: b.address, active: true },
+            {
+                name: b.name,
+                code: b.code,
+                nationalAddress: b.address,
+                address: b.address ? formatAddress(b.address) || undefined : undefined,
+                active: true,
+            },
             userId,
         );
     }

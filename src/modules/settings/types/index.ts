@@ -126,6 +126,10 @@ export interface StoreSettings {
   pricesIncludeTax?: boolean;
   /** Extensions shown on printed documents. */
   address?: string;
+  /** v2 doc 18.E: structured address (region/city/district picker + street/building). Preferred over
+   * the legacy `address` string when present; `address` stays for back-compat with older data and as
+   * a plain fallback when someone hasn't gone through the picker. */
+  nationalAddress?: import('@/modules/core/types/address').Address;
   phone?: string;
   commercialRegister?: string;
   receiptFooter?: string;

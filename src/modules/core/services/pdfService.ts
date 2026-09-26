@@ -16,7 +16,7 @@
  */
 import { isTauri } from '@tauri-apps/api/core';
 import { encode as uqrEncode } from 'uqr';
-import { formatDate, formatDateTime, formatMoney, formatNumber } from '@/modules/core/helpers/format';
+import { formatAddress, formatDate, formatDateTime, formatMoney, formatNumber } from '@/modules/core/helpers/format';
 import { tafqit } from '@/modules/core/helpers/tafqit';
 import { countryProfile } from '@/modules/core/helpers/countryProfiles';
 import { useToast } from '@/modules/core/controllers/useToast';
@@ -30,6 +30,7 @@ import type { Voucher } from '@/modules/vouchers/types';
 import { getAccounts } from '@/modules/accounting/services/accountingService';
 import { getPaymentMethods } from '@/modules/settings/services/settingsService';
 import { getCustomer, getCustomerStatement, getSupplier, getSupplierStatement } from '@/modules/parties/services/partyService';
+import { resolvePartyAddressLine } from '@/modules/parties/helpers/partyAddress';
 import { getTransfer } from '@/modules/products/services/transferService';
 import { getProducts } from '@/modules/products/services/productService';
 import { getBranches } from '@/modules/settings/services/branchesService';
@@ -141,7 +142,7 @@ async function buildInvoicePayload(id: string): Promise<DocumentPayload> {
     },
     company: {
       name: s.storeName,
-      address: s.address ?? null,
+      address: (s.nationalAddress ? formatAddress(s.nationalAddress) : s.address) || null,
       phone: s.phone ?? null,
       email: null,
       website: null,
@@ -150,7 +151,7 @@ async function buildInvoicePayload(id: string): Promise<DocumentPayload> {
       logo: s.logo ?? null,
     },
     party: data.customer
-      ? { name: data.customer.name, vatNumber: data.customer.vatNumber ?? null, address: data.customer.address ?? null, phone: data.customer.phone ?? null }
+      ? { name: data.customer.name, vatNumber: data.customer.vatNumber ?? null, address: resolvePartyAddressLine(data.customer) || null, phone: data.customer.phone ?? null }
       : null,
     lines,
     totals: {
@@ -174,7 +175,7 @@ function companyBlock() {
   const s = useSettingsStore().settings;
   return {
     name: s?.storeName ?? '',
-    address: s?.address ?? null,
+    address: (s?.nationalAddress ? formatAddress(s.nationalAddress) : s?.address) || null,
     phone: s?.phone ?? null,
     email: null,
     website: null,
@@ -199,7 +200,7 @@ async function buildQuotationPayload(id: string): Promise<DocumentPayload> {
   return {
     document: { kind: 'quotation', number: q.number, date: formatDate(q.date), titleAr: 'عرض سعر', titleEn: 'QUOTATION', validUntil: q.expiryDate ? formatDate(q.expiryDate) : null },
     company: companyBlock(),
-    party: customer ? { name: customer.name, vatNumber: customer.vatNumber ?? null, address: customer.address ?? null, phone: customer.phone ?? null } : null,
+    party: customer ? { name: customer.name, vatNumber: customer.vatNumber ?? null, address: resolvePartyAddressLine(customer) || null, phone: customer.phone ?? null } : null,
     lines,
     totals: { subtotal: formatMoney(q.subTotal), discount: q.discountAmount > 0 ? formatMoney(q.discountAmount) : null, vat: formatMoney(q.taxAmount), grand: formatMoney(q.grandTotal), paid: null, remaining: null, amountInWords: tafqit(q.grandTotal), previousBalance: null, currentBalance: null },
     qr: null,
@@ -236,7 +237,7 @@ async function buildCreditNotePayload(id: string): Promise<DocumentPayload> {
       reason: refund.reason ?? null,
     },
     company: companyBlock(),
-    party: customer ? { name: customer.name, vatNumber: customer.vatNumber ?? null, address: customer.address ?? null, phone: customer.phone ?? null } : null,
+    party: customer ? { name: customer.name, vatNumber: customer.vatNumber ?? null, address: resolvePartyAddressLine(customer) || null, phone: customer.phone ?? null } : null,
     lines: refundLines,
     totals: { subtotal: formatMoney(refund.subTotal), discount: null, vat: formatMoney(refund.taxAmount), grand: formatMoney(refund.grandTotal), paid: null, remaining: null, amountInWords: tafqit(refund.grandTotal), previousBalance: null, currentBalance: null },
     qr: null,
@@ -267,7 +268,7 @@ async function buildDebitNotePayload(id: string): Promise<DocumentPayload> {
       reason: ret.reason ?? null,
     },
     company: companyBlock(),
-    party: supplier ? { name: supplier.name, vatNumber: supplier.vatNumber ?? null, address: supplier.address ?? null, phone: supplier.phone ?? null } : null,
+    party: supplier ? { name: supplier.name, vatNumber: supplier.vatNumber ?? null, address: resolvePartyAddressLine(supplier) || null, phone: supplier.phone ?? null } : null,
     lines,
     totals: { subtotal: formatMoney(ret.subTotal), discount: null, vat: formatMoney(ret.taxAmount), grand: formatMoney(ret.grandTotal), paid: null, remaining: null, amountInWords: tafqit(ret.grandTotal), previousBalance: null, currentBalance: null },
     qr: null,
@@ -289,7 +290,7 @@ async function buildPurchaseOrderPayload(id: string): Promise<DocumentPayload> {
   return {
     document: { kind: 'purchaseOrder', number: po.number, date: formatDate(po.date), titleAr: 'أمر شراء', titleEn: 'PURCHASE ORDER' },
     company: companyBlock(),
-    party: supplier ? { name: supplier.name, vatNumber: supplier.vatNumber ?? null, address: supplier.address ?? null, phone: supplier.phone ?? null } : null,
+    party: supplier ? { name: supplier.name, vatNumber: supplier.vatNumber ?? null, address: resolvePartyAddressLine(supplier) || null, phone: supplier.phone ?? null } : null,
     lines,
     totals: { subtotal: formatMoney(po.subTotal), discount: null, vat: formatMoney(po.taxAmount), grand: formatMoney(po.grandTotal), paid: null, remaining: null, amountInWords: tafqit(po.grandTotal), previousBalance: null, currentBalance: null },
     qr: null,
@@ -359,7 +360,7 @@ async function buildStatementPayload(id: string): Promise<DocumentPayload> {
   return {
     document: { kind: 'statement', number: '', date: formatDate(new Date().toISOString()), titleAr: 'كشف حساب', titleEn: 'STATEMENT OF ACCOUNT' },
     company: companyBlock(),
-    party: { name: party.name, code: party.code ?? null, vatNumber: party.vatNumber ?? null, address: party.address ?? null, phone: party.phone ?? null },
+    party: { name: party.name, code: party.code ?? null, vatNumber: party.vatNumber ?? null, address: resolvePartyAddressLine(party) || null, phone: party.phone ?? null },
     lines,
     totals: { subtotal: null, discount: null, vat: null, grand: formatMoney(closing), paid: null, remaining: null, amountInWords: null, previousBalance: null, currentBalance: null },
     qr: null,

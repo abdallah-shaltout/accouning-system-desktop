@@ -4,6 +4,7 @@
  * (accounts, branches, customers, settings…) through the existing services / new `setupService`.
  */
 import { COUNTRY_PROFILES, DEFAULT_COUNTRY } from '@/modules/core/helpers/countryProfiles';
+import type { Address } from '@/modules/core/types/address';
 
 export type BusinessType =
     | "clothing"
@@ -133,13 +134,8 @@ export interface WizardState {
         type: "individual" | "company";
         vatNumber: string;
         crNumber: string;
-        nationalAddress: {
-            city?: string;
-            district?: string;
-            street?: string;
-            buildingNo?: string;
-            postalCode?: string;
-        };
+        /** doc 18.E: the address picker's output (region/city/district + street/building), country-driven by `countryTax.country`. */
+        nationalAddress: Address;
         phone: string;
         email: string;
     };
@@ -155,7 +151,7 @@ export interface WizardState {
         startDay: number;
         goLiveDate: string;
     };
-    branches: { id?: string; name: string; code: string; address?: string }[];
+    branches: { id?: string; name: string; code: string; address?: Address }[];
     coa: { template: "basic" | "standard" | "detailed" };
     paymentMethods: {
         id?: string;
@@ -187,7 +183,7 @@ export function defaultWizardState(): WizardState {
             type: "company",
             vatNumber: "",
             crNumber: "",
-            nationalAddress: {},
+            nationalAddress: { country: defaultProfile.code },
             phone: "",
             email: "",
         },
@@ -199,7 +195,7 @@ export function defaultWizardState(): WizardState {
             extraCurrencies: [],
         },
         fiscalYear: { startMonth: 1, startDay: 1, goLiveDate: today },
-        branches: [{ name: "الفرع الرئيسي", code: "MAIN" }],
+        branches: [{ name: "الفرع الرئيسي", code: "MAIN", address: { country: defaultProfile.code } }],
         coa: { template: "standard" },
         paymentMethods: [],
         openingDone: false,

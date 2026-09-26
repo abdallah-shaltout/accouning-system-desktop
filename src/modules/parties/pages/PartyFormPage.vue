@@ -17,6 +17,7 @@ import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
+import AddressFields from '@/modules/core/components/blocks/AddressFields.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import FormActions from '@/modules/core/components/blocks/FormActions.vue';
 import FormSection from '@/modules/core/components/blocks/FormSection.vue';
@@ -25,12 +26,14 @@ import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue'
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { errorMessage } from '@/modules/core/controllers/useToast';
-import { COUNTRIES } from '@/modules/core/helpers/countries';
-import { CURRENCY_OPTIONS } from '@/modules/core/helpers/countryProfiles';
+import { CURRENCY_OPTIONS, DEFAULT_COUNTRY, type CountryCode } from '@/modules/core/helpers/countryProfiles';
+import { formatAddress } from '@/modules/core/helpers/format';
 import { PHONE_LABEL } from '@/modules/core/helpers/labels';
+import { hasAddressContent, type Address } from '@/modules/core/types/address';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
 import { uid } from '@/mocks';
 import { partyRoute, partyRouteById } from '../helpers/partyRoutes';
+import { migrateLegacyAddress } from '../helpers/partyAddress';
 import {
   checkDuplicates,
   getCustomer,
@@ -44,7 +47,7 @@ import {
   unlinkPartyRecord,
   type DuplicateWarning,
 } from '../services/partyService';
-import type { Customer, NationalAddress, OpeningBalanceStub, PartyContact, PartyGroup, PartyPhone, Supplier } from '../types';
+import type { Customer, OpeningBalanceStub, PartyContact, PartyGroup, PartyPhone, Supplier } from '../types';
 import { isValidIban } from '../validators/partySchema';
 // v2 phase 5 (docs/v2/05-onboarding.md §4): posts the "رصيد سابق من نظام قديم" stub as a real
 // OPENING journal entry — completes Phase 4's stub (see the "رصيد سابق" card below).
@@ -68,7 +71,8 @@ interface FormState {
   phones: PartyPhone[];
   email: string;
   contacts: PartyContact[];
-  nationalAddress: NationalAddress;
+  addressCountry: CountryCode;
+  address: Address;
   vatNumber: string;
   crNumber: string;
   nationalId: string;
@@ -95,7 +99,8 @@ function emptyForm(): FormState {
     phones: [{ id: uid('phone'), label: 'mobile', number: '' }],
     email: '',
     contacts: [],
-    nationalAddress: {},
+    addressCountry: settingsStore.settings?.country ?? DEFAULT_COUNTRY,
+    address: { country: settingsStore.settings?.country ?? DEFAULT_COUNTRY },
     vatNumber: '',
     crNumber: '',
     nationalId: '',
@@ -144,7 +149,8 @@ async function load() {
         phones: p.phones?.length ? p.phones : p.phone ? [{ id: uid('phone'), label: 'mobile', number: p.phone }] : [{ id: uid('phone'), label: 'mobile', number: '' }],
         email: p.email ?? '',
         contacts: p.contacts ?? [],
-        nationalAddress: { ...(p.nationalAddress ?? {}) },
+        addressCountry: p.structuredAddress?.country ?? settingsStore.settings?.country ?? DEFAULT_COUNTRY,
+        address: p.structuredAddress ?? migrateLegacyAddress(p.nationalAddress, p.address, settingsStore.settings?.country),
         vatNumber: p.vatNumber ?? '',
         crNumber: p.crNumber ?? '',
         nationalId: p.nationalId ?? '',
@@ -208,11 +214,7 @@ const nameError = computed(() => (submitted.value && !form.name.trim() ? 'الا
 const vatError = computed(() => (form.vatNumber && !/^3\d{13}3$/.test(form.vatNumber) ? '15 رقماً يبدأ وينتهي بالرقم 3' : undefined));
 const submitted = ref(false);
 
-const nationalAddressPreview = computed(() => {
-  const a = form.nationalAddress;
-  const parts = [a.street, a.district, a.city, a.buildingNo && `مبنى ${a.buildingNo}`, a.postalCode].filter(Boolean);
-  return parts.length ? parts.join('، ') : undefined;
-});
+const addressPreview = computed(() => formatAddress(form.address) || undefined);
 
 async function save() {
   submitted.value = true;
@@ -232,7 +234,7 @@ async function save() {
       phones: form.phones.filter((p) => p.number),
       email: form.email.trim() || undefined,
       contacts: form.contacts.filter((c) => c.name.trim()),
-      nationalAddress: Object.values(form.nationalAddress).some(Boolean) ? form.nationalAddress : undefined,
+      structuredAddress: hasAddressContent(form.address) ? form.address : undefined,
       vatNumber: form.vatNumber.trim() || undefined,
       crNumber: form.crNumber.trim() || undefined,
       nationalId: form.nationalId.trim() || undefined,
@@ -339,7 +341,6 @@ async function unlink() {
   toast.success('تم إلغاء الربط');
 }
 
-const countryOptions = COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} ${c.nameAr}` }));
 </script>
 
 <template>
@@ -407,18 +408,10 @@ const countryOptions = COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} 
         </FormSection>
 
         <!-- العنوان الوطني -->
-        <FormSection title="العنوان الوطني" :columns="3">
-          <AppSelect v-model="form.nationalAddress.country" label="الدولة" placeholder="اختر…" :options="countryOptions" />
-          <AppInput v-model="form.nationalAddress.city" label="المدينة" />
-          <AppInput v-model="form.nationalAddress.district" label="الحي" />
-          <AppInput v-model="form.nationalAddress.street" label="الشارع" />
-          <AppInput v-model="form.nationalAddress.buildingNo" label="رقم المبنى" ltr />
-          <AppInput v-model="form.nationalAddress.additionalNo" label="الرقم الإضافي" ltr />
-          <AppInput v-model="form.nationalAddress.postalCode" label="الرمز البريدي" ltr />
-          <AppInput v-model="form.nationalAddress.unitNo" label="رقم الوحدة" ltr />
-          <AppInput v-model="form.nationalAddress.shortAddress" label="العنوان المختصر" ltr placeholder="RRRD2929" />
-          <p v-if="nationalAddressPreview" class="sm:col-span-3 border-t border-border pt-3 text-xs text-text-secondary">
-            يظهر في الفاتورة هكذا: <span class="text-text-primary">{{ nationalAddressPreview }}</span>
+        <FormSection title="العنوان الوطني">
+          <AddressFields v-model="form.address" :country="form.addressCountry" />
+          <p v-if="addressPreview" class="border-t border-border pt-3 text-xs text-text-secondary">
+            يظهر في الفاتورة هكذا: <span class="text-text-primary">{{ addressPreview }}</span>
           </p>
         </FormSection>
 

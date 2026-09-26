@@ -13,6 +13,7 @@ import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
+import AddressFields from '@/modules/core/components/blocks/AddressFields.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import ImageUploadField from '../components/ImageUploadField.vue';
@@ -20,6 +21,8 @@ import SettingsTabs from '../components/SettingsTabs.vue';
 import { useSettingsStore } from '../controllers/useSettingsStore';
 import { isBaseCurrencyLocked } from '../services/branchesService';
 import { countryProfile, CURRENCY_OPTIONS, DEFAULT_COUNTRY } from '@/modules/core/helpers/countryProfiles';
+import { formatAddress } from '@/modules/core/helpers/format';
+import type { Address } from '@/modules/core/types/address';
 
 const store = useSettingsStore();
 const auth = useAuthStore();
@@ -32,7 +35,8 @@ const activeProfile = computed(() => countryProfile(store.settings?.country ?? D
 
 const form = reactive({
   storeName: '',
-  address: '',
+  address: '' as string,
+  nationalAddress: { country: DEFAULT_COUNTRY } as Address,
   phone: '',
   commercialRegister: '',
   vatNumber: '',
@@ -66,6 +70,7 @@ onMounted(async () => {
   Object.assign(form, {
     storeName: s.storeName,
     address: s.address ?? '',
+    nationalAddress: s.nationalAddress ?? { country: s.country ?? DEFAULT_COUNTRY, street: s.address || undefined },
     phone: s.phone ?? '',
     commercialRegister: s.commercialRegister ?? '',
     vatNumber: s.vatNumber ?? '',
@@ -97,7 +102,8 @@ async function save() {
     await store.update({
       ...form,
       storeName: form.storeName.trim(),
-      address: form.address.trim() || undefined,
+      address: formatAddress(form.nationalAddress) || form.address.trim() || undefined,
+      nationalAddress: form.nationalAddress,
       phone: form.phone.trim() || undefined,
       commercialRegister: form.commercialRegister.trim() || undefined,
       vatNumber: form.vatNumber.trim() || undefined,
@@ -130,7 +136,6 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
         <AppCard title="بيانات المتجر">
           <div class="grid gap-4 sm:grid-cols-2">
             <AppInput v-model="form.storeName" class="sm:col-span-2" label="اسم المتجر" required :disabled="!canWrite" :error="errors.storeName" />
-            <AppInput v-model="form.address" class="sm:col-span-2" label="العنوان" :disabled="!canWrite" />
             <AppInput v-model="form.phone" label="الهاتف" ltr :disabled="!canWrite" />
             <AppInput v-model="form.commercialRegister" label="السجل التجاري" ltr :disabled="!canWrite" />
             <AppInput v-model="form.vatNumber" :label="activeProfile.taxId.label" ltr :disabled="!canWrite" :error="errors.vatNumber" :hint="activeProfile.taxId.hint" />
@@ -142,6 +147,10 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
               :options="CURRENCY_OPTIONS"
             />
           </div>
+        </AppCard>
+
+        <AppCard title="العنوان الوطني">
+          <AddressFields v-model="form.nationalAddress" :country="store.settings?.country ?? DEFAULT_COUNTRY" :disabled="!canWrite" />
         </AppCard>
 
         <AppCard title="الأبعاد (الفروع / العملات / مراكز التكلفة)" subtitle="تبقى واجهات هذه الأبعاد مخفية حتى تُفعّلها — فلا تظهر لأصحاب المتجر الواحد بعملة واحدة">

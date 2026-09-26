@@ -41,6 +41,7 @@ import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import type { AppRoute } from '@/modules/core/types/route';
 import InsightHints from '@/modules/core/components/insights/InsightHints.vue';
 import { partyRoute } from '../helpers/partyRoutes';
+import { resolvePartyAddressLine } from '../helpers/partyAddress';
 import { getPartyAging, getPartyHistory } from '../services/partyService';
 
 /** v2 phase 10 (docs/v2/11 D1 "inline hints"): both rules are already one-instance-per-customer. */
@@ -159,6 +160,7 @@ const agingDocColumns: Column<AgingBucket['documents'][number]>[] = [
 ];
 
 const phones = computed(() => p.value?.phones?.length ? p.value.phones : p.value?.phone ? [{ id: 'legacy', label: 'mobile' as const, number: p.value.phone }] : []);
+const addressLine = computed(() => resolvePartyAddressLine(p.value) || undefined);
 function whatsappHref(number: string) {
   return `https://wa.me/${number.replace(/\D/g, '')}`;
 }
@@ -242,7 +244,7 @@ function whatsappHref(number: string) {
               <li v-if="!phones.length" class="flex items-center gap-2 text-text-secondary"><Phone class="size-3.5" />—</li>
               <li v-if="p.email" class="flex items-center gap-2"><Mail class="size-3.5 text-text-secondary" />{{ p.email }}</li>
               <li v-if="!isCustomer" class="flex items-center gap-2"><UserRound class="size-3.5 text-text-secondary" />{{ (p as Supplier).contactPerson ?? '—' }}</li>
-              <li class="flex items-center gap-2"><MapPin class="size-3.5 text-text-secondary" />{{ p.address ?? '—' }}</li>
+              <li class="flex items-center gap-2"><MapPin class="size-3.5 text-text-secondary" />{{ addressLine ?? '—' }}</li>
               <li class="flex items-center gap-2"><ReceiptText class="size-3.5 text-text-secondary" />الرقم الضريبي: <span class="num">{{ p.vatNumber ?? '—' }}</span></li>
               <li v-if="p.linkedPartyId" class="flex items-center gap-2">
                 <ClipboardList class="size-3.5 text-text-secondary" />

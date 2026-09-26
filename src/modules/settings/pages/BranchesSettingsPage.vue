@@ -12,12 +12,17 @@ import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
+import AddressFields from '@/modules/core/components/blocks/AddressFields.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import { DEFAULT_COUNTRY } from '@/modules/core/helpers/countryProfiles';
+import { formatAddress } from '@/modules/core/helpers/format';
+import type { Address } from '@/modules/core/types/address';
+import { useSettingsStore } from '../controllers/useSettingsStore';
 import SettingsTabs from '../components/SettingsTabs.vue';
 import { createBranch, deactivateBranch, getBranches, reactivateBranch, updateBranch } from '../services/branchesService';
 import type { Branch } from '../types';
@@ -25,7 +30,9 @@ import type { Branch } from '../types';
 const auth = useAuthStore();
 const toast = useToast();
 const confirm = useConfirm();
+const settingsStore = useSettingsStore();
 const canWrite = computed(() => auth.can('settings', 'write'));
+const country = computed(() => settingsStore.settings?.country ?? DEFAULT_COUNTRY);
 
 const loading = ref(true);
 const branches = ref<Branch[]>([]);
@@ -51,18 +58,25 @@ const formOpen = ref(false);
 const editing = ref<Branch | null>(null);
 const saving = ref(false);
 const errors = ref<Record<string, string>>({});
-const form = reactive({ name: '', code: '', address: '', phone: '', receiptHeader: '', active: true });
+const form = reactive({ name: '', code: '', address: { country: country.value } as Address, phone: '', receiptHeader: '', active: true });
 
 function openCreate() {
   editing.value = null;
-  Object.assign(form, { name: '', code: '', address: '', phone: '', receiptHeader: '', active: true });
+  Object.assign(form, { name: '', code: '', address: { country: country.value }, phone: '', receiptHeader: '', active: true });
   errors.value = {};
   formOpen.value = true;
 }
 
 function openEdit(branch: Branch) {
   editing.value = branch;
-  Object.assign(form, { name: branch.name, code: branch.code, address: branch.address ?? '', phone: branch.phone ?? '', receiptHeader: branch.receiptHeader ?? '', active: branch.active });
+  Object.assign(form, {
+    name: branch.name,
+    code: branch.code,
+    address: branch.nationalAddress ?? { country: country.value, street: branch.address || undefined },
+    phone: branch.phone ?? '',
+    receiptHeader: branch.receiptHeader ?? '',
+    active: branch.active,
+  });
   errors.value = {};
   formOpen.value = true;
 }
@@ -74,7 +88,15 @@ async function save() {
   if (Object.keys(errors.value).length) return;
   saving.value = true;
   try {
-    const payload = { name: form.name.trim(), code: form.code.trim(), address: form.address.trim() || undefined, phone: form.phone.trim() || undefined, receiptHeader: form.receiptHeader.trim() || undefined, active: form.active };
+    const payload = {
+      name: form.name.trim(),
+      code: form.code.trim(),
+      nationalAddress: form.address,
+      address: formatAddress(form.address) || undefined,
+      phone: form.phone.trim() || undefined,
+      receiptHeader: form.receiptHeader.trim() || undefined,
+      active: form.active,
+    };
     if (editing.value) await updateBranch(editing.value.id, payload);
     else await createBranch(payload);
     await reload();
@@ -128,7 +150,7 @@ async function toggle(branch: Branch) {
       <form class="space-y-4" novalidate @submit.prevent="save">
         <AppInput v-model="form.name" label="اسم الفرع" required :error="errors.name" />
         <AppInput v-model="form.code" label="الرمز (لترقيم المستندات)" required ltr :error="errors.code" hint="مثال: RYD ← RYD-INV-00042" />
-        <AppInput v-model="form.address" label="العنوان" />
+        <AddressFields v-model="form.address" :country="country" />
         <AppInput v-model="form.phone" label="الهاتف" ltr />
         <AppTextarea v-model="form.receiptHeader" label="نص أعلى الإيصال" :rows="2" />
         <AppSwitch v-model="form.active" label="نشط" />
