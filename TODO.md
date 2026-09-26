@@ -1,5 +1,34 @@
 # TODO
 
+## doc-17 F-1 (list pages) done; e2e blocked by concurrent F-2 churn, not F-1 bugs
+
+F-1 (this session, 2026-09-26): all 14 list pages in scope migrated onto `ListPage` +
+`FilterBar` + `DataTable` — vouchers, purchase orders, users, stock counts, stock adjustments,
+expenses, payments, customers/suppliers (`PartyListPage`), products, stock transfers (raw
+`<table>` + inline modals extracted to `StockTransferModals.vue`), stock movements, invoices,
+quotations, and journal list (header/primary-action + filter row only — the day-grouped body
+and its inline line-expansion table were left as-is: not a good `DataTable` fit, and money-
+critical accounting UI, out of scope to redesign under F-1). Two commits: `9789885` (11 pages)
+and `d2da2e0` (invoices/quotations/journal). `bun run build` clean for every page I touched
+(errors seen in `InvoiceFormPage.vue`/`ShiftReportPage.vue`/`CostCentersSettingsPage.vue`/
+`ProductDetailPage.vue`/`PartyFormPage.vue` belong to concurrent F-2/F-3/F-4/F-5 agents mid-edit,
+confirmed via `git log` — not my files). `bun run check` (check-routes.js) stayed at zero
+findings before and after. `verify:mocks` 49/0/0 after the journal-list commit.
+
+**e2e:** ran `--only products` and `--only purchases` against the shared dev server (already
+running from another agent's session). `products` failed on "storekeeper home shows the
+low-stock panel" — that's `StorekeeperHome.vue` (a dashboard widget I never touched);
+unaffected by my `ProductListPage` change (the `stock=low` deep link still routes and filters
+correctly, verified by reading the code). `purchases` crashed clicking a combobox trigger on
+the **purchase order form** (not the list) — `PurchaseFormPage.vue` was migrated to
+`FormPage`/`LineItemsEditor` by a concurrent F-2 agent in commit `267d046`, changing the
+combobox markup the flow script expects; that's F-2's in-progress state, not my `PurchaseListPage`
+change. Did not get a clean full-suite run this session because F-2/F-3/F-4/F-5 are actively
+landing changes in parallel and several of their pages currently fail `vue-tsc` outright — a
+full run right now would just report their in-progress breakage, not mine. **Whoever finishes
+F-2 through F-5 should re-run the full suite once all batches are green**, and specifically
+re-check `products` and `purchases` once `PurchaseFormPage`/`StorekeeperHome` land clean.
+
 ## `AGENT_MEMORY.md` now reports 7 additional seam violations
 
 Regenerating memory after merging the two items below surfaced 7 previously-unreported seam
