@@ -33,13 +33,20 @@
      hairline, not a real 3:1 boundary (that's --color-border-control below). */
   --color-border: #c4c4c9;
   --color-text-primary: #09090b;
-  --color-text-secondary: #71717a;
+  /* #5f5f69, not the stock #71717a — the stock value only clears ~4.40:1 against the surface tint
+     (cards, the wizard rail), just under the 4.5:1 text minimum (18.C). ~5.74:1 on surface. */
+  --color-text-secondary: #5f5f69;
   --color-primary: #4f46e5;
   --color-primary-hover: #4338ca;
   --color-on-primary: #ffffff;
-  --color-danger: #ef4444;
-  --color-success: #22c55e;
-  --color-warning: #d97706;
+  /* #c81e1e, not the stock #ef4444 — the stock value only clears ~3.42:1 as field-error text on
+     surface, under 4.5:1 (18.C). ~5.22:1 on surface. */
+  --color-danger: #c81e1e;
+  /* #166534 / #92400e, not the stock #22c55e / #d97706 — those only clear ~2.07:1 / ~2.90:1 as text
+     on surface, far under 4.5:1 (18.C). These clear ≥5.6:1 on background, surface *and*
+     surface-hover, so status text stays legible in every state, not just the resting one. */
+  --color-success: #166534;
+  --color-warning: #92400e;
   /* Control boundaries (input/select/switch-off/checkbox borders) need 3:1, not the decorative
      hairline ratio --color-border gives (1.3-1.5:1 measured, see 18.C). Pulled forward for the
      switch off-track fix in 18.A2 for the "neutral" base only; 18.C's full contrast pass adds the
@@ -139,7 +146,10 @@
   --color-primary: #5e6ad2;
   --color-primary-hover: #6b79e4;
   --color-on-primary: #ffffff;
-  --color-danger: #e25858;
+  /* #ec7676, not the stock #e25858 — the stock value only clears ~4.31:1 as field-error text on
+     surface-hover (18.C, neutral/zinc/stone bases; slate/gray override further, they're darker
+     still). This clears ≥4.5:1 on background, surface and surface-hover for those three bases. */
+  --color-danger: #ec7676;
   --color-success: #42b883;
   --color-warning: #f0a33a;
   --color-border-control: #6b6d78;
@@ -222,7 +232,7 @@
   --color-surface-hover: #e4e4e7;
   --color-border: #c4c4c9;
   --color-text-primary: #18181b;
-  --color-text-secondary: #71717a;
+  --color-text-secondary: #5f5f69;
 }
 :root.dark[data-base="zinc"] {
   --color-background: #09090b;
@@ -238,7 +248,7 @@
   --color-surface-hover: #e7e5e4;
   --color-border: #c6c2c0;
   --color-text-primary: #1c1917;
-  --color-text-secondary: #78716c;
+  --color-text-secondary: #635d59;
 }
 :root.dark[data-base="stone"] {
   --color-background: #0c0a09;
@@ -254,7 +264,7 @@
   --color-surface-hover: #e2e8f0;
   --color-border: #bfc8d3;
   --color-text-primary: #0f172a;
-  --color-text-secondary: #64748b;
+  --color-text-secondary: #526071;
 }
 :root.dark[data-base="slate"] {
   --color-background: #0b1120;
@@ -263,6 +273,12 @@
   --color-border: #334155;
   --color-text-primary: #f8fafc;
   --color-text-secondary: #94a3b8;
+  /* Base-specific override — the shared #6b6d78 only clears ~2.84:1 on this surface (18.C); this
+     hue-matched shade clears ≥3.6:1 on both background and surface. */
+  --color-border-control: #7a8199;
+  /* Base-specific override — the shared dark #e25858 only clears ~4.02:1 as text on this surface,
+     and ~4.09:1 on surface-hover (18.C); this lighter shade clears ≥5.6:1 in every state. */
+  --color-danger: #f27f7f;
 }
 :root[data-base="gray"] {
   --color-background: #ffffff;
@@ -270,7 +286,7 @@
   --color-surface-hover: #e5e7eb;
   --color-border: #c2c5cb;
   --color-text-primary: #111827;
-  --color-text-secondary: #6b7280;
+  --color-text-secondary: #54596a;
 }
 :root.dark[data-base="gray"] {
   --color-background: #0a0b0f;
@@ -279,6 +295,12 @@
   --color-border: #374151;
   --color-text-primary: #f9fafb;
   --color-text-secondary: #9ca3af;
+  /* Base-specific override — the shared #6b6d78 only clears ~2.85:1 on this surface (18.C); this
+     hue-matched shade clears ≥4:1 on both background and surface. */
+  --color-border-control: #7c8797;
+  /* Base-specific override — the shared dark #e25858 only clears ~4.03:1 as text on this surface,
+     and ~4.05:1 on surface-hover (18.C); this lighter shade clears ≥5.6:1 in every state. */
+  --color-danger: #f27f7f;
 }
 
 /*
@@ -348,8 +370,14 @@
   --color-secondary-foreground: var(--color-text-primary);
   --color-destructive: var(--color-danger);
   --color-destructive-foreground: var(--color-white);
-  --color-input: var(--color-border);
-  --color-ring: var(--color-primary);
+  /* --color-border-control, not --color-border — shadcn's input/select/switch-off/checkbox
+     boundaries need the 3:1 control-boundary ratio, not the decorative hairline one (18.C). */
+  --color-input: var(--color-border-control);
+  /* --color-border-control, not --color-primary — shadcn's focus ring (`ring-ring`/`border-ring`
+     utility classes on Input/NativeSelect/Switch/Textarea/…) is the 3:1 non-text-contrast boundary,
+     and a bare accent fails it for some presets (blue-dark 2.86:1, violet-dark 2.70:1, 18.C). The
+     accent still shows via each component's own primary-tinted glow/background on focus. */
+  --color-ring: var(--color-border-control);
 
   --color-sidebar: var(--color-surface);
   --color-sidebar-foreground: var(--color-text-primary);
@@ -358,7 +386,9 @@
   --color-sidebar-accent: var(--color-surface-hover);
   --color-sidebar-accent-foreground: var(--color-text-primary);
   --color-sidebar-border: var(--color-border);
-  --color-sidebar-ring: var(--color-primary);
+  /* --color-border-control, not --color-primary — same 3:1 focus-ring reasoning as --color-ring
+     above (18.C); these sidebar action buttons use the identical bare-accent ring pattern. */
+  --color-sidebar-ring: var(--color-border-control);
 
   /* Text sizes follow the --font-scale-based tokens, so shadcn's text-sm etc. respect the
      appearance setting's text-size option instead of Tailwind's fixed defaults. */
@@ -385,7 +415,16 @@
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 
-  :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
+  /* Two-tone ring, not a plain primary outline: a solid --color-border-control boundary (always
+     ≥3:1 on background/surface in every base/mode, unlike a bare accent — blue-dark measures
+     2.86:1, violet-dark 2.70:1 alone, 18.C) plus a wider, primary-tinted glow so the accent color
+     still reads. The inner ring is what the 3:1 non-text-contrast requirement is checked against. */
+  :focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--color-border-control),
+      0 0 0 4px color-mix(in oklab, var(--color-primary) 45%, transparent);
+  }
 
   /* Tailwind's preflight resets buttons to `cursor: default`; every clickable control across the
      app (including shadcn primitives) should show a pointer, not just the ones we remembered to
@@ -421,16 +460,26 @@
     width: 100%;
     height: 34px;
     padding: 0 10px;
-    border: 1px solid var(--color-border);
+    /* --color-border-control, not --color-border — this is a control boundary, which needs the
+       3:1 ratio, not the decorative hairline one (18.C). */
+    border: 1px solid var(--color-border-control);
     border-radius: 6px;
     background: var(--color-background);
     color: var(--color-text-primary);
     font-size: 13px;
     transition: border-color 120ms, box-shadow 120ms;
   }
-  .control::placeholder { color: var(--color-text-secondary); opacity: 0.8; }
-  .control:hover { border-color: color-mix(in oklab, var(--color-text-secondary) 55%, var(--color-border)); }
-  .control:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 18%, transparent); }
+  /* No opacity dimming — --color-text-secondary already reads as muted and clears 4.5:1 on its own;
+     dimming it further (the old `opacity: 0.8`) pushed placeholders back under that minimum (18.C). */
+  .control::placeholder { color: var(--color-text-secondary); }
+  .control:hover { border-color: color-mix(in oklab, var(--color-text-primary) 35%, var(--color-border-control)); }
+  .control:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow:
+      0 0 0 2px var(--color-border-control),
+      0 0 0 4px color-mix(in oklab, var(--color-primary) 45%, transparent);
+  }
   .control:disabled { opacity: 0.6; cursor: not-allowed; }
   .control[aria-invalid="true"] { border-color: var(--color-danger); }
   textarea.control { height: auto; padding: 8px 10px; resize: vertical; }

@@ -30,6 +30,7 @@ const props = withDefaults(
 const model = defineModel<string | number | undefined | null>();
 const id = useId();
 const input = ref<InstanceType<typeof Input>>();
+const errorId = computed(() => (props.error ? `${id}-error` : undefined));
 
 const value = computed({
   get: () => model.value ?? '',
@@ -48,7 +49,7 @@ defineExpose({
 <template>
   <div>
     <label v-if="label" :for="id" class="field-label">
-      {{ label }}<span v-if="required" class="text-danger"> *</span>
+      {{ label }}<span v-if="required" class="text-danger" aria-hidden="true"> *</span>
     </label>
     <div class="relative flex items-center">
       <span v-if="$slots.prefix" class="pointer-events-none absolute start-2.5 flex items-center text-text-secondary">
@@ -67,6 +68,8 @@ defineExpose({
         :step="step ?? (type === 'number' ? 'any' : undefined)"
         :autofocus="autofocus"
         :aria-invalid="!!error || undefined"
+        :aria-describedby="errorId"
+        :aria-required="required || undefined"
         :dir="ltr || type === 'number' ? 'ltr' : undefined"
         class="control h-[34px] rounded-md text-body shadow-none"
         :class="[$slots.prefix && 'ps-8', $slots.suffix && 'pe-10', (ltr || type === 'number') && 'text-end', inputClass]"
@@ -75,7 +78,7 @@ defineExpose({
         <slot name="suffix" />
       </span>
     </div>
-    <p v-if="error" class="mt-1 text-xs text-danger">{{ error }}</p>
+    <p v-if="error" :id="errorId" class="mt-1 text-xs text-danger" role="alert">{{ error }}</p>
     <p v-else-if="hint" class="mt-1 text-xs text-text-secondary">{{ hint }}</p>
   </div>
 </template>
