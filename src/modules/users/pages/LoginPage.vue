@@ -35,9 +35,9 @@ async function submit() {
   pending.value = true;
   try {
     await auth.login(form.username, form.password);
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/';
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : undefined;
     // Cashiers land on the POS directly; the dashboard itself branches per role otherwise (storekeeper home, etc).
-    router.replace(redirect === '/' && auth.role === 'cashier' ? '/pos' : redirect);
+    router.replace(redirect ? redirect /* route-ok: auth-guard fullPath round-trip */ : auth.role === 'cashier' ? { name: 'pos' } : { name: 'home' });
   } catch (err) {
     serverError.value = errorMessage(err);
   } finally {

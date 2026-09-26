@@ -15,7 +15,7 @@
  *      notifications drawer. This is the gap the doc's "for managers" page actually fills — not a
  *      redundant parallel system, since it only ever fires when the synchronous path is unusable.
  */
-import type { RouteLocationRaw } from 'vue-router';
+import type { AppRoute } from '@/modules/core/types/route';
 
 export type ApprovalKind = 'discount' | 'write_off' | 'below_cost';
 
@@ -40,7 +40,7 @@ export interface ApprovalRequest {
   /** Manager's comment on approve/reject — required on reject, optional on approve. */
   decisionComment?: string;
   /** Deep-link back to the document/screen this request is about (POS held sale, adjustment draft…). */
-  link?: RouteLocationRaw;
+  link?: AppRoute;
 }
 
 export interface ApprovalRequestInput {
@@ -48,7 +48,7 @@ export interface ApprovalRequestInput {
   summary: string;
   value: number;
   requestNote?: string;
-  link?: RouteLocationRaw;
+  link?: AppRoute;
 }
 
 export interface ApprovalDecisionInput {

@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue';
 import type { Component } from 'vue';
-import type { RouteLocationRaw } from 'vue-router';
+import type { AppRoute } from '@/modules/core/types/route';
 import { AlertTriangle, ShieldAlert, Truck } from '@lucide/vue';
 import { db } from '@/mocks/db';
 import { on } from '@/mocks/events';
@@ -24,7 +24,7 @@ export interface AppNotification {
   severity: NotificationSeverity;
   message: string;
   actionLabel: string;
-  actionTo: RouteLocationRaw;
+  actionTo: AppRoute;
   icon: Component;
   createdAt: string;
 }
@@ -65,7 +65,7 @@ function transferEvents(homeBranch: string | undefined): AppNotification[] {
       severity: 'info' as const,
       message: `تحويل مخزون ${t.number} في الطريق — بانتظار الاستلام`,
       actionLabel: 'استلام التحويل',
-      actionTo: `/inventory/transfers?highlight=${t.id}`,
+      actionTo: { name: 'transfers', query: { highlight: t.id } },
       icon: Truck,
       createdAt: t.sentAt ?? t.date,
     }));
@@ -81,7 +81,7 @@ function approvalEvents(canApprove: boolean): AppNotification[] {
       severity: 'warning' as const,
       message: `طلب اعتماد بانتظار المراجعة: ${r.summary}`,
       actionLabel: 'مراجعة الطلب',
-      actionTo: '/approvals',
+      actionTo: { name: 'approvals' },
       icon: ShieldAlert,
       createdAt: r.requestedAt,
     }));
@@ -97,7 +97,7 @@ function backupFailedEvent(canSeeBackup: boolean): AppNotification[] {
       severity: 'critical',
       message: 'فشلت آخر محاولة نسخ احتياطي تلقائي',
       actionLabel: 'فتح إعدادات النسخ الاحتياطي',
-      actionTo: '/settings/backup',
+      actionTo: { name: 'settings-backup' },
       icon: AlertTriangle,
       createdAt: failedAt,
     },

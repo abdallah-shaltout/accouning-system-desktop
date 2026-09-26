@@ -75,7 +75,7 @@ router.beforeEach(async (to) => {
   await auth.restore();
 
   if (to.meta.public) {
-    if (to.name === 'login' && auth.isAuthenticated) return { path: '/' };
+    if (to.name === 'login' && auth.isAuthenticated) return { name: 'home' };
     return true;
   }
   if (!auth.isAuthenticated) {

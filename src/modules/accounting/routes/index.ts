@@ -63,7 +63,7 @@ const routes: RouteRecordRaw[] = [
         path: "/accounting/day-book",
         name: "day-book",
         redirect: (to) => ({
-            path: "/reports/day-book",
+            name: "report-day-book",
             query: { ...to.query, print: "1" },
         }),
     },
