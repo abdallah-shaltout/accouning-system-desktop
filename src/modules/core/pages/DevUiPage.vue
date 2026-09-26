@@ -38,7 +38,10 @@ import FormSection from '../components/blocks/FormSection.vue';
 import FormActions from '../components/blocks/FormActions.vue';
 import FilterBar from '../components/blocks/FilterBar.vue';
 import LineItemsEditor, { type LineColumn } from '../components/blocks/LineItemsEditor.vue';
+import AddressFields from '../components/blocks/AddressFields.vue';
 import TotalsPanel from '../components/blocks/TotalsPanel.vue';
+import { formatAddress } from '../helpers/format';
+import type { Address } from '../types/address';
 import DetailHeader from '../components/blocks/DetailHeader.vue';
 import StatCards from '../components/blocks/StatCards.vue';
 import ListPage from '../components/layouts/ListPage.vue';
@@ -66,6 +69,8 @@ const phoneEmpty = ref<string | undefined>();
 const phoneEg = ref<string | undefined>('+201012345678');
 const phoneSa = ref<string | undefined>('+966501234567');
 const phoneInvalid = ref<string | undefined>('+20123');
+const addressEg = ref<Address>({ country: 'EG' });
+const addressSa = ref<Address>({ country: 'SA' });
 const searchValue = ref('');
 const dateFrom = ref('');
 const dateTo = ref('');
@@ -221,6 +226,23 @@ const rtlPageCount = 8;
         <AppPhoneInput v-model="phoneSa" label="السعودية (صحيح)" default-country="SA" kind="mobile" />
         <AppPhoneInput v-model="phoneInvalid" label="غير صحيح (بعد الخروج من الحقل)" default-country="EG" />
       </div>
+    </AppCard>
+
+    <AppCard title="العنوان (AddressFields)">
+      <div class="grid gap-6 sm:grid-cols-2">
+        <div>
+          <p class="mb-2 text-xs text-text-secondary">مصر — جرّب "القاهرة" ثم اختر مدينة بلوحة المفاتيح</p>
+          <AddressFields v-model="addressEg" country="EG" />
+        </div>
+        <div>
+          <p class="mb-2 text-xs text-text-secondary">السعودية — "منطقة الرياض" ← "الرياض" ← حي</p>
+          <AddressFields v-model="addressSa" country="SA" />
+        </div>
+      </div>
+      <p class="mt-4 border-t border-border pt-3 text-xs text-text-secondary">
+        مصر: <span class="text-text-primary">{{ formatAddress(addressEg) || '—' }}</span><br />
+        السعودية: <span class="text-text-primary">{{ formatAddress(addressSa) || '—' }}</span>
+      </p>
     </AppCard>
 
     <AppCard title="البحث والفلاتر (SearchInput / DateRangeFilter / SegmentedControl)">

@@ -138,6 +138,26 @@ popover off). A `compact` prop shrinks it for table-cell use (line-item expiry d
 <AppDatePicker v-model="line.expiry" compact />
 ```
 
+### Address picker (AddressFields)
+`AddressFields` (`core/components/blocks/AddressFields.vue`, doc 18.E) — a country-aware, cascading
+region → city → district picker built on three `AppCombobox`es, backed by `geoService`'s lazily
+loaded per-country JSON (`core/data/geo/eg.json`/`sa.json`, never in the main bundle). Picking a
+region loads that region's cities; picking a city loads its districts; changing a parent level clears
+whatever was picked under it (whether by picking a different value or by clearing the current one).
+Each level has a "غير موجود في القائمة؟ اكتب يدوياً" free-text fallback for a place that isn't in the
+list. Labels ("المحافظة"/"المدينة / المركز" for Egypt, "المنطقة"/"المدينة"/"الحي" for Saudi) come from
+the dataset itself, never hard-coded — Egypt has no district level, Saudi does. Below the picker,
+country-specific fields follow `countryProfiles.ts`'s `address` schema (street/building/floor/
+apartment/landmark/postal code for Egypt; street/building no/additional no/postal code/unit no/short
+address for Saudi). `v-model` is a plain `Address` object (`core/types/address.ts`) storing both the
+picked id *and* a name snapshot, so a printed document never changes if the geo dataset is refreshed
+later. `formatAddress()` (`core/helpers/format.ts`) renders it as one printable line wherever an
+address shows up (party cards, statements, the PDF/Typst payload).
+
+```vue
+<AddressFields v-model="form.address" :country="form.addressCountry" />
+```
+
 ### Data table
 Dense rows (12px vertical padding), `--color-surface` header row, hairline `--color-border` row dividers, hover state `--color-surface-hover`. Right-aligned numeric columns (amounts, quantities) — remember RTL means "right-aligned" is the natural start-aligned direction for Arabic, so numeric columns should be visually consistent with LTR number rendering inside them.
 

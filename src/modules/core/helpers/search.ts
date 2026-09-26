@@ -38,3 +38,23 @@ export function matchesSearch(haystack: (string | undefined | null)[], needle: s
   if (!q) return true;
   return haystack.some((h) => normalizeArabic(h).includes(q));
 }
+
+/**
+ * Place-name normalization on top of `normalizeArabic` (doc 18.E `AddressFields`): also strips the
+ * definite article "ال" and the leading "حي " ("district") so "الرياض" matches "رياض" and "حي العليا"
+ * matches "العليا"/"عليا". Only used for geo place matching — general search stays `normalizeArabic`,
+ * since stripping "ال" from arbitrary product/party names would over-match.
+ */
+export function normalizePlaceName(value: string | undefined | null): string {
+  let s = normalizeArabic(value);
+  s = s.replace(/^حي\s+/, '');
+  s = s.replace(/\bال(?=\w)/g, '');
+  return s.trim();
+}
+
+/** Like `matchesSearch`, but place-name tolerant (strips "ال"/"حي "). */
+export function matchesPlaceSearch(haystack: (string | undefined | null)[], needle: string | undefined | null): boolean {
+  const q = normalizePlaceName(needle);
+  if (!q) return true;
+  return haystack.some((h) => normalizePlaceName(h).includes(q));
+}

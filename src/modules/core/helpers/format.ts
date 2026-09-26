@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import { dateFormatStyle, showHijri, weekStart } from '../controllers/useAppearance';
+import type { Address } from '../types/address';
 
 /**
  * Number/date formatting for an Arabic RTL UI.
@@ -201,4 +202,32 @@ export function dateKeyToIso(key: string): string {
  */
 export function getWeekStartDay(): 0 | 1 | 6 {
   return weekStart.value === 'sat' ? 6 : weekStart.value === 'mon' ? 1 : 0;
+}
+
+/**
+ * `Address` (doc 18.E) → one printable line, most-specific first (street) down to region, comma-
+ * separated — the same order/style `PartyFormPage`'s old `nationalAddressPreview` used. Used
+ * anywhere an address renders as plain text: A4/thermal templates, the Typst payload, party
+ * statements. Prefers the picked name over free text over nothing, per level; building/floor/unit
+ * are folded in as "مبنى 12" style fragments rather than separate lines, to stay compact on a
+ * thermal receipt width.
+ */
+export function formatAddress(addr: Address | undefined | null): string {
+  if (!addr) return '';
+  const region = addr.regionName || addr.regionFreeText;
+  const city = addr.cityName || addr.cityFreeText;
+  const district = addr.districtName || addr.districtFreeText;
+  const buildingNo = addr.country === 'SA' ? addr.saBuildingNo : addr.buildingNo;
+  const parts = [
+    addr.street,
+    buildingNo ? `مبنى ${buildingNo}` : undefined,
+    addr.country === 'EG' && addr.floor ? `الدور ${addr.floor}` : undefined,
+    addr.country === 'EG' && addr.apartment ? `شقة ${addr.apartment}` : undefined,
+    addr.landmark,
+    district,
+    city,
+    region,
+    addr.country === 'SA' ? addr.saPostalCode : addr.postalCode,
+  ].filter((p): p is string => !!p && p.trim().length > 0);
+  return parts.join('، ');
 }
