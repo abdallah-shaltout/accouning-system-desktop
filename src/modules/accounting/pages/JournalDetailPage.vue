@@ -13,7 +13,6 @@ import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
-import { TableRow, TableCell } from '@/modules/core/components/shadcn/table';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
@@ -113,8 +112,8 @@ type JournalLine = NonNullable<typeof e.value>['lines'][number];
 const lineColumns: Column<JournalLine>[] = [
   { key: 'accountId', label: 'الحساب' },
   { key: 'description', label: 'البيان' },
-  { key: 'debit', label: 'مدين', type: 'money' },
-  { key: 'credit', label: 'دائن', type: 'money' },
+  { key: 'debit', label: 'مدين', type: 'money', totals: true },
+  { key: 'credit', label: 'دائن', type: 'money', totals: true },
 ];
 
 // --- Reversal dialog (B3): date (default today, or the original date if its period is open) + required reason ---
@@ -263,13 +262,6 @@ watch(
             </template>
             <template #cell-debit="{ row }"><MoneyText v-if="row.debit" :value="row.debit" plain /></template>
             <template #cell-credit="{ row }"><MoneyText v-if="row.credit" :value="row.credit" plain /></template>
-            <template #footer>
-              <TableRow>
-                <TableCell class="px-4 py-2.5" colspan="2">الإجمالي</TableCell>
-                <TableCell class="px-3 py-2.5"><MoneyText :value="e.totalDebit" /></TableCell>
-                <TableCell class="px-4 py-2.5"><MoneyText :value="e.totalCredit" /></TableCell>
-              </TableRow>
-            </template>
           </DataTable>
         </div>
       </template>
