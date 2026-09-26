@@ -66,7 +66,7 @@ function load() {
   if (!found) {
     const all = listTemplates('invoice');
     if (all[0]) {
-      router.replace(`/settings/templates/${all[0].id}`);
+      router.replace({ name: 'settings-template-designer', params: { id: all[0].id } });
       return;
     }
     loadError.value = 'القالب غير موجود';

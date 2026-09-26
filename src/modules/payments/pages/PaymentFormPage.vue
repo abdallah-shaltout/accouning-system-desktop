@@ -142,7 +142,7 @@ async function save() {
       allocations: allocationInputs,
     });
     toast.success(isReceived.value ? 'تم تسجيل سند القبض' : 'تم تسجيل سند الصرف', payment.number);
-    router.push({ path: '/payments', query: { highlight: payment.id } });
+    router.push({ name: 'payments', query: { highlight: payment.id } });
   } catch (err) {
     toast.error(err);
   } finally {

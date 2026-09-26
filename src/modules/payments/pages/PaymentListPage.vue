@@ -118,7 +118,7 @@ const columns: Column<PaymentRow>[] = [
       empty-title="لا توجد سندات في هذه الفترة"
       clickable
       @retry="reload"
-      @row-click="(p) => router.push(`/payments/${p.id}`)"
+      @row-click="(p) => router.push({ name: 'payment-detail', params: { id: p.id } })"
     >
       <template #cell-number="{ row }"><span class="num font-medium">{{ row.number }}</span></template>
       <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDateTime(row.date) }}</span></template>

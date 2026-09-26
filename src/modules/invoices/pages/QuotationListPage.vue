@@ -53,7 +53,7 @@ const columns: Column<QuotationRow>[] = [
       :empty-icon="FileText"
       empty-title="لا توجد عروض أسعار"
       @retry="reload"
-      @row-click="(r) => router.push(`/sales/quotations/${r.id}`)"
+      @row-click="(r) => router.push({ name: 'quotation', params: { id: r.id } })"
     >
       <template #cell-number="{ row }"><span class="num font-medium">{{ row.number }}</span></template>
       <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDateTime(row.date) }}</span></template>

@@ -56,7 +56,7 @@ const table = computed<ExportTable | undefined>(() =>
       <DateRangeFilter v-model:from="from" v-model:to="to" :fiscal-start="fiscalStart" />
     </template>
 
-    <DataTable :columns="columns" :rows="data" :page-size="0" clickable @row-click="() => $router.push('/inventory/transfers')">
+    <DataTable :columns="columns" :rows="data" :page-size="0" clickable @row-click="() => $router.push({ name: 'transfers' })">
       <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDate(row.date) }}</span></template>
       <template #cell-status="{ row }"><StatusBadge :tone="STATUS_TONE[row.status] ?? 'neutral'" :label="STATUS_LABEL[row.status] ?? row.status" /></template>
       <template #cell-shortageQty="{ row }"><span class="num" :class="row.shortageQty > 0 ? 'text-danger' : ''">{{ formatNumber(row.shortageQty) }}</span></template>

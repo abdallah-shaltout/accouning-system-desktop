@@ -38,7 +38,7 @@ async function print() {
     toast.error('تعذر إنشاء ملف PDF');
     return;
   }
-  router.push(`/print/vouchers/${id}`);
+  router.push({ name: 'voucher-print', params: { id } });
 }
 </script>
 
@@ -65,7 +65,7 @@ async function print() {
           <AppCard v-if="journalEntries.length && auth.can('accounting')" title="القيود المحاسبية" padding="none">
             <ul class="divide-y divide-border text-body">
               <li v-for="e in journalEntries" :key="e.id">
-                <RouterLink :to="`/accounting/journal/${e.id}`" class="flex items-center gap-2 px-4 py-2 hover:bg-surface-hover">
+                <RouterLink :to="{ name: 'journal-entry', params: { id: e.id } }" class="flex items-center gap-2 px-4 py-2 hover:bg-surface-hover">
                   <BookOpen class="size-3.5 shrink-0 text-text-secondary" />
                   <span class="num text-primary">{{ e.number }}</span>
                   <span class="truncate text-xs text-text-secondary">{{ e.description }}</span>

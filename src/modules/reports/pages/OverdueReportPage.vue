@@ -53,7 +53,7 @@ const table = computed<ExportTable | undefined>(() =>
       <SegmentedControl v-model="kind" :options="[{ value: 'customer', label: 'عملاء' }, { value: 'supplier', label: 'موردون' }]" />
     </template>
 
-    <DataTable :columns="columns" :rows="data" :page-size="0" clickable @row-click="(r) => $router.push(r.kind === 'invoice' ? `/invoices/${r.id}` : `/purchases/${r.id}`)">
+    <DataTable :columns="columns" :rows="data" :page-size="0" clickable @row-click="(r) => $router.push(r.kind === 'invoice' ? { name: 'invoice', params: { id: r.id } } : { name: 'purchase', params: { id: r.id } })">
       <template #cell-partyName="{ row }">
         <div class="flex items-center gap-2">
           <span>{{ row.partyName }}</span>

@@ -37,7 +37,7 @@ const submitted = ref(false);
 
 watch(data, async (d) => {
   if (!d) return;
-  if (d.status !== 'RECEIVED') router.replace(`/purchases/${id}`);
+  if (d.status !== 'RECEIVED') router.replace({ name: 'purchase', params: { id } });
   qty.value = Object.fromEntries(d.lines.map((l) => [l.productId, 0]));
   for (const l of d.lines) {
     if (d.products[l.productId]?.trackBatches) {

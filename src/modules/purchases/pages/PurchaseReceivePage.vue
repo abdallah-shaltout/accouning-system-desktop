@@ -41,7 +41,7 @@ watch(
   data,
   (d) => {
     if (!d) return;
-    if (d.status !== 'DRAFT' && d.status !== 'ORDERED') router.replace(`/purchases/${id}`);
+    if (d.status !== 'DRAFT' && d.status !== 'ORDERED') router.replace({ name: 'purchase', params: { id } });
     for (const l of d.lines) {
       const remaining = Math.max(0, l.qty * (l.unitFactor ?? 1) - (l.receivedQty ?? 0));
       if (receivedQty.value[l.productId] === undefined) receivedQty.value[l.productId] = remaining;

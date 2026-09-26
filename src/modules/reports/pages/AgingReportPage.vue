@@ -97,7 +97,7 @@ const print = computed<ReportPrintSpec | null>(() => {
       <SegmentedControl v-model="kind" :options="[{ value: 'customer', label: 'العملاء' }, { value: 'supplier', label: 'الموردون' }]" />
     </template>
 
-    <DataTable :columns="columns" :rows="data" row-key="partyId" :page-size="0" clickable @row-click="(r) => $router.push(kind === 'customer' ? `/customers/${r.partyId}` : `/suppliers/${r.partyId}`)">
+    <DataTable :columns="columns" :rows="data" row-key="partyId" :page-size="0" clickable @row-click="(r) => $router.push(kind === 'customer' ? { name: 'customer', params: { id: r.partyId } } : { name: 'supplier', params: { id: r.partyId } })">
       <template #cell-current="{ row }"><MoneyText :value="row.current" plain dash-zero /></template>
       <template #cell-b30="{ row }"><MoneyText :value="row.b30" plain dash-zero /></template>
       <template #cell-b60="{ row }"><MoneyText :value="row.b60" plain dash-zero class="text-warning" /></template>
