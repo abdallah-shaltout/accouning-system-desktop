@@ -3,17 +3,19 @@ import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { AlertTriangle, PackageCheck, PackageX, Plus, Save, Send, Trash } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
-import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
 import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
-import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
-import { useGridTab } from '@/modules/core/controllers/useGridTab';
+import FormActions from '@/modules/core/components/blocks/FormActions.vue';
+import FormField from '@/modules/core/components/blocks/FormField.vue';
+import FormPage from '@/modules/core/components/layouts/FormPage.vue';
+import FormSection from '@/modules/core/components/blocks/FormSection.vue';
+import type { LineColumn } from '@/modules/core/components/blocks/LineItemsEditor.vue';
+import TotalsPanel, { type TotalsRow } from '@/modules/core/components/blocks/TotalsPanel.vue';
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
 import { dateKeyToIso, formatNumber, toDateKey, todayKey } from '@/modules/core/helpers/format';
 import { num0, toNum } from '@/modules/core/helpers/numbers';
@@ -24,19 +26,11 @@ import { getProducts, isLowStock } from '@/modules/products/services/productServ
 import type { Product } from '@/modules/products/types';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
 import { computePurchaseTotals } from '@/mocks/backend/purchases';
+import PurchaseLinesGrid, { type PurchaseLine } from '../components/PurchaseLinesGrid.vue';
 import { getPurchaseOrder, savePurchaseOrder, sendPurchaseOrderToSupplier } from '../services/purchaseService';
 import type { LandedCostLineInput, LandedCostSpread } from '../types';
 
-interface Line {
-  key: number;
-  productId?: string;
-  unitId?: string;
-  qty?: number;
-  costPrice?: number;
-  discount?: number;
-  discountIsPct?: boolean;
-  taxId?: string;
-}
+type Line = PurchaseLine;
 
 interface LandedRow {
   key: number;
@@ -149,12 +143,12 @@ function addLowStock() {
 
 const filled = computed(() => lines.value.filter((l) => l.productId));
 
-const linesBody = ref<HTMLElement>();
-const onLinesKeydown = useGridTab({
-  container: linesBody,
-  addRow: () => lines.value.push({ key: ++seq, discountIsPct: true }),
-  isFilled: (i) => !!lines.value[i]?.productId,
-});
+function newLine(): Line {
+  return { key: ++seq, discountIsPct: true };
+}
+function onLinesChange(next: Line[]) {
+  lines.value = next;
+}
 
 function unitFactorOf(line: Line): number {
   const p = line.productId ? byId.value.get(line.productId) : undefined;
@@ -244,156 +238,118 @@ const spreadOptions: { value: LandedCostSpread; label: string }[] = [
   { value: 'value', label: 'حسب القيمة' },
   { value: 'qty', label: 'حسب الكمية' },
 ];
+
+// --- LineItemsEditor wiring (render-only — see PurchaseLinesGrid.vue) --------------------------
+const lineColumns: LineColumn<Line>[] = [
+  { key: 'productId', label: 'الصنف', type: 'custom' },
+  { key: 'unit', label: 'الوحدة', type: 'custom', width: '110px' },
+  { key: 'qty', label: 'الكمية', type: 'custom', width: '96px' },
+  { key: 'costPrice', label: 'سعر التكلفة', type: 'custom', width: '112px' },
+  { key: 'discount', label: 'الخصم', type: 'custom', width: '96px' },
+  { key: 'taxId', label: 'الضريبة', type: 'custom', width: '144px' },
+  { key: 'total', label: 'الإجمالي', type: 'custom' },
+];
+
+const totalsRows = computed<TotalsRow[]>(() => [
+  { label: `صافي (${formatNumber(filled.value.length)} صنف)`, amount: totals.value.subTotal },
+  { label: 'الضريبة', amount: totals.value.taxAmount },
+  ...(landedTotal.value > 0 ? [{ label: 'تكاليف إضافية', amount: landedTotal.value }] : []),
+  { label: 'الإجمالي المستحق', amount: grandTotalWithLanded.value, emphasis: true },
+]);
 </script>
 
 <template>
-  <div>
-    <PageHeader :title="id ? 'تعديل أمر شراء' : 'أمر شراء جديد'" :back="id ? { name: 'purchase', params: { id } } : { name: 'purchases' }" />
-
-    <ErrorState v-if="loadError" :message="loadError" />
-    <AppCard v-else-if="loading"><SkeletonBlock :lines="8" height="h-8" /></AppCard>
-    <div v-else class="grid items-start gap-5 xl:grid-cols-[1fr_340px]">
-      <div class="space-y-5">
-        <div v-if="noVatNumber" class="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-warning">
-          <AlertTriangle class="mt-0.5 size-4 shrink-0" />
-          <span>هذا المورد بدون رقم ضريبي — ضريبة المدخلات لن تُحتسب مستردة وستُضاف إلى تكلفة البضاعة بدلاً من ذلك عند الاستلام.</span>
-        </div>
-
-        <AppCard padding="sm">
-          <div class="grid gap-4 sm:grid-cols-[1fr_160px]">
-            <AppCombobox
-              v-model="supplierId"
-              label="المورد"
-              required
-              :options="supplierOptions"
-              placeholder="اختر المورد…"
-              :error="submitted && !supplierId ? 'اختر المورد' : undefined"
-            />
-            <AppDatePicker v-model="date" label="التاريخ" required />
-          </div>
-        </AppCard>
-
-        <AppCard padding="none">
-          <template #actions>
-            <AppButton size="sm" variant="ghost" :icon="PackageX" @click="addLowStock">إضافة الأصناف المنخفضة</AppButton>
-          </template>
-          <table class="w-full text-body">
-            <thead class="bg-surface text-xs text-text-secondary">
-              <tr class="border-b border-border">
-                <th class="px-4 py-2 text-start font-medium">الصنف</th>
-                <th class="px-2 py-2 text-start font-medium">الوحدة</th>
-                <th class="w-24 px-2 py-2 text-start font-medium">الكمية</th>
-                <th class="w-28 px-2 py-2 text-start font-medium">سعر التكلفة</th>
-                <th class="w-24 px-2 py-2 text-start font-medium">الخصم</th>
-                <th class="w-36 px-2 py-2 text-start font-medium">الضريبة</th>
-                <th class="px-2 py-2 text-start font-medium">الإجمالي</th>
-                <th class="w-10" />
-              </tr>
-            </thead>
-            <tbody ref="linesBody" @keydown="onLinesKeydown">
-              <tr v-for="line in lines" :key="line.key" class="border-b border-border last:border-0">
-                <td class="min-w-52 px-4 py-1.5">
-                  <AppCombobox
-                    v-model="line.productId"
-                    :options="productOptions"
-                    placeholder="اختر صنفاً…"
-                    search-placeholder="اسم أو SKU أو باركود"
-                    dense
-                    @select="onProductSelected(line)"
-                  />
-                </td>
-                <td class="px-2 py-1.5">
-                  <select v-if="unitOptionsFor(line.productId).length" v-model="line.unitId" class="control h-8 text-xs">
-                    <option v-for="o in unitOptionsFor(line.productId)" :key="o.value" :value="o.value">{{ o.label }}</option>
-                  </select>
-                  <span v-else class="text-tiny text-text-secondary">أساسية</span>
-                </td>
-                <td class="px-2 py-1.5"><input v-model.number="line.qty" type="number" min="0.01" step="any" class="control num h-8" /></td>
-                <td class="px-2 py-1.5"><input v-model.number="line.costPrice" type="number" min="0" step="0.01" class="control num h-8" /></td>
-                <td class="px-2 py-1.5">
-                  <div class="flex gap-1">
-                    <input v-model.number="line.discount" type="number" min="0" step="0.01" class="control num h-8 w-14" placeholder="0" />
-                    <button type="button" class="rounded border border-border px-1.5 text-caption text-text-secondary hover:bg-surface-hover" @click="line.discountIsPct = !line.discountIsPct">
-                      {{ line.discountIsPct ? '%' : 'ر.س' }}
-                    </button>
-                  </div>
-                </td>
-                <td class="px-2 py-1.5">
-                  <select v-model="line.taxId" class="control h-8 text-xs">
-                    <option v-for="o in taxOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
-                  </select>
-                </td>
-                <td class="px-2 py-1.5"><MoneyText :value="lineTotal(line)" plain dash-zero /></td>
-                <td class="px-2">
-                  <button
-                    type="button"
-                    class="rounded p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger disabled:opacity-30"
-                    :disabled="lines.length <= 1"
-                    aria-label="حذف السطر"
-                    data-grid-skip
-                    @click="lines = lines.filter((l) => l.key !== line.key)"
-                  >
-                    <Trash class="size-3.5" />
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="border-t border-border px-4 py-2">
-            <AppButton size="sm" variant="ghost" :icon="Plus" @click="lines.push({ key: ++seq, discountIsPct: true })">إضافة صنف</AppButton>
-          </div>
-        </AppCard>
-
-        <AppCard title="تكاليف إضافية (شحن / جمارك / تخليص)" padding="sm">
-          <div v-for="row in landedCosts" :key="row.key" class="mb-2 grid grid-cols-[1fr_120px_1fr_140px_auto] items-end gap-2 border-b border-border pb-2 last:border-0">
-            <AppInput v-model="row.label" label="البند" placeholder="شحن…" />
-            <AppInput v-model.number="row.amount" type="number" min="0" step="0.01" label="المبلغ" />
-            <AppCombobox v-model="row.supplierId" label="مورد آخر (اختياري)" :options="supplierOptions" clearable placeholder="نفس مورد الفاتورة" />
-            <AppSelect v-model="row.spreadBy" label="طريقة التوزيع" :options="spreadOptions" />
-            <button type="button" class="mb-1.5 rounded p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger" @click="landedCosts = landedCosts.filter((r) => r.key !== row.key)">
-              <Trash class="size-3.5" />
-            </button>
-          </div>
-          <AppButton size="sm" variant="ghost" :icon="Plus" @click="landedCosts.push({ key: ++lcSeq, label: '', spreadBy: 'value' })">إضافة بند تكلفة</AppButton>
-          <p class="mt-2 text-tiny text-text-secondary">تُضاف تكلفة كل بند إلى تكلفة أصناف المخزون حسب طريقة التوزيع المختارة؛ نفس المورد تُضاف لإجمالي المستحق له، ومورد آخر يُسجَّل كسطر مستحق منفصل.</p>
-        </AppCard>
-
-        <AppCard title="بيانات فاتورة المورد" padding="sm">
-          <div v-if="!supplierInvoiceNo.trim() || !supplierInvoiceDate" class="mb-3 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
-            <AlertTriangle class="mt-0.5 size-3.5 shrink-0" />
-            <span>أدخل رقم فاتورة المورد وتاريخها بعد استلام البضاعة لإكمال المستند.</span>
-          </div>
-          <div class="grid gap-3 sm:grid-cols-2">
-            <AppInput v-model="supplierInvoiceNo" label="رقم فاتورة المورد" ltr />
-            <AppDatePicker v-model="supplierInvoiceDate" label="تاريخ فاتورة المورد" />
-          </div>
-          <div class="mt-3">
-            <AttachmentField :owner-ref="draftOwnerRef" />
-          </div>
-        </AppCard>
+  <ErrorState v-if="loadError" :message="loadError" />
+  <FormPage v-else :title="id ? 'تعديل أمر شراء' : 'أمر شراء جديد'" :back="id ? { name: 'purchase', params: { id } } : { name: 'purchases' }">
+    <template v-if="loading">
+      <FormSection><SkeletonBlock :lines="8" height="h-8" /></FormSection>
+    </template>
+    <template v-else>
+      <div v-if="noVatNumber" class="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-warning">
+        <AlertTriangle class="mt-0.5 size-4 shrink-0" />
+        <span>هذا المورد بدون رقم ضريبي — ضريبة المدخلات لن تُحتسب مستردة وستُضاف إلى تكلفة البضاعة بدلاً من ذلك عند الاستلام.</span>
       </div>
 
-      <div class="space-y-4 xl:sticky xl:top-0">
-        <AppCard title="الإجمالي" padding="sm">
-          <dl class="space-y-1.5 text-body">
-            <div class="flex justify-between"><dt class="text-text-secondary">صافي ({{ formatNumber(filled.length) }} صنف)</dt><dd><MoneyText :value="totals.subTotal" /></dd></div>
-            <div><AppInput v-model.number="invoiceDiscountAmount" type="number" min="0" step="0.01" label="خصم إضافي على الفاتورة" placeholder="0" /></div>
-            <div class="flex justify-between"><dt class="text-text-secondary">الضريبة</dt><dd><MoneyText :value="totals.taxAmount" /></dd></div>
-            <div v-if="landedTotal > 0" class="flex justify-between"><dt class="text-text-secondary">تكاليف إضافية</dt><dd><MoneyText :value="landedTotal" /></dd></div>
-            <div class="flex justify-between border-t border-border pt-1.5 font-semibold"><dt>الإجمالي المستحق</dt><dd><MoneyText :value="grandTotalWithLanded" /></dd></div>
-          </dl>
-          <div class="mt-4"><AppInput v-model="note" label="ملاحظات" /></div>
-        </AppCard>
+      <FormSection :columns="2">
+        <FormField label="المورد" required :error="submitted && !supplierId ? 'اختر المورد' : undefined">
+          <AppCombobox v-model="supplierId" :options="supplierOptions" placeholder="اختر المورد…" />
+        </FormField>
+        <FormField label="التاريخ" required>
+          <AppDatePicker v-model="date" />
+        </FormField>
+      </FormSection>
+
+      <FormSection title="الأصناف">
+        <div class="-mt-2 mb-2 flex justify-end">
+          <AppButton size="sm" variant="ghost" :icon="PackageX" @click="addLowStock">إضافة الأصناف المنخفضة</AppButton>
+        </div>
+        <PurchaseLinesGrid
+          :lines="lines"
+          :columns="lineColumns"
+          :new-line="newLine"
+          :by-id="byId"
+          :product-options="productOptions"
+          :tax-options="taxOptions"
+          :unit-options-for="unitOptionsFor"
+          :line-total="lineTotal"
+          @lines-change="onLinesChange"
+          @product-selected="onProductSelected"
+        />
+      </FormSection>
+
+      <FormSection title="تكاليف إضافية (شحن / جمارك / تخليص)">
+        <div v-for="row in landedCosts" :key="row.key" class="grid grid-cols-[1fr_120px_1fr_140px_auto] items-end gap-2 border-b border-border pb-2 last:border-0">
+          <AppInput v-model="row.label" label="البند" placeholder="شحن…" />
+          <AppInput v-model.number="row.amount" type="number" min="0" step="0.01" label="المبلغ" />
+          <AppCombobox v-model="row.supplierId" label="مورد آخر (اختياري)" :options="supplierOptions" clearable placeholder="نفس مورد الفاتورة" />
+          <AppSelect v-model="row.spreadBy" label="طريقة التوزيع" :options="spreadOptions" />
+          <button type="button" class="mb-1.5 rounded p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger" @click="landedCosts = landedCosts.filter((r) => r.key !== row.key)">
+            <Trash class="size-3.5" />
+          </button>
+        </div>
+        <AppButton size="sm" variant="ghost" :icon="Plus" @click="landedCosts.push({ key: ++lcSeq, label: '', spreadBy: 'value' })">إضافة بند تكلفة</AppButton>
+        <p class="text-tiny text-text-secondary">تُضاف تكلفة كل بند إلى تكلفة أصناف المخزون حسب طريقة التوزيع المختارة؛ نفس المورد تُضاف لإجمالي المستحق له، ومورد آخر يُسجَّل كسطر مستحق منفصل.</p>
+      </FormSection>
+
+      <FormSection title="بيانات فاتورة المورد">
+        <div v-if="!supplierInvoiceNo.trim() || !supplierInvoiceDate" class="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <AlertTriangle class="mt-0.5 size-3.5 shrink-0" />
+          <span>أدخل رقم فاتورة المورد وتاريخها بعد استلام البضاعة لإكمال المستند.</span>
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <AppInput v-model="supplierInvoiceNo" label="رقم فاتورة المورد" ltr />
+          <AppDatePicker v-model="supplierInvoiceDate" label="تاريخ فاتورة المورد" />
+        </div>
+        <AttachmentField :owner-ref="draftOwnerRef" />
+      </FormSection>
+
+      <template #aside>
+        <TotalsPanel :rows="totalsRows" />
+        <FormField label="خصم إضافي على الفاتورة">
+          <AppInput v-model.number="invoiceDiscountAmount" type="number" min="0" step="0.01" placeholder="0" />
+        </FormField>
+        <FormField label="ملاحظات">
+          <AppInput v-model="note" />
+        </FormField>
         <ul v-if="submitted && problems.length" class="list-inside list-disc text-xs text-danger">
           <li v-for="p in problems" :key="p">{{ p }}</li>
         </ul>
-        <AppButton variant="primary" block :icon="PackageCheck" :loading="saving === 'receive'" :disabled="!!saving || posted" @click="save('receive')">تأكيد واستلام البضاعة الآن</AppButton>
-        <AppButton block :icon="Send" :loading="saving === 'send'" :disabled="!!saving || posted" @click="save('send')">إرسال للمورد (طباعة أمر شراء)</AppButton>
-        <AppButton block :icon="Save" :loading="saving === 'draft'" :disabled="!!saving || posted" @click="save('draft')">حفظ كمسودة</AppButton>
         <p class="text-tiny leading-5 text-text-secondary">
           "إرسال للمورد" يحوّل الأمر لحالة "مرسل" ويطبع أمر الشراء؛ الاستلام يتم لاحقاً من شاشة الاستلام المخصّصة. "تأكيد واستلام الآن" يرحّل الكميات والقيد مباشرة.
         </p>
-      </div>
-    </div>
-  </div>
+      </template>
+
+      <template #actions>
+        <FormActions>
+          <template #primary>
+            <AppButton variant="primary" :icon="PackageCheck" :loading="saving === 'receive'" :disabled="!!saving || posted" @click="save('receive')">تأكيد واستلام البضاعة الآن</AppButton>
+          </template>
+          <template #secondary>
+            <AppButton :icon="Send" :loading="saving === 'send'" :disabled="!!saving || posted" @click="save('send')">إرسال للمورد (طباعة أمر شراء)</AppButton>
+            <AppButton :icon="Save" :loading="saving === 'draft'" :disabled="!!saving || posted" @click="save('draft')">حفظ كمسودة</AppButton>
+          </template>
+        </FormActions>
+      </template>
+    </template>
+  </FormPage>
 </template>
