@@ -1,6 +1,8 @@
 # 20.A — Rule, typed route map, `AppRoute`, guard (report mode)
 
-**Status: pending.**
+**Status: done** (2026-09-26). Build green, `vue-tsc` catches a bad route name (verified),
+`node scripts/check-routes.js` runs (baseline was ~485, not ~400 — counting differs slightly from
+the plan's estimate but same order of magnitude). e2e suite not run this session.
 
 Goal: route names and params are checked by `vue-tsc` before any call site moves to objects, and
 the rule is written down so new code follows it from today. After this phase the app behaves

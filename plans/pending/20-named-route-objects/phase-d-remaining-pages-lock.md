@@ -1,6 +1,9 @@
 # 20.D — Remaining pages, then lock the rule in
 
-**Status: pending.** Depends on 20.C.
+**Status: done** (2026-09-26), except the full e2e suite and manual click-through (not run this
+session — see the plan README's top note). `check-routes.js` reports 0 findings app-wide and is
+now part of `bun run check`; `bun run build`, `bun run check`, `bun run verify:mocks` (49/49 OK) and
+`bun run memory:check` are all green.
 
 Goal: the last string targets go, and then the rule is enforced by types **and** by
 `bun run check`, so it can't come back.

@@ -1,6 +1,8 @@
 # 20.C — Pages: sales/POS, purchases, payments, vouchers, expenses, parties
 
-**Status: pending.** Depends on 20.B.
+**Status: done** (2026-09-26). Build green, `check-routes.js` 0 findings in every module listed
+below. Manual click-through (POS → print → back, purchase receive/return/print, customer/supplier
+duplicate-warning link) not done this session.
 
 Goal: the document modules navigate only with named route objects. These modules hold the
 create → detail → print → back flows, so they go first, together with the print-page `?back`

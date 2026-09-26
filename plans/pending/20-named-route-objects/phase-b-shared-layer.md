@@ -1,6 +1,7 @@
 # 20.B — Shared layer: navigation config, palette, services, guards
 
-**Status: pending.** Depends on 20.A (typed map + `AppRoute`).
+**Status: done** (2026-09-26). Build green, `bun run check` green. Manual click-through of sidebar
+highlighting, settings tabs and the palette not done this session — verify before relying on it.
 
 Goal: every **shared** place that stores or returns a destination holds an `AppRoute`, and its type
 says so. Pages that only *pass through* these values (`:to="row.sourceLink"`,

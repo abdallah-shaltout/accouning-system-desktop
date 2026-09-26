@@ -1,6 +1,12 @@
 # 20 — Named route objects everywhere (no path strings)
 
-**Status: planned** (2026-09-26). Nothing below is started yet.
+**Status: implementation done, verification incomplete** (2026-09-26). All four phases (A–D) are
+implemented and committed. Green: `bun run build`, `bun run check` (route guard now permanently
+wired in, 0 findings), `bun run verify:mocks` (49/49 OK), `bun run memory:check`. **Not done this
+session:** the full Python e2e suite (`python scripts/e2e/run.py`) and the manual click-through
+(sidebar highlight on list/detail pages, back buttons, palette navigation, light/dark at
+1280/1920px, RTL, keyboard) that the plan's definition of done requires before this folder moves to
+`plans/completed/`. Run both, fix anything they surface, then do the D7 move-to-completed steps.
 
 **Before starting:** the working tree holds ~45 uncommitted files from plan 18 (18.B diagnostics:
 `SettingsTabs.vue`, `PosPage.vue`, `ExpenseListPage.vue`, `navigation.ts`, `src/mocks/backend/*`…).
@@ -55,10 +61,10 @@ Triggered by a user decision: every Vue navigation target must be a **route obje
 
 | Phase | File | What | Size | Status |
 |---|---|---|---|---|
-| A | [phase-a-typed-map.md](phase-a-typed-map.md) | CLAUDE.md rule, generated `RouteNamedMap`, `AppRoute` type, typed `useRoute('<name>')` in 26 files, `check-routes.js` (report mode) | M | pending |
-| B | [phase-b-shared-layer.md](phase-b-shared-layer.md) | Shared config and services: sidebar, quick actions, settings tabs, palette commands, reports hub, insight/notification `actionTo`, service link helpers, guards and redirects | M | pending |
-| C | [phase-c-document-pages.md](phase-c-document-pages.md) | Pages: invoices/POS, purchases, payments, vouchers, expenses, parties (plus print `?back` → `?from`) | M | pending |
-| D | [phase-d-remaining-pages-lock.md](phase-d-remaining-pages-lock.md) | Pages: products, accounting, reports, core dashboards/shell, settings, templates, users, setup. Then **lock**: narrow `App*` prop types, `check-routes.js` into `bun run check` | M | pending |
+| A | [phase-a-typed-map.md](phase-a-typed-map.md) | CLAUDE.md rule, generated `RouteNamedMap`, `AppRoute` type, typed `useRoute('<name>')` in 26 files, `check-routes.js` (report mode) | M | done |
+| B | [phase-b-shared-layer.md](phase-b-shared-layer.md) | Shared config and services: sidebar, quick actions, settings tabs, palette commands, reports hub, insight/notification `actionTo`, service link helpers, guards and redirects | M | done |
+| C | [phase-c-document-pages.md](phase-c-document-pages.md) | Pages: invoices/POS, purchases, payments, vouchers, expenses, parties (plus print `?back` → `?from`) | M | done |
+| D | [phase-d-remaining-pages-lock.md](phase-d-remaining-pages-lock.md) | Pages: products, accounting, reports, core dashboards/shell, settings, templates, users, setup. Then **lock**: narrow `App*` prop types, `check-routes.js` into `bun run check` | M | done (e2e/manual click-through still needed) |
 
 **Why this order.** A makes route names type-checked before anything uses them, so every later
 edit is checked by `vue-tsc` as it is written. B migrates the shared layer that many pages read
