@@ -1,5 +1,13 @@
 # 18.C — Contrast & accessibility
 
+**Status note (2026-09-26):** All token/script/aria tasks below are done and verified —
+`bun run scripts/check-contrast.ts` passes 156/156 pairings, `bun run build`'s pre-existing failures
+are all from the concurrent plan-20 route-typing migration (unrelated to this phase), and
+`bun run verify:mocks` stays 49/0/0. **Not done:** the manual screenshot/Tab-walk gate (wizard
+company step, invoice form, dashboard × light/dark × every accent) — no `bun run desktop` /
+interactive session was run this pass. Do the screenshot gate before moving this folder to
+`plans/completed/` or marking the phase table row `done`.
+
 **Measured today** (WCAG 2.x ratios; text needs 4.5:1, control boundaries and icons need 3:1):
 
 | Pair | Ratio | Verdict |
@@ -28,11 +36,11 @@
 | dark teal / rose `--color-on-primary` | dark ink `#042f2e` / `#2a0610` | | 7.8 / 6.9 |
 
 **Tasks**
-- [ ] `scripts/check-contrast.ts` (this also closes doc 17 Phase E's task): parses `design-system.css`, checks every base × accent × mode for text/bg pairs (4.5), control borders and focus ring (3), on-primary (4.5). Wired into `bun run check`.
-- [ ] Apply the token fixes; add `--color-border-control`; move `.control`, shadcn `input`, `select`, `switch`, `checkbox` onto it.
-- [ ] Placeholder: drop `opacity: 0.8` (it takes the placeholder under 4.5). Use the secondary color as-is.
-- [ ] Focus: one visible ring (≥3:1) on every control; verify in the dev gallery by Tab-walking.
-- [ ] Field semantics: `aria-invalid` + `aria-describedby` → the error `<p>` (with `role="alert"` on first show) in `AppInput`, `AppSelect`, `AppPhoneInput`, `AppCombobox`, `AddressFields`. Required marker `*` is `aria-hidden`, with `aria-required` on the control.
-- [ ] Wizard step list: `aria-current="step"`, and the "اختياري" chip is readable (≥4.5).
-- [ ] Screenshots: wizard company step, invoice form, dashboard × light/dark × every accent (gate).
+- [x] `scripts/check-contrast.ts` (this also closes doc 17 Phase E's task): parses `design-system.css`, checks every base × accent × mode for text/bg pairs (4.5), control borders and focus ring (3), on-primary (4.5). Wired into `bun run check`. Verified: 156/156 pairings pass.
+- [x] Apply the token fixes; add `--color-border-control`; move `.control`, shadcn `input`, `select`, `switch`, `checkbox` onto it.
+- [x] Placeholder: drop `opacity: 0.8` (it takes the placeholder under 4.5). Use the secondary color as-is.
+- [x] Focus: one visible ring (≥3:1) on every control — the two-tone `:focus-visible`/`.control:focus` ring built on `--color-border-control`.
+- [x] Field semantics: `aria-invalid` + `aria-describedby` → the error `<p>` (with `role="alert"` on first show) in `AppInput`, `AppSelect`, `AppPhoneInput`, `AppCombobox`. Required marker `*` is `aria-hidden`, with `aria-required` on the control. (`AddressFields` does not exist yet — out of scope until Phase E adds it.)
+- [x] Wizard step list: `aria-current="step"` on the active step button; the "اختياري" chip uses `--color-text-secondary` on `bg-surface`, which check-contrast.ts confirms clears ≥4.5:1 in every base/mode.
+- [ ] Screenshots: wizard company step, invoice form, dashboard × light/dark × every accent (gate) — not captured this session (no interactive `bun run desktop` / screenshot pass run); see note below.
 
