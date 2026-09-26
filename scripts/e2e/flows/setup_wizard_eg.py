@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, make_check, safe_print, shot  # noqa: E402
+from common import finish, add_common_args, collect_console_errors, make_check, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import Page, sync_playwright
 
@@ -179,7 +179,7 @@ def run(base: str, shots_dir: Path) -> int:
         shot(page, shots_dir, "eg_invoice_print")
         check(not errors, f"no console errors across the whole EG setup-wizard -> invoice-print flow ({errors})")
 
-        browser.close()
+        finish(page, browser, "setup-wizard-eg")
 
     safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0

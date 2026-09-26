@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, make_check, safe_print  # noqa: E402
+from common import finish, add_common_args, collect_console_errors, login_as, make_check, safe_print  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -96,7 +96,7 @@ def run(base: str, shots_dir: Path) -> int:
         select_count = page.locator("select").count()
         check(select_count >= 3, f"branch/cost-center/currency filter selects render when features are on ({select_count} selects found)")
 
-        browser.close()
+        finish(page, browser, "reports-v2")
 
     safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0

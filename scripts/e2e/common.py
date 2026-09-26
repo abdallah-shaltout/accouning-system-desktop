@@ -9,12 +9,19 @@ Shared helpers for `scripts/e2e/flows/<area>.py`. Each flow file is standalone (
 from __future__ import annotations
 
 import argparse
+import json
+import os
 from pathlib import Path
 
 from playwright.sync_api import Page
 
 DEFAULT_BASE = "http://localhost:1420/#"
 PASSWORDS = {"admin": "admin123", "manager": "manager123", "accountant": "acc123", "cashier": "cashier123", "storekeeper": "store123"}
+
+# 18.G: run.py sets this before calling each flow's run() so export_diagnostics() (called by every
+# flow right before browser.close()) knows where to write this run's `.diagnostics/runs/<ts>/` dir,
+# without changing every flow's run(base, shots_dir) signature.
+DIAG_RUN_DIR_ENV = "EQUAL_DIAG_RUN_DIR"
 
 
 def add_common_args(parser: argparse.ArgumentParser) -> None:
@@ -99,3 +106,47 @@ def shot(page: Page, out_dir: Path, name: str) -> None:
 def collect_console_errors(page: Page, errors: list[str]) -> None:
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+
+
+def export_diagnostics(page: Page, area: str) -> dict | None:
+    """18.G: pulls `window.__equal.diag.export()` (src/modules/diagnostics/services/diagnosticsService.ts
+    — the IndexedDB-backed export already used by the support-bundle feature) and writes one JSONL
+    file per flow into this run's `.diagnostics/runs/<ts>/<flow>.jsonl` (one line per LogEntry,
+    across all 5 channels, so it's grep-able the same way `.diagnostics/logs/<channel>.jsonl` is).
+
+    Call this the LAST thing before `browser.close()` in every flow — after that the IndexedDB
+    ring buffer this reads from is gone. Returns the parsed export dict (channel -> LogEntry[]) so
+    the caller can also inspect it (run.py uses it for perf comparisons), or None if
+    EQUAL_DIAG_RUN_DIR wasn't set (e.g. a flow run standalone, outside run.py) or the export failed
+    for any reason — never lets a diagnostics hiccup fail the flow itself.
+    """
+    run_dir = os.environ.get(DIAG_RUN_DIR_ENV)
+    if not run_dir:
+        return None
+    try:
+        exported = page.evaluate(
+            "() => (window.__equal && window.__equal.diag) ? window.__equal.diag.export() : null"
+        )
+    except Exception as e:  # noqa: BLE001 - diagnostics export must never fail the flow
+        safe_print(f"  (diagnostics export skipped for {area}: {e})")
+        return None
+    if exported is None:
+        return None
+
+    out_dir = Path(run_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"{area}.jsonl"
+    with out_path.open("w", encoding="utf-8") as f:
+        for channel, entries in exported.items():
+            for entry in entries:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    return exported
+
+
+def finish(page: Page, browser, area: str) -> dict | None:
+    """Export diagnostics then close the browser — the one line every flow's `run()` should call
+    in place of a bare `browser.close()`, so nothing forgets the export before the ring buffer
+    (IndexedDB, page-scoped) goes away with the page/browser."""
+    exported = export_diagnostics(page, area)
+    browser.close()
+    return exported

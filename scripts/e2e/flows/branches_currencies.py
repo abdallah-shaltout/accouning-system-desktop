@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import add_common_args, collect_console_errors, login_as, make_check, safe_print, shot  # noqa: E402
+from common import finish, add_common_args, collect_console_errors, login_as, make_check, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -111,7 +111,7 @@ def run(base: str, shots_dir: Path) -> int:
         check(switcher_after.count() == 0, "feature-switches-off: no branch switcher in the sidebar")
         shot(page, shots_dir, "features_off_dashboard")
 
-        browser.close()
+        finish(page, browser, "branches-currencies")
 
     safe_print("console/page errors:", errors or "none")
     return 1 if errors else 0
