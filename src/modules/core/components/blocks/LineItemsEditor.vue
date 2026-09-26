@@ -42,6 +42,13 @@ const props = defineProps<{
   rowKey?: keyof L & string;
   disabled?: boolean;
   emptyLabel?: string;
+  /** Hides the per-row delete button/column entirely (not just disables it) — for grids whose rows
+   *  are a fixed, pre-filled list (e.g. a stocktake's product list) rather than user-managed lines.
+   *  Optional, defaults to false (unchanged behavior) — additive, doesn't affect existing callers. */
+  hideActions?: boolean;
+  /** Hides the footer "add line" button — same fixed-list case as `hideActions`. Optional, defaults
+   *  to false. Additive — doesn't affect existing callers. */
+  hideAddButton?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -108,12 +115,12 @@ function onKeydown(e: KeyboardEvent, rowIndex: number, colIndex: number) {
           >
             {{ col.label }}
           </TableHead>
-          <TableHead scope="col" class="no-print w-10 border-b border-border" />
+          <TableHead v-if="!hideActions" scope="col" class="no-print w-10 border-b border-border" />
         </TableRow>
       </TableHeader>
       <TableBody v-if="!lines.length">
         <TableRow>
-          <TableCell :colspan="columns.length + 1" class="whitespace-normal">
+          <TableCell :colspan="hideActions ? columns.length : columns.length + 1" class="whitespace-normal">
             <EmptyState compact :title="emptyLabel ?? 'لا توجد بنود بعد'" />
           </TableCell>
         </TableRow>
@@ -147,7 +154,7 @@ function onKeydown(e: KeyboardEvent, rowIndex: number, colIndex: number) {
               />
             </slot>
           </TableCell>
-          <TableCell class="no-print px-2 py-1.5 text-center">
+          <TableCell v-if="!hideActions" class="no-print px-2 py-1.5 text-center">
             <button
               type="button"
               class="rounded p-1 text-text-secondary hover:bg-danger/10 hover:text-danger disabled:opacity-40"
@@ -161,7 +168,7 @@ function onKeydown(e: KeyboardEvent, rowIndex: number, colIndex: number) {
         </TableRow>
       </TableBody>
     </Table>
-    <div class="no-print border-t border-border bg-surface px-3 py-2">
+    <div v-if="!hideAddButton" class="no-print border-t border-border bg-surface px-3 py-2">
       <AppButton size="sm" variant="ghost" :icon="Plus" :disabled="disabled" @click="addLine">إضافة سطر</AppButton>
     </div>
   </div>

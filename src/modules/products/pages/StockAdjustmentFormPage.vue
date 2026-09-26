@@ -1,29 +1,33 @@
 <script setup lang="ts">
 // v2 §5 (docs/v2/14-platform.md §5 "Stock: ... stock adjustments, transfers, counts"): a photo of
 // damaged goods or a supplier credit note can be attached while filling the adjustment.
+// v2 doc 17 Phase F-2: migrated to FormPage + LineItemsEditor + TotalsPanel. Rendering-only change —
+// every number here still comes from the same `change()`/`value()`/`gains`/`losses`/`journal`
+// computeds as before; LineItemsEditor only renders rows and emits raw edits back.
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ClipboardCheck, PackageMinus, PackagePlus, Plus, ScanBarcode, Trash } from '@lucide/vue';
+import { ClipboardCheck, PackageMinus, PackagePlus, ScanBarcode } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
-import AppCard from '@/modules/core/components/ui/AppCard.vue';
-import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
 import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
-import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
+import FormActions from '@/modules/core/components/blocks/FormActions.vue';
+import FormField from '@/modules/core/components/blocks/FormField.vue';
+import FormPage from '@/modules/core/components/layouts/FormPage.vue';
+import FormSection from '@/modules/core/components/blocks/FormSection.vue';
 import JournalPreview from '@/modules/core/components/JournalPreview.vue';
-import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import type { LineColumn } from '@/modules/core/components/blocks/LineItemsEditor.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
+import TotalsPanel, { type TotalsRow } from '@/modules/core/components/blocks/TotalsPanel.vue';
 import { getAccounts, type AccountWithBalance } from '@/modules/accounting/services/accountingService';
-import { useGridTab } from '@/modules/core/controllers/useGridTab';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { dateKeyToIso, formatNumber, todayKey } from '@/modules/core/helpers/format';
 import { num0, toNum } from '@/modules/core/helpers/numbers';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
 import ApprovalPinDialog from '../components/ApprovalPinDialog.vue';
+import StockAdjustmentLinesGrid, { type AdjustmentLine } from '../components/StockAdjustmentLinesGrid.vue';
 import { useCatalogStore } from '../controllers/useCatalogStore';
 import { createStockAdjustment } from '../services/inventoryService';
 import { getProducts } from '../services/productService';
@@ -37,14 +41,7 @@ const STOCK_IN_REASON_OPTIONS: { value: StockInReason; label: string }[] = [
   { value: 'other', label: 'أخرى' },
 ];
 
-interface Line {
-  key: number;
-  productId?: string;
-  qty?: number;
-  counted?: number;
-  batchNo?: string;
-  expiryDate?: string;
-}
+type Line = AdjustmentLine;
 
 const route = useRoute();
 const router = useRouter();
@@ -115,6 +112,10 @@ function loadStocktake() {
 }
 watch(stocktakeCategory, () => type.value === 'STOCKTAKE' && loadStocktake());
 
+function newLine(): Line {
+  return { key: ++seq };
+}
+
 function addLine(productId?: string) {
   const existing = productId && lines.value.find((l) => l.productId === productId);
   if (existing) {
@@ -127,14 +128,6 @@ function addLine(productId?: string) {
     empty.qty = 1;
   } else lines.value.push({ key: ++seq, productId, qty: productId ? 1 : undefined });
 }
-
-const linesBody = ref<HTMLElement>();
-const onLinesKeydown = useGridTab({
-  container: linesBody,
-  addRow: () => addLine(),
-  // Stocktake rows are the pre-filled product list — Tab walks them but never appends.
-  isFilled: (i) => type.value !== 'STOCKTAKE' && !!lines.value[i]?.productId,
-});
 
 function onScan() {
   const code = scan.value.trim();
@@ -283,173 +276,118 @@ function onApproved(userId: string) {
   approvedBy.value = userId;
   submit(false);
 }
+
+// --- LineItemsEditor wiring (render-only — see file header) -----------------------------------
+const columns = computed<LineColumn<Line>[]>(() => {
+  const cols: LineColumn<Line>[] = [{ key: 'productId', label: 'الصنف', type: 'custom' }];
+  cols.push({ key: 'systemQty', label: type.value === 'STOCKTAKE' ? 'رصيد النظام' : 'المتوفر', type: 'custom', width: '110px' });
+  cols.push({ key: type.value === 'STOCKTAKE' ? 'counted' : 'qty', label: type.value === 'STOCKTAKE' ? 'المعدود' : 'الكمية', type: 'custom', width: '110px' });
+  if (type.value === 'STOCKTAKE') cols.push({ key: 'diff', label: 'الفرق', type: 'custom', width: '100px' });
+  if (type.value === 'STOCK_IN') cols.push({ key: 'batchNo', label: 'التشغيلة / الصلاحية', type: 'custom', width: '150px' });
+  cols.push({ key: 'costPrice', label: 'التكلفة', type: 'custom', width: '110px' });
+  cols.push({ key: 'value', label: 'القيمة', type: 'custom', width: '110px' });
+  return cols;
+});
+
+function onLinesChange(next: Line[]) {
+  lines.value = next;
+}
 </script>
 
 <template>
-  <div>
-    <PageHeader title="تسوية مخزون جديدة" :back="{ name: 'adjustments' }" />
+  <FormPage :title="'تسوية مخزون جديدة'" :back="{ name: 'adjustments' }">
+    <template v-if="loading">
+      <FormSection><SkeletonBlock :lines="8" height="h-8" /></FormSection>
+    </template>
+    <template v-else>
+      <FormSection>
+        <div class="flex flex-wrap items-end gap-4">
+          <div>
+            <span class="field-label">نوع التسوية</span>
+            <SegmentedControl v-model="type" :options="typeOptions" />
+          </div>
+          <AppDatePicker v-model="date" label="التاريخ" class="w-40" />
+          <AppSelect
+            v-if="type === 'STOCKTAKE'"
+            v-model="stocktakeCategory"
+            label="نطاق الجرد"
+            class="w-44"
+            placeholder="كل الأصناف"
+            :options="catalog.categories.filter((c) => c.id !== 'cat-services').map((c) => ({ value: c.id, label: c.name }))"
+          />
+          <AppSelect v-if="type === 'STOCK_IN'" v-model="stockInReason" label="سبب الإدخال" class="w-56" :options="STOCK_IN_REASON_OPTIONS" />
+          <AppSelect
+            v-if="type === 'STOCK_IN' && stockInReason === 'other'"
+            v-model="offsetAccountId"
+            label="الحساب المقابل"
+            class="w-56"
+            placeholder="اختر الحساب…"
+            :options="offsetAccountOptions"
+          />
+        </div>
+        <p class="text-xs leading-5 text-text-secondary">{{ typeHelp }}</p>
+      </FormSection>
 
-    <div class="grid items-start gap-5 xl:grid-cols-[1fr_340px]">
-      <div class="space-y-5">
-        <AppCard padding="sm">
-          <div class="flex flex-wrap items-end gap-4">
-            <div>
-              <span class="field-label">نوع التسوية</span>
-              <SegmentedControl v-model="type" :options="typeOptions" />
+      <FormSection title="الأصناف">
+        <template #default>
+          <div class="-mt-2 mb-2 flex justify-end">
+            <div class="w-64">
+              <AppInput v-model="scan" placeholder="امسح الباركود أو اكتب SKU ثم Enter" @keydown.enter.prevent="onScan">
+                <template #prefix><ScanBarcode class="size-4" /></template>
+              </AppInput>
             </div>
-            <AppDatePicker v-model="date" label="التاريخ" class="w-40" />
-            <AppSelect
-              v-if="type === 'STOCKTAKE'"
-              v-model="stocktakeCategory"
-              label="نطاق الجرد"
-              class="w-44"
-              placeholder="كل الأصناف"
-              :options="catalog.categories.filter((c) => c.id !== 'cat-services').map((c) => ({ value: c.id, label: c.name }))"
+          </div>
+          <div class="max-h-[58vh] overflow-y-auto">
+            <StockAdjustmentLinesGrid
+              :lines="lines"
+              :columns="columns"
+              :new-line="newLine"
+              :type="type"
+              :by-id="byId"
+              :product-options="productOptions"
+              :line-errors="lineErrors"
+              :change="change"
+              :value="value"
+              @lines-change="onLinesChange"
             />
-            <AppSelect v-if="type === 'STOCK_IN'" v-model="stockInReason" label="سبب الإدخال" class="w-56" :options="STOCK_IN_REASON_OPTIONS" />
-            <AppSelect
-              v-if="type === 'STOCK_IN' && stockInReason === 'other'"
-              v-model="offsetAccountId"
-              label="الحساب المقابل"
-              class="w-56"
-              placeholder="اختر الحساب…"
-              :options="offsetAccountOptions"
-            />
           </div>
-          <p class="mt-3 text-xs leading-5 text-text-secondary">{{ typeHelp }}</p>
-        </AppCard>
+        </template>
+      </FormSection>
 
-        <AppCard padding="none">
-          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-            <h2 class="text-body font-semibold">الأصناف</h2>
-            <div class="relative w-64">
-              <ScanBarcode class="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-text-secondary" />
-              <input v-model="scan" class="control ps-8" placeholder="امسح الباركود أو اكتب SKU ثم Enter" @keydown.enter.prevent="onScan" />
-            </div>
-          </div>
+      <template #aside>
+        <TotalsPanel
+          :rows="([
+            type !== 'STOCKTAKE' ? { label: type === 'STOCK_IN' ? 'قيمة البضاعة المدخلة' : 'زيادات الجرد', amount: gains } : null,
+            type !== 'STOCK_IN' ? { label: type === 'LOSS' ? 'قيمة التالف' : 'عجز الجرد', amount: losses } : null,
+          ].filter(Boolean) as TotalsRow[])"
+        />
+        <p v-if="type === 'STOCKTAKE'" class="text-body text-text-secondary">
+          أصناف بها فروقات: <span class="num">{{ formatNumber(diffCount) }}</span> من <span class="num">{{ formatNumber(lines.length) }}</span>
+        </p>
 
-          <div v-if="loading" class="p-4"><SkeletonBlock :lines="5" height="h-8" /></div>
-          <EmptyState v-else-if="!lines.length" title="لا توجد أصناف في هذا النطاق" compact />
-          <div v-else class="max-h-[58vh] overflow-y-auto">
-            <table class="w-full text-body">
-              <thead class="sticky top-0 z-[1] bg-surface text-xs text-text-secondary">
-                <tr class="border-b border-border">
-                  <th class="px-4 py-2 text-start font-medium">الصنف</th>
-                  <th class="px-2 py-2 text-start font-medium">{{ type === 'STOCKTAKE' ? 'رصيد النظام' : 'المتوفر' }}</th>
-                  <th class="px-2 py-2 text-start font-medium">{{ type === 'STOCKTAKE' ? 'المعدود' : 'الكمية' }}</th>
-                  <th v-if="type === 'STOCKTAKE'" class="px-2 py-2 text-start font-medium">الفرق</th>
-                  <th v-if="type === 'STOCK_IN'" class="px-2 py-2 text-start font-medium">التشغيلة / الصلاحية</th>
-                  <th class="px-2 py-2 text-start font-medium">التكلفة</th>
-                  <th class="px-2 py-2 text-start font-medium">القيمة</th>
-                  <th v-if="type !== 'STOCKTAKE'" class="w-10" />
-                </tr>
-              </thead>
-              <tbody ref="linesBody" @keydown="onLinesKeydown">
-                <tr v-for="line in lines" :key="line.key" class="border-b border-border last:border-0" :class="type === 'STOCKTAKE' && change(line) !== 0 && 'bg-warning/5'">
-                  <td class="min-w-56 px-4 py-1.5">
-                    <AppCombobox
-                      v-if="type !== 'STOCKTAKE'"
-                      v-model="line.productId"
-                      :options="productOptions"
-                      placeholder="اختر صنفاً…"
-                      search-placeholder="اسم، SKU، أو باركود"
-                      dense
-                    />
-                    <span v-else>
-                      {{ byId.get(line.productId!)?.name }}
-                      <span class="num block text-tiny text-text-secondary">{{ byId.get(line.productId!)?.sku }}</span>
-                    </span>
-                  </td>
-                  <td class="px-2 py-1.5"><span class="num text-text-secondary">{{ line.productId ? formatNumber(byId.get(line.productId)?.stockQty) : '—' }}</span></td>
-                  <td class="px-2 py-1.5">
-                    <input
-                      v-if="type === 'STOCKTAKE'"
-                      v-model.number="line.counted"
-                      type="number"
-                      min="0"
-                      class="control h-8 w-24"
-                      :aria-invalid="!!lineErrors[line.key] || undefined"
-                      @focus="($event.target as HTMLInputElement).select()"
-                    />
-                    <input
-                      v-else
-                      v-model.number="line.qty"
-                      type="number"
-                      min="0"
-                      class="control h-8 w-24"
-                      :aria-invalid="!!lineErrors[line.key] || undefined"
-                    />
-                    <p v-if="lineErrors[line.key]" class="mt-0.5 text-tiny text-danger">{{ lineErrors[line.key] }}</p>
-                  </td>
-                  <td v-if="type === 'STOCKTAKE'" class="px-2 py-1.5">
-                    <span class="num font-medium" :class="change(line) > 0 ? 'text-success' : change(line) < 0 ? 'text-danger' : 'text-text-secondary'">
-                      {{ change(line) > 0 ? '+' : '' }}{{ formatNumber(change(line)) }}
-                    </span>
-                  </td>
-                  <td v-if="type === 'STOCK_IN'" class="px-2 py-1.5">
-                    <template v-if="line.productId && byId.get(line.productId)?.trackBatches">
-                      <input v-model="line.batchNo" class="control mb-1 h-8 w-32" placeholder="رقم التشغيلة" dir="ltr" />
-                      <AppDatePicker v-model="line.expiryDate" class="w-32" compact />
-                    </template>
-                    <span v-else class="text-xs text-text-secondary">—</span>
-                  </td>
-                  <td class="px-2 py-1.5"><MoneyText v-if="line.productId" :value="byId.get(line.productId)?.costPrice" plain class="text-text-secondary" /></td>
-                  <td class="px-2 py-1.5"><MoneyText :value="value(line)" plain :signed="type === 'STOCKTAKE'" dash-zero /></td>
-                  <td v-if="type !== 'STOCKTAKE'" class="px-2">
-                    <button
-                      type="button"
-                      class="rounded p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger"
-                      aria-label="حذف السطر"
-                      data-grid-skip
-                      @click="lines = lines.filter((l) => l.key !== line.key)"
-                    >
-                      <Trash class="size-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-if="type !== 'STOCKTAKE'" class="border-t border-border px-4 py-2">
-            <AppButton size="sm" variant="ghost" :icon="Plus" @click="addLine()">إضافة صنف</AppButton>
-          </div>
-        </AppCard>
-      </div>
+        <FormField label="البيان / ملاحظات">
+          <AppInput v-model="note" placeholder="مثال: جرد نهاية الشهر" />
+        </FormField>
 
-      <div class="space-y-4 xl:sticky xl:top-0">
-        <AppCard title="الملخص" padding="sm">
-          <dl class="space-y-2 text-body">
-            <div v-if="type === 'STOCKTAKE'" class="flex justify-between">
-              <dt class="text-text-secondary">أصناف بها فروقات</dt>
-              <dd><span class="num">{{ formatNumber(diffCount) }}</span> من <span class="num">{{ formatNumber(lines.length) }}</span></dd>
-            </div>
-            <div v-if="type !== 'LOSS'" class="flex justify-between">
-              <dt class="text-text-secondary">{{ type === 'STOCK_IN' ? 'قيمة البضاعة المدخلة' : 'زيادات الجرد' }}</dt>
-              <dd><MoneyText :value="gains" /></dd>
-            </div>
-            <div v-if="type !== 'STOCK_IN'" class="flex justify-between">
-              <dt class="text-text-secondary">{{ type === 'LOSS' ? 'قيمة التالف' : 'عجز الجرد' }}</dt>
-              <dd><MoneyText :value="losses" /></dd>
-            </div>
-          </dl>
-          <div class="mt-4">
-            <AppInput v-model="note" label="البيان / ملاحظات" placeholder="مثال: جرد نهاية الشهر" />
-          </div>
-          <div class="mt-4">
-            <span class="field-label">المرفقات</span>
-            <AttachmentField :owner-ref="draftOwnerRef" />
-          </div>
-        </AppCard>
+        <FormField label="المرفقات">
+          <AttachmentField :owner-ref="draftOwnerRef" />
+        </FormField>
 
         <JournalPreview v-if="journal.length" :lines="journal" title="القيد المحاسبي المتوقع" />
+      </template>
 
-        <div class="flex gap-2">
-          <AppButton variant="primary" class="flex-1" :loading="saving === 'complete'" :disabled="!!saving" @click="submit(false)">اعتماد التسوية</AppButton>
-          <AppButton :loading="saving === 'draft'" :disabled="!!saving" @click="submit(true)">حفظ كمسودة</AppButton>
-        </div>
-      </div>
-    </div>
+      <template #actions>
+        <FormActions>
+          <template #primary>
+            <AppButton variant="primary" :loading="saving === 'complete'" :disabled="!!saving" @click="submit(false)">اعتماد التسوية</AppButton>
+          </template>
+          <template #secondary>
+            <AppButton :loading="saving === 'draft'" :disabled="!!saving" @click="submit(true)">حفظ كمسودة</AppButton>
+          </template>
+        </FormActions>
+      </template>
+    </template>
 
     <ApprovalPinDialog v-model:open="approvalOpen" :value="pendingValue" :threshold="approvalThreshold" @approved="onApproved" />
-  </div>
+  </FormPage>
 </template>
