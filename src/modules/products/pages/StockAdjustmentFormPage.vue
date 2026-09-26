@@ -353,39 +353,39 @@ function onLinesChange(next: Line[]) {
           </div>
         </template>
       </FormSection>
+    </template>
 
-      <template #aside>
-        <TotalsPanel
-          :rows="([
-            type !== 'STOCKTAKE' ? { label: type === 'STOCK_IN' ? 'قيمة البضاعة المدخلة' : 'زيادات الجرد', amount: gains } : null,
-            type !== 'STOCK_IN' ? { label: type === 'LOSS' ? 'قيمة التالف' : 'عجز الجرد', amount: losses } : null,
-          ].filter(Boolean) as TotalsRow[])"
-        />
-        <p v-if="type === 'STOCKTAKE'" class="text-body text-text-secondary">
-          أصناف بها فروقات: <span class="num">{{ formatNumber(diffCount) }}</span> من <span class="num">{{ formatNumber(lines.length) }}</span>
-        </p>
+    <template #aside>
+      <TotalsPanel
+        :rows="([
+          type !== 'STOCKTAKE' ? { label: type === 'STOCK_IN' ? 'قيمة البضاعة المدخلة' : 'زيادات الجرد', amount: gains } : null,
+          type !== 'STOCK_IN' ? { label: type === 'LOSS' ? 'قيمة التالف' : 'عجز الجرد', amount: losses } : null,
+        ].filter(Boolean) as TotalsRow[])"
+      />
+      <p v-if="type === 'STOCKTAKE'" class="text-body text-text-secondary">
+        أصناف بها فروقات: <span class="num">{{ formatNumber(diffCount) }}</span> من <span class="num">{{ formatNumber(lines.length) }}</span>
+      </p>
 
-        <FormField label="البيان / ملاحظات">
-          <AppInput v-model="note" placeholder="مثال: جرد نهاية الشهر" />
-        </FormField>
+      <FormField label="البيان / ملاحظات">
+        <AppInput v-model="note" placeholder="مثال: جرد نهاية الشهر" />
+      </FormField>
 
-        <FormField label="المرفقات">
-          <AttachmentField :owner-ref="draftOwnerRef" />
-        </FormField>
+      <FormField label="المرفقات">
+        <AttachmentField :owner-ref="draftOwnerRef" />
+      </FormField>
 
-        <JournalPreview v-if="journal.length" :lines="journal" title="القيد المحاسبي المتوقع" />
-      </template>
+      <JournalPreview v-if="journal.length" :lines="journal" title="القيد المحاسبي المتوقع" />
+    </template>
 
-      <template #actions>
-        <FormActions>
-          <template #primary>
-            <AppButton variant="primary" :loading="saving === 'complete'" :disabled="!!saving" @click="submit(false)">اعتماد التسوية</AppButton>
-          </template>
-          <template #secondary>
-            <AppButton :loading="saving === 'draft'" :disabled="!!saving" @click="submit(true)">حفظ كمسودة</AppButton>
-          </template>
-        </FormActions>
-      </template>
+    <template #actions>
+      <FormActions>
+        <template #primary>
+          <AppButton variant="primary" :loading="saving === 'complete'" :disabled="!!saving" @click="submit(false)">اعتماد التسوية</AppButton>
+        </template>
+        <template #secondary>
+          <AppButton :loading="saving === 'draft'" :disabled="!!saving" @click="submit(true)">حفظ كمسودة</AppButton>
+        </template>
+      </FormActions>
     </template>
 
     <ApprovalPinDialog v-model:open="approvalOpen" :value="pendingValue" :threshold="approvalThreshold" @approved="onApproved" />

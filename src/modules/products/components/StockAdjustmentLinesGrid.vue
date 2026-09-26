@@ -110,3 +110,4 @@ const emit = defineEmits<{ 'lines-change': [lines: AdjustmentLine[]] }>();
       <MoneyText :value="value(line)" plain :signed="type === 'STOCKTAKE'" dash-zero />
     </template>
   </LineItemsEditor>
+</template>

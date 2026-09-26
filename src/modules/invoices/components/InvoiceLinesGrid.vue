@@ -174,3 +174,4 @@ function onPaste(e: ClipboardEvent, startIndex: number) {
       <span class="num font-medium">{{ formatNumber(lineTotals[rowIndex]?.gross ?? 0) }}</span>
     </template>
   </LineItemsEditor>
+</template>

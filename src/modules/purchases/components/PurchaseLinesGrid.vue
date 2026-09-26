@@ -108,3 +108,4 @@ const emit = defineEmits<{
       <MoneyText :value="lineTotal(line)" plain dash-zero />
     </template>
   </LineItemsEditor>
+</template>

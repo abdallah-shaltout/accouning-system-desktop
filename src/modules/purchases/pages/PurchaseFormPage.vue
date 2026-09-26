@@ -322,34 +322,34 @@ const totalsRows = computed<TotalsRow[]>(() => [
         </div>
         <AttachmentField :owner-ref="draftOwnerRef" />
       </FormSection>
+    </template>
 
-      <template #aside>
-        <TotalsPanel :rows="totalsRows" />
-        <FormField label="خصم إضافي على الفاتورة">
-          <AppInput v-model.number="invoiceDiscountAmount" type="number" min="0" step="0.01" placeholder="0" />
-        </FormField>
-        <FormField label="ملاحظات">
-          <AppInput v-model="note" />
-        </FormField>
-        <ul v-if="submitted && problems.length" class="list-inside list-disc text-xs text-danger">
-          <li v-for="p in problems" :key="p">{{ p }}</li>
-        </ul>
-        <p class="text-tiny leading-5 text-text-secondary">
-          "إرسال للمورد" يحوّل الأمر لحالة "مرسل" ويطبع أمر الشراء؛ الاستلام يتم لاحقاً من شاشة الاستلام المخصّصة. "تأكيد واستلام الآن" يرحّل الكميات والقيد مباشرة.
-        </p>
-      </template>
+    <template #aside>
+      <TotalsPanel :rows="totalsRows" />
+      <FormField label="خصم إضافي على الفاتورة">
+        <AppInput v-model.number="invoiceDiscountAmount" type="number" min="0" step="0.01" placeholder="0" />
+      </FormField>
+      <FormField label="ملاحظات">
+        <AppInput v-model="note" />
+      </FormField>
+      <ul v-if="submitted && problems.length" class="list-inside list-disc text-xs text-danger">
+        <li v-for="p in problems" :key="p">{{ p }}</li>
+      </ul>
+      <p class="text-tiny leading-5 text-text-secondary">
+        "إرسال للمورد" يحوّل الأمر لحالة "مرسل" ويطبع أمر الشراء؛ الاستلام يتم لاحقاً من شاشة الاستلام المخصّصة. "تأكيد واستلام الآن" يرحّل الكميات والقيد مباشرة.
+      </p>
+    </template>
 
-      <template #actions>
-        <FormActions>
-          <template #primary>
-            <AppButton variant="primary" :icon="PackageCheck" :loading="saving === 'receive'" :disabled="!!saving || posted" @click="save('receive')">تأكيد واستلام البضاعة الآن</AppButton>
-          </template>
-          <template #secondary>
-            <AppButton :icon="Send" :loading="saving === 'send'" :disabled="!!saving || posted" @click="save('send')">إرسال للمورد (طباعة أمر شراء)</AppButton>
-            <AppButton :icon="Save" :loading="saving === 'draft'" :disabled="!!saving || posted" @click="save('draft')">حفظ كمسودة</AppButton>
-          </template>
-        </FormActions>
-      </template>
+    <template #actions>
+      <FormActions>
+        <template #primary>
+          <AppButton variant="primary" :icon="PackageCheck" :loading="saving === 'receive'" :disabled="!!saving || posted" @click="save('receive')">تأكيد واستلام البضاعة الآن</AppButton>
+        </template>
+        <template #secondary>
+          <AppButton :icon="Send" :loading="saving === 'send'" :disabled="!!saving || posted" @click="save('send')">إرسال للمورد (طباعة أمر شراء)</AppButton>
+          <AppButton :icon="Save" :loading="saving === 'draft'" :disabled="!!saving || posted" @click="save('draft')">حفظ كمسودة</AppButton>
+        </template>
+      </FormActions>
     </template>
   </FormPage>
 </template>
