@@ -94,8 +94,8 @@ function retryAll() {
           </button>
         </div>
         <div class="flex gap-2">
-          <AppButton v-if="auth.can('purchases', 'write')" :icon="Plus" to="/purchases/new">أمر شراء</AppButton>
-          <AppButton v-if="auth.can('pos', 'write')" variant="primary" :icon="ShoppingCart" to="/pos">بيع جديد</AppButton>
+          <AppButton v-if="auth.can('purchases', 'write')" :icon="Plus" :to="{ name: 'purchase-new' }">أمر شراء</AppButton>
+          <AppButton v-if="auth.can('pos', 'write')" variant="primary" :icon="ShoppingCart" :to="{ name: 'pos' }">بيع جديد</AppButton>
         </div>
       </div>
     </div>
@@ -115,19 +115,19 @@ function retryAll() {
 
       <!-- 4 KPIs with period-over-period comparison + sparkline (Part B.3) -->
       <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="صافي المبيعات" :icon="TrendingUp" :loading="kpis.loading.value" :change-pct="kpis.data.value?.netSales.changePct" :to="auth.can('sales') ? '/invoices' : undefined">
+        <KpiCard label="صافي المبيعات" :icon="TrendingUp" :loading="kpis.loading.value" :change-pct="kpis.data.value?.netSales.changePct" :to="auth.can('sales') ? { name: 'invoices' } : undefined">
           <span dir="ltr">{{ formatMoney(kpis.data.value?.netSales.value) }}</span> <RiyalIcon class="text-[0.7em] text-text-secondary" />
           <template #hint>شامل الضريبة وبعد المرتجعات</template>
           <template #spark><Sparkline :data="kpis.data.value?.netSales.sparkline ?? []" /></template>
         </KpiCard>
 
-        <KpiCard label="مجمل الربح" :icon="Banknote" :loading="kpis.loading.value" :change-pct="kpis.data.value?.grossProfit.changePct" :to="canSeeCash ? '/reports/profit-loss' : undefined">
+        <KpiCard label="مجمل الربح" :icon="Banknote" :loading="kpis.loading.value" :change-pct="kpis.data.value?.grossProfit.changePct" :to="canSeeCash ? { name: 'report-profit-loss' } : undefined">
           <span dir="ltr">{{ formatMoney(kpis.data.value?.grossProfit.value) }}</span> <RiyalIcon class="text-[0.7em] text-text-secondary" />
           <template #hint>هامش {{ formatNumber(kpis.data.value?.grossProfit.marginPct, 1) }}%</template>
           <template #spark><Sparkline :data="kpis.data.value?.grossProfit.sparkline ?? []" tone="success" /></template>
         </KpiCard>
 
-        <KpiCard v-if="canSeeCash" label="السيولة" :icon="Banknote" :loading="kpis.loading.value" :change-pct="kpis.data.value?.cash.changePct" to="/reports/ledger?account=acc-1110">
+        <KpiCard v-if="canSeeCash" label="السيولة" :icon="Banknote" :loading="kpis.loading.value" :change-pct="kpis.data.value?.cash.changePct" :to="{ name: 'report-ledger', query: { account: 'acc-1110' } }">
           <span dir="ltr">{{ formatMoney(kpis.data.value?.cash.value) }}</span> <RiyalIcon class="text-[0.7em] text-text-secondary" />
           <template #hint>الصندوق والبنك، شامل التسوية</template>
           <template #spark><Sparkline :data="kpis.data.value?.cash.sparkline ?? []" /></template>
@@ -139,7 +139,7 @@ function retryAll() {
           :loading="kpis.loading.value"
           :change-pct="kpis.data.value?.receivables.changePct"
           :tone="(kpis.data.value?.receivables.overdue ?? 0) > 0 ? 'warning' : undefined"
-          :to="auth.can('sales') ? { path: '/invoices', query: { payment: 'open' } } : undefined"
+          :to="auth.can('sales') ? { name: 'invoices', query: { payment: 'open' } } : undefined"
         >
           <span dir="ltr">{{ formatMoney(kpis.data.value?.receivables.value) }}</span> <RiyalIcon class="text-[0.7em] text-text-secondary" />
           <template #hint>
@@ -164,7 +164,7 @@ function retryAll() {
           <EmptyState v-else-if="!topProducts.data.value?.length" title="لا توجد مبيعات في هذه الفترة" compact />
           <ul v-else class="divide-y divide-border">
             <li v-for="p in topProducts.data.value" :key="p.id">
-              <RouterLink :to="`/products/${p.id}`" class="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-hover">
+              <RouterLink :to="{ name: 'product', params: { id: p.id } }" class="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-hover">
                 <span class="min-w-0">
                   <span class="block truncate text-body">{{ p.name }}</span>
                   <span class="num block text-tiny text-text-secondary">{{ p.sku }} · {{ formatNumber(p.qty) }} وحدة</span>
@@ -180,7 +180,7 @@ function retryAll() {
           <EmptyState v-else-if="!topCustomers.data.value?.length" title="لا توجد مبيعات لعملاء في هذه الفترة" compact />
           <ul v-else class="divide-y divide-border">
             <li v-for="c in topCustomers.data.value" :key="c.id">
-              <RouterLink :to="`/customers/${c.id}`" class="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-hover">
+              <RouterLink :to="{ name: 'customer', params: { id: c.id } }" class="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-hover">
                 <span class="truncate text-body">{{ c.name }}</span>
                 <MoneyText :value="c.total" class="shrink-0" />
               </RouterLink>
