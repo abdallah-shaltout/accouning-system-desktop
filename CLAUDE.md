@@ -201,6 +201,45 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
   VAT), weighted-average cost or the system-role account resolution without reading
   `docs/v2/02-accounting-review.md` and keeping `bun run verify:mocks` fully green.
 
+## Diagnostics (18.B — read before touching errors, performance or the audit trail)
+
+One logger, five channels (`error`, `perf`, `debug`, `audit`, `accounting`), one `LogEntry` JSON
+schema — `src/modules/diagnostics/services/logService.ts`'s `log.error/perf/debug/audit/accounting()`.
+Never `console.error`/`console.log` for anything a user could hit or a developer might need to
+correlate later; call `log.*` instead so it lands in the right channel with a fingerprint and a
+correlation id.
+
+- **How to log.** `log.error(source, msg, err?, data?)` for anything that broke (always on).
+  `log.perf(source, msg, data)` for a duration/budget note (always on, cheap). `log.debug(namespace,
+  msg, data)` for a trace that should stay silent unless a developer turned that namespace on via
+  `localStorage['equal.debug']` or the `/dev/diagnostics` → التتبع tab. Business audit
+  (`logAudit`/`logActivity` in `mocks/backend/core.ts`) is separate from these — it is business data
+  (who did what to which entity), lives in `db.audit`, ships in every backup, and is never a
+  diagnostic log (see plan doc 18 decision 3). A new backend write that changes a business entity
+  should call `logAudit` (or the `logActivity` adapter) at the same point it always did, not `log.*`.
+- **Where to look.** `/dev/diagnostics` (dev builds, linked from the sidebar user menu's dev section
+  and the command palette) has tabs for Errors (grouped by fingerprint), Performance (p50/p95 +
+  budget breaches), Debug (namespace toggles + live tail), Audit and Accounting (stub — Phase F).
+  `Ctrl+Shift+D` opens a docked overlay with the last 50 entries across every channel without
+  leaving the page. In dev, `.diagnostics/logs/<channel>.jsonl` (gitignored) holds today's entries on
+  disk — read it directly instead of reproducing a bug through the UI when a log line will do.
+- **Opening a ledger issue.** `docs/diagnostics/ISSUES.md` is a generated index (like
+  `AGENT_MEMORY.md`) over `docs/diagnostics/issues/*.md` — **never hand-edit `ISSUES.md`**. To open
+  an issue: add a `docs/diagnostics/issues/<KIND>-NNNN-<slug>.md` file with the YAML frontmatter
+  schema in `scripts/diagnostics/frontmatter.ts` (`id`, `kind`, `status`, `area`, `fingerprint?`,
+  `first_seen`, `last_seen`, `occurrences`, `debug_namespace?`, `regression_test?`, `fixed_in?`) and a
+  body with repro steps, what was tried and failed, and the related files, then run `bun run diag` to
+  rebuild the index. `bun run diag` also auto-stubs a new `BUG-NNNN` file for any error fingerprint
+  seen in the local dev log that has no issue file yet, so nothing silently falls off the ledger.
+- **Closing a ledger issue.** Set `status: fixed` and `fixed_in: <commit>` once the fix lands; it only
+  becomes `verified` once a `regression_test` (a `scripts/verify/cases/*.json` case) exists and
+  passes. Run `bun run diag` afterward so `ISSUES.md` picks up the change; `bun run diag:check`
+  (wired into the definition-of-done gates) fails the run if it's stale.
+- **User-facing.** An error toast always ends with a short code (`رمز الخطأ: E-7F3A` — the first 4 hex
+  characters of the error's fingerprint). Settings → حول / الدعم → "تصدير ملف التشخيص" exports a zip
+  of every channel's logs + app version + OS + redacted settings (and, opt-in only, a DB snapshot)
+  through the shared `saveFile` helper — never build a second export path for this.
+
 ## Definition of done (every change that touches UI or logic)
 
 ```bash

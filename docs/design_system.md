@@ -113,6 +113,14 @@ Small pill, `--color-surface-hover` background, colored text/dot for state:
 - Overdue / Canceled / Refunded → `--color-danger`
 - Partially paid → amber (`#f59e0b`, add as a new token if needed — not yet in the CSS file)
 
+### Error toast (diagnostics error code)
+Any error surfaced by the last-resort handlers (`app.config.errorHandler` in `main.ts`, `ErrorBoundary.vue`)
+appends a short code to its message: `... — رمز الخطأ: E-7F3A`. The code is the first 4 hex characters
+of the same fingerprint `docs/diagnostics/ISSUES.md` groups errors by (`fingerprintOf()` in
+`modules/diagnostics/services/logService.ts`) — a non-technical user can read four characters over the
+phone to support, who then finds the matching ledger entry or log lines by that fingerprint. Every
+error toast gets one; never a raw stack trace or English exception message in the visible text.
+
 ### Date picker
 `AppDatePicker` (`modules/core/components/ui/AppDatePicker.vue`) — a typeable text field (`dir="ltr"`,
 `YYYY-MM-DD`) with a trailing calendar icon button that opens a themed shadcn Popover + Calendar.

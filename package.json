@@ -15,7 +15,9 @@
     "verify:mocks": "bun run scripts/verify/run.ts",
     "check": "node scripts/check-text-tokens.js && node scripts/check-rtl.js && bun run scripts/check-contrast.ts",
     "memory": "bun run scripts/memory/run.ts",
-    "memory:check": "bun run scripts/memory/run.ts --check"
+    "memory:check": "bun run scripts/memory/run.ts --check",
+    "diag": "bun run scripts/diagnostics/run.ts",
+    "diag:check": "bun run scripts/diagnostics/run.ts --check"
   },
   "dependencies": {
     "@fontsource-variable/cairo": "^5.3.0",
