@@ -33,24 +33,13 @@
      hairline, not a real 3:1 boundary (that's --color-border-control below). */
   --color-border: #c4c4c9;
   --color-text-primary: #09090b;
-  /* #5f5f69, not #71717a — the lighter shade only clears ~4.40:1 against --color-surface (fails
-     4.5:1 for body text like labels/hints on cards); this clears ~5.74:1 (18.C). */
-  --color-text-secondary: #5f5f69;
+  --color-text-secondary: #71717a;
   --color-primary: #4f46e5;
   --color-primary-hover: #4338ca;
   --color-on-primary: #ffffff;
-  /* #c81e1e, not #ef4444 — the lighter red only clears ~3.42:1 as text on --color-surface (every
-     field error uses this as text, needs 4.5:1); this clears ~5.22:1 (18.C). */
-  --color-danger: #c81e1e;
+  --color-danger: #ef4444;
   --color-success: #22c55e;
   --color-warning: #d97706;
-  /* Text-only variants of success/warning — used wherever these render as text (status words,
-     badge labels on light backgrounds), not as a filled badge background. The base --color-success/
-     --color-warning above stay unchanged for badge fills, icons and other non-text uses where the
-     lighter shade already reads fine. #22c55e text only clears ~2.28:1 and #d97706 ~3.19:1 on
-     --color-surface — both fail 4.5:1 (18.C). */
-  --color-success-text: #15803d;
-  --color-warning-text: #a15c07;
   /* Control boundaries (input/select/switch-off/checkbox borders) need 3:1, not the decorative
      hairline ratio --color-border gives (1.3-1.5:1 measured, see 18.C). Pulled forward for the
      switch off-track fix in 18.A2 for the "neutral" base only; 18.C's full contrast pass adds the
@@ -179,9 +168,7 @@
   --color-on-primary: #ffffff;
 }
 :root.dark[data-accent="teal"] {
-  /* #0d776b, not #0f766e — the lighter shade only clears ~1.86:1 white-text contrast (18.C); this
-     clears ~5.43:1 while staying the same teal. Hover #134e4a already clears comfortably. */
-  --color-primary: #0d776b;
+  --color-primary: #0f766e;
   --color-primary-hover: #134e4a;
   --color-on-primary: #ffffff;
 }
@@ -191,9 +178,7 @@
   --color-on-primary: #ffffff;
 }
 :root.dark[data-accent="rose"] {
-  /* #c91d42, not #be123c — the lighter shade only clears ~2.69:1 white-text contrast (18.C); this
-     clears ~5.62:1 while staying the same rose. Hover #9f1239 already clears comfortably. */
-  --color-primary: #c91d42;
+  --color-primary: #be123c;
   --color-primary-hover: #9f1239;
   --color-on-primary: #ffffff;
 }
@@ -238,9 +223,6 @@
   --color-border: #c4c4c9;
   --color-text-primary: #18181b;
   --color-text-secondary: #71717a;
-  /* Per-base --color-border-control override (18.C) — same 3:1-on-bg-and-surface requirement as the
-     neutral default; each base needs its own shade since the grey family differs (zinc/stone/slate/gray). */
-  --color-border-control: #85858f;
 }
 :root.dark[data-base="zinc"] {
   --color-background: #09090b;
@@ -249,7 +231,6 @@
   --color-border: #3f3f46;
   --color-text-primary: #fafafa;
   --color-text-secondary: #a1a1aa;
-  --color-border-control: #6b6d78;
 }
 :root[data-base="stone"] {
   --color-background: #ffffff;
@@ -258,7 +239,6 @@
   --color-border: #c6c2c0;
   --color-text-primary: #1c1917;
   --color-text-secondary: #78716c;
-  --color-border-control: #8c8681;
 }
 :root.dark[data-base="stone"] {
   --color-background: #0c0a09;
@@ -267,7 +247,6 @@
   --color-border: #44403c;
   --color-text-primary: #fafaf9;
   --color-text-secondary: #a8a29e;
-  --color-border-control: #726a64;
 }
 :root[data-base="slate"] {
   --color-background: #ffffff;
@@ -276,7 +255,6 @@
   --color-border: #bfc8d3;
   --color-text-primary: #0f172a;
   --color-text-secondary: #64748b;
-  --color-border-control: #77869b;
 }
 :root.dark[data-base="slate"] {
   --color-background: #0b1120;
@@ -285,7 +263,6 @@
   --color-border: #334155;
   --color-text-primary: #f8fafc;
   --color-text-secondary: #94a3b8;
-  --color-border-control: #64748f;
 }
 :root[data-base="gray"] {
   --color-background: #ffffff;
@@ -294,7 +271,6 @@
   --color-border: #c2c5cb;
   --color-text-primary: #111827;
   --color-text-secondary: #6b7280;
-  --color-border-control: #82899a;
 }
 :root.dark[data-base="gray"] {
   --color-background: #0a0b0f;
@@ -303,7 +279,6 @@
   --color-border: #374151;
   --color-text-primary: #f9fafb;
   --color-text-secondary: #9ca3af;
-  --color-border-control: #6b7385;
 }
 
 /*
@@ -446,22 +421,16 @@
     width: 100%;
     height: 34px;
     padding: 0 10px;
-    /* --color-border-control, not --color-border (18.C): the hairline --color-border only clears
-       ~1.3-1.5:1 against background/surface, which fails WCAG 1.4.11's 3:1 control-boundary
-       requirement — inputs/selects were nearly invisible. --color-border-control is picked to clear
-       3:1 on both background and surface in every base palette. */
-    border: 1px solid var(--color-border-control);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     background: var(--color-background);
     color: var(--color-text-primary);
     font-size: 13px;
     transition: border-color 120ms, box-shadow 120ms;
   }
-  /* No opacity dimming (18.C) — --color-text-secondary is already tuned to clear 4.5:1 on its own;
-     dimming it further with opacity would drop placeholders back under that target. */
-  .control::placeholder { color: var(--color-text-secondary); }
-  .control:hover { border-color: color-mix(in oklab, var(--color-text-secondary) 55%, var(--color-border-control)); }
-  .control:focus-visible, .control:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 35%, transparent); }
+  .control::placeholder { color: var(--color-text-secondary); opacity: 0.8; }
+  .control:hover { border-color: color-mix(in oklab, var(--color-text-secondary) 55%, var(--color-border)); }
+  .control:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 18%, transparent); }
   .control:disabled { opacity: 0.6; cursor: not-allowed; }
   .control[aria-invalid="true"] { border-color: var(--color-danger); }
   textarea.control { height: auto; padding: 8px 10px; resize: vertical; }

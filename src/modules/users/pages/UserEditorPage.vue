@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Save } from '@lucide/vue';
+import { Check, Eye, Minus, Pencil, Save } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
@@ -9,21 +9,18 @@ import AppPhoneInput from '@/modules/core/components/ui/AppPhoneInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
-import FormActions from '@/modules/core/components/blocks/FormActions.vue';
-import FormField from '@/modules/core/components/blocks/FormField.vue';
-import FormSection from '@/modules/core/components/blocks/FormSection.vue';
-import FormPage from '@/modules/core/components/layouts/FormPage.vue';
+import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
-import { useForm } from '@/modules/core/controllers/useForm';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { errorMessage } from '@/modules/core/controllers/useToast';
 import { ROLE_LABEL } from '@/modules/core/helpers/labels';
+import { validate } from '@/modules/core/helpers/validation';
 import { getPriceLists } from '@/modules/products/services/catalogService';
 import type { PriceList } from '@/modules/products/types';
-import UserAccessPreview from '../components/UserAccessPreview.vue';
 import { useAuthStore } from '../controllers/useAuthStore';
+import { ROLE_ACCESS } from '../helpers/permissions';
 import { createUser, getUser, updateUser } from '../services/userService';
-import type { Role } from '../types';
+import type { Area, Role } from '../types';
 import { userSchema } from '../validators/userSchema';
 
 const route = useRoute('user-editor');
@@ -34,39 +31,21 @@ const auth = useAuthStore();
 const id = computed(() => (route.params.id === 'new' || !route.params.id ? undefined : String(route.params.id)));
 const isSelf = computed(() => id.value === auth.user?.id);
 
+const form = reactive({
+  name: '',
+  username: '',
+  phone: '',
+  role: 'cashier' as Role,
+  maxDiscount: 5 as number | undefined,
+  priceListId: '' as string,
+  active: true,
+  password: '',
+});
+const errors = ref<Record<string, string>>({});
 const priceLists = ref<PriceList[]>([]);
 const loading = ref(true);
 const loadError = ref<string | null>(null);
-
-const form = useForm({
-  schema: () => userSchema(!id.value),
-  initial: {
-    name: '',
-    username: '',
-    phone: '',
-    role: 'cashier' as Role,
-    maxDiscount: 5 as number | undefined,
-    priceListId: '' as string,
-    active: true,
-    password: '',
-  },
-  onSubmit: async (values) => {
-    const input = {
-      name: values.name.trim(),
-      username: values.username.trim(),
-      phone: values.phone.trim() || undefined,
-      role: values.role,
-      maxDiscount: values.maxDiscount ?? 0,
-      priceListId: values.priceListId || undefined,
-      active: values.active,
-      password: values.password || undefined,
-    };
-    const user = id.value ? await updateUser(id.value, input) : await createUser(input);
-    auth.patchCurrent(user);
-    toast.success(id.value ? 'تم حفظ التعديلات' : 'تمت إضافة المستخدم', user.name);
-    router.push('/users');
-  },
-});
+const saving = ref(false);
 
 async function load() {
   loading.value = true;
@@ -75,7 +54,7 @@ async function load() {
     priceLists.value = await getPriceLists();
     if (id.value) {
       const user = await getUser(id.value);
-      form.reset({
+      Object.assign(form, {
         name: user.name,
         username: user.username,
         phone: user.phone ?? '',
@@ -95,69 +74,120 @@ async function load() {
 onMounted(load);
 
 const roleOptions = (Object.keys(ROLE_LABEL) as Role[]).map((r) => ({ value: r, label: ROLE_LABEL[r] }));
-const priceListOptions = computed(() => priceLists.value.filter((p) => p.active || p.id === form.values.priceListId).map((p) => ({ value: p.id, label: p.name })));
+const priceListOptions = computed(() => priceLists.value.filter((p) => p.active || p.id === form.priceListId).map((p) => ({ value: p.id, label: p.name })));
 
-async function onSave() {
-  const ok = await form.submit();
-  if (!ok) return;
+const AREA_LABEL: Record<Area, string> = {
+  dashboard: 'الرئيسية',
+  pos: 'نقطة البيع',
+  sales: 'الفواتير والمرتجعات',
+  inventory: 'المنتجات والمخزون',
+  parties: 'العملاء والموردين',
+  purchases: 'المشتريات',
+  expenses: 'المصروفات',
+  accounting: 'الحسابات والقيود',
+  payments: 'سندات القبض والصرف',
+  reports: 'التقارير',
+  analytics: 'التحليلات',
+  approvals: 'طلبات الاعتماد',
+  users: 'إدارة المستخدمين',
+  settings: 'الإعدادات',
+};
+const accessRows = computed(() => (Object.keys(AREA_LABEL) as Area[]).map((a) => ({ area: a, label: AREA_LABEL[a], access: ROLE_ACCESS[form.role][a] })));
+
+async function save() {
+  errors.value = validate(userSchema(!id.value), form);
+  if (Object.keys(errors.value).length) return;
+  saving.value = true;
+  try {
+    const input = {
+      name: form.name.trim(),
+      username: form.username.trim(),
+      phone: form.phone.trim() || undefined,
+      role: form.role,
+      maxDiscount: form.maxDiscount ?? 0,
+      priceListId: form.priceListId || undefined,
+      active: form.active,
+      password: form.password || undefined,
+    };
+    const user = id.value ? await updateUser(id.value, input) : await createUser(input);
+    auth.patchCurrent(user);
+    toast.success(id.value ? 'تم حفظ التعديلات' : 'تمت إضافة المستخدم', user.name);
+    router.push('/users');
+  } catch (err) {
+    toast.error(err);
+  } finally {
+    saving.value = false;
+  }
 }
 </script>
 
 <template>
-  <ErrorState v-if="loadError" :message="loadError" @retry="load" />
-  <div v-else-if="loading" class="grid gap-5 lg:grid-cols-[1fr_320px]">
-    <AppCard><SkeletonBlock :lines="8" height="h-8" /></AppCard>
-    <AppCard><SkeletonBlock :lines="6" /></AppCard>
-  </div>
+  <div>
+    <PageHeader :title="id ? 'تعديل مستخدم' : 'مستخدم جديد'" :subtitle="id ? form.name : 'أضف حساباً لموظف وحدد صلاحياته'" back="/users" />
 
-  <FormPage v-else :title="id ? 'تعديل مستخدم' : 'مستخدم جديد'" :subtitle="id ? form.values.name : 'أضف حساباً لموظف وحدد صلاحياته'" :back="'/users' as any">
-    <template #aside>
-      <UserAccessPreview :role="form.values.role" />
-    </template>
+    <ErrorState v-if="loadError" :message="loadError" @retry="load" />
+    <div v-else-if="loading" class="grid gap-5 lg:grid-cols-[1fr_320px]">
+      <AppCard><SkeletonBlock :lines="8" height="h-8" /></AppCard>
+      <AppCard><SkeletonBlock :lines="6" /></AppCard>
+    </div>
 
-    <FormSection title="البيانات الأساسية" :columns="2">
-      <FormField label="الاسم الكامل" required name="name" :error="form.errors.name">
-        <AppInput v-model="form.values.name" />
-      </FormField>
-      <FormField label="الجوال" name="phone" :error="form.errors.phone">
-        <AppPhoneInput v-model="form.values.phone" kind="mobile" />
-      </FormField>
-      <FormField label="اسم المستخدم" required name="username" hint="يستخدم لتسجيل الدخول" :error="form.errors.username">
-        <AppInput v-model="form.values.username" ltr />
-      </FormField>
-      <FormField
-        :label="id ? 'كلمة مرور جديدة' : 'كلمة المرور'"
-        name="password"
-        :required="!id"
-        :hint="id ? 'اتركها فارغة للإبقاء على كلمة المرور الحالية' : undefined"
-        :error="form.errors.password"
-      >
-        <AppInput v-model="form.values.password" type="password" ltr />
-      </FormField>
-    </FormSection>
+    <form v-else class="grid items-start gap-5 lg:grid-cols-[1fr_320px]" novalidate @submit.prevent="save">
+      <div class="space-y-5">
+        <AppCard title="البيانات الأساسية">
+          <div class="grid gap-4 sm:grid-cols-2">
+            <AppInput v-model="form.name" label="الاسم الكامل" required :error="errors.name" />
+            <AppPhoneInput v-model="form.phone" label="الجوال" kind="mobile" :error="errors.phone" />
+            <AppInput v-model="form.username" label="اسم المستخدم" required ltr :error="errors.username" hint="يستخدم لتسجيل الدخول" />
+            <AppInput
+              v-model="form.password"
+              :label="id ? 'كلمة مرور جديدة' : 'كلمة المرور'"
+              type="password"
+              ltr
+              :required="!id"
+              :error="errors.password"
+              :hint="id ? 'اتركها فارغة للإبقاء على كلمة المرور الحالية' : undefined"
+            />
+          </div>
+        </AppCard>
 
-    <FormSection title="الصلاحيات ونقطة البيع" :columns="3">
-      <FormField label="الصلاحية" name="role" :hint="isSelf ? 'لا يمكنك تغيير صلاحيتك' : undefined">
-        <AppSelect v-model="form.values.role" :options="roleOptions" :disabled="isSelf" />
-      </FormField>
-      <FormField label="أقصى نسبة خصم" name="maxDiscount" hint="يُطبق في نقطة البيع" :error="form.errors.maxDiscount">
-        <AppInput v-model="form.values.maxDiscount" type="number" min="0" max="100">
-          <template #suffix>%</template>
-        </AppInput>
-      </FormField>
-      <FormField label="قائمة الأسعار" name="priceListId" hint="الأسعار التي يبيع بها">
-        <AppSelect v-model="form.values.priceListId" :options="priceListOptions" placeholder="السعر الأساسي" />
-      </FormField>
-      <div class="sm:col-span-3 border-t border-border pt-4">
-        <AppSwitch v-model="form.values.active" label="الحساب نشط" description="الحساب الموقوف لا يمكنه تسجيل الدخول" :disabled="isSelf" />
+        <AppCard title="الصلاحيات ونقطة البيع">
+          <div class="grid gap-4 sm:grid-cols-3">
+            <AppSelect v-model="form.role" label="الصلاحية" :options="roleOptions" :disabled="isSelf" :hint="isSelf ? 'لا يمكنك تغيير صلاحيتك' : undefined" />
+            <AppInput v-model="form.maxDiscount" label="أقصى نسبة خصم" type="number" min="0" max="100" :error="errors.maxDiscount" hint="يُطبق في نقطة البيع">
+              <template #suffix>%</template>
+            </AppInput>
+            <AppSelect v-model="form.priceListId" label="قائمة الأسعار" :options="priceListOptions" placeholder="السعر الأساسي" hint="الأسعار التي يبيع بها" />
+          </div>
+          <div class="mt-5 border-t border-border pt-4">
+            <AppSwitch v-model="form.active" label="الحساب نشط" description="الحساب الموقوف لا يمكنه تسجيل الدخول" :disabled="isSelf" />
+          </div>
+        </AppCard>
+
+        <div class="flex justify-end gap-2">
+          <AppButton to="/users">إلغاء</AppButton>
+          <AppButton type="submit" variant="primary" :icon="Save" :loading="saving">حفظ</AppButton>
+        </div>
       </div>
-    </FormSection>
 
-    <template #actions>
-      <FormActions :dirty="form.dirty">
-        <template #secondary><AppButton to="/users">إلغاء</AppButton></template>
-        <template #primary><AppButton variant="primary" :icon="Save" :loading="form.submitting" @click="onSave">حفظ</AppButton></template>
-      </FormActions>
-    </template>
-  </FormPage>
+      <AppCard :title="`صلاحيات ${ROLE_LABEL[form.role]}`" padding="none">
+        <ul class="divide-y divide-border">
+          <li v-for="r in accessRows" :key="r.area" class="flex items-center justify-between px-4 py-2 text-body">
+            <span :class="r.access === 'none' && 'text-text-secondary'">{{ r.label }}</span>
+            <span
+              class="inline-flex items-center gap-1 text-xs"
+              :class="r.access === 'write' ? 'text-success' : r.access === 'read' ? 'text-text-primary' : 'text-text-secondary'"
+            >
+              <Pencil v-if="r.access === 'write'" class="size-3" />
+              <Eye v-else-if="r.access === 'read'" class="size-3" />
+              <Minus v-else class="size-3" />
+              {{ r.access === 'write' ? 'كامل' : r.access === 'read' ? 'عرض فقط' : 'لا يوجد' }}
+            </span>
+          </li>
+        </ul>
+        <p class="flex items-start gap-1.5 border-t border-border px-4 py-3 text-xs text-text-secondary">
+          <Check class="mt-0.5 size-3.5 shrink-0" /> الصلاحيات قوالب ثابتة حسب الدور — لا حاجة لضبط كل صلاحية على حدة.
+        </p>
+      </AppCard>
+    </form>
+  </div>
 </template>
