@@ -55,7 +55,7 @@ const columns: Column<Movement>[] = [
   <div>
     <ErrorState v-if="product.error.value" :message="product.error.value" @retry="product.reload" />
     <template v-else>
-      <PageHeader :title="p?.name ?? '…'" back="/products">
+      <PageHeader :title="p?.name ?? '…'" :back="{ name: 'products' }">
         <template #badge>
           <StatusBadge v-if="p && !p.active" label="موقوف" />
           <StatusBadge v-if="p?.type === 'service'" tone="primary" label="خدمة" :dot="false" />
@@ -66,10 +66,10 @@ const columns: Column<Movement>[] = [
         </template>
         <template #actions>
           <!-- v2 phase 11b (docs/v2/07-products-and-inventory.md §6 "The product page: طباعة ملصقات"). -->
-          <AppButton :icon="Printer" :to="`/catalog/labels?productId=${id}`">طباعة ملصقات</AppButton>
+          <AppButton :icon="Printer" :to="{ name: 'labels', query: { productId: id } }">طباعة ملصقات</AppButton>
           <template v-if="auth.can('inventory', 'write')">
-            <AppButton v-if="p?.type === 'product'" :icon="PackagePlus" :to="`/inventory/adjustments/new?type=STOCK_IN&product=${id}`">إدخال مخزون</AppButton>
-            <AppButton variant="primary" :icon="Pencil" :to="`/products/${id}/edit`">تعديل</AppButton>
+            <AppButton v-if="p?.type === 'product'" :icon="PackagePlus" :to="{ name: 'adjustment-new', query: { type: 'STOCK_IN', product: id } }">إدخال مخزون</AppButton>
+            <AppButton variant="primary" :icon="Pencil" :to="{ name: 'product-edit', params: { id } }">تعديل</AppButton>
           </template>
         </template>
       </PageHeader>

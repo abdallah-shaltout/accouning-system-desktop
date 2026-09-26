@@ -94,8 +94,8 @@ function margin(p: Product) {
   <div>
     <PageHeader title="المنتجات" subtitle="الأصناف والخدمات، الأسعار، ومستويات المخزون">
       <template #actions>
-        <AppButton v-if="canWrite" :icon="PackagePlus" to="/inventory/adjustments/new?type=STOCK_IN">إدخال مخزون</AppButton>
-        <AppButton v-if="canWrite" variant="primary" :icon="Plus" to="/products/new">منتج جديد</AppButton>
+        <AppButton v-if="canWrite" :icon="PackagePlus" :to="{ name: 'adjustment-new', query: { type: 'STOCK_IN' } }">إدخال مخزون</AppButton>
+        <AppButton v-if="canWrite" variant="primary" :icon="Plus" :to="{ name: 'product-new' }">منتج جديد</AppButton>
       </template>
     </PageHeader>
 
@@ -123,7 +123,7 @@ function margin(p: Product) {
       empty-title="لا توجد منتجات مطابقة"
       empty-description="جرّب تغيير الفلاتر أو البحث بكلمة أخرى"
       @retry="reload"
-      @row-click="(p) => router.push(`/products/${p.id}`)"
+      @row-click="(p) => router.push({ name: 'product', params: { id: p.id } })"
     >
       <template #cell-name="{ row }">
         <div class="flex items-center gap-2">
