@@ -39,7 +39,9 @@ import type { AllocationStatus, OpenDocument } from '@/modules/payments/types';
 import { getPayments } from '@/modules/payments/services/paymentService';
 import { getPurchaseOrders } from '@/modules/purchases/services/purchaseService';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import type { AppRoute } from '@/modules/core/types/route';
 import InsightHints from '@/modules/core/components/insights/InsightHints.vue';
+import { partyRoute } from '../helpers/partyRoutes';
 import { getPartyAging, getPartyHistory } from '../services/partyService';
 
 /** v2 phase 10 (docs/v2/11 D1 "inline hints"): both rules are already one-instance-per-customer. */
@@ -54,7 +56,7 @@ const router = useRouter();
 const auth = useAuthStore();
 const id = String(route.params.id);
 const isCustomer = computed(() => props.kind === 'customer');
-const base = computed(() => (isCustomer.value ? '/customers' : '/suppliers'));
+const base = computed(() => partyRoute(props.kind, 'list'));
 
 const party = useAsync<Customer | Supplier>(() => (isCustomer.value ? getCustomer(id) : getSupplier(id)));
 const statement = useAsync(() => (isCustomer.value ? getCustomerStatement(id) : getSupplierStatement(id)));
@@ -90,13 +92,13 @@ const creditLimit = computed(() => (isCustomer.value ? (p.value as Customer | un
 const creditPct = computed(() => (creditLimit.value > 0 ? Math.min(100, Math.round(((p.value?.balance ?? 0) / creditLimit.value) * 100)) : 0));
 const overLimit = computed(() => creditLimit.value > 0 && (p.value?.balance ?? 0) > creditLimit.value);
 
-function docLink(row: PartyStatementRow) {
-  if (row.kind === 'invoice' || row.kind === 'refund') return `/invoices/${row.refId}`;
-  if (row.kind === 'purchaseOrder' || row.kind === 'purchaseReturn') return `/purchases/${row.refId}`;
+function docLink(row: PartyStatementRow): AppRoute {
+  if (row.kind === 'invoice' || row.kind === 'refund') return { name: 'invoice', params: { id: row.refId } };
+  if (row.kind === 'purchaseOrder' || row.kind === 'purchaseReturn') return { name: 'purchase', params: { id: row.refId } };
   // v2 phase 5 (docs/v2/05-onboarding.md §4): an "opening" row has no document page of its own —
   // the journal entry itself is the record.
-  if (row.kind === 'opening') return `/accounting/journal/${row.refId}`;
-  return `/payments/${row.refId}`;
+  if (row.kind === 'opening') return { name: 'journal-entry', params: { id: row.refId } };
+  return { name: 'payment-detail', params: { id: row.refId } };
 }
 
 const statementColumns: Column<PartyStatementRow>[] = [
@@ -132,8 +134,8 @@ const paymentColumns: Column<any>[] = [
   { key: 'amount', label: 'المبلغ', numeric: true },
 ];
 
-const payLink = (docId?: string) => ({
-  path: '/payments/new',
+const payLink = (docId?: string): AppRoute => ({
+  name: 'payment-new',
   query: { type: isCustomer.value ? 'RECEIVED' : 'PAID', party: id, ref: docId },
 });
 
@@ -154,8 +156,8 @@ function whatsappHref(number: string) {
           <span v-if="p?.code" class="num text-text-secondary"> · {{ p.code }}</span>
         </template>
         <template #actions>
-          <AppButton v-if="auth.can('reports')" :icon="FileText" :to="`/reports/ledger?${isCustomer ? 'customer' : 'supplier'}=${id}`">كشف حساب للطباعة</AppButton>
-          <AppButton v-if="auth.can('parties', 'write')" :icon="Pencil" :to="`${base}/${id}/edit`">تعديل</AppButton>
+          <AppButton v-if="auth.can('reports')" :icon="FileText" :to="{ name: 'report-ledger', query: { [isCustomer ? 'customer' : 'supplier']: id } }">كشف حساب للطباعة</AppButton>
+          <AppButton v-if="auth.can('parties', 'write')" :icon="Pencil" :to="partyRoute(kind, 'edit', id)">تعديل</AppButton>
           <AppButton v-if="auth.can('payments', 'write') && (p?.balance ?? 0) > 0" variant="primary" :icon="HandCoins" :to="payLink()">
             {{ isCustomer ? 'تحصيل دفعة' : 'سداد دفعة' }}
           </AppButton>
@@ -224,7 +226,7 @@ function whatsappHref(number: string) {
               <li class="flex items-center gap-2"><ReceiptText class="size-3.5 text-text-secondary" />الرقم الضريبي: <span class="num">{{ p.vatNumber ?? '—' }}</span></li>
               <li v-if="p.linkedPartyId" class="flex items-center gap-2">
                 <ClipboardList class="size-3.5 text-text-secondary" />
-                <RouterLink :to="`/${isCustomer ? 'suppliers' : 'customers'}/${p.linkedPartyId}`" class="text-primary hover:underline">
+                <RouterLink :to="partyRoute(isCustomer ? 'supplier' : 'customer', 'detail', p.linkedPartyId)" class="text-primary hover:underline">
                   مرتبط بسجل {{ isCustomer ? 'مورد' : 'عميل' }}
                 </RouterLink>
               </li>
@@ -260,7 +262,7 @@ function whatsappHref(number: string) {
                 clickable
                 empty-title="لا توجد مستندات بعد"
                 @retry="documents.reload"
-                @row-click="(r: any) => router.push(isCustomer ? `/invoices/${r.id}` : `/purchases/${r.id}`)"
+                @row-click="(r: any) => router.push(isCustomer ? { name: 'invoice', params: { id: r.id } } : { name: 'purchase', params: { id: r.id } })"
               >
                 <template #cell-number="{ row }"><span class="num text-primary">{{ row.number }}</span></template>
                 <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDate(row.date) }}</span></template>
@@ -272,7 +274,7 @@ function whatsappHref(number: string) {
             <AppCard v-if="open.data.value?.length" title="مستندات مفتوحة" padding="none">
               <DataTable :columns="openColumns" :rows="open.data.value" :page-size="0" empty-title="لا توجد">
                 <template #cell-number="{ row }">
-                  <RouterLink :to="isCustomer ? `/invoices/${row.id}` : `/purchases/${row.id}`" class="num text-primary hover:underline">{{ row.number }}</RouterLink>
+                  <RouterLink :to="isCustomer ? { name: 'invoice', params: { id: row.id } } : { name: 'purchase', params: { id: row.id } }" class="num text-primary hover:underline">{{ row.number }}</RouterLink>
                 </template>
                 <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDate(row.date) }}</span></template>
                 <template #cell-dueDate="{ row }"><span class="num text-text-secondary">{{ row.dueDate ? formatDate(row.dueDate) : '—' }}</span></template>
@@ -296,7 +298,7 @@ function whatsappHref(number: string) {
             clickable
             empty-title="لا توجد مستندات"
             @retry="documents.reload"
-            @row-click="(r: any) => router.push(isCustomer ? `/invoices/${r.id}` : `/purchases/${r.id}`)"
+            @row-click="(r: any) => router.push(isCustomer ? { name: 'invoice', params: { id: r.id } } : { name: 'purchase', params: { id: r.id } })"
           >
             <template #cell-number="{ row }"><span class="num text-primary">{{ row.number }}</span></template>
             <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDate(row.date) }}</span></template>
@@ -316,7 +318,7 @@ function whatsappHref(number: string) {
             clickable
             empty-title="لا توجد مدفوعات"
             @retry="payments.reload"
-            @row-click="(r: any) => router.push(`/payments/${r.id}`)"
+            @row-click="(r: any) => router.push({ name: 'payment-detail', params: { id: r.id } })"
           >
             <template #cell-number="{ row }"><span class="num font-medium">{{ row.number }}</span></template>
             <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDateTime(row.date) }}</span></template>
@@ -368,7 +370,7 @@ function whatsappHref(number: string) {
                   <tbody class="divide-y divide-border">
                     <tr v-for="d in b.documents" :key="d.id">
                       <td class="px-3 py-2">
-                        <RouterLink :to="isCustomer ? `/invoices/${d.id}` : `/purchases/${d.id}`" class="num text-primary hover:underline">{{ d.number }}</RouterLink>
+                        <RouterLink :to="isCustomer ? { name: 'invoice', params: { id: d.id } } : { name: 'purchase', params: { id: d.id } }" class="num text-primary hover:underline">{{ d.number }}</RouterLink>
                       </td>
                       <td class="num px-2 py-2 text-text-secondary">{{ formatDate(d.date) }}</td>
                       <td class="num px-2 py-2 text-text-secondary">{{ d.dueDate ? formatDate(d.dueDate) : '—' }}</td>
