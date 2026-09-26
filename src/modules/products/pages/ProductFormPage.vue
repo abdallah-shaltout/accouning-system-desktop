@@ -12,7 +12,9 @@ import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import FormActions from '@/modules/core/components/blocks/FormActions.vue';
+import FormSection from '@/modules/core/components/blocks/FormSection.vue';
+import FormPage from '@/modules/core/components/layouts/FormPage.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
@@ -273,9 +275,7 @@ async function save() {
 </script>
 
 <template>
-  <div>
-    <PageHeader :title="id ? 'تعديل منتج' : 'منتج جديد'" :subtitle="id ? form.name : undefined" :back="id ? { name: 'product', params: { id } } : { name: 'products' }" />
-
+  <FormPage :title="id ? 'تعديل منتج' : 'منتج جديد'" :subtitle="id ? form.name : undefined" :back="id ? { name: 'product', params: { id } } : { name: 'products' }">
     <ErrorState v-if="loadError" :message="loadError" @retry="load" />
     <AppCard v-else-if="loading"><SkeletonBlock :lines="10" height="h-8" /></AppCard>
 
@@ -296,187 +296,173 @@ async function save() {
 
       <!-- أساسي -->
       <div v-show="tab === 'basic'" class="grid items-start gap-5 lg:grid-cols-[1fr_320px]">
-        <AppCard title="بيانات المنتج">
-          <div class="mb-4">
+        <FormSection title="بيانات المنتج">
+          <div class="sm:col-span-2 mb-1">
             <span class="field-label">النوع</span>
             <SegmentedControl v-model="form.type" :options="typeOptions" />
           </div>
-          <div v-if="form.type === 'product'" class="mb-4">
+          <div v-if="form.type === 'product'" class="sm:col-span-2 mb-1">
             <span class="field-label">تتبع المخزون</span>
             <SegmentedControl v-model="form.stockMode" :options="stockModeOptions" />
             <p class="mt-1 text-xs text-text-secondary">
               {{ form.stockMode === 'tracked' ? 'يُخصم من المخزون عند البيع وتُحتسب تكلفته.' : 'له سعر بيع لكن لا رصيد مخزون له (أكياس، تغليف…).' }}
             </p>
           </div>
-          <div class="grid gap-4 sm:grid-cols-2">
-            <AppInput v-model="form.name" label="الاسم (عربي)" required :error="errors.name" />
-            <AppInput v-model="form.nameEn" label="الاسم (إنجليزي)" ltr />
-            <AppSelect
-              v-model="form.categoryId"
-              label="التصنيف"
-              placeholder="بدون تصنيف"
-              :options="catalog.categories.map((c) => ({ value: c.id, label: c.name }))"
-            />
-            <AppInput v-model="form.brand" label="العلامة التجارية" />
-            <AppSelect v-model="form.unitId" label="الوحدة الأساسية" placeholder="—" :options="catalog.units.map((u) => ({ value: u.id, label: u.name }))" />
-            <AppInput v-model="form.sku" label="رمز المنتج (SKU)" required ltr :error="errors.sku" @input="skuTouched = true" />
-            <AppInput v-model="form.barcode" label="الباركود" ltr placeholder="امسح أو اكتب الباركود" :error="errors.barcode" />
-            <AppInput v-model="form.tags" label="الوسوم" placeholder="افصل بينها بفاصلة" class="sm:col-span-2" />
-            <AppTextarea v-model="form.description" label="الوصف" class="sm:col-span-2" :rows="3" />
-          </div>
-        </AppCard>
-        <AppCard title="الصور">
+          <AppInput v-model="form.name" label="الاسم (عربي)" required :error="errors.name" />
+          <AppInput v-model="form.nameEn" label="الاسم (إنجليزي)" ltr />
+          <AppSelect
+            v-model="form.categoryId"
+            label="التصنيف"
+            placeholder="بدون تصنيف"
+            :options="catalog.categories.map((c) => ({ value: c.id, label: c.name }))"
+          />
+          <AppInput v-model="form.brand" label="العلامة التجارية" />
+          <AppSelect v-model="form.unitId" label="الوحدة الأساسية" placeholder="—" :options="catalog.units.map((u) => ({ value: u.id, label: u.name }))" />
+          <AppInput v-model="form.sku" label="رمز المنتج (SKU)" required ltr :error="errors.sku" @input="skuTouched = true" />
+          <AppInput v-model="form.barcode" label="الباركود" ltr placeholder="امسح أو اكتب الباركود" :error="errors.barcode" />
+          <AppInput v-model="form.tags" label="الوسوم" placeholder="افصل بينها بفاصلة" class="sm:col-span-2" />
+          <AppTextarea v-model="form.description" label="الوصف" class="sm:col-span-2" :rows="3" />
+        </FormSection>
+        <FormSection title="الصور">
           <ProductImageGallery v-if="id" v-model="form.imageIds" :owner-ref="`product:${id}`" />
           <p v-else class="text-xs text-text-secondary">احفظ المنتج أولاً لإضافة الصور.</p>
-        </AppCard>
+        </FormSection>
       </div>
 
       <!-- الوحدات والباركود -->
       <div v-show="tab === 'units'">
-        <AppCard title="الوحدات والباركود">
+        <FormSection title="الوحدات والباركود">
           <UnitsEditor v-model="form.units" :has-stock="stockQty > 0.0001" />
-        </AppCard>
+        </FormSection>
       </div>
 
       <!-- الأسعار -->
       <div v-show="tab === 'prices'" class="space-y-5">
-        <AppCard title="السعر الأساسي">
-          <p class="mb-3 text-xs text-text-secondary">الأسعار شاملة الضريبة</p>
-          <div class="grid gap-4 sm:grid-cols-3">
-            <AppInput
-              v-model="form.costPrice"
-              label="متوسط التكلفة"
-              type="number"
-              min="0"
-              required
-              :error="errors.costPrice"
-              :disabled="stockQty > 0"
-              :hint="stockQty > 0 ? 'محسوب من حركات المخزون — لا يُعدَّل يدوياً' : undefined"
-            />
-            <AppInput v-model="form.price" label="سعر البيع" type="number" min="0" required :error="errors.price" />
-            <AppInput v-model="form.minPrice" label="الحد الأدنى للسعر" type="number" min="0" :error="errors.minPrice" hint="لا يمكن البيع بأقل منه" />
-          </div>
-          <div class="mt-3 flex items-center gap-4 text-xs text-text-secondary">
+        <FormSection title="السعر الأساسي" :columns="3">
+          <p class="sm:col-span-3 -mt-1 text-xs text-text-secondary">الأسعار شاملة الضريبة</p>
+          <AppInput
+            v-model="form.costPrice"
+            label="متوسط التكلفة"
+            type="number"
+            min="0"
+            required
+            :error="errors.costPrice"
+            :disabled="stockQty > 0"
+            :hint="stockQty > 0 ? 'محسوب من حركات المخزون — لا يُعدَّل يدوياً' : undefined"
+          />
+          <AppInput v-model="form.price" label="سعر البيع" type="number" min="0" required :error="errors.price" />
+          <AppInput v-model="form.minPrice" label="الحد الأدنى للسعر" type="number" min="0" :error="errors.minPrice" hint="لا يمكن البيع بأقل منه" />
+          <div class="sm:col-span-3 flex items-center gap-4 text-xs text-text-secondary">
             <span v-if="margin">هامش الربح <MoneyText :value="margin.amount" signed /> ({{ formatNumber(margin.pct, 1) }}%)</span>
             <span v-if="stockQty > 0">قيمة المخزون الحالي <MoneyText :value="stockValue" plain /></span>
           </div>
-        </AppCard>
-        <AppCard title="أسعار قوائم الأسعار والوحدات" subtitle="فارغ = تلقائي (الأساسي × عامل الوحدة)">
+        </FormSection>
+        <FormSection title="أسعار قوائم الأسعار والوحدات" description="فارغ = تلقائي (الأساسي × عامل الوحدة)">
           <PriceMatrix v-model="form.unitPrices" :base-price="form.price ?? 0" :base-cost="form.costPrice ?? 0" :units="form.units" />
-        </AppCard>
+        </FormSection>
       </div>
 
       <!-- الضريبة والحسابات -->
       <div v-show="tab === 'tax'" class="space-y-5">
-        <AppCard title="الضريبة">
-          <div class="grid gap-4 sm:grid-cols-2">
-            <AppSelect v-model="form.saleTaxId" label="ضريبة المبيعات" placeholder="افتراضي المتجر" :options="saleTaxOptions" />
-            <AppSelect v-model="form.purchaseTaxId" label="ضريبة المشتريات" placeholder="افتراضي المتجر" :options="purchaseTaxOptions" />
+        <FormSection title="الضريبة">
+          <AppSelect v-model="form.saleTaxId" label="ضريبة المبيعات" placeholder="افتراضي المتجر" :options="saleTaxOptions" />
+          <AppSelect v-model="form.purchaseTaxId" label="ضريبة المشتريات" placeholder="افتراضي المتجر" :options="purchaseTaxOptions" />
+        </FormSection>
+        <FormSection title="الحسابات المتقدمة" description="اتركها فارغة لاستخدام افتراضي التصنيف ثم افتراضي النظام" :columns="3">
+          <div>
+            <AppSelect v-model="form.revenueAccountId" label="حساب الإيراد" placeholder="افتراضي من التصنيف" :options="revenueAccountOptions" />
+            <p v-if="!form.revenueAccountId && categoryRevenueDefault" class="mt-1 text-tiny text-text-secondary">
+              افتراضي من التصنيف: {{ categoryRevenueDefault.code }} — {{ categoryRevenueDefault.name }}
+            </p>
           </div>
-        </AppCard>
-        <AppCard title="الحسابات المتقدمة" subtitle="اتركها فارغة لاستخدام افتراضي التصنيف ثم افتراضي النظام">
-          <div class="grid gap-4 sm:grid-cols-3">
-            <div>
-              <AppSelect v-model="form.revenueAccountId" label="حساب الإيراد" placeholder="افتراضي من التصنيف" :options="revenueAccountOptions" />
-              <p v-if="!form.revenueAccountId && categoryRevenueDefault" class="mt-1 text-tiny text-text-secondary">
-                افتراضي من التصنيف: {{ categoryRevenueDefault.code }} — {{ categoryRevenueDefault.name }}
-              </p>
-            </div>
-            <div>
-              <AppSelect v-model="form.cogsAccountId" label="حساب تكلفة البضاعة" placeholder="افتراضي من التصنيف" :options="expenseAccountOptions" />
-              <p v-if="!form.cogsAccountId && categoryCogsDefault" class="mt-1 text-tiny text-text-secondary">
-                افتراضي من التصنيف: {{ categoryCogsDefault.code }} — {{ categoryCogsDefault.name }}
-              </p>
-            </div>
-            <div>
-              <AppSelect v-model="form.purchaseAccountId" label="حساب الشراء (خدمة/غير مخزني)" placeholder="افتراضي من التصنيف" :options="expenseAccountOptions" />
-              <p v-if="!form.purchaseAccountId && categoryPurchaseDefault" class="mt-1 text-tiny text-text-secondary">
-                افتراضي من التصنيف: {{ categoryPurchaseDefault.code }} — {{ categoryPurchaseDefault.name }}
-              </p>
-            </div>
+          <div>
+            <AppSelect v-model="form.cogsAccountId" label="حساب تكلفة البضاعة" placeholder="افتراضي من التصنيف" :options="expenseAccountOptions" />
+            <p v-if="!form.cogsAccountId && categoryCogsDefault" class="mt-1 text-tiny text-text-secondary">
+              افتراضي من التصنيف: {{ categoryCogsDefault.code }} — {{ categoryCogsDefault.name }}
+            </p>
           </div>
-        </AppCard>
+          <div>
+            <AppSelect v-model="form.purchaseAccountId" label="حساب الشراء (خدمة/غير مخزني)" placeholder="افتراضي من التصنيف" :options="expenseAccountOptions" />
+            <p v-if="!form.purchaseAccountId && categoryPurchaseDefault" class="mt-1 text-tiny text-text-secondary">
+              افتراضي من التصنيف: {{ categoryPurchaseDefault.code }} — {{ categoryPurchaseDefault.name }}
+            </p>
+          </div>
+        </FormSection>
       </div>
 
       <!-- المخزون -->
       <div v-show="tab === 'stock'" class="grid items-start gap-5 lg:grid-cols-2">
-        <AppCard v-if="form.type === 'product' && form.stockMode === 'tracked'" title="المخزون">
-          <div class="space-y-4">
-            <div v-if="id" class="flex items-center justify-between rounded-md bg-background px-3 py-2 text-body">
-              <span class="text-text-secondary">الرصيد الحالي (الفرع الافتراضي)</span>
-              <span class="num font-medium">{{ formatNumber(stockQty) }} {{ catalog.unitName(form.unitId) }}</span>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <AppInput v-model="form.minStock" label="نقطة إعادة الطلب" type="number" min="0" :error="errors.minStock" />
-              <AppInput v-model="form.reorderQty" label="كمية إعادة الطلب" type="number" min="0" />
-            </div>
-            <AppInput
-              v-if="!id"
-              v-model="form.openingQty"
-              label="الرصيد الافتتاحي"
-              type="number"
-              min="0"
-              :error="errors.openingQty"
-              hint="يُسجل كتسوية إدخال مخزون مع قيد محاسبي"
-            />
-            <p v-else class="text-xs leading-5 text-text-secondary">
-              لتغيير الكمية استخدم
-              <RouterLink :to="{ name: 'adjustment-new', query: { type: 'STOCK_IN', product: id } }" class="text-primary hover:underline">إدخال مخزون</RouterLink>
-              أو
-              <RouterLink :to="{ name: 'adjustment-new', query: { type: 'STOCKTAKE' } }" class="text-primary hover:underline">الجرد</RouterLink>.
-            </p>
-            <AppInput v-model="form.shelfLocation" label="موقع الرف" placeholder="مثال: A-12" />
-            <AppSelect v-model="form.preferredSupplierId" label="المورد المفضل" placeholder="—" :options="supplierOptions" />
-            <AppSwitch v-model="form.allowNegativeStock" label="السماح بالمخزون السالب" description="بيع الصنف حتى بعد نفاد الرصيد" />
+        <FormSection v-if="form.type === 'product' && form.stockMode === 'tracked'" title="المخزون">
+          <div v-if="id" class="flex items-center justify-between rounded-md bg-background px-3 py-2 text-body">
+            <span class="text-text-secondary">الرصيد الحالي (الفرع الافتراضي)</span>
+            <span class="num font-medium">{{ formatNumber(stockQty) }} {{ catalog.unitName(form.unitId) }}</span>
           </div>
-        </AppCard>
-        <AppCard v-if="form.type === 'product' && form.stockMode === 'tracked'" title="التشغيلات وتاريخ الصلاحية">
+          <div class="grid grid-cols-2 gap-4">
+            <AppInput v-model="form.minStock" label="نقطة إعادة الطلب" type="number" min="0" :error="errors.minStock" />
+            <AppInput v-model="form.reorderQty" label="كمية إعادة الطلب" type="number" min="0" />
+          </div>
+          <AppInput
+            v-if="!id"
+            v-model="form.openingQty"
+            label="الرصيد الافتتاحي"
+            type="number"
+            min="0"
+            :error="errors.openingQty"
+            hint="يُسجل كتسوية إدخال مخزون مع قيد محاسبي"
+          />
+          <p v-else class="text-xs leading-5 text-text-secondary">
+            لتغيير الكمية استخدم
+            <RouterLink :to="{ name: 'adjustment-new', query: { type: 'STOCK_IN', product: id } }" class="text-primary hover:underline">إدخال مخزون</RouterLink>
+            أو
+            <RouterLink :to="{ name: 'adjustment-new', query: { type: 'STOCKTAKE' } }" class="text-primary hover:underline">الجرد</RouterLink>.
+          </p>
+          <AppInput v-model="form.shelfLocation" label="موقع الرف" placeholder="مثال: A-12" />
+          <AppSelect v-model="form.preferredSupplierId" label="المورد المفضل" placeholder="—" :options="supplierOptions" />
+          <AppSwitch v-model="form.allowNegativeStock" label="السماح بالمخزون السالب" description="بيع الصنف حتى بعد نفاد الرصيد" />
+        </FormSection>
+        <FormSection v-if="form.type === 'product' && form.stockMode === 'tracked'" title="التشغيلات وتاريخ الصلاحية">
           <AppSwitch v-model="form.trackBatches" label="تتبع التشغيلات وتاريخ الصلاحية" description="يطلب رقم تشغيلة وتاريخ صلاحية عند الاستلام؛ البيع بأسبقية الانتهاء (FEFO)" />
-          <AppInput v-if="form.trackBatches" v-model="form.expiryAlertDays" class="mt-4" label="التنبيه قبل الانتهاء بـ (أيام)" type="number" min="1" />
-          <p v-if="id && form.trackBatches" class="mt-3 text-xs text-text-secondary">
+          <AppInput v-if="form.trackBatches" v-model="form.expiryAlertDays" label="التنبيه قبل الانتهاء بـ (أيام)" type="number" min="1" />
+          <p v-if="id && form.trackBatches" class="text-xs text-text-secondary">
             عرض التشغيلات الحالية في تبويب <RouterLink :to="{ name: 'product', params: { id } }" class="text-primary hover:underline">"التشغيلات"</RouterLink> على بطاقة المنتج.
           </p>
-        </AppCard>
-        <AppCard v-if="form.type === 'service' || form.stockMode === 'none'" title="المخزون">
+        </FormSection>
+        <FormSection v-if="form.type === 'service' || form.stockMode === 'none'" title="المخزون">
           <p class="text-body text-text-secondary">{{ form.type === 'service' ? 'الخدمات لا يُتتبع لها مخزون.' : 'هذا الصنف غير مخزني ولا يُتتبع له رصيد.' }}</p>
-        </AppCard>
+        </FormSection>
       </div>
 
       <!-- إضافي -->
       <div v-show="tab === 'extra'" class="grid items-start gap-5 lg:grid-cols-2">
-        <AppCard title="الضمان والوزن">
-          <div class="grid grid-cols-2 gap-4">
-            <AppInput v-model="form.warrantyMonths" label="مدة الضمان (أشهر)" type="number" min="0" />
-            <AppSelect v-model="form.warrantyProvider" label="جهة الضمان" :options="[{ value: 'manufacturer', label: 'الشركة المصنعة' }, { value: 'store', label: 'المتجر' }]" />
-            <AppInput v-model="form.weight" label="الوزن (كجم)" type="number" min="0" step="0.001" />
-          </div>
-        </AppCard>
-        <AppCard title="حقول إضافية">
+        <FormSection title="الضمان والوزن" :columns="2">
+          <AppInput v-model="form.warrantyMonths" label="مدة الضمان (أشهر)" type="number" min="0" />
+          <AppSelect v-model="form.warrantyProvider" label="جهة الضمان" :options="[{ value: 'manufacturer', label: 'الشركة المصنعة' }, { value: 'store', label: 'المتجر' }]" />
+          <AppInput v-model="form.weight" label="الوزن (كجم)" type="number" min="0" step="0.001" />
+        </FormSection>
+        <FormSection title="حقول إضافية">
           <div v-if="!catalog.customFieldDefs.length" class="text-body text-text-secondary">
             لا توجد حقول مخصصة بعد. يمكن تعريفها من
             <RouterLink :to="{ name: 'settings-products' }" class="text-primary hover:underline">إعدادات المنتجات</RouterLink>.
           </div>
-          <div v-else class="space-y-4">
-            <template v-for="f in catalog.customFieldDefs.filter((x) => x.active)" :key="f.id">
-              <AppInput v-if="f.type === 'text'" v-model="form.customFields[f.id] as any" :label="f.name" />
-              <AppInput v-else-if="f.type === 'number'" v-model="form.customFields[f.id] as any" :label="f.name" type="number" />
-              <AppDatePicker v-else-if="f.type === 'date'" v-model="form.customFields[f.id] as any" :label="f.name" />
-              <AppSelect v-else-if="f.type === 'list'" v-model="form.customFields[f.id] as any" :label="f.name" placeholder="—" :options="(f.options ?? []).map((o) => ({ value: o, label: o }))" />
-              <AppSwitch v-else-if="f.type === 'yesno'" :model-value="!!form.customFields[f.id]" :label="f.name" @update:model-value="(v) => (form.customFields[f.id] = v)" />
-            </template>
-          </div>
-        </AppCard>
+          <template v-else v-for="f in catalog.customFieldDefs.filter((x) => x.active)" :key="f.id">
+            <AppInput v-if="f.type === 'text'" v-model="form.customFields[f.id] as any" :label="f.name" />
+            <AppInput v-else-if="f.type === 'number'" v-model="form.customFields[f.id] as any" :label="f.name" type="number" />
+            <AppDatePicker v-else-if="f.type === 'date'" v-model="form.customFields[f.id] as any" :label="f.name" />
+            <AppSelect v-else-if="f.type === 'list'" v-model="form.customFields[f.id] as any" :label="f.name" placeholder="—" :options="(f.options ?? []).map((o) => ({ value: o, label: o }))" />
+            <AppSwitch v-else-if="f.type === 'yesno'" :model-value="!!form.customFields[f.id]" :label="f.name" @update:model-value="(v) => (form.customFields[f.id] = v)" />
+          </template>
+        </FormSection>
       </div>
 
-      <AppCard class="mt-5" padding="sm">
-        <div class="flex flex-wrap items-center justify-between gap-3">
+      <FormActions class="mt-5">
+        <template #secondary>
           <AppSwitch v-model="form.active" label="المنتج نشط" description="المنتجات الموقوفة لا تظهر في نقطة البيع" />
-          <div class="flex gap-2">
-            <AppButton :to="id ? { name: 'product', params: { id } } : { name: 'products' }">إلغاء</AppButton>
-            <AppButton type="submit" variant="primary" :icon="Save" :loading="saving">حفظ المنتج</AppButton>
-          </div>
-        </div>
-      </AppCard>
+        </template>
+        <template #primary>
+          <AppButton :to="id ? { name: 'product', params: { id } } : { name: 'products' }">إلغاء</AppButton>
+          <AppButton type="submit" variant="primary" :icon="Save" :loading="saving">حفظ المنتج</AppButton>
+        </template>
+      </FormActions>
     </form>
-  </div>
+  </FormPage>
 </template>
