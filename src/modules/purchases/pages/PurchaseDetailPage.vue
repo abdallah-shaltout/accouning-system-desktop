@@ -4,11 +4,12 @@ import { useRoute } from 'vue-router';
 import { AlertTriangle, Ban, BookOpen, HandCoins, PackageCheck, Pencil, Printer, Send, Undo2 } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
+import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
-import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import DetailPage, { type DetailTab } from '@/modules/core/components/layouts/DetailPage.vue';
+import type { MetaChip } from '@/modules/core/components/blocks/DetailHeader.vue';
 import { isTauri } from '@tauri-apps/api/core';
 import { useRouter } from 'vue-router';
 import { useAsync } from '@/modules/core/controllers/useAsync';
@@ -18,7 +19,7 @@ import { formatDate, formatDateTime, formatNumber } from '@/modules/core/helpers
 import { PAYMENT_METHOD_LABEL, PAYMENT_STATUS, PURCHASE_STATUS } from '@/modules/core/helpers/labels';
 import { renderAndSave } from '@/modules/core/services/pdfService';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
-import { cancelPurchaseOrder, getPurchaseOrder, sendPurchaseOrderToSupplier } from '../services/purchaseService';
+import { cancelPurchaseOrder, getPurchaseOrder, sendPurchaseOrderToSupplier, type PurchaseDetail } from '../services/purchaseService';
 
 const route = useRoute('purchase');
 const router = useRouter();
@@ -31,6 +32,32 @@ const { data, error, reload } = useAsync(() => getPurchaseOrder(id));
 const po = computed(() => data.value);
 const canWrite = computed(() => auth.can('purchases', 'write'));
 const busy = ref<'cancel' | 'send' | null>(null);
+
+const status = computed(() => (po.value ? PURCHASE_STATUS[po.value.status] : undefined));
+
+const chips = computed<MetaChip[]>(() => {
+  if (!po.value) return [];
+  const c: MetaChip[] = [{ label: 'المورد', value: po.value.supplierName }, { label: 'التاريخ', value: formatDate(po.value.date) }];
+  if (po.value.status === 'RECEIVED') c.push({ label: 'حالة الدفع', value: PAYMENT_STATUS[po.value.paymentStatus].label });
+  return c;
+});
+
+const tabs = computed<DetailTab[]>(() => {
+  const t: DetailTab[] = [{ key: 'lines', label: 'الأصناف' }];
+  if (po.value?.returns.length) t.push({ key: 'returns', label: 'المرتجعات للمورد' });
+  if (po.value?.payments.length) t.push({ key: 'payments', label: 'الدفعات' });
+  return t;
+});
+
+type PoLine = PurchaseDetail['lines'][number];
+
+const lineColumns: Column<PoLine>[] = [
+  { key: 'name', label: 'الصنف' },
+  { key: 'qty', label: 'الكمية', type: 'number' },
+  { key: 'returned', label: 'المرتجع', type: 'number' },
+  { key: 'costPrice', label: 'سعر التكلفة', type: 'money' },
+  { key: 'total', label: 'الإجمالي', type: 'money' },
+];
 
 /**
  * v2 phase 11b (docs/v2/12-documents-pdf-excel.md §3 "purchase order" now has a real template):
@@ -79,115 +106,105 @@ async function doSend() {
 <template>
   <div>
     <ErrorState v-if="error" :message="error" @retry="reload" />
-    <template v-else>
-      <PageHeader :title="po ? `أمر شراء ${po.number}` : '…'" :back="{ name: 'purchases' }">
-        <template v-if="po" #badge>
-          <StatusBadge :tone="PURCHASE_STATUS[po.status].tone" :label="PURCHASE_STATUS[po.status].label" />
-          <StatusBadge v-if="po.status === 'RECEIVED'" :tone="PAYMENT_STATUS[po.paymentStatus].tone" :label="PAYMENT_STATUS[po.paymentStatus].label" />
+    <DetailPage
+      v-else
+      :title="po ? `أمر شراء ${po.number}` : '…'"
+      :status="status"
+      :chips="chips"
+      :back="{ name: 'purchases' }"
+      :tabs="tabs"
+    >
+      <template v-if="po && canWrite" #actions>
+        <template v-if="po.status === 'DRAFT'">
+          <AppButton variant="danger" :icon="Ban" :loading="busy === 'cancel'" @click="doCancel">إلغاء</AppButton>
+          <AppButton :icon="Pencil" :to="{ name: 'purchase-edit', params: { id } }">تعديل</AppButton>
+          <AppButton :icon="Send" :loading="busy === 'send'" @click="doSend">إرسال للمورد</AppButton>
+          <AppButton variant="primary" :icon="PackageCheck" :to="{ name: 'purchase-receive', params: { id } }">استلام</AppButton>
         </template>
-        <template v-if="po" #subtitle>
-          <RouterLink :to="{ name: 'supplier', params: { id: po.supplierId } }" class="hover:text-primary">{{ po.supplierName }}</RouterLink> ·
-          <span class="num">{{ formatDate(po.date) }}</span>
+        <template v-else-if="po.status === 'ORDERED'">
+          <AppButton variant="danger" :icon="Ban" :loading="busy === 'cancel'" @click="doCancel">إلغاء</AppButton>
+          <AppButton :icon="Printer" @click="printPurchaseOrder">طباعة أمر الشراء</AppButton>
+          <AppButton variant="primary" :icon="PackageCheck" :to="{ name: 'purchase-receive', params: { id } }">استلام</AppButton>
         </template>
-        <template v-if="po && canWrite" #actions>
-          <template v-if="po.status === 'DRAFT'">
-            <AppButton variant="danger" :icon="Ban" :loading="busy === 'cancel'" @click="doCancel">إلغاء</AppButton>
-            <AppButton :icon="Pencil" :to="{ name: 'purchase-edit', params: { id } }">تعديل</AppButton>
-            <AppButton :icon="Send" :loading="busy === 'send'" @click="doSend">إرسال للمورد</AppButton>
-            <AppButton variant="primary" :icon="PackageCheck" :to="{ name: 'purchase-receive', params: { id } }">استلام</AppButton>
-          </template>
-          <template v-else-if="po.status === 'ORDERED'">
-            <AppButton variant="danger" :icon="Ban" :loading="busy === 'cancel'" @click="doCancel">إلغاء</AppButton>
-            <AppButton :icon="Printer" @click="printPurchaseOrder">طباعة أمر الشراء</AppButton>
-            <AppButton variant="primary" :icon="PackageCheck" :to="{ name: 'purchase-receive', params: { id } }">استلام</AppButton>
-          </template>
-          <template v-else-if="po.status === 'RECEIVED'">
-            <AppButton :icon="Undo2" :to="{ name: 'purchase-return', params: { id } }">مرتجع للمورد</AppButton>
-            <AppButton
-              v-if="po.outstanding > 0 && auth.can('payments', 'write')"
-              variant="primary"
-              :icon="HandCoins"
-              :to="{ name: 'payment-new', query: { type: 'PAID', party: po.supplierId, ref: id } }"
-            >
-              سداد
-            </AppButton>
-          </template>
+        <template v-else-if="po.status === 'RECEIVED'">
+          <AppButton :icon="Undo2" :to="{ name: 'purchase-return', params: { id } }">مرتجع للمورد</AppButton>
+          <AppButton
+            v-if="po.outstanding > 0 && auth.can('payments', 'write')"
+            variant="primary"
+            :icon="HandCoins"
+            :to="{ name: 'payment-new', query: { type: 'PAID', party: po.supplierId, ref: id } }"
+          >
+            سداد
+          </AppButton>
         </template>
-      </PageHeader>
+      </template>
 
-      <div v-if="po?.missingSupplierInvoice" class="mb-4 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-warning">
-        <AlertTriangle class="mt-0.5 size-4 shrink-0" />
-        <span>رقم فاتورة المورد وتاريخها غير مدخلين بعد.</span>
-      </div>
-      <div v-if="po?.duplicateInvoiceWarning" class="mb-4 flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2.5 text-xs text-danger">
-        <AlertTriangle class="mt-0.5 size-4 shrink-0" />
-        <span>{{ po.duplicateInvoiceWarning }}</span>
-      </div>
-      <div v-if="po?.vatNotRecoverable" class="mb-4 flex items-start gap-2 rounded-lg border border-border bg-surface px-3 py-2.5 text-xs text-text-secondary">
-        <AlertTriangle class="mt-0.5 size-4 shrink-0" />
-        <span>المورد بدون رقم ضريبي — لم تُحتسب ضريبة المدخلات مستردة، وأُضيفت إلى تكلفة البضاعة.</span>
-      </div>
-
-      <div class="grid items-start gap-5 xl:grid-cols-[1fr_320px]">
-        <div class="space-y-5">
-          <AppCard padding="none">
-            <div v-if="!po" class="p-4"><SkeletonBlock :lines="5" /></div>
-            <table v-else class="w-full text-body">
-              <thead class="bg-surface text-xs text-text-secondary">
-                <tr class="border-b border-border">
-                  <th class="px-4 py-2.5 text-start font-medium">الصنف</th>
-                  <th class="px-3 py-2.5 text-start font-medium">الكمية</th>
-                  <th class="px-3 py-2.5 text-start font-medium">المرتجع</th>
-                  <th class="px-3 py-2.5 text-start font-medium">سعر التكلفة</th>
-                  <th class="px-4 py-2.5 text-start font-medium">الإجمالي</th>
-                </tr>
-              </thead>
-              <tbody class="bg-background">
-                <tr v-for="l in po.lines" :key="l.productId" class="border-b border-border last:border-0">
-                  <td class="px-4 py-2.5">
-                    <RouterLink :to="{ name: 'product', params: { id: l.productId } }" class="hover:text-primary">{{ po.products[l.productId]?.name }}</RouterLink>
-                    <span class="num block text-tiny text-text-secondary">{{ po.products[l.productId]?.sku }}</span>
-                  </td>
-                  <td class="px-3 py-2.5"><span class="num">{{ formatNumber(l.qty) }}</span></td>
-                  <td class="px-3 py-2.5">
-                    <span v-if="po.returnedQty[l.productId]" class="num text-danger">{{ formatNumber(po.returnedQty[l.productId]) }}</span>
-                    <span v-else class="text-text-secondary">—</span>
-                  </td>
-                  <td class="px-3 py-2.5"><MoneyText :value="l.costPrice" plain /></td>
-                  <td class="px-4 py-2.5"><MoneyText :value="l.qty * l.costPrice" /></td>
-                </tr>
-              </tbody>
-            </table>
-          </AppCard>
-
-          <AppCard v-if="po?.returns.length" title="المرتجعات للمورد" padding="none">
-            <ul class="divide-y divide-border text-body">
-              <li v-for="r in po.returns" :key="r.id" class="flex items-center justify-between px-4 py-2.5">
-                <div>
-                  <span class="num font-medium">{{ r.number }}</span>
-                  <span class="ms-2 text-text-secondary">{{ r.reason }}</span>
-                  <span class="num block text-xs text-text-secondary">{{ formatDateTime(r.date) }}</span>
-                </div>
-                <MoneyText :value="r.grandTotal" class="text-danger" />
-              </li>
-            </ul>
-          </AppCard>
-
-          <AppCard v-if="po?.payments.length" title="الدفعات" padding="none">
-            <ul class="divide-y divide-border text-body">
-              <li v-for="p in po.payments" :key="p.id" class="flex items-center justify-between px-4 py-2.5">
-                <div>
-                  <span class="num font-medium">{{ p.number }}</span>
-                  <span class="ms-2 text-text-secondary">{{ PAYMENT_METHOD_LABEL[p.method] }}</span>
-                  <span class="num block text-xs text-text-secondary">{{ formatDateTime(p.date) }}</span>
-                </div>
-                <MoneyText :value="p.amount" />
-              </li>
-            </ul>
-          </AppCard>
+      <template #tab-lines>
+        <div v-if="po?.missingSupplierInvoice" class="mb-4 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs text-warning">
+          <AlertTriangle class="mt-0.5 size-4 shrink-0" />
+          <span>رقم فاتورة المورد وتاريخها غير مدخلين بعد.</span>
+        </div>
+        <div v-if="po?.duplicateInvoiceWarning" class="mb-4 flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2.5 text-xs text-danger">
+          <AlertTriangle class="mt-0.5 size-4 shrink-0" />
+          <span>{{ po.duplicateInvoiceWarning }}</span>
+        </div>
+        <div v-if="po?.vatNotRecoverable" class="mb-4 flex items-start gap-2 rounded-lg border border-border bg-surface px-3 py-2.5 text-xs text-text-secondary">
+          <AlertTriangle class="mt-0.5 size-4 shrink-0" />
+          <span>المورد بدون رقم ضريبي — لم تُحتسب ضريبة المدخلات مستردة، وأُضيفت إلى تكلفة البضاعة.</span>
         </div>
 
-        <div class="space-y-4">
+        <AppCard padding="none">
+          <div v-if="!po" class="p-4"><SkeletonBlock :lines="5" /></div>
+          <DataTable v-else :columns="lineColumns" :rows="po.lines" row-key="productId">
+            <template #cell-name="{ row }">
+              <RouterLink :to="{ name: 'product', params: { id: row.productId } }" class="hover:text-primary">{{ po!.products[row.productId]?.name }}</RouterLink>
+              <span class="num block text-tiny text-text-secondary">{{ po!.products[row.productId]?.sku }}</span>
+            </template>
+            <template #cell-returned="{ row }">
+              <span v-if="po!.returnedQty[row.productId]" class="num text-danger">{{ formatNumber(po!.returnedQty[row.productId]) }}</span>
+              <span v-else class="text-text-secondary">—</span>
+            </template>
+            <template #cell-costPrice="{ row }">
+              <MoneyText :value="row.costPrice" plain />
+            </template>
+            <template #cell-total="{ row }">
+              <MoneyText :value="row.qty * row.costPrice" />
+            </template>
+          </DataTable>
+        </AppCard>
+      </template>
+
+      <template v-if="po?.returns.length" #tab-returns>
+        <AppCard padding="none">
+          <ul class="divide-y divide-border text-body">
+            <li v-for="r in po.returns" :key="r.id" class="flex items-center justify-between px-4 py-2.5">
+              <div>
+                <span class="num font-medium">{{ r.number }}</span>
+                <span class="ms-2 text-text-secondary">{{ r.reason }}</span>
+                <span class="num block text-xs text-text-secondary">{{ formatDateTime(r.date) }}</span>
+              </div>
+              <MoneyText :value="r.grandTotal" class="text-danger" />
+            </li>
+          </ul>
+        </AppCard>
+      </template>
+
+      <template v-if="po?.payments.length" #tab-payments>
+        <AppCard padding="none">
+          <ul class="divide-y divide-border text-body">
+            <li v-for="p in po.payments" :key="p.id" class="flex items-center justify-between px-4 py-2.5">
+              <div>
+                <span class="num font-medium">{{ p.number }}</span>
+                <span class="ms-2 text-text-secondary">{{ PAYMENT_METHOD_LABEL[p.method] }}</span>
+                <span class="num block text-xs text-text-secondary">{{ formatDateTime(p.date) }}</span>
+              </div>
+              <MoneyText :value="p.amount" />
+            </li>
+          </ul>
+        </AppCard>
+      </template>
+
+      <template #aside>
           <AppCard title="الملخص" padding="sm">
             <SkeletonBlock v-if="!po" :lines="5" />
             <dl v-else class="space-y-1.5 text-body">
@@ -220,8 +237,7 @@ async function doSend() {
             </ul>
           </AppCard>
           <p v-if="po?.status === 'DRAFT'" class="text-xs text-text-secondary">المسودة لا تؤثر على المخزون أو الحسابات حتى تأكيدها.</p>
-        </div>
-      </div>
-    </template>
+      </template>
+    </DetailPage>
   </div>
 </template>
