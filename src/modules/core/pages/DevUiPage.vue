@@ -20,6 +20,7 @@ import AppSwitch from '../components/ui/AppSwitch.vue';
 import AppCombobox, { type ComboOption } from '../components/ui/AppCombobox.vue';
 import AppPhoneInput from '../components/ui/AppPhoneInput.vue';
 import AppModal from '../components/ui/AppModal.vue';
+import AppDatePicker from '../components/ui/AppDatePicker.vue';
 import DirIcon from '../components/ui/DirIcon.vue';
 import { dirIcon } from '../helpers/dirIcon';
 import SegmentedControl from '../components/ui/SegmentedControl.vue';
@@ -30,6 +31,7 @@ import ErrorState from '../components/ui/ErrorState.vue';
 import SearchInput from '../components/ui/SearchInput.vue';
 import DateRangeFilter from '../components/ui/DateRangeFilter.vue';
 import DataTable, { type Column } from '../components/ui/DataTable.vue';
+import ScrollFade from '../components/ui/ScrollFade.vue';
 import PageHeader from '../components/ui/PageHeader.vue';
 import { Switch } from '../components/shadcn/switch';
 import { ToggleGroup, ToggleGroupItem } from '../components/shadcn/toggle-group';
@@ -56,6 +58,12 @@ const searchValue = ref('');
 const dateFrom = ref('');
 const dateTo = ref('');
 const modalOpen = ref(false);
+const pickerValue = ref<string | undefined>('2026-09-26');
+const pickerEmpty = ref<string | undefined>();
+const pickerError = ref<string | undefined>('2026-01-15');
+const pickerCompact = ref<string | undefined>();
+const pickerDialogOpen = ref(false);
+const pickerInDialog = ref<string | undefined>();
 
 const comboOptions: ComboOption[] = [
   { value: '1', label: 'حساب الصندوق', sublabel: '1110 — الأصول المتداولة' },
@@ -142,6 +150,26 @@ const rtlPageCount = 8;
       </div>
     </AppCard>
 
+    <AppCard title="التاريخ (AppDatePicker)">
+      <div class="grid gap-4 sm:grid-cols-2">
+        <AppDatePicker v-model="pickerValue" label="تاريخ" hint="يمكن الكتابة مباشرة أو فتح التقويم" />
+        <AppDatePicker v-model="pickerEmpty" label="بدون قيمة" placeholder="YYYY-MM-DD" />
+        <AppDatePicker v-model="pickerError" label="تاريخ بخطأ" error="التاريخ غير صالح" />
+        <AppDatePicker v-model="pickerValue" label="تاريخ معطّل" disabled />
+        <AppDatePicker v-model="pickerCompact" label="حجم مضغوط (لخلايا الجدول)" compact />
+        <div>
+          <p class="mb-2 field-label">داخل نافذة منبثقة (فحص تراكب popover)</p>
+          <Dialog v-model:open="pickerDialogOpen">
+            <DialogTrigger as-child><AppButton>فتح نافذة تحتوي حقل تاريخ</AppButton></DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>حقل تاريخ داخل نافذة</DialogTitle></DialogHeader>
+              <AppDatePicker v-model="pickerInDialog" label="تاريخ" />
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+    </AppCard>
+
     <AppCard title="الهاتف (AppPhoneInput)">
       <div class="grid gap-4 sm:grid-cols-2">
         <AppPhoneInput v-model="phoneEmpty" label="فارغ" default-country="EG" hint="اكتب رقماً محلياً بصفر البداية، مثل 01012345678" />
@@ -179,6 +207,19 @@ const rtlPageCount = 8;
 
     <AppCard title="جدول البيانات (DataTable)">
       <DataTable :columns="tableColumns" :rows="tableRows" />
+    </AppCard>
+
+    <AppCard title="شريط قابل للتمرير (ScrollFade)">
+      <div class="max-w-sm space-y-2">
+        <p class="text-xs text-text-secondary">اسحب بالماوس أو مرّر بالعجلة — التدرّج يظهر فقط على الجهة التي بها محتوى إضافي.</p>
+        <ScrollFade class="rounded-md border border-border">
+          <div class="flex gap-1 p-1">
+            <button v-for="n in 10" :key="n" type="button" class="shrink-0 rounded-md px-3 py-1.5 text-body text-text-secondary hover:bg-surface-hover hover:text-text-primary">
+              عنصر {{ n }}
+            </button>
+          </div>
+        </ScrollFade>
+      </div>
     </AppCard>
 
     <AppCard title="حالات التحميل والفراغ والخطأ (SkeletonBlock / EmptyState / ErrorState)">

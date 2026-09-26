@@ -113,8 +113,24 @@ Small pill, `--color-surface-hover` background, colored text/dot for state:
 - Overdue / Canceled / Refunded → `--color-danger`
 - Partially paid → amber (`#f59e0b`, add as a new token if needed — not yet in the CSS file)
 
+### Date picker
+`AppDatePicker` (`modules/core/components/ui/AppDatePicker.vue`) — a typeable text field (`dir="ltr"`,
+`YYYY-MM-DD`) with a trailing calendar icon button that opens a themed shadcn Popover + Calendar.
+Model is a plain `YYYY-MM-DD` string, matching every existing date field's type — no page-level type
+changes when adopting it. Replaces native `<input type="date">` everywhere except `DateRangeFilter`
+(documented exception — its inline always-visible range inputs have no closed/trigger state to hang a
+popover off). A `compact` prop shrinks it for table-cell use (line-item expiry dates).
+
+```vue
+<AppDatePicker v-model="form.date" label="التاريخ" required />
+<AppDatePicker v-model="line.expiry" compact />
+```
+
 ### Data table
 Dense rows (12px vertical padding), `--color-surface` header row, hairline `--color-border` row dividers, hover state `--color-surface-hover`. Right-aligned numeric columns (amounts, quantities) — remember RTL means "right-aligned" is the natural start-aligned direction for Arabic, so numeric columns should be visually consistent with LTR number rendering inside them.
+
+### Scrollable tab/chip strip (ScrollFade)
+`core/components/ui/ScrollFade.vue` wraps a horizontally-scrollable row (settings tabs, chip filters) with the native scrollbar hidden, pointer drag-to-scroll, wheel-to-horizontal-scroll, and an edge fade gradient in `--color-background` that only shows on the side(s) that still have more content — none when everything fits, both in the middle of a long strip, one side at either end. The gradient direction is driven by `:dir()`, not a hard-coded side, so it's correct in RTL without extra flags. Use it instead of letting a tab row wrap or shrink its labels.
 
 ### Sidebar navigation
 Flat, single-level groups (mirrors the reference system's IA, trimmed to our modules): الرئيسية (Home), المبيعات (Sales/POS), المنتجات والمخزون (Products & Inventory), العملاء والموردين (Customers & Suppliers), المشتريات (Purchases), الحسابات (Accounting), المدفوعات (Payments), التقارير (Reports), الإدارة (Users, Settings). Active item uses `--color-primary` text/left-border accent; nav gated by `role` (see `domain_model.md` §10).
