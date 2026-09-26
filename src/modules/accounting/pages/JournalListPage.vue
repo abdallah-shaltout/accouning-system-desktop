@@ -250,7 +250,7 @@ useHotkeys({
     if (activeIndex.value >= 0) openActive();
   },
   n: () => {
-    if (auth.can('accounting', 'write')) router.push('/accounting/journal/new');
+    if (auth.can('accounting', 'write')) router.push({ name: 'journal-new' });
     return false;
   },
 });

@@ -4,6 +4,7 @@ import { customerStatement, supplierStatement } from '@/mocks/backend/balances';
 import { getOpenDocumentsFor } from '@/mocks/backend/payments';
 import type { Account, AccountKind } from '@/modules/accounting/types';
 import { SALE_METHOD_LABEL } from '@/modules/core/helpers/labels';
+import type { AppRoute } from '@/modules/core/types/route';
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
 import type {
@@ -258,7 +259,7 @@ export const getAccountLedger = wrap('reports.getAccountLedger', async function 
   const sign = account.normalSide === 'DEBIT' ? 1 : -1;
   let opening = 0;
   const rows: AccountLedger['rows'] = [];
-  const rowLinks: Record<string, string> = {};
+  const rowLinks: Record<string, AppRoute> = {};
   const entries = [...db.journalEntries].sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
   for (const e of entries) {
     for (const l of e.lines) {
@@ -269,7 +270,7 @@ export const getAccountLedger = wrap('reports.getAccountLedger', async function 
       }
       if (range.to && localDateKey(e.date) > range.to) continue;
       rows.push({ id: l.id, date: e.date, entryId: e.id, entryNumber: e.number, description: l.description ?? e.description, debit: l.debit, credit: l.credit, balance: 0 });
-      rowLinks[l.id] = `/accounting/journal/${e.id}`;
+      rowLinks[l.id] = { name: 'journal-entry', params: { id: e.id } };
     }
   }
   let running = round2(opening);
@@ -299,9 +300,14 @@ export const getPartyLedger = wrap('reports.getPartyLedger', async function getP
   const before = all.filter((r) => range.from && localDateKey(r.date) < range.from);
   const inRange = all.filter((r) => inDateRange(r.date, range.from, range.to));
   const opening = before.at(-1)?.balance ?? 0;
-  const rowLinks: Record<string, string> = {};
+  const rowLinks: Record<string, AppRoute> = {};
   for (const r of inRange) {
-    rowLinks[r.id] = r.kind === 'invoice' || r.kind === 'refund' ? `/invoices/${r.refId}` : r.kind === 'payment' ? `/payments?highlight=${r.refId}` : `/purchases/${r.refId}`;
+    rowLinks[r.id] =
+      r.kind === 'invoice' || r.kind === 'refund'
+        ? { name: 'invoice', params: { id: r.refId } }
+        : r.kind === 'payment'
+          ? { name: 'payments', query: { highlight: r.refId } }
+          : { name: 'purchase', params: { id: r.refId } };
   }
   return {
     title: party.name,

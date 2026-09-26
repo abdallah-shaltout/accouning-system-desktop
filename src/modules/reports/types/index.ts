@@ -1,3 +1,5 @@
+import type { AppRoute } from '@/modules/core/types/route';
+
 export interface DateRangeInput {
   from?: string;
   to?: string;
@@ -100,7 +102,7 @@ export interface AccountLedger {
   totalCredit: number;
   closingBalance: number;
   /** Where each row links: journal entries (GL) or source documents (party statements). */
-  rowLinks: Record<string, string>;
+  rowLinks: Record<string, AppRoute>;
 }
 
 export interface SalesReport {

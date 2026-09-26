@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **697 files / 72,682 lines** (md 41, rust 22, ts 214, vue 420).
+Indexed: **697 files / 72,691 lines** (md 41, rust 22, ts 214, vue 420).
 
 **Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -66,7 +66,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **payments** | 6 / 888 | pages 3, routes 1, services 1, types 1 | 3 |  |
 | **products** | 30 / 5045 | components 6, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
 | **purchases** | 10 / 1633 | commands 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
-| **reports** | 44 / 6199 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
+| **reports** | 44 / 6208 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
 | **settings** | 29 / 5094 | commands 1, components 1, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
 | **setup** | 17 / 1608 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
 | **templates** | 4 / 919 | pages 2, services 1, types 1 | 0 |  |
@@ -260,7 +260,7 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **payments** | core (44), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
 | **products** | core (202), mocks (15), users (13), settings (7), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
 | **purchases** | core (76), mocks (4), products (4), users (4), invoices (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
-| **reports** | core (159), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
+| **reports** | core (162), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
 | **settings** | core (148), users (18), mocks (16), diagnostics (7), invoices (3), products (3), templates (2) | 11 |
 | **setup** | core (49), mocks (9), settings (4), accounting (2), products (2), diagnostics (1), parties (1), users (1) | 3 |
 | **templates** | core (16), diagnostics (1) | 3 |
