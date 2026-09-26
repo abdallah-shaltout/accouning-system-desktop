@@ -65,7 +65,7 @@ const columns: Column<PurchaseRow>[] = [
   <div>
     <PageHeader title="أوامر الشراء" subtitle="شراء البضاعة من الموردين — تأكيد الأمر يُدخل البضاعة للمخزون ويُسجل القيد">
       <template v-if="auth.can('purchases', 'write')" #actions>
-        <AppButton variant="primary" :icon="Plus" to="/purchases/new">أمر شراء جديد</AppButton>
+        <AppButton variant="primary" :icon="Plus" :to="{ name: 'purchase-new' }">أمر شراء جديد</AppButton>
       </template>
     </PageHeader>
 
@@ -84,7 +84,7 @@ const columns: Column<PurchaseRow>[] = [
       :empty-icon="ShoppingBag"
       empty-title="لا توجد أوامر شراء"
       @retry="reload"
-      @row-click="(r) => router.push(`/purchases/${r.id}`)"
+      @row-click="(r) => router.push({ name: 'purchase', params: { id: r.id } })"
     >
       <template #cell-number="{ row }"><span class="num font-medium">{{ row.number }}</span></template>
       <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDate(row.date) }}</span></template>

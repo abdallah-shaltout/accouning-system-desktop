@@ -86,7 +86,7 @@ async function submit() {
         .map((l) => ({ productId: l.productId, qty: num0(qty.value[l.productId]), batchId: batchId[l.productId] || undefined })),
     });
     toast.success('تم تسجيل المرتجع', ret.number);
-    router.push(`/purchases/${id}`);
+    router.push({ name: 'purchase', params: { id } });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -97,7 +97,7 @@ async function submit() {
 
 <template>
   <div>
-    <PageHeader :title="data ? `مرتجع مشتريات — ${data.number}` : 'مرتجع مشتريات'" :subtitle="data?.supplierName" :back="`/purchases/${id}`" />
+    <PageHeader :title="data ? `مرتجع مشتريات — ${data.number}` : 'مرتجع مشتريات'" :subtitle="data?.supplierName" :back="{ name: 'purchase', params: { id } }" />
     <ErrorState v-if="error" :message="error" @retry="reload" />
     <div v-else class="grid items-start gap-5 xl:grid-cols-[1fr_320px]">
       <AppCard padding="none">

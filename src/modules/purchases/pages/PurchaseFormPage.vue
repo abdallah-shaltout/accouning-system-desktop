@@ -82,7 +82,7 @@ onMounted(async () => {
     if (id.value) {
       const po = await getPurchaseOrder(id.value);
       if (po.status !== 'DRAFT') {
-        router.replace(`/purchases/${po.id}`);
+        router.replace({ name: 'purchase', params: { id: po.id } });
         return;
       }
       supplierId.value = po.supplierId;
@@ -227,12 +227,12 @@ async function save(mode: 'draft' | 'send' | 'receive') {
     if (mode === 'send') {
       await sendPurchaseOrderToSupplier(po.id);
       toast.success('تم إرسال أمر الشراء للمورد', po.number);
-      router.push(`/purchases/${po.id}`);
+      router.push({ name: 'purchase', params: { id: po.id } });
       return;
     }
     posted.value = true;
     toast.success(mode === 'receive' ? 'تم تأكيد أمر الشراء واستلام البضاعة' : 'تم حفظ المسودة', po.number);
-    router.push(mode === 'receive' ? `/purchases/${po.id}` : `/purchases/${po.id}`);
+    router.push({ name: 'purchase', params: { id: po.id } });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -248,7 +248,7 @@ const spreadOptions: { value: LandedCostSpread; label: string }[] = [
 
 <template>
   <div>
-    <PageHeader :title="id ? 'تعديل أمر شراء' : 'أمر شراء جديد'" :back="id ? `/purchases/${id}` : '/purchases'" />
+    <PageHeader :title="id ? 'تعديل أمر شراء' : 'أمر شراء جديد'" :back="id ? { name: 'purchase', params: { id } } : { name: 'purchases' }" />
 
     <ErrorState v-if="loadError" :message="loadError" />
     <AppCard v-else-if="loading"><SkeletonBlock :lines="8" height="h-8" /></AppCard>

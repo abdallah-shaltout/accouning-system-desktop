@@ -86,7 +86,7 @@ async function confirmReceipt() {
     }
     await receivePurchaseOrder(id, { date: dateKeyToIso(date.value), lines, createBackorder: createBackorder.value && short });
     toast.success('تم تأكيد الاستلام');
-    router.push(`/purchases/${id}`);
+    router.push({ name: 'purchase', params: { id } });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -108,7 +108,7 @@ function printLabels() {
     return;
   }
   router.push({
-    path: '/catalog/labels',
+    name: 'labels',
     query: { productId: toReceive.map((l) => l.productId), qty: toReceive.map((l) => String(num0(receivedQty.value[l.productId]))) },
   });
 }
@@ -116,7 +116,7 @@ function printLabels() {
 
 <template>
   <div>
-    <PageHeader :title="data ? `استلام أمر شراء ${data.number}` : 'استلام أمر شراء'" :subtitle="data?.supplierName" :back="`/purchases/${id}`" />
+    <PageHeader :title="data ? `استلام أمر شراء ${data.number}` : 'استلام أمر شراء'" :subtitle="data?.supplierName" :back="{ name: 'purchase', params: { id } }" />
     <ErrorState v-if="error" :message="error" @retry="reload" />
     <div v-else class="grid items-start gap-5 xl:grid-cols-[1fr_320px]">
       <div class="space-y-4">

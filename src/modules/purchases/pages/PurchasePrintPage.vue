@@ -33,7 +33,7 @@ function print() {
   window.print();
 }
 function close() {
-  router.push(`/purchases/${id}`);
+  router.push({ name: 'purchase', params: { id } });
 }
 useHotkeys({ 'ctrl+p': { id: 'print.document', label: 'طباعة المستند', group: 'الطباعة', handler: print }, Escape: close });
 
