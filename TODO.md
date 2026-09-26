@@ -1,5 +1,33 @@
 # TODO
 
+## 2026-09-26 — full build was actually broken after the F-1..F-5/Phase D parallel wave; fixed
+
+After all 5 parallel agents (doc-18 Phase D, doc-17 F-1 through F-5) reported done and every
+agent's own `bun run build`/`vue-tsc --noEmit`/`verify:mocks` checks were green, the REAL
+`bun run build` (full Vite/Rolldown build, not just `vue-tsc --noEmit`) still failed on 3 files:
+`src/modules/invoices/components/InvoiceLinesGrid.vue`,
+`src/modules/purchases/components/PurchaseLinesGrid.vue`,
+`src/modules/products/components/StockAdjustmentLinesGrid.vue` (all F-2 line-item grid
+extractions) were each missing their closing `</template>` tag, and
+`src/modules/purchases/pages/PurchaseFormPage.vue` /
+`src/modules/products/pages/StockAdjustmentFormPage.vue` had their `#aside`/`#actions` slot
+templates incorrectly nested inside `<template v-else>` instead of as its siblings —
+Vue can't compile a named slot `<template>` nested inside a conditional `<template>` block.
+
+**Root cause:** these are exactly the files both the F-2 and F-4 agents flagged as swept into the
+wrong commit (`fbf5975`) via a shared git index during the parallel run — the content that landed
+was a partial/mis-merged write, not the agents' actual final versions. Both agents correctly
+logged the collision and correctly did NOT try to `git reset`/`checkout` to undo it (per the
+no-destructive-git-commands rule), but neither one's own build check caught the corruption because
+**`vue-tsc --noEmit` only checks TypeScript types — it does not run the actual Vue SFC/template
+compiler**, so a malformed template (missing tag, wrong slot nesting) passes typecheck cleanly but
+fails the real `vite build`. **Lesson for future parallel-agent runs: always run the real
+`bun run build` (not just `vue-tsc --noEmit`) as a final independent check after merging multiple
+agents' work, especially after any known shared-index collision — typecheck passing is not enough.**
+
+Fixed by hand (structural-only, no logic changes) and committed as `84c2790`. Verified after the
+fix: `bun run build` clean, `bun run check` clean, `bun run verify:mocks` 98/0/0.
+
 ## 2026-09-26 — doc-17 F-5 (settings pages) done: all 15 pages migrated onto SettingsPage
 
 Migrated every page in `src/modules/settings/pages/` (15) onto `SettingsPage` (nav slot =
