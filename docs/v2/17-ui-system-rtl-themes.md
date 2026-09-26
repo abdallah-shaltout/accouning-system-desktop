@@ -590,7 +590,11 @@ designer), and page files over 300 lines (warning).
       `ProductDetailPage`, `JournalDetailPage`, `ShiftReportPage`; build/check/verify:mocks green,
       check-routes zero new findings; no dedicated e2e run this session — dev server was shared with
       other in-flight agents.)*
-- [ ] **F-5 Settings pages** → `SettingsPage`.
+- [x] **F-5 Settings pages** → `SettingsPage`. *(done 2026-09-26 — all 15 pages in
+      `src/modules/settings/pages/` migrated; `PaymentMethodsSettingsPage`/`RoleMatrixSettingsPage`
+      keep documented raw-`<table>` exceptions (drag-reorder / permission matrix, no `DataTable` fit).
+      See `TODO.md` "doc-17 F-5" entry for the full list, gate results and the not-yet-committed
+      `AGENT_MEMORY.md` regen note.)*
 - [ ] **F-5b Seam cleanup:** move the 12 UI files that import `@/mocks/*` directly (listed in
       `CLAUDE.md` → Workflow → seam rule) behind services (`attachmentService`, `devToolsService`,
       `setupService`, purchase totals helper in `modules/purchases/helpers`…), then add

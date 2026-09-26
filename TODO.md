@@ -1,5 +1,72 @@
 # TODO
 
+## 2026-09-26 — doc-17 F-5 (settings pages) done: all 15 pages migrated onto SettingsPage
+
+Migrated every page in `src/modules/settings/pages/` (15) onto `SettingsPage` (nav slot =
+`SettingsTabs`, matching how Settings already navigates), in small commits, `bun run build` +
+`node scripts/check-ui-rules.js` checked clean for my files after each one:
+
+- `GeneralSettingsPage`, `TaxesSettingsPage`, `PaymentMethodsSettingsPage`,
+  `BranchesSettingsPage`, `CostCentersSettingsPage`, `CurrenciesSettingsPage`,
+  `RoleMatrixSettingsPage`, `BackupSettingsPage`, `RecommendationsSettingsPage`,
+  `KeyboardShortcutsSettingsPage`, `AboutSettingsPage`, `AuditLogSettingsPage`,
+  `PrintingSettingsPage`, `ProductsSettingsPage`, `AppearanceSettingsPage`.
+
+Raw `<table>` → `DataTable` on Taxes/Branches/CostCenters/Currencies/Backup. Two documented
+exceptions kept as raw `<table>` (same category as the guard script's existing print/POS/template
+allow-list — noted in an HTML comment above each `<template>`):
+- `PaymentMethodsSettingsPage` — per-row drag-to-reorder; `DataTable` has no row-level drag API.
+- `RoleMatrixSettingsPage` — an interactive role×area permission-cycling matrix (click cell to
+  cycle none/read/write), not tabular row data; doesn't fit `DataTable`'s column/row model.
+
+Bare `<input type="file">` (3, in `GeneralSettingsPage`'s logo/stamp/signature uploads) moved into
+a new shared `modules/settings/components/ImageUploadField.vue` instead of staying in the page.
+One bare `<input>` in `AppearanceSettingsPage`'s live theme-preview panel (decorative, not a real
+bound field) replaced with `AppInput`.
+
+`AppearanceSettingsPage` (670 lines) and `BackupSettingsPage` (383 lines) were both over the
+~250-line page budget (CLAUDE.md rule 12 / doc 17 F2 rule 6) — split into
+`DisplayPreferencesCard.vue` + `ThemeColorsCard.vue` (Appearance, now 146 lines) and
+`RestoreBackupModal.vue` (Backup, now 268 lines, under the guard's 300-line hard limit).
+
+`SettingsPage` (`core/components/layouts/SettingsPage.vue`) gained one additive prop: `wide`
+(default false, unchanged behavior) — drops the default `max-w-3xl` cap for the settings pages
+that pair content with a sticky aside (logo preview, print preview, status card). Documented in
+`docs/design_system.md` → "Building pages". `AuditLogSettingsPage` previously had no `SettingsTabs`
+nav at all despite being listed in the tabs (`settings-audit-log`) — added it for consistency with
+every sibling page; this is a chrome fix, not a change to what the page does or persists.
+
+**Gates:** `bun run build` — clean for every settings file (confirmed via
+`bun run build 2>&1 | grep -i settings`, zero hits); the overall build command itself was
+intermittently red during this session from **other agents' concurrent, uncommitted F-2 work**
+(`InvoiceLinesGrid.vue` had an unclosed-tag syntax error, `PurchaseFormPage.vue` a separate
+compiler crash, at the time of every build I ran — confirmed via `git diff --stat HEAD -- <file>`
+showing no diff, i.e. disk == last commit, so it's a live in-progress save, not something my
+changes caused or can fix). `bun run check` exits 0 (check-ui-rules stays warning-mode by design;
+check-routes.js reports "no path-string navigation targets found" — zero new findings). `bun run
+verify:mocks` — **98 ok, 0 todo, 0 failed** (this session's baseline is 98 = 49 SA + 49 EG per the
+doc-18 Phase D entry above, not the 49 the task brief quoted; either way, 0 failed, and nothing in
+F-5 touches posting/VAT/mock logic — presentation-only). Did not run the e2e suite: the shared dev
+server was not confirmed idle and, per the same reasoning as other entries in this file, the other
+agents' currently-broken `invoices`/`purchases` files would fail unrelated flows regardless of my
+changes, giving a misleading signal either way.
+
+**`bun run memory` — regenerated locally but *not committed*.** The regen succeeded (706 files, 17
+modules, 122 routes) and correctly reflects my own work (e.g. `AppearanceSettingsPage`/
+`BackupSettingsPage` dropped off the "pages over 250 lines" table). But it also captures other
+agents' concurrent, partly-uncommitted state on disk at the moment I ran it (their in-progress
+`invoices`/`purchases`/`products` edits, the currently-broken `InvoiceLinesGrid.vue` among them) —
+committing it now would bake a mixed, partly-fictional snapshot into `master` as if it were settled
+fact. Left `AGENT_MEMORY.md` modified-but-uncommitted in the working tree (never staged) rather
+than trying to reset/restore it (forbidden). **Whoever lands last among the parallel F-1..F-6/doc-18
+agents should run `bun run memory` fresh and commit it once** — don't just commit the version
+currently sitting in the working tree, since it may be stale again by then.
+
+Did not touch `plans/pending/` — no plan folder covers F-5 specifically in this repo's current
+`plans/`; doc 17's own F-5 checkbox (`docs/v2/17-ui-system-rtl-themes.md` → "Phase F" → F3) is
+ticked as part of this same batch of commits, once the e2e caveat above is read.
+
+
 ## 2026-09-26 — doc-18 Phase D: e2e not run against the shared dev server (left for a solo check)
 
 Wrote `scripts/e2e/flows/setup_wizard_eg.py` (fresh install -> wizard defaults to مصر/EG -> 14%
