@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **706 files / 73,085 lines** (md 41, rust 22, ts 215, vue 428).
+Indexed: **712 files / 73,963 lines** (json 2, md 41, rust 22, ts 218, vue 429).
 
 **Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -39,9 +39,9 @@ Indexed: **706 files / 73,085 lines** (md 41, rust 22, ts 215, vue 428).
 ## Architecture (layers & data flow)
 
 ```text
-pages (112) / components (352) / controllers (23)   src/modules/<domain>/…
+pages (112) / components (353) / controllers (23)   src/modules/<domain>/…
         │  may call ONLY ▼                  (seam rule — see Boundary report)
-services (36)   src/modules/<domain>/services/*   ← swap point for a real backend
+services (37)   src/modules/<domain>/services/*   ← swap point for a real backend
    │                                   │
    ▼                                   ▼
 mock backend  src/mocks/     Tauri IPC invoke('<cmd>') → src-tauri/src/lib.rs
@@ -58,17 +58,17 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **accounting** | 12 / 3356 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
 | **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
 | **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
-| **core** | 341 / 18682 | commandPalette 1, components 294, controllers 14, helpers 16, pages 4, routes 1, services 7, types 4 | 5 |  |
+| **core** | 346 / 19410 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 8, types 5 | 5 |  |
 | **diagnostics** | 20 / 2061 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 1 | 0 | yes |
 | **expenses** | 8 / 946 | pages 5, routes 1, services 1, types 1 | 5 |  |
 | **invoices** | 30 / 5383 | commands 1, components 13, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
-| **parties** | 10 / 1780 | components 1, helpers 2, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
+| **parties** | 11 / 1842 | components 1, helpers 3, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
 | **payments** | 6 / 877 | pages 3, routes 1, services 1, types 1 | 3 |  |
 | **products** | 32 / 5080 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
 | **purchases** | 11 / 1707 | commands 1, components 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
 | **reports** | 44 / 6208 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
-| **settings** | 33 / 4877 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
-| **setup** | 17 / 1652 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
+| **settings** | 33 / 4914 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
+| **setup** | 17 / 1656 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
 | **templates** | 4 / 919 | pages 2, services 1, types 1 | 0 |  |
 | **users** | 11 / 955 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
 | **vouchers** | 9 / 809 | commands 1, pages 5, routes 1, services 1, types 1 | 5 | yes |
@@ -81,6 +81,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | analytics | `analyticsService` | `getSalesAnalytics`, `getProductAnalytics`, `getCustomerAnalytics` |
 | approvals | `approvalService` | `submitApprovalRequest`, `getApprovalRequests`, `getPendingApprovalCount`, `approveRequest`, `rejectRequest` |
 | core | `dashboardService` | `getDashboardSummary`, `getLowStockProducts`, `getRecentInvoices`, `getRecentActivity`, `getHomeKpis`, `getTopProducts`, `getTopCustomers` |
+| core | `geoService` | `getRegions`, `getCities`, `getDistricts`, `getLabels`, `searchPlaces` |
 | core | `insightEngine` | `getThresholds`, `setThresholds`, `dismissInsight`, `snoozeInsight`, `clearDismissal`, `getInsights`, `getInsightsFor`, `getInsightsForEntity`, `getProductInlineHints`, `forceRefresh` |
 | core | `insightRules` | `INSIGHT_RULES` |
 | core | `insightTypes` | `DEFAULT_THRESHOLDS` |
@@ -251,23 +252,23 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **analytics** | core (16), diagnostics (1), mocks (1) | 1 |
 | **app** | core (14), settings (5), diagnostics (4), users (3), accounting (2), approvals (2), invoices (2), mocks (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), parties (1), payments (1), products (1), setup (1) | 1 |
 | **approvals** | core (12), mocks (2), diagnostics (1), users (1) | 4 |
-| **core** | mocks (21), users (19), invoices (13), products (12), settings (10), diagnostics (7), parties (3), purchases (3), accounting (2), templates (2), vouchers (2), app (1), payments (1), reports (1), setup (1) | 18 |
+| **core** | mocks (21), users (19), invoices (13), products (12), settings (10), diagnostics (7), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), payments (1), reports (1), setup (1) | 18 |
 | **diagnostics** | core (26), mocks (5) | 18 |
 | **expenses** | core (58), mocks (3), users (3), accounting (2), parties (2), settings (2), diagnostics (1) | 2 |
 | **invoices** | core (171), mocks (10), products (9), settings (9), parties (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
-| **mocks** | invoices (9), accounting (8), core (8), products (8), settings (5), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 17 |
-| **parties** | core (53), mocks (8), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
+| **mocks** | core (10), invoices (9), accounting (8), products (8), settings (5), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 17 |
+| **parties** | core (59), mocks (8), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
 | **payments** | core (42), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
 | **products** | core (203), mocks (15), users (13), settings (8), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
 | **purchases** | core (79), products (5), mocks (4), users (4), invoices (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
 | **reports** | core (162), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
-| **settings** | core (166), users (18), mocks (16), diagnostics (7), invoices (3), products (3), templates (2) | 12 |
-| **setup** | core (53), mocks (9), settings (4), accounting (2), products (2), diagnostics (1), parties (1), users (1) | 3 |
+| **settings** | core (175), users (18), mocks (16), diagnostics (7), invoices (3), products (3), templates (2) | 12 |
+| **setup** | core (57), mocks (9), settings (4), accounting (2), products (2), diagnostics (1), parties (1), users (1) | 3 |
 | **templates** | core (16), diagnostics (1) | 3 |
 | **users** | core (36), mocks (7), products (3), diagnostics (2) | 15 |
 | **vouchers** | core (48), mocks (4), settings (2), users (2), accounting (1), diagnostics (1), invoices (1) | 3 |
 
-**Most-used npm packages** (files importing): `vue (391)`, `@lucide/vue (166)`, `reka-ui (118)`, `vue-router (98)`, `@vueuse/core (79)`, `@tauri-apps/api (16)`, `class-variance-authority (9)`, `pinia (9)`, `zod (5)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
+**Most-used npm packages** (files importing): `vue (392)`, `@lucide/vue (166)`, `reka-ui (118)`, `vue-router (98)`, `@vueuse/core (79)`, `@tauri-apps/api (16)`, `class-variance-authority (9)`, `pinia (9)`, `zod (5)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
 
 ## Rust ↔ Vue IPC contract
 
@@ -340,12 +341,12 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | Group | Names |
 |---|---|
 | App*/ui components | `AiOrb`, `AppButton`, `AppCard`, `AppCombobox`, `AppDatePicker`, `AppInput`, `AppModal`, `AppPhoneInput`, `AppSelect`, `AppSwitch`, `AppTextarea`, `AttachmentField`, `AttachmentViewer`, `BrandLogo`, `ConfirmDialog`, `CountryFlag`, `DataTable`, `DateRangeFilter`, `DirIcon`, `EmptyState`, `ErrorState`, `MoneyText`, `PageHeader`, `PdfPreview`, `RiyalIcon`, `ScrollFade`, `SearchInput`, `SegmentedControl`, `SkeletonBlock`, `StatusBadge` |
-| Page blocks | `DetailHeader`, `FilterBar`, `FormActions`, `FormField`, `FormSection`, `LineItemsEditor`, `StatCards`, `TotalsPanel` |
+| Page blocks | `AddressFields`, `DetailHeader`, `FilterBar`, `FormActions`, `FormField`, `FormSection`, `LineItemsEditor`, `StatCards`, `TotalsPanel` |
 | Page layouts | `DetailPage`, `FormPage`, `ListPage`, `SettingsPage` |
 | App shell | `AppSidebar`, `AppTopbar`, `BrandBranchSwitcher`, `DefaultLayout`, `KeyboardShortcutsSheet`, `NavMain`, `NavQuickActions`, `NavUser`, `NotificationsDrawer` |
 | Core controllers (composables/stores) | `useAppearance`, `useAsync`, `useCommandPalette`, `useConfirm`, `useForm`, `useGridTab`, `useHotkeys`, `useInsights`, `useKeybindings`, `useKeyboardShortcutsSheet`, `useNotificationStore`, `useNotifications`, `useTheme`, `useToast` |
 | Core helpers | `attachments`, `brand`, `countries`, `countryProfiles`, `dirIcon`, `exportXlsx`, `format`, `keyCode`, `keyboardShortcuts`, `labels`, `navigation`, `numbers`, `search`, `tafqit`, `utils`, `validation` |
-| Core services | `dashboardService`, `insightEngine`, `insightRules`, `insightTypes`, `pdfService`, `printService`, `saveFile` |
+| Core services | `dashboardService`, `geoService`, `insightEngine`, `insightRules`, `insightTypes`, `pdfService`, `printService`, `saveFile` |
 | shadcn primitives | `alert-dialog`, `avatar`, `badge`, `breadcrumb`, `button`, `calendar`, `card`, `collapsible`, `combobox`, `command`, `dialog`, `dropdown-menu`, `empty`, `field`, `input`, `input-group`, `kbd`, `label`, `native-select`, `popover`, `range-calendar`, `separator`, `sheet`, `sidebar`, `skeleton`, `sonner`, `switch`, `table`, `tabs`, `textarea`, `toggle`, `toggle-group`, `tooltip` |
 
 ## Boundary report
@@ -379,12 +380,12 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 |---|---|
 | `src/modules/invoices/pages/PosPage.vue` | 866 |
 | `src/modules/accounting/pages/JournalEntryFormPage.vue` | 593 |
-| `src/modules/core/pages/DevUiPage.vue` | 556 |
-| `src/modules/parties/pages/PartyFormPage.vue` | 532 |
+| `src/modules/core/pages/DevUiPage.vue` | 578 |
+| `src/modules/parties/pages/PartyFormPage.vue` | 525 |
 | `src/modules/accounting/pages/JournalListPage.vue` | 482 |
 | `src/modules/products/pages/ProductFormPage.vue` | 469 |
 | `src/modules/templates/pages/TemplateDesignerPage.vue` | 446 |
-| `src/modules/parties/pages/PartyDetailPage.vue` | 407 |
+| `src/modules/parties/pages/PartyDetailPage.vue` | 409 |
 | `src/modules/products/pages/StockAdjustmentFormPage.vue` | 394 |
 | `src/modules/accounting/pages/ChartOfAccountsPage.vue` | 392 |
 | `src/modules/purchases/pages/PurchaseFormPage.vue` | 356 |
@@ -434,6 +435,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `bun run memory:check` | `bun run scripts/memory/run.ts --check` |
 | `bun run diag` | `bun run scripts/diagnostics/run.ts` |
 | `bun run diag:check` | `bun run scripts/diagnostics/run.ts --check` |
+| `bun run geo:build` | `bun run scripts/geo/build.ts` |
 
 ## Docs index
 
