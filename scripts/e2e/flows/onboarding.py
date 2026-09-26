@@ -104,14 +104,20 @@ def run(base: str, shots_dir: Path) -> int:
         page.get_by_text("تجزئة عامة").first.click()
         next_step("businessType")
 
-        # --- Step 2: company details ----------------------------------------------------------
-        safe_print("step 2 — company details")
-        page.get_by_label("اسم المنشأة (عربي)").fill("شركتي التجريبية")
-        next_step("company")
-
-        # --- Step 3: country/currency/tax -------------------------------------------------------
-        safe_print("step 3 — country, currency, tax")
+        # --- Step 2: country/currency/tax (v2 doc 18.D: now runs BEFORE company details) --------
+        # This flow tests the pre-existing Saudi path end to end, so it explicitly picks السعودية —
+        # the wizard's own default is Egypt now (see setup_wizard_eg.py for that path).
+        safe_print("step 2 — country, currency, tax (السعودية)")
+        page.get_by_label("الدولة").select_option("SA")
+        page.wait_for_timeout(200)
+        check(page.get_by_text("SAR").count() > 0, "picking السعودية sets the base currency to SAR")
         next_step("countryTax")
+
+        # --- Step 3: company details ----------------------------------------------------------
+        safe_print("step 3 — company details")
+        page.get_by_label("اسم المنشأة (عربي)").fill("شركتي التجريبية")
+        check(page.get_by_label("الرقم الضريبي").count() > 0, "the Saudi tax-id label renders")
+        next_step("company")
 
         # --- Step 4: fiscal year + go-live -----------------------------------------------------
         safe_print("step 4 — fiscal year & go-live date")

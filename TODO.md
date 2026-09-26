@@ -1,5 +1,34 @@
 # TODO
 
+## 2026-09-26 — doc-18 Phase D: e2e not run against the shared dev server (left for a solo check)
+
+Wrote `scripts/e2e/flows/setup_wizard_eg.py` (fresh install -> wizard defaults to مصر/EG -> 14%
+VAT/EGP -> desk invoice -> printed invoice shows "ج.م"/جنيه wording, no ZATCA QR, no "فاتورة ضريبية
+مبسطة" title) and registered it in `scripts/e2e/run.py`'s `ORDER` right after `onboarding` (both
+clear the IndexedDB snapshot to start from a genuinely fresh install, so it needs to run before any
+flow that depends on the demo dataset being present). Also updated `onboarding.py`'s existing wizard
+steps for the new step order (countryTax now runs before company — see below) and made it explicitly
+pick السعودية so it keeps testing the pre-existing Saudi path even though the wizard's own default
+changed to Egypt.
+
+**Did not run either flow.** `http://localhost:1420` was already up and serving (checked via
+`curl`/`netstat` — a live `node` process, not started by this session) when I reached this step,
+which the task brief flagged as a real possibility ("run ... if the dev server isn't monopolized").
+Both flows call `indexedDB.deleteDatabase('mock-db')` + `localStorage.clear()` before driving the
+wizard — destructive to whatever demo state whoever owns that server instance might be relying on
+mid-verification. Rather than guess it was idle, I left it alone. `bun run build`/`bun run
+check`/`bun run verify:mocks` (which don't touch a running dev server or browser state) were run
+and are green — see the Phase D plan file / commit messages for the exact output. **Whoever next
+has the dev server to themselves should run:**
+
+```
+python scripts/e2e/flows/onboarding.py       # existing SA path, updated for the new step order
+python scripts/e2e/flows/setup_wizard_eg.py  # new EG path this phase adds
+```
+
+and report back before Phase D's plan-file checkbox for e2e is ticked as verified (it's ticked as
+*written*, not *verified*, in `phase-d-country-profiles.md` — see that file's own note).
+
 ## 2026-09-26 — doc-18 Phase D follow-up: the seed/EG regression F-2 flagged below is now fixed, verify:mocks 98/0/0
 
 The F-2 note right below ("verify:mocks regressed to 91/0/7 ... `568cfaf` ... squarely doc-18 Phase
