@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **706 files / 73,084 lines** (md 41, rust 22, ts 215, vue 428).
+Indexed: **706 files / 73,085 lines** (md 41, rust 22, ts 215, vue 428).
 
 **Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -467,6 +467,11 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `plans/completed/19-shadcn-date-picker/phase-b-migrate-appinput.md` | Phase B — Migrate all `AppInput type="date"` call sites |
 | `plans/completed/19-shadcn-date-picker/phase-c-migrate-raw-inputs.md` | Phase C — Migrate remaining raw `<input type="date">` sites |
 | `plans/completed/19-shadcn-date-picker/README.md` | 19 — Shared shadcn date picker (`AppDatePicker`), replacing native `<input type="date">` |
+| `plans/completed/20-named-route-objects/phase-a-typed-map.md` | 20.A — Rule, typed route map, `AppRoute`, guard (report mode) |
+| `plans/completed/20-named-route-objects/phase-b-shared-layer.md` | 20.B — Shared layer: navigation config, palette, services, guards |
+| `plans/completed/20-named-route-objects/phase-c-document-pages.md` | 20.C — Pages: sales/POS, purchases, payments, vouchers, expenses, parties |
+| `plans/completed/20-named-route-objects/phase-d-remaining-pages-lock.md` | 20.D — Remaining pages, then lock the rule in |
+| `plans/completed/20-named-route-objects/README.md` | 20 — Named route objects everywhere (no path strings) |
 | `plans/pending/18-countries-a11y-diagnostics/phase-a-phone-switch.md` | 18.A — Quick fixes: phone input and switch |
 | `plans/pending/18-countries-a11y-diagnostics/phase-b-diagnostics.md` | 18.B — Diagnostics foundation (error · perf · debug · audit · accounting) |
 | `plans/pending/18-countries-a11y-diagnostics/phase-c-contrast.md` | 18.C — Contrast & accessibility |
@@ -475,8 +480,3 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `plans/pending/18-countries-a11y-diagnostics/phase-f-accounting-debugger.md` | 18.F — Accounting debugger |
 | `plans/pending/18-countries-a11y-diagnostics/phase-g-dev-loop.md` | 18.G — Close the dev loop |
 | `plans/pending/18-countries-a11y-diagnostics/README.md` | 18 — Egypt + Saudi as real countries, address picker, phone/switch fixes, contrast, and a diagnostics system |
-| `plans/pending/20-named-route-objects/phase-a-typed-map.md` | 20.A — Rule, typed route map, `AppRoute`, guard (report mode) |
-| `plans/pending/20-named-route-objects/phase-b-shared-layer.md` | 20.B — Shared layer: navigation config, palette, services, guards |
-| `plans/pending/20-named-route-objects/phase-c-document-pages.md` | 20.C — Pages: sales/POS, purchases, payments, vouchers, expenses, parties |
-| `plans/pending/20-named-route-objects/phase-d-remaining-pages-lock.md` | 20.D — Remaining pages, then lock the rule in |
-| `plans/pending/20-named-route-objects/README.md` | 20 — Named route objects everywhere (no path strings) |
