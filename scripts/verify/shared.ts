@@ -7,6 +7,7 @@
  * docs/v2/15-action-plan.md Phase 0's "`verify:mocks` v2 harness" item.
  */
 import { accountFor } from '../../src/mocks/backend/accounts';
+import { round2 } from '../../src/modules/core/helpers/numbers';
 import { db } from '../../src/mocks/db';
 import type { SystemRole } from '../../src/modules/accounting/types';
 
@@ -33,9 +34,8 @@ export function check(cond: boolean, message: string): Result {
   return cond ? ok(message) : fail(message);
 }
 
-export function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
+/** Same rule as the app (D3) — never a local copy, or a check could disagree with the code it checks. */
+export { round2 };
 
 /** Net balance (Σdebit − Σcredit) of the account holding this system role, across every posted journal entry. */
 export function glBalance(role: SystemRole): number {

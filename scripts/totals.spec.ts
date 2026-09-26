@@ -9,7 +9,7 @@
  *
  *   bun run scripts/totals.spec.ts
  */
-import { computeInvoiceTotals, type TotalsLineInput } from '../src/modules/invoices/helpers/totals';
+import { computeInvoiceTotals, round2, type TotalsLineInput } from '../src/modules/invoices/helpers/totals';
 
 let passed = 0;
 let failed = 0;
@@ -66,7 +66,7 @@ const Z: TotalsLineInput['tax'] = { rate: 0, category: 'Z' };
 
   // Σhᵢ = H exactly.
   const sumShares = r.lines.reduce((a, l) => a + l.invoiceDiscountShare, 0);
-  eq(Math.round(sumShares * 100) / 100, 5.0, 'worked example: Σ invoice-discount shares = H exactly');
+  eq(round2(sumShares), 5.0, 'worked example: Σ invoice-discount shares = H exactly');
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -136,7 +136,7 @@ const Z: TotalsLineInput['tax'] = { rate: 0, category: 'Z' };
   eq(r.lines[1].invoiceDiscountShare, 3, 'zero-weight line: remaining lines split 10 as 30:70 → 3');
   eq(r.lines[2].invoiceDiscountShare, 7, 'zero-weight line: remaining lines split 10 as 30:70 → 7');
   const sumShares = r.lines.reduce((a, l) => a + l.invoiceDiscountShare, 0);
-  eq(Math.round(sumShares * 100) / 100, 10, 'zero-weight line: shares still sum to H exactly');
+  eq(round2(sumShares), 10, 'zero-weight line: shares still sum to H exactly');
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -161,9 +161,6 @@ const Z: TotalsLineInput['tax'] = { rate: 0, category: 'Z' };
   eq(r.net, 80, 'custom price: net uses unitPrice, not listPrice');
 }
 
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

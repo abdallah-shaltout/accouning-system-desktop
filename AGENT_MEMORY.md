@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **721 files / 74,511 lines** (json 3, md 47, rust 22, ts 220, vue 429).
+Indexed: **753 files / 118,436 lines** (json 4, md 78, rust 22, ts 220, vue 429).
 
 **Lookup order:** Where-to-find → Open diagnostics → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -35,6 +35,8 @@ Indexed: **721 files / 74,511 lines** (json 3, md 47, rust 22, ts 220, vue 429).
 | UI guard scripts | `scripts/check-rtl.js` |
 | Design system doc | `docs/design_system.md` |
 | Posting rules | `docs/v2/02-accounting-review.md` |
+| Rounding rule (round2/round4, half away from zero) | `src/modules/core/helpers/numbers.ts` |
+| Backend contract inventory (generated, `bun run contract`) | `docs/backend/contract/README.md` |
 
 ## Open diagnostics (docs/diagnostics — 18.G)
 
@@ -42,9 +44,10 @@ Known failures not yet fixed — check before starting work in an affected area.
 
 **By kind:** | Kind | Open count |
 |---|---|
-| خلل | 6 |
+| خلل | 12 |
+| أداء | 2 |
 
-**By area:** `branches-currencies (1)`, `full-persona-pass (1)`, `onboarding (1)`, `purchases (1)`, `reports-v2 (1)`, `setup-wizard-eg (1)`
+**By area:** `onboarding (5)`, `setup-wizard-eg (5)`, `branches-currencies (1)`, `full-persona-pass (1)`, `purchases (1)`, `reports-v2 (1)`
 
 
 
@@ -56,6 +59,14 @@ Known failures not yet fixed — check before starting work in an affected area.
 | `BUG-0005` | خلل | branches-currencies | مفتوح | 2 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0005-branches-currencies-flow-failed-an-asser.md` |
 | `BUG-0006` | خلل | reports-v2 | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0006-reports-v2-flow-crashed-unhandled-except.md` |
 | `BUG-0007` | خلل | full-persona-pass | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0007-full-persona-pass-flow-failed-an-asserti.md` |
+| `BUG-0008` | خلل | onboarding | مفتوح | 3 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0008-onboarding-flow-failed-an-assertion.md` |
+| `BUG-0009` | خلل | onboarding | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0009-onboarding-flow-crashed-unhandled-except.md` |
+| `BUG-0010` | خلل | setup-wizard-eg | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0010-setup-wizard-eg-flow-crashed-unhandled-e.md` |
+| `BUG-0011` | خلل | onboarding | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0011-onboarding-flow-crashed-unhandled-except.md` |
+| `BUG-0012` | خلل | setup-wizard-eg | مفتوح | 3 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0012-setup-wizard-eg-flow-failed-an-assertion.md` |
+| `BUG-0013` | خلل | setup-wizard-eg | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0013-setup-wizard-eg-flow-crashed-unhandled-e.md` |
+| `PERF-0001` | أداء | onboarding | مفتوح | 8 | 2026-09-26 |  | `docs/diagnostics/issues/PERF-0001-onboarding-flow-ran-218-slower-than-base.md` |
+| `PERF-0002` | أداء | setup-wizard-eg | مفتوح | 7 | 2026-09-26 |  | `docs/diagnostics/issues/PERF-0002-setup-wizard-eg-flow-ran-567-slower-than.md` |
 
 ## Architecture (layers & data flow)
 
@@ -79,17 +90,17 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **accounting** | 12 / 3370 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
 | **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
 | **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
-| **core** | 348 / 19528 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 10, types 5 | 5 |  |
+| **core** | 348 / 19554 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 10, types 5 | 5 |  |
 | **diagnostics** | 20 / 2061 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 1 | 0 | yes |
-| **expenses** | 8 / 947 | pages 5, routes 1, services 1, types 1 | 5 |  |
-| **invoices** | 30 / 5383 | commands 1, components 13, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
-| **parties** | 11 / 1845 | components 1, helpers 3, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
+| **expenses** | 8 / 945 | pages 5, routes 1, services 1, types 1 | 5 |  |
+| **invoices** | 30 / 5385 | commands 1, components 13, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
+| **parties** | 11 / 1846 | components 1, helpers 3, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
 | **payments** | 6 / 877 | pages 3, routes 1, services 1, types 1 | 3 |  |
-| **products** | 32 / 5090 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
+| **products** | 32 / 5092 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
 | **purchases** | 11 / 1712 | commands 1, components 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
-| **reports** | 44 / 6208 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
+| **reports** | 44 / 6206 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
 | **settings** | 33 / 4964 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
-| **setup** | 17 / 1673 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
+| **setup** | 17 / 1698 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
 | **templates** | 4 / 919 | pages 2, services 1, types 1 | 0 |  |
 | **users** | 11 / 966 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
 | **vouchers** | 9 / 810 | commands 1, pages 5, routes 1, services 1, types 1 | 5 | yes |
@@ -277,14 +288,14 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **approvals** | core (12), mocks (2), diagnostics (1), users (1) | 5 |
 | **core** | users (19), mocks (16), products (14), invoices (13), settings (10), diagnostics (8), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), approvals (1), payments (1), reports (1), setup (1) | 18 |
 | **diagnostics** | core (26), mocks (5) | 18 |
-| **expenses** | core (58), accounting (3), users (3), mocks (2), parties (2), settings (2), diagnostics (1) | 2 |
-| **invoices** | core (171), products (10), mocks (9), settings (9), parties (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
-| **mocks** | core (10), invoices (9), accounting (8), products (8), settings (5), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 17 |
-| **parties** | core (59), mocks (6), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
+| **expenses** | core (59), accounting (3), users (3), mocks (2), parties (2), settings (2), diagnostics (1) | 2 |
+| **invoices** | core (173), products (10), mocks (9), settings (9), parties (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
+| **mocks** | core (14), invoices (9), accounting (8), products (8), settings (5), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 17 |
+| **parties** | core (60), mocks (6), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
 | **payments** | core (42), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
-| **products** | core (204), mocks (13), users (13), settings (8), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
+| **products** | core (206), mocks (13), users (13), settings (8), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
 | **purchases** | core (79), products (5), users (4), invoices (3), mocks (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
-| **reports** | core (162), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
+| **reports** | core (163), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
 | **settings** | core (175), users (18), mocks (14), diagnostics (7), invoices (3), products (3), templates (2) | 12 |
 | **setup** | core (57), mocks (8), settings (4), accounting (2), products (2), diagnostics (1), parties (1), users (1) | 3 |
 | **templates** | core (16), diagnostics (1) | 3 |
@@ -327,7 +338,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `backend/approvals.ts` | `requestApproval`, `decideApproval`, `listApprovalRequests`, `pendingApprovalCount` | approvals |
 | `backend/balances.ts` | `customerBalance`, `supplierBalance`, `customerBalanceFc`, `supplierBalanceFc`, `customerStatement`, `supplierStatement` | core, invoices, parties, reports |
 | `backend/branches.ts` | `branchById`, `activeBranches`, `branchesEnabled`, `currenciesEnabled`, `costCentersEnabled`, `listBranches`, `createBranch`, `updateBranch`, `deactivateBranch`, `reactivateBranch`, `branchPrefix`, `listCostCenters`, `costCenterById`, `createCostCenter`, `updateCostCenter`, `deleteCostCenter`, `defaultCostCenterFor` | settings |
-| `backend/core.ts` | `resolvePosting`, `assertOpenPeriod`, `postJournal`, `draftJournal`, `updateDraftJournal`, `deleteDraftJournal`, `postDraftJournal`, `productById`, `applyStockChange`, `round4`, `logActivity`, `logAudit`, `diffFields`, `salesTaxRate`, `purchaseTaxRate`, `userById`, `closeYearPreChecks`, `closeFiscalYear`, `reopenFiscalYear` | accounting, invoices, parties, products, settings, users |
+| `backend/core.ts` | `resolvePosting`, `assertOpenPeriod`, `postJournal`, `draftJournal`, `updateDraftJournal`, `deleteDraftJournal`, `postDraftJournal`, `productById`, `applyStockChange`, `logActivity`, `logAudit`, `diffFields`, `salesTaxRate`, `purchaseTaxRate`, `userById`, `closeYearPreChecks`, `closeFiscalYear`, `reopenFiscalYear` | accounting, invoices, parties, products, settings, users |
 | `backend/currency.ts` | `baseCurrency`, `isBaseCurrency`, `currencyByCode`, `activeCurrencies`, `createCurrency`, `updateCurrency`, `isBaseCurrencyLocked`, `setBaseCurrency`, `saveExchangeRate`, `latestRate`, `requireRate`, `convertLinesToBase`, `toBase` | settings, setup |
 | `backend/expenses.ts` | `saveExpenseCategory`, `deleteExpenseCategory`, `recordExpense`, `getExpenseById`, `saveRecurringExpense`, `deleteRecurringExpense`, `dueRecurringExpenses`, `postRecurringExpense` | expenses |
 | `backend/invariants.ts` | `checkBalancedEntries`, `checkTrialBalance`, `checkArApControl`, `checkInventoryGl`, `checkVatControl`, `checkPartyAllocation`, `checkSourceRefIntegrity`, `checkLockDate`, `checkOpeningBalanceEquity`, `checkClearingAccounts`, `checkShiftVariance`, `checkDraftsIsolated`, `checkAllocationsWithinTotal`, `checkFxConversion`, `runAllInvariants` | — |
@@ -357,7 +368,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `seed/purchases8.ts` | `seedPurchases8` | — |
 | `seed/settings.ts` | `seedSettings` | — |
 | `seed/shifts.ts` | `seedShifts` | — |
-| `utils.ts` | `setLatencyMode`, `getLatencyMode`, `delay`, `clone`, `round2`, `sum`, `uid`, `bumpIdCounter`, `padNumber`, `localDateKey`, `inDateRange`, `includesText`, `createRandom` | core, settings |
+| `utils.ts` | `setLatencyMode`, `getLatencyMode`, `delay`, `clone`, `sum`, `uid`, `bumpIdCounter`, `padNumber`, `localDateKey`, `inDateRange`, `includesText`, `createRandom` | core, settings |
 
 ## Shared UI kit (reuse before building — src/modules/core)
 
@@ -437,6 +448,8 @@ _none_
 | `bun run check` | `node scripts/check-text-tokens.js && node scripts/check-rtl.js && bun run scripts/check-contrast.ts && node scripts/check-ui-rules.js && node scripts/check-routes.js` |
 | `bun run memory` | `bun run scripts/memory/run.ts` |
 | `bun run memory:check` | `bun run scripts/memory/run.ts --check` |
+| `bun run contract` | `bun run scripts/contract/run.ts` |
+| `bun run contract:check` | `bun run scripts/contract/run.ts --check` |
 | `bun run diag` | `bun run scripts/diagnostics/run.ts` |
 | `bun run diag:check` | `bun run scripts/diagnostics/run.ts --check` |
 | `bun run geo:build` | `bun run scripts/geo/build.ts` |
@@ -446,6 +459,25 @@ _none_
 | Doc | Title |
 |---|---|
 | `docs/action_plan.md` | Execution Plan — Frontend-Only Rebuild |
+| `docs/backend/contract/accounting.md` | Contract — `accounting` |
+| `docs/backend/contract/analytics.md` | Contract — `analytics` |
+| `docs/backend/contract/approvals.md` | Contract — `approvals` |
+| `docs/backend/contract/core.md` | Contract — `core` |
+| `docs/backend/contract/diagnostics.md` | Contract — `diagnostics` |
+| `docs/backend/contract/expenses.md` | Contract — `expenses` |
+| `docs/backend/contract/invoices.md` | Contract — `invoices` |
+| `docs/backend/contract/mocks.md` | Mock engine functions (`src/mocks/backend` + `db.ts`) |
+| `docs/backend/contract/parties.md` | Contract — `parties` |
+| `docs/backend/contract/payments.md` | Contract — `payments` |
+| `docs/backend/contract/products.md` | Contract — `products` |
+| `docs/backend/contract/purchases.md` | Contract — `purchases` |
+| `docs/backend/contract/README.md` | Backend contract inventory |
+| `docs/backend/contract/reports.md` | Contract — `reports` |
+| `docs/backend/contract/settings.md` | Contract — `settings` |
+| `docs/backend/contract/setup.md` | Contract — `setup` |
+| `docs/backend/contract/templates.md` | Contract — `templates` |
+| `docs/backend/contract/users.md` | Contract — `users` |
+| `docs/backend/contract/vouchers.md` | Contract — `vouchers` |
 | `docs/design_system.md` | Design System — "Linear-style" Light/Dark |
 | `docs/diagnostics/ISSUES.md` | سجل المشاكل (Issues) — ملف مُولَّد |
 | `docs/diagnostics/issues/BUG-0001-onboarding-flow-crashed-unhandled-except.md` |  |
@@ -454,7 +486,15 @@ _none_
 | `docs/diagnostics/issues/BUG-0005-branches-currencies-flow-failed-an-asser.md` |  |
 | `docs/diagnostics/issues/BUG-0006-reports-v2-flow-crashed-unhandled-except.md` |  |
 | `docs/diagnostics/issues/BUG-0007-full-persona-pass-flow-failed-an-asserti.md` |  |
+| `docs/diagnostics/issues/BUG-0008-onboarding-flow-failed-an-assertion.md` |  |
+| `docs/diagnostics/issues/BUG-0009-onboarding-flow-crashed-unhandled-except.md` |  |
+| `docs/diagnostics/issues/BUG-0010-setup-wizard-eg-flow-crashed-unhandled-e.md` |  |
+| `docs/diagnostics/issues/BUG-0011-onboarding-flow-crashed-unhandled-except.md` |  |
+| `docs/diagnostics/issues/BUG-0012-setup-wizard-eg-flow-failed-an-assertion.md` |  |
+| `docs/diagnostics/issues/BUG-0013-setup-wizard-eg-flow-crashed-unhandled-e.md` |  |
 | `docs/diagnostics/issues/DBG-0001-example-entry.md` |  |
+| `docs/diagnostics/issues/PERF-0001-onboarding-flow-ran-218-slower-than-base.md` |  |
+| `docs/diagnostics/issues/PERF-0002-setup-wizard-eg-flow-ran-567-slower-than.md` |  |
 | `docs/domain_model.md` | Domain Model (Frontend Mock Data Reference) |
 | `docs/project_specs.md` | Desktop Accounting & POS UI — Product Spec (Frontend-Only) |
 | `docs/v2/01-personas.md` | 01 — Personas: Using the App as Each Role |
@@ -492,3 +532,7 @@ _none_
 | `plans/pending/18-countries-a11y-diagnostics/phase-f-accounting-debugger.md` | 18.F — Accounting debugger |
 | `plans/pending/18-countries-a11y-diagnostics/phase-g-dev-loop.md` | 18.G — Close the dev loop |
 | `plans/pending/18-countries-a11y-diagnostics/README.md` | 18 — Egypt + Saudi as real countries, address picker, phone/switch fixes, contrast, and a diagnostics system |
+| `plans/pending/21-rust-backend/00-MASTER-PLAN.md` | 21 — Real backend: Tauri + Rust + SeaORM + MariaDB (master plan) |
+| `plans/pending/21-rust-backend/01-FRONTEND-ANALYSIS.md` | 21 · Part 01 — Frontend analysis (the contract the Rust backend must honour) |
+| `plans/pending/21-rust-backend/01-frontend-analysis/TEMPLATE.md` | 21 · 01.B — `<module>` contract |
+| `plans/pending/21-rust-backend/README.md` | 21 — Real backend (Tauri + Rust + SeaORM + MariaDB) |

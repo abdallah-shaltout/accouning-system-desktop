@@ -1,9 +1,10 @@
 import type { TaxCategory } from '@/modules/settings/types';
 import type { PaymentStatus } from '../types';
 
-export function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
+import { round2 } from '@/modules/core/helpers/numbers';
+
+/** Re-exported for existing importers — the one rounding rule lives in core/helpers/numbers.ts (D3). */
+export { round2 };
 
 // =================================================================================================
 // v2 pricing/discount/VAT engine — docs/v2/06-sales-and-pos.md §3 "Pricing, discount & VAT math",

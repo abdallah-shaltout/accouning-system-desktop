@@ -44,16 +44,6 @@ function clean(s: string): string {
   return s.replace(BIDI_MARKS, '');
 }
 
-/**
- * Wrap a plain LTR string (dates, numbers) in a Unicode LTR isolate so it keeps its internal
- * left-to-right order (e.g. dd/mm/yyyy) even when rendered without a `.num` class inside RTL
- * text \u2014 the bidi algorithm would otherwise reorder the `/`-separated groups. `\u2066`/`\u2069`
- * (isolate) are stripped by `clean()`'s BIDI_MARKS regex too, so they must be applied last.
- */
-function ltrIsolate(s: string): string {
-  return `\u2066${s}\u2069`;
-}
-
 function locale(): string {
   return `ar-SA-u-ca-gregory-nu-${numeralSystem.value}`;
 }
@@ -111,7 +101,7 @@ export function formatDate(iso: string | undefined | null): string {
   const m = parts.find((p) => p.type === 'month')?.value ?? '';
   const d = parts.find((p) => p.type === 'day')?.value ?? '';
   const out = dateFormatStyle.value === 'ymd' ? `${y}-${m}-${d}` : `${d}/${m}/${y}`;
-  return ltrIsolate(clean(out));
+  return clean(out);
 }
 
 /** hijri-umalqura date (e.g. ١٤ ربيع الآخر ١٤٤٧هـ) for the optional "show Hijri alongside" setting. */
@@ -141,7 +131,7 @@ export function formatDateLong(iso: string | undefined | null): string {
 export function formatTime(iso: string | undefined | null): string {
   if (!iso) return '';
   // 24-hour clock: unambiguous on receipts and avoids mixing an Arabic AM/PM letter into LTR digits.
-  return ltrIsolate(clean(dateFormat({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso))));
+  return clean(dateFormat({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso)));
 }
 
 export function formatDateTime(iso: string | undefined | null): string {

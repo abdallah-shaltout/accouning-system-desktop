@@ -123,7 +123,7 @@ defineExpose({ open: () => (open.value = true) });
       </ComboboxAnchor>
       <p v-if="error" :id="errorId" class="mt-1 text-xs text-danger" role="alert">{{ error }}</p>
 
-      <ComboboxList dir="rtl" class="w-[--reka-combobox-trigger-width] min-w-60 rounded-lg border-border bg-background shadow-xl">
+      <ComboboxList dir="rtl" class="w-[--reka-combobox-trigger-width] rounded-lg border-border bg-background shadow-xl">
         <ComboboxInput v-model="query" :placeholder="searchPlaceholder" class="text-body" />
         <ComboboxViewport class="p-1">
           <ComboboxItem

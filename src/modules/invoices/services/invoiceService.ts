@@ -12,6 +12,7 @@ import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
 import { mutate } from '@/mocks/persist';
 import { emit } from '@/mocks/events';
 import type { StoreSettings } from '@/modules/settings/types';
+import { round2 } from '@/modules/core/helpers/numbers';
 import { roleCanOverrideCreditLimit } from '@/modules/users/helpers/permissions';
 import { invoiceOutstanding } from '../helpers/totals';
 import { wrap } from '@/modules/diagnostics/services/defineService';
@@ -209,7 +210,7 @@ export const getInvoicePrintData = wrap('invoices.getInvoicePrintData', async fu
     // v2 doc 18.D: the test-print sample used to hard-code 15% — now reads the store's actual
     // active sales-tax rate, so an Egyptian company's test print shows 14%, not a stray 15%.
     const taxRate = salesTaxRate();
-    const taxAmount = Math.round(subTotal * taxRate) / 100;
+    const taxAmount = round2((subTotal * taxRate) / 100);
     return {
       invoice: {
         id: 'sample',

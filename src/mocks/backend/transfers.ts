@@ -10,6 +10,7 @@ import { db, nextNumber } from '../db';
 import { emit } from '../events';
 import { mutate } from '../persist';
 import { ApiError, round2, uid } from '../utils';
+import { round4 } from '@/modules/core/helpers/numbers';
 import { applyStockChange, logActivity, postJournal, productById, type PostingLine } from './core';
 import { branchById, branchPrefix } from './branches';
 
@@ -117,9 +118,6 @@ export function sendTransfer(id: string, userId: string, date = new Date().toISO
   return transfer;
 }
 
-function round4(n: number): number {
-  return Math.round((n + Number.EPSILON) * 10000) / 10000;
-}
 
 /**
  * Receive: stock arrives at the destination branch. `receivedQty < qty` (shortage) posts the

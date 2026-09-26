@@ -17,9 +17,13 @@ const code = computed(() => props.code.toUpperCase());
     viewBox="0 0 3 2"
     class="h-3.5 w-[21px] shrink-0 overflow-hidden rounded-[2px] ring-1 ring-black/10"
   >
-    <!-- Saudi Arabia: green field (shahada + sword omitted for simplicity at this size) -->
+    <!-- Saudi Arabia: green field + white shahada line + sword (simplified for this size) -->
     <template v-if="code === 'SA'">
       <rect width="3" height="2" fill="#006c35" />
+      <rect x="0.5" y="0.75" width="2" height="0.22" rx="0.05" fill="#fff" />
+      <rect x="0.5" y="1.15" width="1.5" height="0.14" rx="0.04" fill="#fff" />
+      <rect x="0.5" y="1.45" width="2" height="0.07" fill="#fff" />
+      <circle cx="0.42" cy="1.485" r="0.055" fill="#fff" />
     </template>
     <!-- Egypt: red / white / black horizontal bands with a stylised gold eagle dot -->
     <template v-else-if="code === 'EG'">

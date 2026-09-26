@@ -426,6 +426,19 @@
       0 0 0 4px color-mix(in oklab, var(--color-primary) 45%, transparent);
   }
 
+  /* The command-palette and combobox search rows (CommandInput.vue, ComboboxInput.vue) sit flush
+     against the top edge of an `overflow-hidden` panel (Command.vue's ListboxRoot, ComboboxList.vue's
+     ComboboxContent). The outward ring above gets clipped there, leaving a lopsided sliver of shadow
+     on focus. Draw the same two-tone ring inset instead, on the wrapper, only in that one spot. */
+  [data-slot="command-input-wrapper"]:has(:focus-visible) {
+    box-shadow:
+      inset 0 0 0 2px var(--color-border-control),
+      inset 0 0 0 4px color-mix(in oklab, var(--color-primary) 45%, transparent);
+  }
+  [data-slot="command-input-wrapper"] [data-slot="command-input"]:focus-visible {
+    box-shadow: none;
+  }
+
   /* Tailwind's preflight resets buttons to `cursor: default`; every clickable control across the
      app (including shadcn primitives) should show a pointer, not just the ones we remembered to
      annotate one at a time. */
@@ -473,12 +486,13 @@
      dimming it further (the old `opacity: 0.8`) pushed placeholders back under that minimum (18.C). */
   .control::placeholder { color: var(--color-text-secondary); }
   .control:hover { border-color: color-mix(in oklab, var(--color-text-primary) 35%, var(--color-border-control)); }
+  /* Border-color only — the ring/glow itself comes from the single global :focus-visible rule
+     above (18.C's "two-tone ring"). A second box-shadow here duplicated that ring with mismatched
+     colors/timing (:focus fires on mouse click too, :focus-visible fires after and overwrote the
+     box-shadow but not this border-color, leaving two visibly different rings stacked). */
   .control:focus {
     outline: none;
     border-color: var(--color-primary);
-    box-shadow:
-      0 0 0 2px var(--color-border-control),
-      0 0 0 4px color-mix(in oklab, var(--color-primary) 45%, transparent);
   }
   .control:disabled { opacity: 0.6; cursor: not-allowed; }
   .control[aria-invalid="true"] { border-color: var(--color-danger); }

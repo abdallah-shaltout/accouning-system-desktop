@@ -27,9 +27,10 @@ import * as inventory from './inventory';
 import * as parties from './parties';
 import * as sales from './sales';
 import * as branches from './branches';
+import * as rounding from './rounding';
 import type { Result } from './shared';
 
-const areas: Record<string, { run: () => Result[] }> = { accounts, inventory, parties, sales, branches };
+const areas: Record<string, { run: () => Result[] }> = { rounding, accounts, inventory, parties, sales, branches };
 
 /** 18.G: every `fail` result becomes an `ACC-` ledger issue, through the same
  * `scripts/diagnostics/run.ts --ingest` upsert mechanism e2e/perf findings use (see

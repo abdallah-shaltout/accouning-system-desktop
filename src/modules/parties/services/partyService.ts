@@ -7,6 +7,7 @@ import { mutate } from '@/mocks/persist';
 import type { AgingBucket, Customer, CustomerInput, PartyGroup, PartyHistoryEntry, PartyStatementRow, Supplier, SupplierInput } from '../types';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
+import { round2 } from '@/modules/core/helpers/numbers';
 
 /** Re-exported so pages/helpers in this module never need to import `@/mocks` directly (seam rule). */
 export { ApiError, uid };
@@ -266,7 +267,7 @@ export const getPartyAging = wrap('parties.getPartyAging', async function getPar
     const refDate = doc.dueDate ?? doc.date;
     const daysOverdue = Math.floor((new Date(today).getTime() - new Date(localDateKey(refDate)).getTime()) / 86_400_000);
     const bucketIndex = daysOverdue <= 0 ? 0 : daysOverdue <= 30 ? 1 : daysOverdue <= 60 ? 2 : 3;
-    buckets[bucketIndex].total = Math.round((buckets[bucketIndex].total + doc.outstanding) * 100) / 100;
+    buckets[bucketIndex].total = round2(buckets[bucketIndex].total + doc.outstanding);
     buckets[bucketIndex].documents.push({ id: doc.id, number: doc.number, date: doc.date, dueDate: doc.dueDate, outstanding: doc.outstanding });
   }
   return buckets;

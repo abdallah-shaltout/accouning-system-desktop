@@ -9,7 +9,7 @@ import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
-import { num0 } from '@/modules/core/helpers/numbers';
+import { num0, round2 } from '@/modules/core/helpers/numbers';
 import type { DenominationCount } from '../types';
 import type { ShiftRow } from '../services/invoiceService';
 
@@ -28,7 +28,7 @@ const note = ref('');
 watch(open, (o) => {
   if (o) {
     counts.value = Object.fromEntries(DENOMS.map((d) => [d, 0]));
-    flatCounted.value = props.shift ? Math.round(props.shift.expectedCash * 100) / 100 : undefined;
+    flatCounted.value = props.shift ? round2(props.shift.expectedCash) : undefined;
     useDenoms.value = false;
     handoverMode.value = 'HANDOVER';
     note.value = '';
@@ -37,7 +37,7 @@ watch(open, (o) => {
 
 const denomTotal = computed(() => DENOMS.reduce((a, d) => a + d * num0(counts.value[d]), 0));
 const counted = computed(() => (useDenoms.value ? denomTotal.value : num0(flatCounted.value)));
-const variance = computed(() => Math.round((counted.value - (props.shift?.expectedCash ?? 0)) * 100) / 100);
+const variance = computed(() => round2(counted.value - (props.shift?.expectedCash ?? 0)));
 
 function confirm() {
   const denoms: DenominationCount[] | undefined = useDenoms.value ? DENOMS.map((value) => ({ value, count: num0(counts.value[value]) })) : undefined;

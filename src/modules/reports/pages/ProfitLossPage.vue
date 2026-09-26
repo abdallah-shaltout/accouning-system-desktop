@@ -4,6 +4,7 @@ import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatNumber } from '@/modules/core/helpers/format';
+import { round2 } from '@/modules/core/helpers/numbers';
 import ComparisonToggle from '../components/ComparisonToggle.vue';
 import DimensionFilters from '../components/DimensionFilters.vue';
 import ReportShell from '../components/ReportShell.vue';
@@ -43,11 +44,8 @@ watch([from, to, branchId, costCenterId, currency, comparison, ready], () => {
 const margin = computed(() => (data.value && data.value.netRevenue ? (data.value.netIncome / data.value.netRevenue) * 100 : 0));
 const grossMargin = computed(() => (data.value && data.value.netRevenue ? (data.value.grossProfit / data.value.netRevenue) * 100 : 0));
 
-const deltaNetIncome = computed(() => (data.value && previous.value ? round2Local(data.value.netIncome - previous.value.netIncome) : 0));
-const deltaNetIncomePct = computed(() => (previous.value?.netIncome ? round2Local((deltaNetIncome.value / Math.abs(previous.value.netIncome)) * 100) : 0));
-function round2Local(n: number) {
-  return Math.round(n * 100) / 100;
-}
+const deltaNetIncome = computed(() => (data.value && previous.value ? round2(data.value.netIncome - previous.value.netIncome) : 0));
+const deltaNetIncomePct = computed(() => (previous.value?.netIncome ? round2((deltaNetIncome.value / Math.abs(previous.value.netIncome)) * 100) : 0));
 
 const insights = computed(() => {
   if (!data.value) return null;
@@ -67,7 +65,7 @@ const table = computed<ExportTable | undefined>(() => {
   if (!d) return undefined;
   const rows: (string | number)[][] = [];
   const prev = previous.value;
-  const withCompare = (row: (string | number)[], amount: number, prevAmount?: number) => (prev ? [...row, prevAmount ?? '', prevAmount !== undefined ? round2Local(amount - prevAmount) : ''] : row);
+  const withCompare = (row: (string | number)[], amount: number, prevAmount?: number) => (prev ? [...row, prevAmount ?? '', prevAmount !== undefined ? round2(amount - prevAmount) : ''] : row);
   const findPrev = (list: typeof d.revenue | undefined, code: string) => list?.find((l) => l.code === code)?.amount;
   const section = (title: string, lines: typeof d.revenue, total: number, prevLines?: typeof d.revenue, prevTotal?: number) => {
     rows.push(withCompare([title, '', ''], 0));
@@ -88,7 +86,7 @@ const print = computed<ReportPrintSpec | null>(() => {
   const d = data.value;
   if (!d) return null;
   const prev = previous.value;
-  const compareCells = (amount: number, prevAmount: number | undefined) => (prev ? [prevAmount === undefined ? '—' : money(prevAmount), prevAmount === undefined ? '—' : money(round2Local(amount - prevAmount))] : []);
+  const compareCells = (amount: number, prevAmount: number | undefined) => (prev ? [prevAmount === undefined ? '—' : money(prevAmount), prevAmount === undefined ? '—' : money(round2(amount - prevAmount))] : []);
   const rows: PrintRow[] = [];
   const section = (title: string, lines: typeof d.revenue, total: number, totalLabel: string, prevLines?: typeof d.revenue, prevTotal?: number) => {
     rows.push(row([title], 'section'));

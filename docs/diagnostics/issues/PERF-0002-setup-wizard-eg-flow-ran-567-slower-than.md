@@ -6,7 +6,7 @@ area: setup-wizard-eg
 fingerprint: perf:setup-wizard-eg:duration
 first_seen: 2026-09-26
 last_seen: 2026-09-26
-occurrences: 1
+occurrences: 7
 ---
 
 ## setup-wizard-eg flow ran 567% slower than baseline

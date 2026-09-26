@@ -16,6 +16,7 @@
  * checks rather than living beside the 11 numbered invariants below.
  */
 import type { MockDb } from '../db';
+import { round2 } from '@/modules/core/helpers/numbers';
 import { accountFor } from './accounts';
 import { customerBalance, customerStatement, supplierBalance, supplierStatement } from './balances';
 import { unallocatedCreditFor } from './payments';
@@ -31,10 +32,6 @@ export interface InvariantResult {
   /** Expected/actual in the minor unit (هللة/قرش) — set only when the invariant is a numeric
    * equality check and it failed, so the debug-mode logger can print an exact diff. */
   diff?: { expected: number; actual: number; deltaMinorUnits: number };
-}
-
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
 function closeEnough(a: number, b: number, tolerance = 0.01): boolean {

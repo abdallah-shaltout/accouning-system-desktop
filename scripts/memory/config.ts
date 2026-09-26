@@ -105,5 +105,7 @@ export const config: Config = {
     ['UI guard scripts', 'scripts/check-rtl.js'],
     ['Design system doc', 'docs/design_system.md'],
     ['Posting rules', 'docs/v2/02-accounting-review.md'],
+    ['Rounding rule (round2/round4, half away from zero)', 'src/modules/core/helpers/numbers.ts'],
+    ['Backend contract inventory (generated, `bun run contract`)', 'docs/backend/contract/README.md'],
   ],
 };

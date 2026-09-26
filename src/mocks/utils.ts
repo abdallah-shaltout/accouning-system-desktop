@@ -2,6 +2,7 @@
  * Helpers shared by the mock backend. Nothing here should be imported by pages/components —
  * they talk to module `services/`, which are the only layer that knows data is mocked.
  */
+import { round2 } from '@/modules/core/helpers/numbers';
 import { matchesSearch } from '@/modules/core/helpers/search';
 
 /** Simulated network/IPC latency (ms). Set to 0 for instant responses. */
@@ -58,9 +59,8 @@ export class ApiError extends Error {
   }
 }
 
-export function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
+/** Re-exported so mock files keep importing it from here — the one rule lives in core/helpers/numbers.ts (D3). */
+export { round2 };
 
 export function sum<T>(items: T[], pick: (item: T) => number): number {
   return round2(items.reduce((acc, item) => acc + pick(item), 0));

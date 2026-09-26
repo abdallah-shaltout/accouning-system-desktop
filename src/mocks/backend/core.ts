@@ -6,6 +6,7 @@ import { db, nextNumber } from '../db';
 import { emit } from '../events';
 import { mutate } from '../persist';
 import { ApiError, localDateKey, round2, sum, uid } from '../utils';
+import { round4 } from '@/modules/core/helpers/numbers';
 import { accountById, accountFor } from './accounts';
 import { baseCurrency } from './currency';
 import { newCorrelationId } from '@/modules/diagnostics/services/logService';
@@ -294,9 +295,8 @@ export function applyStockChange(
   });
 }
 
-export function round4(n: number): number {
-  return Math.round((n + Number.EPSILON) * 10000) / 10000;
-}
+/** Re-exported for existing mock imports — the one rule lives in core/helpers/numbers.ts (D3). */
+export { round4 };
 
 // ---------------------------------------------------------------------------------------------
 // Activity feed + business audit (18.B4)

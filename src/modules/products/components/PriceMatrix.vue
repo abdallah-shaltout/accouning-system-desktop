@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import { formatNumber } from '@/modules/core/helpers/format';
+import { round2 } from '@/modules/core/helpers/numbers';
 import { useCatalogStore } from '../controllers/useCatalogStore';
 import type { ProductUnit, ProductUnitPrice } from '../types';
 
@@ -29,7 +30,7 @@ function cell(priceListId: string, unitId: string): number | undefined {
 }
 
 function autoPrice(factor: number): number {
-  return Math.round(props.basePrice * factor * 100) / 100;
+  return round2(props.basePrice * factor);
 }
 
 function setCell(priceListId: string, unitId: string, value: number | undefined) {

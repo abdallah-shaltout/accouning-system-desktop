@@ -17,6 +17,7 @@ import { mutate } from '@/mocks/persist';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
 import type { AppRoute } from '@/modules/core/types/route';
 import { wrap } from '@/modules/diagnostics/services/defineService';
+import { round2 } from '@/modules/core/helpers/numbers';
 
 import type {
   DebitNoteDraft,
@@ -39,7 +40,7 @@ export interface AdjustmentFilter {
 
 /** Value of an adjustment at its snapshot unit costs (gains positive, losses negative). */
 export const adjustmentValue = wrap('products.adjustmentValue', function adjustmentValue(adj: StockAdjustment): number {
-  return Math.round(adj.lines.reduce((acc, l) => acc + l.qtyChange * (l.unitCost ?? 0), 0) * 100) / 100;
+  return round2(adj.lines.reduce((acc, l) => acc + l.qtyChange * (l.unitCost ?? 0), 0));
 });
 
 export const getStockAdjustments = wrap('products.getStockAdjustments', async function getStockAdjustments(filter: AdjustmentFilter = {}): Promise<StockAdjustment[]> {

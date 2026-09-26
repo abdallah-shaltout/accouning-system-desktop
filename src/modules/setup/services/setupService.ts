@@ -69,12 +69,12 @@ export const saveOnboardingProgress = wrap('setup.saveOnboardingProgress', async
   mutate(() => (db.settings.onboarding = { ...db.settings.onboarding, ...clone(patch) }));
 });
 
-export const markStepDone = wrap('setup.markStepDone', async function markStepDone(key: string): Promise<void> {
+export const markStepDone = wrap('setup.markStepDone', async function markStepDone(key: string, stepIndex?: number): Promise<void> {
   await delay(20);
   mutate(() => {
     const done = new Set(db.settings.onboarding?.done ?? []);
     done.add(key);
-    db.settings.onboarding = { ...db.settings.onboarding, done: [...done] };
+    db.settings.onboarding = { ...db.settings.onboarding, done: [...done], ...(stepIndex !== undefined ? { completedStep: stepIndex } : {}) };
   });
 });
 

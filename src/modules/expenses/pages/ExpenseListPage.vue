@@ -13,6 +13,7 @@ import FilterBar from "@/modules/core/components/blocks/FilterBar.vue";
 import { useAsync } from "@/modules/core/controllers/useAsync";
 import { useToast } from "@/modules/core/controllers/useToast";
 import { formatDate, startOfMonthKey } from "@/modules/core/helpers/format";
+import { round2 } from "@/modules/core/helpers/numbers";
 import { useAuthStore } from "@/modules/users/controllers/useAuthStore";
 import {
     getDueRecurringExpenses,
@@ -76,7 +77,7 @@ const monthTotals = computed(() => {
         if (e.date.slice(0, 10) < monthStart) continue;
         byCategory.set(
             e.categoryName,
-            round((byCategory.get(e.categoryName) ?? 0) + e.amount),
+            round2((byCategory.get(e.categoryName) ?? 0) + e.amount),
         );
     }
     const entries = [...byCategory.entries()].sort((a, b) => b[1] - a[1]);
@@ -87,9 +88,6 @@ const monthTotals = computed(() => {
         pct: Math.round((total / max) * 100),
     }));
 });
-function round(n: number) {
-    return Math.round(n * 100) / 100;
-}
 
 const columns: Column<ExpenseRow>[] = [
     { key: "number", label: "الرقم", sortable: true },

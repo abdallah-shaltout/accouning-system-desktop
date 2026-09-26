@@ -214,6 +214,11 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
 - Never change posting rules, VAT math (tax-inclusive by default, discount order: line → invoice →
   VAT), weighted-average cost or the system-role account resolution without reading
   `docs/v2/02-accounting-review.md` and keeping `bun run verify:mocks` fully green.
+- **One rounding rule.** Money, cost, quantity and rate rounding goes only through `round2` / `round4`
+  in `src/modules/core/helpers/numbers.ts`: half **away from zero** on the exact decimal value, the
+  same as the Rust backend's `rust_decimal` `MidpointAwayFromZero` (plan 21, decision D3). Never
+  write a local `Math.round(x * 100) / 100` or a second `round2`. Import or re-export it instead.
+  `verify:mocks`'s `rounding` area fails if an exported copy isn't the same function.
 - **Debugging a wrong number.** Use the accounting debugger (18.F) before guessing: `/dev/diagnostics`
   → المحاسبة for a document's posting trace / account resolution / balances before-after, "اشرح هذا
   الرقم" from any resolved account, and the subledger-vs-GL drift report; `runAllInvariants()` in

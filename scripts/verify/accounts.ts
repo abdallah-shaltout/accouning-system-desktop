@@ -13,7 +13,7 @@ import {
   checkSourceRefIntegrity,
   checkTrialBalance,
 } from '../../src/mocks/backend/invariants';
-import { check, ok, type Result } from './shared';
+import { check, ok, round2, type Result } from './shared';
 
 function toResult(r: { passed: boolean; message: string }): Result {
   return check(r.passed, r.message);
@@ -25,7 +25,7 @@ export function run(): Result[] {
   results.push(...checkBalancedEntries(db).map(toResult));
   const totalDr = db.journalEntries.reduce((a, e) => a + e.totalDebit, 0);
   const totalCr = db.journalEntries.reduce((a, e) => a + e.totalCredit, 0);
-  results.push(ok(`total Dr ${Math.round(totalDr * 100) / 100} / Cr ${Math.round(totalCr * 100) / 100} across ${db.journalEntries.length} entries`));
+  results.push(ok(`total Dr ${round2(totalDr)} / Cr ${round2(totalCr)} across ${db.journalEntries.length} entries`));
 
   results.push(...checkTrialBalance(db).map(toResult));
   results.push(...checkSourceRefIntegrity(db).map(toResult));

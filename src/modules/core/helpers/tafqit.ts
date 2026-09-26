@@ -23,6 +23,7 @@
  * compile time, so there's no runtime import cycle between the two modules.
  */
 import { profileByCurrency } from './countryProfiles';
+import { round2 } from './numbers';
 
 const ONES_M = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
 const ONES_F = ['', 'إحدى', 'اثنتان', 'ثلاث', 'أربع', 'خمس', 'ست', 'سبع', 'ثمان', 'تسع'];
@@ -154,9 +155,9 @@ export function tafqit(amount: number, options: TafqitOptions = {}): string {
   const { prefix = 'فقط لا غير:', currency } = options;
   const words: TafqitCurrencyWords = currency ? profileByCurrency(currency).currency.words : SAR_WORDS;
 
-  const safe = Math.max(0, Math.min(999_999_999.99, Math.round((amount + Number.EPSILON) * 100) / 100));
+  const safe = Math.max(0, Math.min(999_999_999.99, round2(amount)));
   const major = Math.floor(safe);
-  const minor = Math.round((safe - major) * 100);
+  const minor = Math.round(round2(safe - major) * 100);
 
   const majorUnitWord = scaleForm(major, words.major);
   const majorWords = major === 0 ? `صفر ${words.majorNoun}` : `${integerToWords(major, words.majorFeminine)} ${majorUnitWord} ${words.nationality}`;

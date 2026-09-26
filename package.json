@@ -17,6 +17,8 @@
     "check": "node scripts/check-text-tokens.js && node scripts/check-rtl.js && bun run scripts/check-contrast.ts && node scripts/check-ui-rules.js && node scripts/check-routes.js",
     "memory": "bun run scripts/memory/run.ts",
     "memory:check": "bun run scripts/memory/run.ts --check",
+    "contract": "bun run scripts/contract/run.ts",
+    "contract:check": "bun run scripts/contract/run.ts --check",
     "diag": "bun run scripts/diagnostics/run.ts",
     "diag:check": "bun run scripts/diagnostics/run.ts --check",
     "geo:build": "bun run scripts/geo/build.ts"
@@ -39,6 +41,7 @@
     "exceljs": "^4.4.0",
     "fflate": "^0.8.3",
     "libphonenumber-js": "^1.13.13",
+    "modern-screenshot": "^4.7.0",
     "pinia": "^4.0.3",
     "reka-ui": "^2.10.5",
     "tailwind-merge": "^3.7.0",
