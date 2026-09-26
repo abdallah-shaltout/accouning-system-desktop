@@ -12,8 +12,10 @@ import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
+import DetailPage from '@/modules/core/components/layouts/DetailPage.vue';
+import type { MetaChip } from '@/modules/core/components/blocks/DetailHeader.vue';
+import type { StatCard } from '@/modules/core/components/blocks/StatCards.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDateTime } from '@/modules/core/helpers/format';
 import ReportPrintDialog from '@/modules/reports/components/ReportPrintDialog.vue';
@@ -25,6 +27,25 @@ const route = useRoute('pos-shift-report');
 const id = String(route.params.id);
 const { data, error, reload } = useAsync(() => getShift(id));
 const shift = computed(() => data.value);
+
+const chips = computed<MetaChip[]>(() => {
+  if (!shift.value) return [];
+  return [
+    { label: 'الكاشير', value: shift.value.openedByName },
+    { label: 'فُتحت', value: formatDateTime(shift.value.openedAt) },
+    { label: 'أُغلقت', value: shift.value.closedAt ? formatDateTime(shift.value.closedAt) : '—' },
+  ];
+});
+
+const stats = computed<StatCard[]>(() => {
+  if (!shift.value) return [];
+  return [
+    { label: 'إجمالي المبيعات', value: money(shift.value.salesTotal) },
+    { label: 'النقد المتوقع', value: money(shift.value.expectedCash ?? 0) },
+    { label: 'النقد المعدود', value: money(shift.value.countedCash ?? 0) },
+    { label: 'الفرق', value: money(shift.value.variance ?? 0) },
+  ];
+});
 
 const { open: printOpen, doc: printDoc, show: showPrint } = useOfficialPrint();
 
@@ -78,10 +99,14 @@ function print() {
 <template>
   <div>
     <ErrorState v-if="error" :message="error" @retry="reload" />
-    <template v-else>
-      <PageHeader :title="shift ? `تقرير Z — وردية ${shift.number}` : '…'" :back="{ name: 'pos-shifts' }">
-        <template #actions><AppButton variant="primary" :icon="Printer" :disabled="!shift" data-testid="shift-print" @click="print">طباعة</AppButton></template>
-      </PageHeader>
+    <DetailPage
+      v-else
+      :title="shift ? `تقرير Z — وردية ${shift.number}` : '…'"
+      :chips="chips"
+      :back="{ name: 'pos-shifts' }"
+      :stats="stats"
+    >
+      <template #actions><AppButton variant="primary" :icon="Printer" :disabled="!shift" data-testid="shift-print" @click="print">طباعة</AppButton></template>
 
       <AppCard v-if="!shift" padding="sm"><SkeletonBlock :lines="8" /></AppCard>
       <div v-else class="mx-auto max-w-md space-y-3 rounded-lg border border-border bg-surface p-5 text-body" dir="rtl">
@@ -111,7 +136,7 @@ function print() {
           </div>
         </dl>
       </div>
-    </template>
+    </DetailPage>
 
     <ReportPrintDialog v-model:open="printOpen" :doc="printDoc" :file-name="`تقرير Z ${shift?.number ?? ''}`" />
   </div>
