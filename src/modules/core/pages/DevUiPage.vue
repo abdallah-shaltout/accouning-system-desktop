@@ -33,6 +33,18 @@ import DateRangeFilter from '../components/ui/DateRangeFilter.vue';
 import DataTable, { type Column } from '../components/ui/DataTable.vue';
 import ScrollFade from '../components/ui/ScrollFade.vue';
 import PageHeader from '../components/ui/PageHeader.vue';
+import FormField from '../components/blocks/FormField.vue';
+import FormSection from '../components/blocks/FormSection.vue';
+import FormActions from '../components/blocks/FormActions.vue';
+import FilterBar from '../components/blocks/FilterBar.vue';
+import LineItemsEditor, { type LineColumn } from '../components/blocks/LineItemsEditor.vue';
+import TotalsPanel from '../components/blocks/TotalsPanel.vue';
+import DetailHeader from '../components/blocks/DetailHeader.vue';
+import StatCards from '../components/blocks/StatCards.vue';
+import ListPage from '../components/layouts/ListPage.vue';
+import FormPage from '../components/layouts/FormPage.vue';
+import DetailPage from '../components/layouts/DetailPage.vue';
+import SettingsPage from '../components/layouts/SettingsPage.vue';
 import { Switch } from '../components/shadcn/switch';
 import { ToggleGroup, ToggleGroupItem } from '../components/shadcn/toggle-group';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '../components/shadcn/breadcrumb';
@@ -85,6 +97,38 @@ const tableRows: DemoRow[] = [
   { id: '2', name: 'صف تجريبي ثاني', amount: 89.9 },
   { id: '3', name: 'صف تجريبي ثالث', amount: 4200 },
 ];
+
+// Phase F-0 demo state (docs/v2/17-ui-system-rtl-themes.md → Phase F "One shared UI system").
+const ffNameField = ref('');
+const ffEmailField = ref('');
+const ffDirty = ref(true);
+
+interface DemoLine { id: string; item: string; qty: number; price: number }
+const ffLines = ref<DemoLine[]>([
+  { id: '1', item: 'قلم رصاص', qty: 2, price: 3.5 },
+  { id: '2', item: 'دفتر ملاحظات', qty: 1, price: 12 },
+]);
+const ffLineColumns: LineColumn<DemoLine>[] = [
+  { key: 'item', label: 'الصنف' },
+  { key: 'qty', label: 'الكمية', type: 'number', align: 'end', width: '100px' },
+  { key: 'price', label: 'السعر', type: 'number', align: 'end', width: '120px' },
+];
+function ffNewLine(): DemoLine {
+  return { id: String(Date.now()), item: '', qty: 1, price: 0 };
+}
+
+interface DemoStatusRow { id: string; name: string; amount: number; status: string; date: string }
+const ffStatusColumns: Column<DemoStatusRow>[] = [
+  { key: 'name', label: 'العميل', type: 'party' },
+  { key: 'date', label: 'التاريخ', type: 'date' },
+  { key: 'status', label: 'الحالة', type: 'status', statusOf: (v) => (v === 'paid' ? { label: 'مدفوعة', tone: 'success' } : { label: 'متأخرة', tone: 'danger' }) },
+  { key: 'amount', label: 'المبلغ', type: 'money', align: 'end', totals: true },
+];
+const ffStatusRows: DemoStatusRow[] = [
+  { id: '1', name: 'متجر الأمل', amount: 1250.5, status: 'paid', date: '2026-08-01' },
+  { id: '2', name: 'مؤسسة النور', amount: 430, status: 'overdue', date: '2026-08-10' },
+];
+const ffSelected = ref<(string | number)[]>([]);
 
 // RTL section demo state (docs/v2/17-ui-system-rtl-themes.md Phase A gate).
 const rtlSwitchOn = ref(true);
@@ -345,6 +389,156 @@ const rtlPageCount = 8;
         <div>
           <p class="mb-2 text-xs text-text-secondary">زر رجوع — يشير لليمين في RTL</p>
           <AppButton size="sm" variant="ghost" :icon="dirIcon.back" icon-rtl-flip>رجوع</AppButton>
+        </div>
+      </div>
+    </AppCard>
+
+    <AppCard title="نظام الصفحات المشترك — Phase F-0 (docs/v2/17 Phase F)">
+      <p class="mb-4 text-body text-text-secondary">
+        الكتل (blocks) وتخطيطات الصفحات (layouts) الجديدة — لم تُربط بعد بأي صفحة حقيقية (F-1..F-6 لاحقاً)،
+        وهي هنا للمراجعة فقط. تتبع نفس الوضع الداكن/RTL التلقائي مثل بقية المعرض.
+      </p>
+
+      <div class="space-y-6">
+        <div>
+          <p class="mb-2 text-xs text-text-secondary">FormField + FormSection (شبكة عمودين)</p>
+          <FormSection title="بيانات التواصل" description="تُستخدم في نماذج العملاء والموردين" :columns="2">
+            <FormField label="الاسم" required>
+              <AppInput v-model="ffNameField" placeholder="الاسم الكامل" />
+            </FormField>
+            <FormField label="البريد الإلكتروني" hint="اختياري">
+              <AppInput v-model="ffEmailField" type="email" ltr />
+            </FormField>
+          </FormSection>
+        </div>
+
+        <div>
+          <p class="mb-2 text-xs text-text-secondary">FormSection قابلة للطي</p>
+          <FormSection title="خيارات متقدمة" description="مطوية افتراضياً" collapsible :default-open="false">
+            <FormField label="ملاحظات داخلية"><AppInput placeholder="نص…" /></FormField>
+          </FormSection>
+        </div>
+
+        <div>
+          <p class="mb-2 text-xs text-text-secondary">FormActions — شريط حفظ ثابت مع تنبيه تغييرات غير محفوظة</p>
+          <div class="rounded-xl border border-border p-4">
+            <FormActions :dirty="ffDirty">
+              <template #secondary><AppButton @click="ffDirty = !ffDirty">إلغاء</AppButton></template>
+              <template #primary><AppButton variant="primary">حفظ (Ctrl+S)</AppButton></template>
+            </FormActions>
+          </div>
+        </div>
+
+        <div>
+          <p class="mb-2 text-xs text-text-secondary">FilterBar — بحث + فلتر + مسح، متزامن مع رابط الصفحة</p>
+          <FilterBar
+            search-placeholder="بحث في العملاء…"
+            :filters="[{ key: 'status', label: 'الحالة', options: [{ value: 'active', label: 'نشط' }, { value: 'inactive', label: 'غير نشط' }] }]"
+            date-range
+          />
+        </div>
+
+        <div>
+          <p class="mb-2 text-xs text-text-secondary">DataTable — أعمدة نوعية (money / date / status) + إجمالي + تحديد صفوف</p>
+          <DataTable v-model:selected="ffSelected" :columns="ffStatusColumns" :rows="ffStatusRows" selectable clickable />
+        </div>
+
+        <div>
+          <p class="mb-2 text-xs text-text-secondary">LineItemsEditor — لا يحسب أي مجموع، يعرض ويُصدر الأحداث فقط</p>
+          <LineItemsEditor :lines="ffLines" :columns="ffLineColumns" :new-line="ffNewLine" @lines-change="(l) => (ffLines = l)" />
+        </div>
+
+        <div class="grid gap-4 sm:grid-cols-2">
+          <div>
+            <p class="mb-2 text-xs text-text-secondary">TotalsPanel — مع سطر تفقيط</p>
+            <TotalsPanel
+              :rows="[
+                { label: 'الإجمالي قبل الضريبة', amount: 400 },
+                { label: 'الخصم', amount: 20, negative: true },
+                { label: 'ضريبة القيمة المضافة', amount: 57 },
+                { label: 'الإجمالي', amount: 437, emphasis: true },
+              ]"
+              show-tafqit
+            />
+          </div>
+          <div>
+            <p class="mb-2 text-xs text-text-secondary">StatCards — مع اتجاه (لا يُعكس في RTL)</p>
+            <StatCards
+              :cards="[
+                { label: 'المبيعات اليوم', value: '4,320', trend: '+12%' },
+                { label: 'الفواتير المتأخرة', value: '3', trend: '-5%' },
+              ]"
+            />
+          </div>
+        </div>
+
+        <div>
+          <p class="mb-2 text-xs text-text-secondary">DetailHeader — رقم المستند + الحالة + شرائح البيانات</p>
+          <DetailHeader
+            title="فاتورة مبيعات"
+            number="INV-2026-0042"
+            :status="{ label: 'مدفوعة', tone: 'success' }"
+            :chips="[{ label: 'العميل', value: 'متجر الأمل' }, { label: 'التاريخ', value: '2026-09-26' }]"
+          />
+        </div>
+      </div>
+    </AppCard>
+
+    <AppCard title="تخطيطات الصفحات — ListPage / FormPage / DetailPage / SettingsPage (Phase F-0)">
+      <div class="space-y-6">
+        <div class="rounded-xl border border-dashed border-border p-3">
+          <p class="mb-2 text-xs text-text-secondary">ListPage (مصغّر داخل بطاقة للمعاينة فقط)</p>
+          <ListPage title="العملاء" subtitle="١٢٣ سجلاً" primary-action-label="عميل جديد">
+            <template #filters>
+              <FilterBar search-placeholder="بحث…" />
+            </template>
+            <DataTable :columns="tableColumns" :rows="tableRows" />
+          </ListPage>
+        </div>
+
+        <div class="rounded-xl border border-dashed border-border p-3">
+          <p class="mb-2 text-xs text-text-secondary">FormPage (نموذج + شريط أعمال جانبي)</p>
+          <FormPage title="عميل جديد">
+            <FormSection title="البيانات الأساسية" :columns="2">
+              <FormField label="الاسم" required><AppInput placeholder="اسم العميل" /></FormField>
+              <FormField label="الهاتف"><AppInput ltr placeholder="+9665…" /></FormField>
+            </FormSection>
+            <template #aside>
+              <TotalsPanel :rows="[{ label: 'الرصيد الحالي', amount: 0 }]" />
+            </template>
+            <template #actions>
+              <FormActions>
+                <template #primary><AppButton variant="primary">حفظ</AppButton></template>
+              </FormActions>
+            </template>
+          </FormPage>
+        </div>
+
+        <div class="rounded-xl border border-dashed border-border p-3">
+          <p class="mb-2 text-xs text-text-secondary">DetailPage (تبويبات + StatCards)</p>
+          <DetailPage
+            title="فاتورة مبيعات"
+            number="INV-2026-0042"
+            :status="{ label: 'مدفوعة', tone: 'success' }"
+            :stats="[{ label: 'الإجمالي', value: '437' }, { label: 'المدفوع', value: '437' }]"
+            :tabs="[{ key: 'details', label: 'التفاصيل' }, { key: 'history', label: 'السجل' }]"
+          >
+            <template #tab-details><p class="text-body text-text-secondary">محتوى التفاصيل هنا.</p></template>
+            <template #tab-history><p class="text-body text-text-secondary">محتوى السجل هنا.</p></template>
+          </DetailPage>
+        </div>
+
+        <div class="rounded-xl border border-dashed border-border p-3">
+          <p class="mb-2 text-xs text-text-secondary">SettingsPage (رأس + شريحة تنقّل مُمرَّرة + محتوى)</p>
+          <SettingsPage title="الإعدادات" subtitle="عام">
+            <template #nav>
+              <nav class="mb-4 flex gap-1 border-b border-border text-xs text-text-secondary">
+                <span class="-mb-px border-b-2 border-primary px-3 py-2 font-medium text-text-primary">عام</span>
+                <span class="px-3 py-2">الضرائب</span>
+              </nav>
+            </template>
+            <p class="text-body text-text-secondary">محتوى قسم الإعدادات هنا.</p>
+          </SettingsPage>
         </div>
       </div>
     </AppCard>

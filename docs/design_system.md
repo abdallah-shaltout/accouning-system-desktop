@@ -151,6 +151,48 @@ Two swappable layouts:
 - **A4**: standard printable page, full itemized table, company header/footer, ZATCA QR code bottom-left.
 - **Thermal (58mm/80mm)**: narrow single-column receipt layout, condensed line items, QR code centered at bottom — this is the layout the original reference system never actually built (it only ever did A4), so treat it as a first-class addition here, not an afterthought.
 
+## Building pages (docs/v2/17-ui-system-rtl-themes.md Phase F)
+
+A page is **assembled**, not hand-written, from two layers in `modules/core/components/`:
+
+- **Layer 2 — blocks** (`components/blocks/`): `FormField`, `FormSection`, `FormActions`, the
+  `useForm()` composable (`core/controllers/useForm.ts`), `FilterBar`, `DataTable`'s column `type`
+  (`'money' | 'date' | 'number' | 'status' | 'party' | 'actions'`), `LineItemsEditor`, `TotalsPanel`,
+  `DetailHeader`, `StatCards`.
+- **Layer 3 — page layouts** (`components/layouts/`): `ListPage`, `FormPage`, `DetailPage`,
+  `SettingsPage`, and reports' existing `ReportShell` (`modules/reports/components/ReportShell.vue`)
+  — align new report filters with `FilterBar` inside its `#filters` slot rather than hand-rolling one.
+
+Every new page (once migrated — see the plan's F-1..F-6 batches) follows these rules:
+
+1. A page is **one layout + blocks**. It does not import shadcn primitives for structure.
+2. No raw `<table>` in `modules/*/pages` — use `DataTable` (print pages, POS and the template
+   designer excepted).
+3. No bare `<input>`/`<select>`/`<label>` in pages — use `FormField` + an `App*` control.
+4. Money, dates, numbers and statuses are formatted **only** by `DataTable` column types /
+   `MoneyText` / `StatusBadge` / `format.ts` — never a page-local formatter.
+5. Arabic copy for shared states (empty, error, loading, unsaved changes, confirm delete) lives in
+   the blocks, not repeated in pages.
+6. Page files stay under ~250 lines; page-specific pieces go in `modules/<m>/components/`.
+7. Adding a new block or layout also adds it to `/dev/ui` (light/dark/RTL — the app's own theme
+   toggle covers all three, nothing extra to build) and to this doc, in the same commit.
+
+**`LineItemsEditor` never computes totals, discounts or VAT.** It only renders line rows and emits
+`lines-change` — every amount it shows must already be computed by the domain's existing helper
+(e.g. `modules/invoices/helpers/totals.ts`), which stays tax-inclusive with the line → invoice → VAT
+discount order (`docs/v2/02-accounting-review.md`). The same applies to `TotalsPanel`: it displays
+`{ label, amount, emphasis }` rows a caller already computed, plus an optional `tafqit()` line.
+
+**Guard:** `scripts/check-ui-rules.js`, run by `bun run check`, flags `<table`, `<input`, `<select`
+and `<label` and raw shadcn structural imports inside `modules/*/pages/*.vue` (allow-list: print
+pages, POS, the template designer), plus page files over 300 lines. It runs in **warning mode**
+(logs findings, always exits 0) until doc 17's F-6 flips it to error mode once every page has
+migrated — don't treat today's warnings as a regression in new code, but don't add more of them either.
+
+**Status (2026-09):** F-0 (this section, the blocks/layouts above, the gallery and the guard script)
+is done. F-1 through F-6 — the actual page-by-page migration to these layouts — have not started;
+every existing page still uses its own hand-written structure until its batch lands.
+
 ## Do / Don't
 
 **Do**

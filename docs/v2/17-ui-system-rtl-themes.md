@@ -483,6 +483,15 @@ interface ThemeConfig {
 
 ## Phase F — One shared UI system
 
+**Status (2026-09-26): F-0 done.** All blocks (`FormField`, `FormSection`, `FormActions`, `useForm()`,
+`FilterBar`, the `DataTable` column-`type` extension, `LineItemsEditor`, `TotalsPanel`, `DetailHeader`,
+`StatCards`) and layouts (`ListPage`, `FormPage`, `DetailPage`, `SettingsPage`) exist in
+`modules/core/components/{blocks,layouts}/`, are shown in `/dev/ui`, and are documented in
+`docs/design_system.md` → "Building pages". `scripts/check-ui-rules.js` runs in `bun run check` in
+**warning mode** (126 findings today across the still-unmigrated pages — expected, not a regression).
+**F-1 through F-6 have not started** — no existing page was touched; every page still uses its own
+hand-written structure. Next session picks up at F-1 (list pages).
+
 **The problem** (survey of 109 `*Page.vue` files, 2026-09-25):
 - 39 pages build their own `<table>` markup instead of `DataTable`; 36 use `DataTable`.
 - Forms have no shared structure: labels, hints, errors, sections, the save/cancel bar, the
@@ -543,8 +552,8 @@ designer), and page files over 300 lines (warning).
 
 ### F3. Migration batches (one commit each, full e2e after each)
 
-- [ ] **F-0** Build all blocks and layouts, add them to `/dev/ui` (with RTL + dark examples), write
-      the "Building pages" doc section and the guard script (warning mode).
+- [x] **F-0** Build all blocks and layouts, add them to `/dev/ui` (with RTL + dark examples), write
+      the "Building pages" doc section and the guard script (warning mode). *(done 2026-09-26)*
 - [ ] **F-1 Lists:** invoices, quotations, products, customers, suppliers, POs, expenses, payments,
       vouchers, journal list, stock movements/adjustments/counts/transfers, users → `ListPage`.
 - [ ] **F-2 Line-item forms:** invoice, purchase, journal entry, stock adjustment, stock count,

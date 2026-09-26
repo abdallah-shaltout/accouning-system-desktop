@@ -13,7 +13,7 @@
     "scaffold": "node scripts/scaffold.js",
     "build:android": "cd src-tauri/gen/android && ./gradlew.bat assembleArm64Debug",
     "verify:mocks": "bun run scripts/verify/run.ts",
-    "check": "node scripts/check-text-tokens.js && node scripts/check-rtl.js && bun run scripts/check-contrast.ts",
+    "check": "node scripts/check-text-tokens.js && node scripts/check-rtl.js && bun run scripts/check-contrast.ts && node scripts/check-ui-rules.js",
     "memory": "bun run scripts/memory/run.ts",
     "memory:check": "bun run scripts/memory/run.ts --check",
     "diag": "bun run scripts/diagnostics/run.ts",
