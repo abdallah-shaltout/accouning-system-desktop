@@ -3,10 +3,12 @@
 **Status: in progress** (2026-09-26). A and B are done. F is mostly done (see its file for the two
 open items: an automatic post-`mutate()` invariant watcher + `ACC-` issue stub, and the first real
 `scripts/verify/cases/*.json` regression case, which only gets added the first time an actual
-accounting bug is fixed with F5's rule). F was **not verified against an Egypt seed** (Phase D,
-which adds it, is paused behind a concurrent session's plan-20 refactor) and its full e2e suite was
-not re-run (dev server contention at the time) — run `python scripts/e2e/run.py` and re-verify
-`bun run verify:mocks` once D lands before treating F as fully done. C, D, E, G are still pending.
+accounting bug is fixed with F5's rule). F was **not verified against an Egypt seed** when it was
+written; **D has since landed** (`countryProfiles.ts`, EG default, `verify:mocks` green for both SA
+and EG at 98/0/0) — whoever picks up F next should re-run `bun run verify:mocks` (already green as
+of D) and the full e2e suite (`python scripts/e2e/run.py`, not yet re-run against a live browser
+since D — see D's file) before treating F as fully done. C, E, G are still pending; D's
+implementation is done but its e2e flow hasn't been run against a live browser yet (see D's file).
 
 Triggered by a review of the setup wizard's "بيانات المنشأة" step. It surfaced three kinds of work:
 
@@ -23,7 +25,7 @@ Seven phases, in this order. Each one leaves the app working, so you can stop af
 | A | [phase-a-phone-switch.md](phase-a-phone-switch.md) | **Quick fixes**: phone input (layout, trunk `0`, validation timing, Windows flags), switch "on" = right in RTL | S | done |
 | B | [phase-b-diagnostics.md](phase-b-diagnostics.md) | **Diagnostics foundation**: one logger, 5 channels (error, perf, debug, audit, accounting), log files, the "failed to fix" issue ledger | M | done |
 | C | [phase-c-contrast.md](phase-c-contrast.md) | **Contrast & accessibility**: token fixes backed by measured ratios, `check-contrast.ts`, focus and field semantics | S–M | pending |
-| D | [phase-d-country-profiles.md](phase-d-country-profiles.md) | **Country profiles (EG first, SA)**: one owner file for per-country rules; wizard asks country first; **fix the VAT rate for Egypt** | M | pending |
+| D | [phase-d-country-profiles.md](phase-d-country-profiles.md) | **Country profiles (EG first, SA)**: one owner file for per-country rules; wizard asks country first; **fix the VAT rate for Egypt** | M | implementation done, `verify:mocks` green for both SA and EG (98/0/0) — e2e not yet run against a live browser, see file |
 | E | [phase-e-address-picker.md](phase-e-address-picker.md) | **Address picker**: `eg.json` / `sa.json`, `geoService`, one shared `AddressFields` block used everywhere | M | pending |
 | F | [phase-f-accounting-debugger.md](phase-f-accounting-debugger.md) | **Accounting debugger**: posting traces, runtime invariants, inspector page, repro bundles + replay | L | mostly done — see file (auto-watcher + first regression case still open) |
 | G | [phase-g-dev-loop.md](phase-g-dev-loop.md) | **Dev loop**: e2e/verify/perf feed the ledger automatically; open issues appear in `AGENT_MEMORY.md` | S–M | pending |
