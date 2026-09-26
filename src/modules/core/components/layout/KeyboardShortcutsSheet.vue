@@ -22,7 +22,7 @@ const pageShortcuts = computed(() => (typeof route.name === 'string' ? (ROUTE_SH
 
 useHotkeys(
   {
-    F1: toggle,
+    F1: { id: 'shortcuts.sheet.toggle', label: 'عرض اختصارات لوحة المفاتيح', group: 'عام', handler: toggle },
     '?': toggle,
   },
   { enabled: () => route.name !== 'pos' },

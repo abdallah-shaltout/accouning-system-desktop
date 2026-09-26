@@ -48,6 +48,7 @@ using it:
 | 16 | [equal-rebrand-and-ui-kit.md](16-equal-rebrand-and-ui-kit.md) | Close-button fix, Equal rebrand, shadcn-vue UI kit, sidebar-07 shell |
 | 17 | [ui-system-rtl-themes.md](17-ui-system-rtl-themes.md) | Real RTL, full motion, native Save dialog, simple sidebar, themes, shared page/form/table system (next work) |
 | 18 | [plans/pending/18-countries-a11y-diagnostics/](../../plans/pending/18-countries-a11y-diagnostics/README.md) | Egypt-first country profiles (fixes 14% VAT), address picker (eg/sa JSON), phone + switch fixes, contrast, error/perf/debug/audit logs, accounting debugger |
+| 20 | [plans/pending/20-named-route-objects/](../../plans/pending/20-named-route-objects/README.md) | Every navigation target is a named route object (`{ name, params, query, hash }`), with a generated typed route map, an `AppRoute` type, and a `check-routes.js` guard |
 
 Read order for an implementer: 02 → 03 → 04 → 15, then the feature file for the phase in progress.
 

@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import ScrollFade from '@/modules/core/components/ui/ScrollFade.vue';
 import { useSettingsStore } from '../controllers/useSettingsStore';
 
 const route = useRoute();
@@ -26,6 +27,7 @@ const tabs = computed(() =>
     { to: '/settings/audit-log', label: 'سجل التدقيق', show: auth.can('users') },
     { to: '/settings/printing', label: 'الطباعة والأجهزة', show: auth.can('settings') },
     { to: '/settings/appearance', label: 'المظهر', show: true },
+    { to: '/settings/keyboard-shortcuts', label: 'اختصارات لوحة المفاتيح', show: true },
     { to: '/settings/backup', label: 'النسخ الاحتياطي', show: auth.can('settings') },
     // 18.B6: version info + support-bundle export, open to every signed-in user.
     { to: '/settings/about', label: 'حول / الدعم', show: true },
@@ -34,15 +36,17 @@ const tabs = computed(() =>
 </script>
 
 <template>
-  <nav class="mb-5 flex gap-1 border-b border-border" aria-label="أقسام الإعدادات">
-    <RouterLink
-      v-for="t in tabs"
-      :key="t.to"
-      :to="t.to"
-      class="-mb-px border-b-2 px-3 py-2 text-body transition-colors"
-      :class="route.path === t.to ? 'border-primary font-medium text-text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'"
-    >
-      {{ t.label }}
-    </RouterLink>
-  </nav>
+  <ScrollFade class="mb-5 border-b border-border">
+    <nav class="flex gap-1" aria-label="أقسام الإعدادات">
+      <RouterLink
+        v-for="t in tabs"
+        :key="t.to"
+        :to="t.to"
+        class="-mb-px shrink-0 border-b-2 px-3 py-2 text-body transition-colors"
+        :class="route.path === t.to ? 'border-primary font-medium text-text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'"
+      >
+        {{ t.label }}
+      </RouterLink>
+    </nav>
+  </ScrollFade>
 </template>

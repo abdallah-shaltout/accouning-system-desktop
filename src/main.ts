@@ -19,6 +19,7 @@ import * as approvalCommands from './modules/approvals/commands';
 import * as diagnosticsCommands from './modules/diagnostics/commands';
 import { useNotificationStore } from './modules/core/controllers/useNotificationStore';
 import { initAppearance } from './modules/core/controllers/useAppearance';
+import { registerDefaultShortcuts } from './modules/core/controllers/useKeybindings';
 import { initTheme } from './modules/core/controllers/useTheme';
 import { errorMessage } from './modules/core/controllers/useToast';
 import { initAutoBackup } from './modules/settings/services/backupService';
@@ -27,6 +28,7 @@ import { fingerprintOf, log } from './modules/diagnostics/services/logService';
 
 initTheme();
 initAppearance();
+registerDefaultShortcuts();
 initDiagnostics();
 
 // Last-resort browser-level nets: anything that never reaches Vue's errorHandler (a script error

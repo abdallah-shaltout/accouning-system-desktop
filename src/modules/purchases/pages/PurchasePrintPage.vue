@@ -35,7 +35,7 @@ function print() {
 function close() {
   router.push(`/purchases/${id}`);
 }
-useHotkeys({ 'ctrl+p': print, Escape: close });
+useHotkeys({ 'ctrl+p': { id: 'print.document', label: 'طباعة المستند', group: 'الطباعة', handler: print }, Escape: close });
 
 const lineTotal = (l: { qty: number; costPrice: number }) => l.qty * l.costPrice;
 const total = computed(() => (data.value?.lines ?? []).reduce((a, l) => a + lineTotal(l), 0));

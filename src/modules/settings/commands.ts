@@ -21,6 +21,7 @@ const SETTINGS_PAGES: { title: string; to: string }[] = [
   { title: 'المستخدمون والأدوار', to: '/settings/roles' },
   { title: 'سجل التدقيق', to: '/settings/audit-log' },
   { title: 'المظهر', to: '/settings/appearance' },
+  { title: 'اختصارات لوحة المفاتيح', to: '/settings/keyboard-shortcuts' },
   { title: 'النسخ الاحتياطي', to: '/settings/backup' },
   { title: 'قوالب الطباعة', to: '/settings/templates' },
   { title: 'حول / الدعم', to: '/settings/about' },

@@ -1,8 +1,9 @@
-# 03 — Chart of Accounts v2 (دليل الحسابات)
+# 03 — Chart of Accounts v2 (شجرة الحسابات)
 
 **Changes from v1:**
+
 - The tree has **header accounts** (non-postable) and **leaf accounts** (postable).
-- Accounts carry a *subtype* for statement classification.
+- Accounts carry a _subtype_ for statement classification.
 - Posting finds accounts by **system role**, never by code.
 - Onboarding offers three templates, plus country and business-type add-ons.
 
@@ -10,19 +11,23 @@
 
 ```ts
 interface Account {
-  id: string; code: string; name: string; nameEn?: string;
-  parentId: string | null;          // tree
-  isGroup: boolean;                 // header: can't be posted to; its balance rolls up from children
-  kind: 'ASSET'|'LIABILITY'|'EQUITY'|'REVENUE'|'EXPENSE';
-  subtype: AccountSubtype;          // see §3
-  normalSide: 'DEBIT'|'CREDIT';     // default from kind; contra accounts flip it
-  systemRole?: SystemRole;          // at most one account per role (branch-scoped roles excepted)
-  currency?: string;                // cash/bank in a foreign currency; null = base currency
-  branchId?: string;                // branch cash drawers
-  requiresParty?: boolean;          // AR/AP control accounts
-  allowManual: boolean;             // false for inventory, VAT in/out, and virtual accounts
-  requiresCostCenter?: boolean;     // optional per expense account
-  active: boolean; canDelete: boolean; // system-role accounts can't be deleted, only renamed/renumbered
+    id: string;
+    code: string;
+    name: string;
+    nameEn?: string;
+    parentId: string | null; // tree
+    isGroup: boolean; // header: can't be posted to; its balance rolls up from children
+    kind: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
+    subtype: AccountSubtype; // see §3
+    normalSide: "DEBIT" | "CREDIT"; // default from kind; contra accounts flip it
+    systemRole?: SystemRole; // at most one account per role (branch-scoped roles excepted)
+    currency?: string; // cash/bank in a foreign currency; null = base currency
+    branchId?: string; // branch cash drawers
+    requiresParty?: boolean; // AR/AP control accounts
+    allowManual: boolean; // false for inventory, VAT in/out, and virtual accounts
+    requiresCostCenter?: boolean; // optional per expense account
+    active: boolean;
+    canDelete: boolean; // system-role accounts can't be deleted, only renamed/renumbered
 }
 ```
 
@@ -35,6 +40,7 @@ currentEarnings(virtual) openingBalanceEquity sales serviceRevenue salesReturns 
 fxGain cashOver purchaseDiscounts cogs inventoryVariance inventoryWriteOff freightIn
 cardFees bankFees fxLoss cashShort badDebt depreciation zakat
 ```
+
 `*` = several accounts can hold this role, e.g. one cash drawer per branch or several banks. Payment
 methods and branches point at the specific account.
 
@@ -45,17 +51,17 @@ methods and branches point at the specific account.
 
 ## 3. Subtypes (drive the statements)
 
-| Subtype | Used by |
-|---------|---------|
-| `cash`, `bank`, `clearing` | cash-flow statement, "cash position" KPI |
-| `receivable`, `payable` | aging, party ledgers |
-| `inventory`, `tax`, `prepaid`, `otherCurrentAsset` | current assets |
-| `fixedAsset`, `accumulatedDepreciation` | non-current assets |
-| `currentLiability`, `longTermLiability` | balance-sheet split |
-| `equity` | equity |
-| `revenue`, `otherIncome` | P&L |
-| `costOfSales` | gross profit |
-| `operatingExpense`, `otherExpense`, `zakatTax` | P&L sections |
+| Subtype                                            | Used by                                  |
+| -------------------------------------------------- | ---------------------------------------- |
+| `cash`, `bank`, `clearing`                         | cash-flow statement, "cash position" KPI |
+| `receivable`, `payable`                            | aging, party ledgers                     |
+| `inventory`, `tax`, `prepaid`, `otherCurrentAsset` | current assets                           |
+| `fixedAsset`, `accumulatedDepreciation`            | non-current assets                       |
+| `currentLiability`, `longTermLiability`            | balance-sheet split                      |
+| `equity`                                           | equity                                   |
+| `revenue`, `otherIncome`                           | P&L                                      |
+| `costOfSales`                                      | gross profit                             |
+| `operatingExpense`, `otherExpense`, `zakatTax`     | P&L sections                             |
 
 ## 4. Standard template (قياسي — recommended default, about 60 postable accounts)
 
@@ -140,24 +146,26 @@ Roles are in brackets. **Bold** marks an account that's new vs v1.
       **6910 الزكاة**                                 [zakat]  (SA add-on)
 ```
 
-**Removed vs v1:** 5100 *Purchases* and 5150 *Purchase returns* (they don't belong in a perpetual
-system; the code 5100 is reused for COGS), 4400 *stocktake gains* and 5800 *stocktake losses*
+**Removed vs v1:** 5100 _Purchases_ and 5150 _Purchase returns_ (they don't belong in a perpetual
+system; the code 5100 is reused for COGS), 4400 _stocktake gains_ and 5800 _stocktake losses_
 (merged into 5110), and 5300 / 5500 (split into the 6xxx accounts).
 
 ## 5. Other templates and add-ons
 
-| Template | For | Difference from the standard template |
-|----------|-----|---------------------------------------|
-| **مبسّط** (basic, ~25) | a single shop, owner-run | one bank, no fixed-asset/loan/accrual accounts, expenses collapsed into 6 accounts, no header levels below the root |
-| **قياسي** (standard, ~60) | the default | §4 |
+| Template                  | For                                      | Difference from the standard template                                                                                                                                                                          |
+| ------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **مبسّط** (basic, ~25)    | a single shop, owner-run                 | one bank, no fixed-asset/loan/accrual accounts, expenses collapsed into 6 accounts, no header levels below the root                                                                                            |
+| **قياسي** (standard, ~60) | the default                              | §4                                                                                                                                                                                                             |
 | **مفصّل** (detailed, ~90) | an accountant-run business with branches | + cheques receivable/payable (1135/2110), gift vouchers (2185), a revenue account per branch, split salaries (basic/housing/transport), GOSI payable, EOSB expense, prepaid rent per branch, bank per currency |
 
 **Country add-ons** (chosen in onboarding step 3):
+
 - **SA:** VAT 15%, GOSI, zakat, end-of-service provision.
-- **EG:** VAT 14%, social insurance, a *withholding tax* payable account (ضريبة الخصم والإضافة).
+- **EG:** VAT 14%, social insurance, a _withholding tax_ payable account (ضريبة الخصم والإضافة).
 - **AE:** VAT 5%, corporate tax payable.
 
 **Business add-ons:**
+
 - **Pharmacy:** 4120 مبيعات أدوية معفاة/صفرية (a separate revenue line for the VAT return),
   5120 is renamed to include "أدوية منتهية الصلاحية".
 - **Clothing:** 4110 is renamed "إيرادات التعديل والخياطة".
@@ -173,7 +181,7 @@ upgrade" machinery.
   suggests the next free code.
 - **Moving accounts:** an account can't move under a different `kind`.
 - **Headers:** a header with children can't become postable, and vice versa once posted to.
-- **Deleting:** only an account with no postings and no role can be deleted; otherwise *deactivate*.
+- **Deleting:** only an account with no postings and no role can be deleted; otherwise _deactivate_.
 - **Pickers:** account pickers show `code — name` with the header path in grey, e.g. "المصروفات ›
   العمومية". Pickers filter to leaf accounts, and to `allowManual` accounts in manual entries.
 - **Tree page:** expand/collapse all, a balance column (with period filter), "show zero balances"

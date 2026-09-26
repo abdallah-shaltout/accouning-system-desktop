@@ -131,21 +131,27 @@ function onDropItem(index: number) {
 
 <template>
   <div>
-    <div
-      class="rounded-xl border border-dashed p-4 text-center transition-colors"
-      :class="dragOver ? 'border-primary bg-primary/5' : 'border-border'"
-      @dragover.prevent="dragOver = true"
+    <button
+      type="button"
+      :disabled="readonly"
+      class="w-full rounded-xl border border-dashed p-4 text-center transition-[background-color,border-color,transform] duration-150 ease-out active:scale-[0.99] disabled:cursor-default disabled:active:scale-100"
+      :class="dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/60 hover:bg-primary/3'"
+      @click="!readonly && fileInput?.click()"
+      @dragover.prevent="!readonly && (dragOver = true)"
       @dragleave.prevent="dragOver = false"
       @drop.prevent="onDrop"
     >
-      <Upload class="mx-auto mb-2 size-5 text-text-secondary" />
+      <Upload
+        class="mx-auto mb-2 size-5 text-text-secondary transition-transform duration-150 ease-out"
+        :class="dragOver && 'scale-110 text-primary'"
+      />
       <p class="text-body">
         اسحب الصور هنا أو
-        <button v-if="!readonly" type="button" class="text-primary hover:underline" @click="fileInput?.click()">اختر صوراً</button>
+        <span v-if="!readonly" class="text-primary hover:underline">اختر صوراً</span>
       </p>
       <p class="mt-1 text-xs text-text-secondary">الصورة الأولى تُستخدم كصورة مصغّرة في نقطة البيع — اسحب لإعادة الترتيب.</p>
-      <input ref="fileInput" type="file" multiple accept="image/*" class="hidden" :disabled="readonly" @change="onInputChange" />
-    </div>
+      <input ref="fileInput" type="file" multiple accept="image/*" class="hidden" :disabled="readonly" @click.stop @change="onInputChange" />
+    </button>
 
     <p v-if="uploading" class="mt-2 text-xs text-text-secondary">جارٍ رفع الصور…</p>
 
@@ -153,7 +159,7 @@ function onDropItem(index: number) {
       <div
         v-for="(item, index) in ordered"
         :key="item.id"
-        class="group relative flex flex-col overflow-hidden rounded-lg border bg-surface"
+        class="group relative flex flex-col overflow-hidden rounded-lg border bg-surface transition-[border-color,transform] duration-150 ease-out active:scale-[0.98]"
         :class="index === 0 ? 'border-primary' : 'border-border'"
         :draggable="!readonly"
         @dragstart="onDragStart(index)"
@@ -178,7 +184,12 @@ function onDropItem(index: number) {
             تعيين كرئيسية
           </button>
           <span v-else class="text-tiny text-text-secondary">&nbsp;</span>
-          <button type="button" aria-label="حذف" class="shrink-0 rounded p-1 text-text-secondary hover:bg-danger/10 hover:text-danger" @click="remove(item)">
+          <button
+            type="button"
+            aria-label="حذف"
+            class="shrink-0 rounded p-1 text-text-secondary transition-[background-color,color,transform] duration-150 ease-out hover:bg-danger/10 hover:text-danger active:scale-90"
+            @click="remove(item)"
+          >
             <Trash class="size-3.5" />
           </button>
         </div>

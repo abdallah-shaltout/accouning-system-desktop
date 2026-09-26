@@ -20,7 +20,7 @@ const model = defineModel<V>();
       v-for="o in options"
       :key="String(o.value)"
       :value="o.value as string | number"
-      class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-transparent font-medium data-[state=on]:bg-background data-[state=on]:text-text-primary data-[state=on]:shadow-sm data-[state=off]:text-text-secondary hover:data-[state=off]:text-text-primary hover:bg-transparent"
+      class="inline-flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-md bg-transparent font-medium data-[state=on]:bg-background data-[state=on]:text-text-primary data-[state=on]:shadow-sm data-[state=off]:text-text-secondary hover:data-[state=off]:text-text-primary hover:bg-transparent"
       :class="size === 'sm' ? 'h-6 px-2 text-xs' : 'h-7 px-3 text-body'"
     >
       <component :is="o.icon" v-if="o.icon" class="size-3.5" />

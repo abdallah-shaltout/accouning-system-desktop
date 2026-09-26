@@ -89,7 +89,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(700)
     check("/forbidden" in page.url, "cashier is blocked from the chart of accounts")
     nav = page.locator("nav[aria-label='القائمة الرئيسية']").inner_text()
-    check("دليل الحسابات" not in nav and "التقارير" not in nav, "cashier sidebar hides accounting & reports")
+    check("شجرة الحسابات" not in nav and "التقارير" not in nav, "cashier sidebar hides accounting & reports")
 
     page.goto(f"{BASE}/invoices")
     page.wait_for_timeout(900)

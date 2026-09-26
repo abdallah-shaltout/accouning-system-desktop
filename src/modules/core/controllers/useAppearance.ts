@@ -155,7 +155,7 @@ export interface ThemePreset {
 }
 
 export const THEME_PRESETS: Record<string, ThemePreset> = {
-  equal: { label: 'إيكوال', base: 'neutral', accent: 'equal', radius: 0.375 },
+  equal: { label: 'إيكوال', base: 'slate', accent: 'equal', radius: 0.375 },
   classic: { label: 'كلاسيكي', base: 'slate', accent: 'indigo', radius: 0.5 },
   soft: { label: 'ناعم', base: 'stone', accent: 'teal', radius: 0.75 },
   sharp: { label: 'حاد', base: 'zinc', accent: 'equal', radius: 0 },
@@ -201,7 +201,7 @@ const textSizeSetting = makeSetting<TextSize>('app_text_size', 100, (raw) => {
 });
 const densitySetting = makeSetting<Density>('app_density', 'comfortable', (raw) => (raw === 'compact' || raw === 'comfortable' ? raw : undefined));
 const accentSetting = makeSetting<AccentPreset>('app_accent', 'equal', (raw) => (raw in ACCENTS ? (raw as AccentPreset) : undefined));
-const baseSetting = makeSetting<BasePalette>('app_base', 'neutral', (raw) => (raw in BASES ? (raw as BasePalette) : undefined));
+const baseSetting = makeSetting<BasePalette>('app_base', 'slate', (raw) => (raw in BASES ? (raw as BasePalette) : undefined));
 const radiusSetting = makeSetting<ThemeRadius>('app_radius', 0.375, (raw) => {
   const n = Number(raw);
   return RADII.includes(n as ThemeRadius) ? (n as ThemeRadius) : undefined;

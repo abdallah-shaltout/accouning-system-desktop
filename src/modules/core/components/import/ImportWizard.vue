@@ -28,6 +28,7 @@ const summary = ref<ImportCommitSummary | null>(null);
 const progress = ref({ done: 0, total: 0 });
 const dragOver = ref(false);
 const loadError = ref('');
+const fileInput = ref<HTMLInputElement>();
 
 async function onDownloadTemplate() {
   await downloadImportTemplate(props.descriptor);
@@ -154,20 +155,23 @@ function onOpenChange(v: boolean) {
           <span>حمّل القالب الجاهز (رؤوس عربية، أمثلة، قوائم تحقق) لتعبئته.</span>
           <AppButton type="button" size="sm" :icon="Download" @click="onDownloadTemplate">تحميل القالب</AppButton>
         </div>
-        <div
-          class="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-10 text-center text-xs transition-colors"
-          :class="dragOver ? 'border-primary bg-primary/5' : 'border-border'"
+        <button
+          type="button"
+          class="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-10 text-center text-xs transition-[background-color,border-color,transform] duration-150 ease-out active:scale-[0.99]"
+          :class="dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/60 hover:bg-primary/3'"
+          @click="fileInput?.click()"
           @dragover.prevent="dragOver = true"
           @dragleave.prevent="dragOver = false"
           @drop.prevent="onDrop"
         >
-          <Upload class="size-6 text-text-secondary" />
+          <Upload
+            class="size-6 text-text-secondary transition-transform duration-150 ease-out"
+            :class="dragOver && 'scale-110 text-primary'"
+          />
           <p>اسحب ملف Excel أو CSV هنا، أو</p>
-          <label class="cursor-pointer text-primary underline">
-            اختر ملفاً
-            <input type="file" accept=".xlsx,.csv" class="hidden" @change="onPick" />
-          </label>
-        </div>
+          <span class="text-primary underline">اختر ملفاً</span>
+          <input ref="fileInput" type="file" accept=".xlsx,.csv" class="hidden" @click.stop @change="onPick" />
+        </button>
       </div>
 
       <!-- Column mapping stage -->

@@ -37,7 +37,7 @@ function print() {
 function close() {
   router.push(`/vouchers/${id}`);
 }
-useHotkeys({ 'ctrl+p': print, Escape: close });
+useHotkeys({ 'ctrl+p': { id: 'print.document', label: 'طباعة المستند', group: 'الطباعة', handler: print }, Escape: close });
 </script>
 
 <template>

@@ -24,6 +24,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/settings/audit-log', name: 'settings-audit-log', component: () => import('../pages/AuditLogSettingsPage.vue'), meta: { title: 'سجل التدقيق', section, area: 'users' } },
   // Appearance is a per-device preference, open to every signed-in user.
   { path: '/settings/appearance', name: 'settings-appearance', component: () => import('../pages/AppearanceSettingsPage.vue'), meta: { title: 'المظهر', section } },
+  // Keyboard shortcuts are also a per-device preference — same access as appearance.
+  { path: '/settings/keyboard-shortcuts', name: 'settings-keyboard-shortcuts', component: () => import('../pages/KeyboardShortcutsSettingsPage.vue'), meta: { title: 'اختصارات لوحة المفاتيح', section } },
   // Phase 13a: backup & restore (docs/v2/14-platform.md §4).
   { path: '/settings/backup', name: 'settings-backup', component: () => import('../pages/BackupSettingsPage.vue'), meta: { title: 'النسخ الاحتياطي', section, area: 'settings' } },
   // Phase 11a: PDF template designer (docs/v2/12-documents-pdf-excel.md §3). Pages live in their

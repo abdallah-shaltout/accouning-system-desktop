@@ -1,42 +1,62 @@
 # TODO
 
-## plans/pending/18-countries-a11y-diagnostics/ — stopped mid Phase B
+## `AGENT_MEMORY.md` now reports 7 additional seam violations
 
-Phase A (phone input + switch RTL fix) is **done and committed** (`e8ffb8b`). Phase B
-(diagnostics foundation), parts 1-3 of 7, are **done and committed** (`ac3fe98`): logService's 5
-channels, the Rust `diag_*` commands + `tauri-plugin-log`, the `wrap()` codemod across 26 service
-files, and the dev-only `/__diag` Vite middleware. Stopped here at the user's request on
-2026-09-26, to review before continuing — not blocked on anything.
+Regenerating memory after merging the two items below surfaced 7 previously-unreported seam
+violations (`NavUser.vue`, `useNotifications.ts`, `helpers/attachments.ts`,
+`parties/helpers/creditLimit.ts`, `useCatalogStore.ts`, `settings/helpers/backupArchive.ts`,
+`src/router/index.ts` — all import `src/mocks/*` outside `services/`). None of these files were
+touched by either agent; they were pre-existing and the previous `AGENT_MEMORY.md` on `master`
+was simply stale/hadn't caught them. Per the seam rule (CLAUDE.md), don't add more — move them
+behind a service when next touching the file. Report-only for now, per user's "review later"
+instruction above.
 
-Pick up at `plans/pending/18-countries-a11y-diagnostics/phase-b-diagnostics.md`:
-- **B4**: rewrite `logActivity()` into a structured audit record (before/after diffs), written at
-  the same backend call sites; a new Settings → سجل التدقيق page.
-- **B5/B6**: `/dev/diagnostics` page (errors grouped by fingerprint, perf p50/p95, debug tail,
-  audit, accounting tabs), the `Ctrl+Shift+D` overlay, the error-toast fingerprint code (this part
-  is already done, see `main.ts`), the "تصدير ملف التشخيص" support-bundle export.
-- **B7**: `docs/diagnostics/ISSUES.md` + `issues/` ledger, `scripts/diagnostics/` (`bun run diag`,
-  `bun run diag:check`).
+## plans/pending/18-countries-a11y-diagnostics/ — Phase B done, C-G pending
 
-Then phases C-G of the same plan (contrast/a11y, Egypt+Saudi country profiles incl. the Egypt VAT
+Phase A (phone input + switch RTL fix): **done** (`e8ffb8b`). Phase B (diagnostics foundation),
+all 7 parts: **done and verified**, committed 2026-09-26 — `ac3fe98` (B1-3: logService's 5
+channels, Rust `diag_*` + `tauri-plugin-log`, `wrap()` codemod, `/__diag` middleware), `aab3b85`
+(B4: structured audit trail + Settings → سجل التدقيق), `4fb3064` (B5: `/dev/diagnostics` page +
+Ctrl+Shift+D overlay), `b174d16` (B6: support-bundle export), `9429326` (B7: the
+`docs/diagnostics/ISSUES.md` ledger + `scripts/diagnostics/`), `f0bc75d` (memory regen), `aa4c163`
+(wired `updateBranch` to the new audit trail as a real diff example + fixed hardcoded hex colors
+in `DiagOverlay.vue`), `f15c9d7` (checkboxes ticked, README Phase B row set to `done`).
+Independently re-verified on final `master` HEAD: `bun run build` clean, `bun run verify:mocks`
+49/0/0, `bun run check` clean (warning-mode guard only). Full e2e suite reported green by the
+implementing agent (after ruling out transient dev-server contention from the concurrent Phase F-0
+agent as the cause of earlier flaky runs) — not independently re-run by the reviewing session.
+
+Phases C-G of the same plan (contrast/a11y, Egypt+Saudi country profiles incl. the Egypt VAT
 rate fix, the address picker, the accounting debugger, closing the dev loop) are still fully
 pending — see `plans/pending/18-countries-a11y-diagnostics/README.md` for the phase table and the
 open Saudi-data-license decision.
 
-## docs/v2/17-ui-system-rtl-themes.md — Phase F not finished
+## docs/v2/17-ui-system-rtl-themes.md — Phase F: F-0 done, F-1 through F-6 not started
 
-Phases A–E of doc 17 are done and committed (RTL, motion, native save dialogs, sidebar,
-themes). **Phase F (one shared UI system)** was deliberately left unstarted — decided with
-the user on 2026-09-26 given its size and risk (7 sequential migration batches, ~109 page
-files, and a rewrite of the invoice/purchase/journal line-items editor that touches
-accounting math paths).
+Phases A–E of doc 17 are done and committed (RTL, motion, native save dialogs, sidebar, themes).
+**Phase F-0** (shared blocks/layouts groundwork) is now **done**, committed 2026-09-26: `2f9913f`
+(blocks: `FormField`, `FormSection`, `FormActions`, `useForm()`, `FilterBar`, `LineItemsEditor`,
+`TotalsPanel`, `DetailHeader`, `StatCards`), `83ff1e6` (layouts: `ListPage`, `FormPage`,
+`DetailPage`, `SettingsPage`, extended `DataTable` with column types/totals/selection), `6df48b4`
+(dev gallery entries, `docs/design_system.md` "Building pages" section,
+`scripts/check-ui-rules.js` guard in **warning mode** — 121 findings across still-unmigrated
+pages, expected). No existing page was migrated; `LineItemsEditor`/`TotalsPanel` intentionally
+contain no totals/VAT math (render + emit only). Re-verified independently on final `master` HEAD:
+build/check/verify:mocks all green.
 
-Pick up at `docs/v2/17-ui-system-rtl-themes.md` → "Phase F — One shared UI system":
-- F-0: build the shared blocks/layouts (`FormField`, `FormSection`, `FormActions`, `useForm()`,
-  `FilterBar`, extended `DataTable`, `LineItemsEditor`, `TotalsPanel`, `DetailHeader`,
-  `StatCards`) and layouts (`ListPage`, `FormPage`, `DetailPage`, `SettingsPage`), add them to
-  `/dev/ui`, write the guard script in warning mode.
-- F-1 → F-6: migrate lists, then line-item forms (highest risk), then simple forms, detail
-  pages, settings pages, seam cleanup, then flip the guard script to error mode.
+**F-1 through F-6 are still fully pending** — migrate lists, then line-item forms (highest risk —
+touches accounting math paths, read `docs/v2/02-accounting-review.md` first), then simple forms,
+detail pages, settings pages, seam cleanup (including the 7 newly-surfaced violations above), then
+flip the guard script to error mode. Each batch needs its own commit and a full e2e gate
+(`python scripts/e2e/run.py`, not just touched flows).
 
-Each batch needs its own commit and a full e2e gate (`python scripts/e2e/run.py`, not just
-touched flows).
+## Note on this session's parallel-agent run (2026-09-26)
+
+Two background agents were launched in isolated worktrees for this work; both worktrees were
+removed out from under the agents mid-task by the harness within ~60 seconds, causing two rounds
+of false "I've launched a background agent to implement..." stub reports with zero real work
+before the tasks were relaunched successfully (diagnostics without isolation, directly on this
+checkout; Phase F-0 in a fresh worktree that succeeded). **Lesson: don't trust a background
+agent's own completion report at face value — verify commits actually exist via `git log`/`git
+diff --stat` before treating a task as done**, especially if it returns unusually fast with a
+generic summary.

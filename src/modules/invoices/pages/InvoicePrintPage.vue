@@ -63,7 +63,7 @@ function close() {
   router.push(backTo.value);
 }
 
-useHotkeys({ 'ctrl+p': print, Escape: close });
+useHotkeys({ 'ctrl+p': { id: 'print.document', label: 'طباعة المستند', group: 'الطباعة', handler: print }, Escape: close });
 </script>
 
 <template>

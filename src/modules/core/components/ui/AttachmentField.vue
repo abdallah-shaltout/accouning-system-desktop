@@ -138,17 +138,23 @@ async function loadThumb(meta: AttachmentMeta) {
 
 <template>
   <div>
-    <div
-      class="rounded-xl border border-dashed p-4 text-center transition-colors"
-      :class="dragOver ? 'border-primary bg-primary/5' : 'border-border'"
-      @dragover.prevent="dragOver = true"
+    <button
+      type="button"
+      :disabled="readonly"
+      class="w-full rounded-xl border border-dashed p-4 text-center transition-[background-color,border-color,transform] duration-150 ease-out active:scale-[0.99] disabled:cursor-default disabled:active:scale-100"
+      :class="dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/60 hover:bg-primary/3'"
+      @click="!readonly && fileInput?.click()"
+      @dragover.prevent="!readonly && (dragOver = true)"
       @dragleave.prevent="dragOver = false"
       @drop.prevent="onDrop"
     >
-      <Upload class="mx-auto mb-2 size-5 text-text-secondary" />
+      <Upload
+        class="mx-auto mb-2 size-5 text-text-secondary transition-transform duration-150 ease-out"
+        :class="dragOver && 'scale-110 text-primary'"
+      />
       <p class="text-body">
         اسحب الملفات هنا أو
-        <button v-if="!readonly" type="button" class="text-primary hover:underline" @click="fileInput?.click()">اختر ملفاً</button>
+        <span v-if="!readonly" class="text-primary hover:underline">اختر ملفاً</span>
       </p>
       <p class="mt-1 text-xs text-text-secondary">صور، PDF، أو ملفات Office — حتى 10 ميجابايت. يمكنك أيضاً اللصق من الحافظة (Ctrl+V).</p>
       <input
@@ -158,9 +164,10 @@ async function loadThumb(meta: AttachmentMeta) {
         class="hidden"
         :accept="ACCEPT_ATTR"
         :disabled="readonly"
+        @click.stop
         @change="onInputChange"
       />
-    </div>
+    </button>
 
     <p v-if="uploading" class="mt-2 text-xs text-text-secondary">جارٍ رفع الملفات…</p>
 
@@ -168,7 +175,7 @@ async function loadThumb(meta: AttachmentMeta) {
       <div
         v-for="item in items"
         :key="item.id"
-        class="group relative flex cursor-pointer flex-col overflow-hidden rounded-lg border border-border bg-surface"
+        class="group relative flex cursor-pointer flex-col overflow-hidden rounded-lg border border-border bg-surface transition-[border-color,transform] duration-150 ease-out hover:border-primary/60 active:scale-[0.98]"
         @click="openViewer(item)"
         @mouseenter="loadThumb(item)"
       >
@@ -185,7 +192,7 @@ async function loadThumb(meta: AttachmentMeta) {
             v-if="canRemove && !readonly"
             type="button"
             aria-label="حذف"
-            class="shrink-0 rounded p-1 text-text-secondary opacity-0 hover:bg-danger/10 hover:text-danger group-hover:opacity-100"
+            class="shrink-0 rounded p-1 text-text-secondary opacity-0 transition-[background-color,color,opacity,transform] duration-150 ease-out hover:bg-danger/10 hover:text-danger group-hover:opacity-100 active:scale-90"
             @click.stop="remove(item)"
           >
             <Trash class="size-3.5" />

@@ -16,9 +16,14 @@ const input = ref<HTMLInputElement>();
 const listId = useId();
 
 useHotkeys({
-  'ctrl+k': () => {
-    palette.toggle();
-    return false;
+  'ctrl+k': {
+    id: 'palette.toggle',
+    label: 'فتح لوحة الأوامر',
+    group: 'عام',
+    handler: () => {
+      palette.toggle();
+      return false;
+    },
   },
 });
 
