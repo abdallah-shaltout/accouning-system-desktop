@@ -23,6 +23,7 @@ const SETTINGS_PAGES: { title: string; to: string }[] = [
   { title: 'المظهر', to: '/settings/appearance' },
   { title: 'النسخ الاحتياطي', to: '/settings/backup' },
   { title: 'قوالب الطباعة', to: '/settings/templates' },
+  { title: 'حول / الدعم', to: '/settings/about' },
 ];
 
 export const searchProviders: PaletteSearchProvider[] = [

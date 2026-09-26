@@ -30,6 +30,9 @@ const routes: RouteRecordRaw[] = [
   // own `modules/templates/` module, not `settings/pages/`, to avoid the concurrent backup work.
   { path: '/settings/templates', name: 'settings-templates', component: () => import('@/modules/templates/pages/TemplateListPage.vue'), meta: { title: 'قوالب الطباعة', section, area: 'settings' } },
   { path: '/settings/templates/:id', name: 'settings-template-designer', component: () => import('@/modules/templates/pages/TemplateDesignerPage.vue'), meta: { title: 'قالب الطباعة', section, area: 'settings' } },
+  // 18.B6: version info + "تصدير ملف التشخيص" support bundle. Open to every signed-in user — a
+  // cashier hitting an error needs to be able to export the bundle without an admin around.
+  { path: '/settings/about', name: 'settings-about', component: () => import('../pages/AboutSettingsPage.vue'), meta: { title: 'حول / الدعم', section } },
 ];
 
 export default routes;

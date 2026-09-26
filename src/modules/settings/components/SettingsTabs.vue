@@ -27,6 +27,8 @@ const tabs = computed(() =>
     { to: '/settings/printing', label: 'الطباعة والأجهزة', show: auth.can('settings') },
     { to: '/settings/appearance', label: 'المظهر', show: true },
     { to: '/settings/backup', label: 'النسخ الاحتياطي', show: auth.can('settings') },
+    // 18.B6: version info + support-bundle export, open to every signed-in user.
+    { to: '/settings/about', label: 'حول / الدعم', show: true },
   ].filter((t) => t.show),
 );
 </script>
