@@ -61,10 +61,10 @@ const table = computed<ExportTable | undefined>(() => {
       <div class="rounded-xl border border-border bg-surface p-3.5"><p class="text-xs text-text-secondary">المرتجعات</p><p class="mt-1 text-lg font-semibold"><MoneyText :value="data.summary.returns" /></p></div>
     </div>
 
-    <DataTable v-if="view === 'bySupplier'" :columns="supplierColumns" :rows="data?.bySupplier" row-key="supplierId" :page-size="0" clickable @row-click="(r) => $router.push(`/suppliers/${r.supplierId}`)">
+    <DataTable v-if="view === 'bySupplier'" :columns="supplierColumns" :rows="data?.bySupplier" row-key="supplierId" :page-size="0" clickable @row-click="(r) => $router.push({ name: 'supplier', params: { id: r.supplierId } })">
       <template #cell-total="{ row }"><MoneyText :value="row.total" plain /></template>
     </DataTable>
-    <DataTable v-else :columns="productColumns" :rows="data?.byProduct" row-key="productId" :page-size="0" clickable @row-click="(r) => $router.push(`/products/${r.productId}`)">
+    <DataTable v-else :columns="productColumns" :rows="data?.byProduct" row-key="productId" :page-size="0" clickable @row-click="(r) => $router.push({ name: 'product', params: { id: r.productId } })">
       <template #cell-total="{ row }"><MoneyText :value="row.total" plain /></template>
       <template #cell-avgPrice="{ row }"><MoneyText :value="row.avgPrice" plain class="text-text-secondary" /></template>
     </DataTable>

@@ -115,7 +115,7 @@ const table = computed<ExportTable | undefined>(() =>
 
     <DataTable :columns="columns" :rows="rows" row-key="productId" :page-size="0">
       <template #cell-name="{ row }">
-        <RouterLink :to="`/products/${row.productId}`" class="hover:text-primary">{{ row.name }}</RouterLink>
+        <RouterLink :to="{ name: 'product', params: { id: row.productId } }" class="hover:text-primary">{{ row.name }}</RouterLink>
         <span class="num block text-tiny text-text-secondary">{{ row.sku }}</span>
       </template>
       <template #cell-category="{ row }"><span class="text-text-secondary">{{ row.category }}</span></template>

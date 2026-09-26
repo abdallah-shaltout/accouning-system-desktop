@@ -53,7 +53,7 @@ const table = computed<ExportTable | undefined>(() =>
       <DateRangeFilter v-model:from="from" v-model:to="to" :fiscal-start="fiscalStart" />
     </template>
 
-    <DataTable :columns="columns" :rows="data" :page-size="0" clickable @row-click="(r) => $router.push(`/pos/shifts/${r.id}`)">
+    <DataTable :columns="columns" :rows="data" :page-size="0" clickable @row-click="(r) => $router.push({ name: 'pos-shift-report', params: { id: r.id } })">
       <template #cell-openedAt="{ row }"><span class="num text-text-secondary">{{ formatDateTime(row.openedAt) }}</span></template>
       <template #cell-closedAt="{ row }"><span class="num text-text-secondary">{{ row.closedAt ? formatDateTime(row.closedAt) : '—' }}</span></template>
       <template #cell-salesTotal="{ row }"><MoneyText :value="row.salesTotal" plain /></template>

@@ -209,7 +209,7 @@ const print = computed<ReportPrintSpec | null>(() => {
     </div>
 
     <DataTable v-if="view === 'product'" :columns="productColumns" :rows="data?.byProduct" row-key="productId" :page-size="0" empty-title="لا توجد مبيعات في هذه الفترة">
-      <template #cell-name="{ row }"><RouterLink :to="`/products/${row.productId}`" class="hover:text-primary">{{ row.name }}</RouterLink></template>
+      <template #cell-name="{ row }"><RouterLink :to="{ name: 'product', params: { id: row.productId } }" class="hover:text-primary">{{ row.name }}</RouterLink></template>
       <template #cell-revenue="{ row }"><MoneyText :value="row.revenue" plain /></template>
       <template #cell-cost="{ row }"><MoneyText :value="row.cost" plain class="text-text-secondary" /></template>
       <template #cell-profit="{ row }"><MoneyText :value="row.profit" plain signed /></template>

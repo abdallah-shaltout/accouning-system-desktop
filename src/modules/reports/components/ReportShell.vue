@@ -178,7 +178,7 @@ async function exportExcel() {
 
 <template>
   <div>
-    <PageHeader :title="title" :subtitle="subtitle" back="/reports">
+    <PageHeader :title="title" :subtitle="subtitle" :back="{ name: 'reports' }">
       <template #actions>
         <AppButton size="sm" :icon="Printer" :disabled="!canPrint" title="معاينة النسخة الرسمية ثم الطباعة أو الحفظ PDF (Ctrl+P)" data-testid="report-print-open" @click="openPrint">
           طباعة / PDF

@@ -150,7 +150,7 @@ const print = computed<ReportPrintSpec | null>(() => {
       {{ balanced ? 'الميزان متوازن' : 'الميزان غير متوازن!' }}
     </p>
 
-    <DataTable :columns="columns" :rows="data" :page-size="0" clickable @row-click="(r) => router.push(`/reports/ledger?account=${r.accountId}&from=${from}&to=${to}`)">
+    <DataTable :columns="columns" :rows="data" :page-size="0" clickable @row-click="(r) => router.push({ name: 'report-ledger', query: { account: r.accountId, from, to } })">
       <template #cell-code="{ row }"><span class="num text-text-secondary">{{ row.code }}</span></template>
       <template #cell-openingBalance="{ row }"><MoneyText :value="row.openingBalance" plain dash-zero /></template>
       <template #cell-periodDebit="{ row }"><MoneyText :value="row.periodDebit" plain dash-zero /></template>

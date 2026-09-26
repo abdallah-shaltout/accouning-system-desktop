@@ -79,11 +79,11 @@ const table = computed<ExportTable | undefined>(() => {
       <SegmentedControl v-model="view" :options="[{ value: 'low', label: 'منخفض / إعادة طلب' }, { value: 'dead', label: 'راكد' }]" />
     </template>
 
-    <DataTable v-if="view === 'low'" :columns="lowColumns" :rows="low.data.value" row-key="productId" :page-size="0" clickable @row-click="(r) => $router.push(`/products/${r.productId}`)">
+    <DataTable v-if="view === 'low'" :columns="lowColumns" :rows="low.data.value" row-key="productId" :page-size="0" clickable @row-click="(r) => $router.push({ name: 'product', params: { id: r.productId } })">
       <template #cell-costValue="{ row }"><MoneyText :value="row.costValue" plain /></template>
       <template #cell-suggestedQty="{ row }"><span class="num font-medium text-primary">{{ formatNumber(row.suggestedQty) }}</span></template>
     </DataTable>
-    <DataTable v-else :columns="deadColumns" :rows="dead.data.value" row-key="productId" :page-size="0" clickable @row-click="(r) => $router.push(`/products/${r.productId}`)">
+    <DataTable v-else :columns="deadColumns" :rows="dead.data.value" row-key="productId" :page-size="0" clickable @row-click="(r) => $router.push({ name: 'product', params: { id: r.productId } })">
       <template #cell-costValue="{ row }"><MoneyText :value="row.costValue" plain /></template>
       <template #cell-lastSaleDate="{ row }"><span class="num text-text-secondary">{{ row.lastSaleDate ? formatDate(row.lastSaleDate) : 'لم يُبع أبداً' }}</span></template>
     </DataTable>

@@ -55,7 +55,7 @@ const table = computed<ExportTable | undefined>(() =>
       </span>
     </div>
 
-    <DataTable :columns="columns" :rows="data" :page-size="0" clickable @row-click="(r) => $router.push(`/inventory/counts/${r.countId}`)">
+    <DataTable :columns="columns" :rows="data" :page-size="0" clickable @row-click="(r) => $router.push({ name: 'count', params: { id: r.countId } })">
       <template #cell-qtyVariance="{ row }"><span class="num" :class="row.qtyVariance < 0 ? 'text-danger' : 'text-success'">{{ row.qtyVariance > 0 ? '+' : '' }}{{ formatNumber(row.qtyVariance) }}</span></template>
       <template #cell-valueVariance="{ row }"><MoneyText :value="row.valueVariance" plain signed /></template>
       <template #footer>

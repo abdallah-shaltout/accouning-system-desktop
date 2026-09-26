@@ -11,7 +11,7 @@ defineProps<{ title: string; lines: StatementLine[]; total: number; totalLabel?:
     <h3 class="border-b border-border bg-surface px-4 py-2 text-xs font-medium text-text-secondary">{{ title }}</h3>
     <ul class="divide-y divide-border text-body">
       <li v-for="l in lines" :key="l.accountId">
-        <RouterLink :to="`/reports/ledger?account=${l.accountId}`" class="flex items-center justify-between px-4 py-2 hover:bg-surface-hover">
+        <RouterLink :to="{ name: 'report-ledger', query: { account: l.accountId } }" class="flex items-center justify-between px-4 py-2 hover:bg-surface-hover">
           <span class="flex items-center gap-2"><span class="num text-xs text-text-secondary">{{ l.code }}</span>{{ l.name }}</span>
           <MoneyText :value="l.amount" plain :class="l.amount < 0 && 'text-danger'" />
         </RouterLink>

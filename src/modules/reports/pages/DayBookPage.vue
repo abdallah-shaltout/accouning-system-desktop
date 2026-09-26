@@ -89,7 +89,7 @@ const print = computed<ReportPrintSpec | null>(() => {
 
     <div class="space-y-3">
       <div v-for="e in data" :key="e.id" class="overflow-hidden rounded-xl border border-border">
-        <RouterLink :to="`/accounting/journal/${e.id}`" class="flex items-center justify-between border-b border-border bg-surface px-4 py-2 text-body hover:bg-surface-hover">
+        <RouterLink :to="{ name: 'journal-entry', params: { id: e.id } }" class="flex items-center justify-between border-b border-border bg-surface px-4 py-2 text-body hover:bg-surface-hover">
           <span class="flex items-center gap-2"><span class="num font-medium text-primary">{{ e.number }}</span><span class="text-text-secondary">{{ e.description }}</span></span>
           <span class="num text-xs text-text-secondary">{{ formatDateTime(e.date) }}</span>
         </RouterLink>
