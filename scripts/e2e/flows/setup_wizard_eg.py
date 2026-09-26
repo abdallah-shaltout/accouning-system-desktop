@@ -74,9 +74,9 @@ def run(base: str, shots_dir: Path) -> int:
 
         # --- Step 2: country/currency/tax — this is the step this flow exists to check ---------
         safe_print("step 2 — country/currency/tax defaults to مصر (EG)")
-        country_select = page.get_by_label("الدولة")
+        country_select = page.get_by_label("الدولة").and_(page.locator("select"))
         check(country_select.input_value() == "EG", "the wizard's country step defaults to مصر (EG), not السعودية")
-        check(page.get_by_text("EGP").count() > 0, "the default country's base currency shows EGP")
+        check(page.get_by_label("العملة الأساسية").input_value() == "EGP", "the default country's base currency shows EGP")
         check(page.get_by_text("14%", exact=False).count() > 0, "the VAT switch's description mentions 14%, not 15%")
         shot(page, shots_dir, "eg_country_tax_step")
         next_step("countryTax")

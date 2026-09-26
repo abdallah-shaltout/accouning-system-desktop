@@ -5,7 +5,7 @@
  * step via `setupService.saveOnboardingProgress`; required steps block "التالي", the rest can be
  * skipped and picked up later from the dashboard's setup-checklist card.
  */
-import { computed, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Check } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
@@ -40,6 +40,18 @@ const saving = ref(false);
 const stepError = ref('');
 const doneSteps = ref<Set<string>>(new Set());
 const skippedSteps = ref<Set<string>>(new Set());
+
+// Resume where the user left off (e.g. the app was closed mid-wizard) instead of always starting
+// from step 1 — `done`/`skipped`/`completedStep` are already persisted by markStepDone/markStepSkipped.
+onMounted(async () => {
+  const progress = await setupService.getOnboardingProgress();
+  doneSteps.value = new Set(progress.done);
+  skippedSteps.value = new Set(progress.skipped);
+  if (progress.completedStep !== undefined) {
+    const resumeAt = Math.min(progress.completedStep + 1, WIZARD_STEPS.length - 1);
+    stepIndex.value = resumeAt;
+  }
+});
 
 const step = computed(() => WIZARD_STEPS[stepIndex.value]);
 const isLast = computed(() => stepIndex.value === WIZARD_STEPS.length - 1);
@@ -77,7 +89,13 @@ async function commitCurrentStep(): Promise<boolean> {
         await setupService.applyFiscalYear(state.fiscalYear.startMonth, state.fiscalYear.startDay, state.fiscalYear.goLiveDate);
         break;
       case 'branches':
-        await setupService.applyBranches(state.branches.map((b) => ({ name: b.name, code: b.code, address: b.address })));
+        // `b.address` is a Vue reactive Proxy (state is `reactive()`) — snapshot to a plain object
+        // before it reaches applyBranches(), which persists it straight into `db`. Passing the Proxy
+        // through would eventually hit persist.ts's structuredClone() and throw
+        // ("could not be cloned"), same root cause fixed for StepCompany's nationalAddress above.
+        await setupService.applyBranches(
+          state.branches.map((b) => ({ name: b.name, code: b.code, address: b.address ? JSON.parse(JSON.stringify(b.address)) : undefined })),
+        );
         break;
       case 'coa':
         await setupService.applyCoaTemplate(state.coa.template, state.countryTax.country, state.businessType);
@@ -94,7 +112,7 @@ async function commitCurrentStep(): Promise<boolean> {
         break;
     }
     doneSteps.value.add(step.value.key);
-    await setupService.markStepDone(step.value.key);
+    await setupService.markStepDone(step.value.key, stepIndex.value);
     await setupService.persistProgress();
     return true;
   } catch (err) {
@@ -119,6 +137,7 @@ async function next() {
 async function skip() {
   skippedSteps.value.add(step.value.key);
   await setupService.markStepSkipped(step.value.key);
+  await setupService.saveOnboardingProgress({ completedStep: stepIndex.value });
   stepIndex.value += 1;
 }
 

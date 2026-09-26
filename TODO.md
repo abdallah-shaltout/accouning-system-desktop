@@ -1,5 +1,74 @@
 # TODO
 
+## 2026-09-26 — fixed real `structuredClone` crash on setup wizard's Branches step (doc 18.E regression)
+
+**Root cause**: `SetupWizardPage.vue`'s `commitCurrentStep()` for the `'branches'` step passed
+`b.address` straight from `state.branches` (a Vue `reactive()` object, so every nested object,
+including each branch's `address`, is actually a reactive Proxy) into
+`setupService.applyBranches(...)`. That service (`src/mocks/backend/setup.ts#applyBranches`)
+assigns it directly onto `db`: `main.nationalAddress = first.address` /
+`createBranch({ nationalAddress: b.address, ... })`. Because `db` is itself the app's single
+mock-backend state object, the Proxy value then lives inside `db`, and the next debounced
+`writeSnapshotNow()` (`src/mocks/persist.ts`) calls `structuredClone(db)` — which cannot clone a
+Vue reactive Proxy — throwing `Failed to execute 'structuredClone' on 'Window': #<Object> could
+not be cloned` and halting the wizard. This is the exact same bug pattern already partially fixed
+in this same working tree for `StepCompany.vue`'s `nationalAddress` (uncommitted fix present at
+session start, using `JSON.parse(JSON.stringify(...))` to snapshot to a plain object before it
+reaches `updateSettings()`) — the Branches step had the identical hole, just one step later in the
+wizard and triggered via `SetupWizardPage.vue` directly rather than a per-step debounced watcher.
+
+**Fix** (`src/modules/setup/pages/SetupWizardPage.vue`, the `'branches'` case in
+`commitCurrentStep()`): deep-clone each branch's `address` via `JSON.parse(JSON.stringify(...))`
+before building the array passed to `setupService.applyBranches(...)`, mirroring the exact pattern
+already used for `StepCompany`. Did not touch the `Address` type, `AddressFields.vue`'s UI/UX, or
+any accounting/posting logic — this is purely a data-hygiene fix at the wizard→service boundary
+(services must only ever receive plain, structured-clone-safe data, never a live reactive Proxy).
+
+Also reviewed every other `state.*` → `setupService.*` call in the same function:
+`applyCountryTax(state.countryTax)` passes the whole reactive object too, but that service only
+ever reads primitive fields off `input` (`input.country`, `input.currency`, etc.) and never
+assigns `input` or a nested object directly into `db`, so it's not exposed to this bug — left
+unchanged. `applyCoaTemplate`/`applyPaymentMethods` already only pass primitives/mapped literals.
+
+**Also present, and kept** (found already fixed but uncommitted in the working tree at session
+start, verified correct): `StepCompany.vue`'s debounced autosave watcher snapshots
+`state.company.nationalAddress` via the same `JSON.parse(JSON.stringify(...))` pattern before
+calling `updateSettings()`, plus a matching `onUnmounted(() => clearTimeout(saveTimer))` cleanup.
+Committed together with this fix (see commit below) since both are the same root-cause family and
+both were needed for the full repro (steps 3 and 5) to go green.
+
+**Also committed**: the two pre-existing, already-fixed (uncommitted at session start) e2e
+selector bugs in `scripts/e2e/flows/onboarding.py` (`get_by_label("الدولة")` disambiguated with
+`.and_(page.locator("select"))`, and the SAR currency check switched from a `get_by_text` match
+against a disabled input's rendered text to `get_by_label("العملة الأساسية").input_value()`) and
+`scripts/e2e/flows/setup_wizard_eg.py` (same two fixes, EG/EGP variant) — both verified correct by
+inspection and by the green run below, and needed to actually reach the Branches step at all.
+
+**Verification**:
+- `python scripts/e2e/run.py --only onboarding`: no `structuredClone` pageerror; wizard sails
+  through step 5 (Branches) and step 6 (شجرة الحسابات) cleanly, all the way to step 8 (opening
+  balances) and into the customer-Excel-import flow, where it now fails on an **unrelated**
+  timeout waiting for a "متابعة" button in the import wizard (`TimeoutError: Locator.click:
+  Timeout 30000ms exceeded`, `get_by_role("button", name="متابعة")`) — not present in any
+  `structuredClone`/clone-related trace. Logged as a new finding by the diagnostics ledger
+  (`docs/diagnostics/ISSUES.md` `BUG-0009`); not investigated further, out of scope for this fix
+  (the primary bug — the crash — is gone, and the flow gets much further than before).
+- `python scripts/e2e/run.py --only setup-wizard-eg`: same result — no `structuredClone` error,
+  wizard passes through Branches/CoA/payment-methods and reaches the final "ready" step
+  successfully, then fails on an unrelated `page.wait_for_url(lambda u: "/login" in u,
+  timeout=15000)` timeout right after clicking finish (ledger `BUG-0010`) — the redirect to
+  `/login` after `finishOnboarding()` doesn't complete within 15s in this session. Also not
+  investigated further; likely worth checking `finishOnboarding()`'s toast/`router.replace` timing
+  or whether the login route itself is slow to mount, but that's a separate issue from the address
+  clone bug this task targeted.
+- `bun run build` (real Vite build): clean.
+- `bun run check`: exit 0 (pre-existing warning-mode findings only, none new).
+- `bun run verify:mocks`: 98 ok / 0 todo / 0 failed (unchanged — no accounting logic touched).
+
+Both new findings (`BUG-0009`, `BUG-0010`) are left for whoever owns the customer-import wizard /
+the post-finish login redirect next; they are unrelated to the address/clone data-hygiene fix this
+session made.
+
 ## 2026-09-26 — doc-17 F-5b (seam cleanup) done; full e2e suite blocked by a pre-existing selector bug
 
 Fixed all 18 seam violations from `AGENT_MEMORY.md`'s Boundary report (7 newly-discovered + 11

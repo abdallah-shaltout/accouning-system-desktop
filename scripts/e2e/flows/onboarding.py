@@ -108,9 +108,9 @@ def run(base: str, shots_dir: Path) -> int:
         # This flow tests the pre-existing Saudi path end to end, so it explicitly picks السعودية —
         # the wizard's own default is Egypt now (see setup_wizard_eg.py for that path).
         safe_print("step 2 — country, currency, tax (السعودية)")
-        page.get_by_label("الدولة").select_option("SA")
+        page.get_by_label("الدولة").and_(page.locator("select")).select_option("SA")
         page.wait_for_timeout(200)
-        check(page.get_by_text("SAR").count() > 0, "picking السعودية sets the base currency to SAR")
+        check(page.get_by_label("العملة الأساسية").input_value() == "SAR", "picking السعودية sets the base currency to SAR")
         next_step("countryTax")
 
         # --- Step 3: company details ----------------------------------------------------------

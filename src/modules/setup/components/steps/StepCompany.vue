@@ -5,7 +5,7 @@
  * picks it up immediately. The tax-id/CR labels+patterns+hints and the phone's default country come
  * from `countryProfiles.ts`, keyed by the country already chosen in the previous step.
  */
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppPhoneInput from '@/modules/core/components/ui/AppPhoneInput.vue';
@@ -51,17 +51,23 @@ watch(
   () => {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
+      // Snapshot to a plain object — `state.company.nationalAddress` is a Vue reactive Proxy, and
+      // passing it straight into updateSettings() reaches structuredClone() downstream, which
+      // cannot clone a Proxy and throws.
+      const nationalAddress = JSON.parse(JSON.stringify(props.state.company.nationalAddress));
       void updateSettings({
         storeName: props.state.company.nameAr || 'شركتي',
         vatNumber: props.state.company.vatNumber || undefined,
         phone: props.state.company.phone || undefined,
-        nationalAddress: props.state.company.nationalAddress,
-        address: formatAddress(props.state.company.nationalAddress) || undefined,
+        nationalAddress,
+        address: formatAddress(nationalAddress) || undefined,
       });
     }, 400);
   },
   { deep: true },
 );
+
+onUnmounted(() => clearTimeout(saveTimer));
 </script>
 
 <template>
