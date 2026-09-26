@@ -1,19 +1,20 @@
 /**
  * Inventory / stock invariants — docs/v2/02-accounting-review.md §4 item 4, plus movement-log
  * sanity checks the mock backend relies on internally.
+ *
+ * 18.F2: the GL(inventory) = Σ stockValue check is shared with `src/mocks/backend/invariants.ts`;
+ * the movement-log/negative-stock/batch checks below are mock-DB structural sanity, not one of
+ * the 11 numbered invariants, so they stay here.
  */
 import { db } from '../../src/mocks/db';
-import { check, closeEnough, glBalance, ok, round2, type Result } from './shared';
+import { checkInventoryGl } from '../../src/mocks/backend/invariants';
+import { check, closeEnough, ok, round2, type Result } from './shared';
 
 export function run(): Result[] {
   const results: Result[] = [];
 
-  // 4. GL(inventory) = Σ product.stockValue, exactly (Phase 1 A1/A2: a dedicated `stockValue`
-  // field that every stock movement changes by exactly the amount posted to the GL — no more
-  // independently-rounded `qty × costPrice` drift).
-  const invGl = glBalance('inventory');
-  const invSum = round2(db.products.reduce((a, p) => a + (p.type === 'product' ? p.stockValue : 0), 0));
-  results.push(check(closeEnough(invGl, invSum, 0.01), `inventory GL (${invGl}) matches Σ product.stockValue (${invSum})`));
+  const invGlResult = checkInventoryGl(db);
+  results.push(check(invGlResult.passed, invGlResult.message));
 
   const negative = db.products.filter((p) => p.stockQty < 0);
   results.push(check(negative.length === 0, `no product has negative stock (${negative.length}: ${negative.map((p) => p.name).join(', ')})`));
