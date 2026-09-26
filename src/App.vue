@@ -6,11 +6,14 @@ import ToastContainer from '@/modules/core/components/ToastContainer.vue';
 import ConfirmDialog from '@/modules/core/components/ui/ConfirmDialog.vue';
 import { initPrintResultListener } from '@/modules/core/services/printService';
 import { isClosingWithBackup } from '@/modules/settings/services/backupService';
+import DiagOverlay from '@/modules/diagnostics/components/DiagOverlay.vue';
 
 // Phase 14 (docs/v2/12-documents-pdf-excel.md §5): one-time listener for the
 // async native-print result event (toast + reprint + PDF fallback on
 // failure). No-op outside Tauri.
 onMounted(() => void initPrintResultListener());
+
+const isDev = import.meta.env.DEV;
 </script>
 
 <template>
@@ -21,6 +24,8 @@ onMounted(() => void initPrintResultListener());
     <ToastContainer />
     <ConfirmDialog />
     <CommandPalette />
+    <!-- 18.B5: Ctrl+Shift+D diagnostics overlay, dev builds only (same gate as /dev/ui). -->
+    <DiagOverlay v-if="isDev" />
     <div v-if="isClosingWithBackup" class="closing-overlay" role="status" aria-live="polite">
       <div class="closing-overlay__box">
         <span class="closing-overlay__spinner" aria-hidden="true" />

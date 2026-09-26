@@ -7,7 +7,7 @@
  */
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ChevronsUpDown, DatabaseBackup, Keyboard, LogOut, Moon, Palette, RefreshCw, Sun, UserRound } from '@lucide/vue';
+import { Bug, ChevronsUpDown, DatabaseBackup, Keyboard, LogOut, Moon, Palette, RefreshCw, Sun, UserRound } from '@lucide/vue';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getDemoAccounts } from '@/modules/users/services/authService';
 import { useBackupStore } from '@/modules/settings/controllers/useBackupStore';
@@ -160,6 +160,13 @@ async function reloadDemoData() {
               <UserRound class="size-4" />
               <span class="flex-1 truncate">{{ d.name }}</span>
               <span class="text-tiny text-text-secondary">{{ ROLE_LABEL[d.role] }}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem as-child>
+              <RouterLink to="/dev/diagnostics" class="flex w-full items-center gap-2">
+                <Bug class="size-4" />
+                <span>التشخيص</span>
+              </RouterLink>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem :disabled="busy" @select="reloadDemoData">

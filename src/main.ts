@@ -16,6 +16,7 @@ import * as accountingCommands from './modules/accounting/commands';
 import * as reportCommands from './modules/reports/commands';
 import * as settingsCommands from './modules/settings/commands';
 import * as approvalCommands from './modules/approvals/commands';
+import * as diagnosticsCommands from './modules/diagnostics/commands';
 import { useNotificationStore } from './modules/core/controllers/useNotificationStore';
 import { initAppearance } from './modules/core/controllers/useAppearance';
 import { initTheme } from './modules/core/controllers/useTheme';
@@ -73,6 +74,7 @@ async function bootstrap() {
     ...accountingCommands.searchProviders,
     ...reportCommands.searchProviders,
     ...settingsCommands.searchProviders,
+    ...diagnosticsCommands.searchProviders,
   ]);
 
   // Last-resort handler: anything not caught by a page's ErrorBoundary becomes a toast, never a blank screen.
