@@ -16,6 +16,7 @@ import { getCustomers, getSuppliers } from '@/modules/parties/services/partyServ
 import { getProducts } from '@/modules/products/services/productService';
 import { toggleTheme } from '../controllers/useTheme';
 import type { PaletteCommand, PaletteSearchProvider } from '../types/commandPalette';
+import type { AppRoute, RouteName } from '../types/route';
 
 export function buildPageCommands(router: Router): PaletteCommand[] {
   return router
@@ -33,7 +34,7 @@ export function buildPageCommands(router: Router): PaletteCommand[] {
       group: 'pages' as const,
       title: String(r.meta.title),
       subtitle: r.meta.section as string | undefined,
-      to: r.path,
+      to: { name: r.name as RouteName } as AppRoute,
       permission: r.meta.area ? { area: r.meta.area as any, access: (r.meta.access as any) ?? 'read' } : undefined,
     }));
 }
@@ -50,14 +51,14 @@ export function buildActionCommands(_router: Router): PaletteCommand[] {
       group: 'actions',
       title: 'بيع جديد (نقطة البيع)',
       keywords: 'pos بيع كاشير',
-      to: '/pos',
+      to: { name: 'pos' },
       permission: { area: 'pos', access: 'write' },
     },
     {
       id: 'action:new-customer',
       group: 'actions',
       title: 'عميل جديد',
-      to: '/customers',
+      to: { name: 'customers' },
       permission: { area: 'parties', access: 'write' },
     },
     {
@@ -70,7 +71,7 @@ export function buildActionCommands(_router: Router): PaletteCommand[] {
       id: 'action:go-settings',
       group: 'actions',
       title: 'الإعدادات',
-      to: '/settings/general',
+      to: { name: 'settings-general' },
       permission: { area: 'settings', access: 'read' },
     },
   ];
@@ -88,7 +89,7 @@ export const customersProvider: PaletteSearchProvider = {
       group: 'customers' as const,
       title: c.name,
       subtitle: c.phone ?? c.vatNumber,
-      to: `/customers/${c.id}`,
+      to: { name: 'customer', params: { id: c.id } },
     }));
   },
 };
@@ -105,7 +106,7 @@ export const suppliersProvider: PaletteSearchProvider = {
       group: 'suppliers' as const,
       title: s.name,
       subtitle: s.contactPerson ?? s.phone,
-      to: `/suppliers/${s.id}`,
+      to: { name: 'supplier', params: { id: s.id } },
     }));
   },
 };
@@ -123,7 +124,7 @@ export const productsProvider: PaletteSearchProvider = {
       title: p.name,
       subtitle: p.barcode ?? p.sku,
       keywords: `${p.sku} ${p.barcode ?? ''}`,
-      to: `/products/${p.id}`,
+      to: { name: 'product', params: { id: p.id } },
     }));
   },
 };

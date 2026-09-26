@@ -190,7 +190,7 @@ export function useCommandPalette() {
                   title: product.name,
                   subtitle: product.barcode ?? product.sku,
                   keywords: `${product.sku} ${product.barcode ?? ''}`,
-                  to: `/products/${product.id}`,
+                  to: { name: 'product', params: { id: product.id } },
                 },
                 score: -200, // always first — an exact scanned-barcode match beats everything else
               },
