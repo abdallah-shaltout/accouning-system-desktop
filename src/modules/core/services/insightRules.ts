@@ -27,7 +27,7 @@ import { formatMoney, formatNumber } from '@/modules/core/helpers/format';
 import { invoiceOutstanding } from '@/modules/invoices/helpers/totals';
 import { isOverdue } from '@/modules/invoices/services/invoiceService';
 import { useBackupStore } from '@/modules/settings/controllers/useBackupStore';
-import type { InsightRule, InsightSeverity } from './insightTypes';
+import type { Insight, InsightRule, InsightSeverity } from './insightTypes';
 
 /**
  * Rule catalogue (docs/v2/11-journal-dashboard-insights.md D2, first set of 20). Each rule is a
@@ -58,7 +58,7 @@ const reorderRule: InsightRule = (ctx) => {
     if (!bySupplier.has(key)) bySupplier.set(key, []);
     bySupplier.get(key)!.push(p);
   }
-  const insights = [];
+  const insights: Insight[] = [];
   for (const [supplierId, items] of bySupplier) {
     const supplier = db.suppliers.find((s) => s.id === supplierId);
     const label = supplier ? `لدى مورد "${supplier.name}"` : 'بلا مورد مفضل';
@@ -155,7 +155,7 @@ const overdueCustomersRule: InsightRule = (ctx) => {
     entry.maxDays = Math.max(entry.maxDays, days);
     byCustomer.set(inv.customerId, entry);
   }
-  const insights = [];
+  const insights: Insight[] = [];
   for (const [customerId, { total, maxDays }] of byCustomer) {
     const customer = db.customers.find((c) => c.id === customerId);
     if (!customer || total <= 0) continue;
@@ -178,7 +178,7 @@ const overdueCustomersRule: InsightRule = (ctx) => {
 
 // 5 — Credit limit near/over (cashier, accountant, manager) --------------------------------------
 const creditLimitRule: InsightRule = (ctx) => {
-  const insights = [];
+  const insights: Insight[] = [];
   for (const c of db.customers) {
     if (!c.creditLimit || c.creditLimit <= 0) continue;
     const balance = customerBalance(c.id);
@@ -385,7 +385,7 @@ const discountLeakRule: InsightRule = (ctx) => {
   const allRates = thisWeek.map((i) => i.discountRate ?? 0);
   const avg = allRates.length ? sum(allRates.map((r) => ({ r })), (x) => x.r) / allRates.length : 0;
   if (avg <= 0) return [];
-  const insights = [];
+  const insights: Insight[] = [];
   for (const [cashierId, rates] of byCashier) {
     if (rates.length < 3) continue;
     const cashierAvg = sum(rates.map((r) => ({ r })), (x) => x.r) / rates.length;
@@ -478,7 +478,7 @@ const recurringExpenseDueRule: InsightRule = (ctx) => {
 const budgetRule: InsightRule = (ctx) => {
   const fy = db.fiscalYears.find((f) => !f.isClosed && f.startDate <= ctx.today && f.endDate >= ctx.today) ?? db.fiscalYears.find((f) => !f.isClosed);
   if (!fy) return [];
-  const insights = [];
+  const insights: Insight[] = [];
   for (const c of db.costCenters) {
     const budgetRow = c.budgets?.find((b) => b.fiscalYearId === fy.id);
     if (!budgetRow || budgetRow.amount <= 0) continue;
@@ -554,7 +554,7 @@ const backupOverdueRule: InsightRule = (ctx) => {
 
 // 18 — Year end (accountant) -----------------------------------------------------------------------
 const yearEndRule: InsightRule = (ctx) => {
-  const insights = [];
+  const insights: Insight[] = [];
   for (const fy of db.fiscalYears) {
     if (fy.isClosed) continue;
     const daysToEnd = daysBetween(fy.endDate, ctx.today) * -1;

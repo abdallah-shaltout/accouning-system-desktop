@@ -213,7 +213,7 @@ export const getProductInlineHints = wrap('core.getProductInlineHints', function
       severity: 'info',
       message: `لم يُبع منذ ${lastSale ? Math.floor((Date.now() - new Date(lastSale).getTime()) / 86_400_000) : '+' + thresholds.deadStockDays} يوماً — قيمة المخزون ${Math.round(product.stockValue ?? 0)} ر.س`,
       actionLabel: 'عرض المخزون',
-      actionTo: '/inventory/movements',
+      actionTo: { name: 'movements' },
       icon: TrendingDown,
       roles: ['manager', 'admin'],
       value: 1,
