@@ -20,6 +20,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/settings/recommendations', name: 'settings-recommendations', component: () => import('../pages/RecommendationsSettingsPage.vue'), meta: { title: 'التوصيات', section, area: 'settings' } },
   // v2 phase 6 §6: role matrix editor. Gated on `users` (only admins manage users/roles today).
   { path: '/settings/roles', name: 'settings-roles', component: () => import('../pages/RoleMatrixSettingsPage.vue'), meta: { title: 'المستخدمون والأدوار', section, area: 'users' } },
+  // 18.B4: business audit trail (structured `db.audit`, DataTable + filters + diff view). Admin only.
+  { path: '/settings/audit-log', name: 'settings-audit-log', component: () => import('../pages/AuditLogSettingsPage.vue'), meta: { title: 'سجل التدقيق', section, area: 'users' } },
   // Appearance is a per-device preference, open to every signed-in user.
   { path: '/settings/appearance', name: 'settings-appearance', component: () => import('../pages/AppearanceSettingsPage.vue'), meta: { title: 'المظهر', section } },
   // Phase 13a: backup & restore (docs/v2/14-platform.md §4).

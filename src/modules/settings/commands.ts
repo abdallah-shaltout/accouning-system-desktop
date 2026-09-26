@@ -19,6 +19,7 @@ const SETTINGS_PAGES: { title: string; to: string }[] = [
   { title: 'العملات', to: '/settings/currencies' },
   { title: 'التوصيات', to: '/settings/recommendations' },
   { title: 'المستخدمون والأدوار', to: '/settings/roles' },
+  { title: 'سجل التدقيق', to: '/settings/audit-log' },
   { title: 'المظهر', to: '/settings/appearance' },
   { title: 'النسخ الاحتياطي', to: '/settings/backup' },
   { title: 'قوالب الطباعة', to: '/settings/templates' },

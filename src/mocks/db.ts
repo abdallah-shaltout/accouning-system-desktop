@@ -22,6 +22,7 @@ import type { Expense, ExpenseCategory, RecurringExpense } from '@/modules/expen
 import type { CardSettlement, Voucher } from '@/modules/vouchers/types';
 import type { StockTransfer } from '@/modules/products/types';
 import type { ApprovalRequest } from '@/modules/approvals/types';
+import type { AuditEntry } from '@/modules/diagnostics/types';
 
 /**
  * The in-memory "database" behind every mock service. It lives only for the lifetime of the
@@ -112,6 +113,14 @@ export interface MockDb {
 
   /** Queued manager approvals for when the synchronous PIN dialog can't be used (no manager present) — see `modules/approvals/types`'s doc comment for the full split. */
   approvalRequests: ApprovalRequest[];
+
+  // --- v2 phase 18.B4 addition (docs/diagnostics business audit) --------------------------------
+
+  /** Structured, append-only business audit trail (18.B4) — mirrors `activity` but with entity/
+   * action/before-after detail. `logActivity` is a thin adapter that also writes here; a real
+   * backend owns this table the same way. Included in `backupArchive` (it's business data, not a
+   * diagnostic log). Optional so old persisted snapshots without it still load — see `auditService`. */
+  audit?: AuditEntry[];
 }
 
 export type DocumentKind =
@@ -182,6 +191,7 @@ export const db: MockDb = {
     theme: 'light',
   },
   activity: [],
+  audit: [],
   counters: {
     invoice: 0,
     refund: 0,

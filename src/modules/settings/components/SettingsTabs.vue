@@ -22,6 +22,8 @@ const tabs = computed(() =>
     { to: '/settings/currencies', label: 'العملات', show: auth.can('settings') && !!settingsStore.settings?.features?.currencies },
     { to: '/settings/recommendations', label: 'التوصيات', show: auth.can('settings') },
     { to: '/settings/roles', label: 'المستخدمون والأدوار', show: auth.can('users') },
+    // 18.B4: business audit trail, admin-only (same gate as the roles tab).
+    { to: '/settings/audit-log', label: 'سجل التدقيق', show: auth.can('users') },
     { to: '/settings/printing', label: 'الطباعة والأجهزة', show: auth.can('settings') },
     { to: '/settings/appearance', label: 'المظهر', show: true },
     { to: '/settings/backup', label: 'النسخ الاحتياطي', show: auth.can('settings') },

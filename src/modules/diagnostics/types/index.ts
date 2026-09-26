@@ -58,3 +58,36 @@ export interface PerfStat {
   budgetMs?: number;
   breaches: number;
 }
+
+/**
+ * Business audit record (18.B4) — who did what to which business entity. Written by the mock
+ * backend at the same points that call `logActivity()`, and by a real backend the same way.
+ * Append-only: there is no update/delete API in `auditService`. Lives in `db.audit`, is included
+ * in `backupArchive` and is NOT a diagnostic log — see README "Business audit ≠ diagnostic logs."
+ */
+export type AuditAction = 'create' | 'update' | 'post' | 'void' | 'reverse' | 'delete' | 'login' | 'settings';
+
+/** One changed field, `before`/`after` only (never the whole document) so audit rows stay small and readable. */
+export interface AuditFieldDiff {
+  field: string;
+  before?: unknown;
+  after?: unknown;
+}
+
+export interface AuditEntry {
+  id: string;
+  /** Business entity kind, e.g. 'invoice', 'purchaseOrder', 'branch', 'user'. */
+  entity: string;
+  entityId: string;
+  entityLabel?: string;
+  action: AuditAction;
+  before?: AuditFieldDiff[];
+  after?: AuditFieldDiff[];
+  userId: string;
+  branchId?: string;
+  at: string;
+  reason?: string;
+  /** The Arabic activity-feed message this record also produces, so the feed keeps reading the same. */
+  message: string;
+  link?: string;
+}

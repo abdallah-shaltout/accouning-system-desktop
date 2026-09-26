@@ -1,5 +1,6 @@
 import type { Account, FiscalYear, JournalEntry, JournalEntryType, JournalLine, JournalSourceKind } from '@/modules/accounting/types';
 import type { ActivityKind } from '@/modules/core/types';
+import type { AuditAction, AuditEntry, AuditFieldDiff } from '@/modules/diagnostics/types';
 import type { Product, StockMovementReason } from '@/modules/products/types';
 import { db, nextNumber } from '../db';
 import { emit } from '../events';
@@ -271,11 +272,138 @@ export function round4(n: number): number {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Activity feed
+// Activity feed + business audit (18.B4)
 // ---------------------------------------------------------------------------------------------
 
+/** `ActivityKind` -> the coarser `AuditAction` used when a call site doesn't say one explicitly. */
+const DEFAULT_ACTION_BY_KIND: Partial<Record<ActivityKind, AuditAction>> = {
+  auth: 'login',
+  settings: 'settings',
+};
+
+/** Entity kind guessed from an activity `link` like `/invoices/inv-12` or `/inventory/adjustments/adj-3`. */
+function entityFromLink(kind: ActivityKind, link?: string): { entity: string; entityId: string } {
+  if (link) {
+    const segments = link.split('?')[0].split('/').filter(Boolean);
+    const last = segments.at(-1);
+    const parent = segments.at(-2);
+    if (last && !/^\d+$/.test(last) && last !== parent) {
+      return { entity: parent ?? kind, entityId: last };
+    }
+  }
+  return { entity: kind, entityId: uid('unk') };
+}
+
+/**
+ * `logActivity` becomes a thin adapter (18.B4): every call still appends the same one-line
+ * `ActivityEntry` the feed has always read, and now also appends a structured `AuditEntry` to
+ * `db.audit` — append-only, included in `backupArchive` (it's business data, not a diagnostic
+ * log; see plan doc 18 decision 3). Call sites that need explicit `entity`/`action`/before-after
+ * diffs should call `logAudit` directly instead (it also updates the activity feed).
+ */
 export function logActivity(kind: ActivityKind, message: string, userId: string, date: string, link?: string): void {
-  mutate(() => db.activity.push({ id: uid('act'), kind, message, userId, date, link }));
+  const { entity, entityId } = entityFromLink(kind, link);
+  logAudit({
+    entity,
+    entityId,
+    action: DEFAULT_ACTION_BY_KIND[kind] ?? 'create',
+    userId,
+    at: date,
+    message,
+    link,
+    activityKind: kind,
+  });
+}
+
+export interface LogAuditInput {
+  entity: string;
+  entityId: string;
+  entityLabel?: string;
+  action: AuditAction;
+  before?: AuditFieldDiff[];
+  after?: AuditFieldDiff[];
+  userId: string;
+  branchId?: string;
+  at?: string;
+  reason?: string;
+  message: string;
+  link?: string;
+  /** Also appended to the legacy `activity` feed under this kind. Defaults to a reasonable guess from `entity`. */
+  activityKind?: ActivityKind;
+}
+
+const ENTITY_TO_ACTIVITY_KIND: Record<string, ActivityKind> = {
+  invoice: 'sale',
+  refund: 'refund',
+  purchaseOrder: 'purchase',
+  purchaseReturn: 'purchase_return',
+  payment: 'payment',
+  voucher: 'voucher',
+  expense: 'expense',
+  journal: 'journal',
+  product: 'product',
+  customer: 'party',
+  supplier: 'party',
+  user: 'user',
+  branch: 'settings',
+  costCenter: 'settings',
+  shift: 'shift',
+  approval: 'approval',
+  adjustment: 'stock',
+  count: 'stock',
+  transfer: 'stock',
+};
+
+/** Structured audit write (18.B4) — the entry point new call sites should prefer over `logActivity`
+ * when they can state entity/action/diffs explicitly. Always also appends to `db.activity` so
+ * every existing feed/notification reader keeps working unchanged. Append-only: there is no
+ * update/delete for `db.audit` anywhere in the backend. */
+export function logAudit(input: LogAuditInput): void {
+  const at = input.at ?? new Date().toISOString();
+  const entry: AuditEntry = {
+    id: uid('aud'),
+    entity: input.entity,
+    entityId: input.entityId,
+    entityLabel: input.entityLabel,
+    action: input.action,
+    before: input.before,
+    after: input.after,
+    userId: input.userId,
+    branchId: input.branchId,
+    at,
+    reason: input.reason,
+    message: input.message,
+    link: input.link,
+  };
+  mutate(() => {
+    if (!db.audit) db.audit = [];
+    db.audit.push(entry);
+    db.activity.push({
+      id: uid('act'),
+      kind: input.activityKind ?? ENTITY_TO_ACTIVITY_KIND[input.entity] ?? 'settings',
+      message: input.message,
+      userId: input.userId,
+      date: at,
+      link: input.link,
+    });
+  });
+}
+
+/** Field-by-field diff of two plain objects for `AuditEntry.before`/`after` — only changed keys,
+ * never the whole document (18.B4 "before/after field diff only"). Shallow by design: pass the
+ * flattened fields that matter, not nested structures. */
+export function diffFields(before: Record<string, unknown>, after: Record<string, unknown>): { before: AuditFieldDiff[]; after: AuditFieldDiff[] } {
+  const beforeDiff: AuditFieldDiff[] = [];
+  const afterDiff: AuditFieldDiff[] = [];
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  for (const field of keys) {
+    const b = before[field];
+    const a = after[field];
+    if (JSON.stringify(b) === JSON.stringify(a)) continue;
+    beforeDiff.push({ field, before: b });
+    afterDiff.push({ field, after: a });
+  }
+  return { before: beforeDiff, after: afterDiff };
 }
 
 // ---------------------------------------------------------------------------------------------
