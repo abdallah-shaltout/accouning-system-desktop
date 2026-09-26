@@ -19,7 +19,7 @@ export const searchProviders: PaletteSearchProvider[] = [
         title: po.number,
         subtitle: `${po.supplierName} — ${formatMoney(po.grandTotal)}`,
         keywords: po.supplierName,
-        to: `/purchases/${po.id}`,
+        to: { name: 'purchase', params: { id: po.id } },
       }));
     },
   },
@@ -36,7 +36,7 @@ export function buildContextCommands(router: Router): PaletteCommand[] {
       run: () => {
         const r = router.currentRoute.value;
         if (r.name !== 'purchase') return;
-        router.push(`/print/purchases/${r.params.id}`);
+        router.push({ name: 'purchase-print', params: { id: r.params.id } });
       },
       permission: { area: 'purchases', access: 'read' },
     },
@@ -48,7 +48,7 @@ export function buildContextCommands(router: Router): PaletteCommand[] {
       run: () => {
         const r = router.currentRoute.value;
         if (r.name !== 'purchase') return;
-        router.push(`/purchases/${r.params.id}/receive`);
+        router.push({ name: 'purchase-receive', params: { id: r.params.id } });
       },
       permission: { area: 'purchases', access: 'write' },
     },
@@ -60,7 +60,7 @@ export function buildContextCommands(router: Router): PaletteCommand[] {
       run: () => {
         const r = router.currentRoute.value;
         if (r.name !== 'purchase') return;
-        router.push(`/purchases/${r.params.id}/return`);
+        router.push({ name: 'purchase-return', params: { id: r.params.id } });
       },
       permission: { area: 'purchases', access: 'write' },
     },
@@ -73,7 +73,7 @@ export const commands: PaletteCommand[] = [
     group: 'actions',
     title: 'أمر شراء جديد',
     keywords: 'مشتريات purchase',
-    to: '/purchases/new',
+    to: { name: 'purchase-new' },
     permission: { area: 'purchases', access: 'write' },
   },
 ];

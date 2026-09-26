@@ -7,7 +7,7 @@ export const commands: PaletteCommand[] = [
     group: 'actions',
     title: 'طلبات الاعتماد',
     keywords: 'approvals اعتماد موافقة',
-    to: '/approvals',
+    to: { name: 'approvals' },
     permission: { area: 'approvals', access: 'write' },
   },
 ];

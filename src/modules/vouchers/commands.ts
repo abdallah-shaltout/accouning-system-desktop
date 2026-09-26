@@ -18,7 +18,7 @@ export const searchProviders: PaletteSearchProvider[] = [
         group: 'vouchers' as const,
         title: v.number,
         subtitle: `${v.description} — ${formatMoney(v.amount)}`,
-        to: `/vouchers/${v.id}`,
+        to: { name: 'voucher-detail', params: { id: v.id } },
       }));
     },
   },
@@ -34,7 +34,7 @@ export function buildContextCommands(router: Router): PaletteCommand[] {
       run: () => {
         const r = router.currentRoute.value;
         if (r.name !== 'voucher-detail') return;
-        router.push(`/print/vouchers/${r.params.id}`);
+        router.push({ name: 'voucher-print', params: { id: r.params.id } });
       },
       permission: { area: 'payments', access: 'read' },
     },
@@ -47,14 +47,14 @@ export const commands: PaletteCommand[] = [
     group: 'actions',
     title: 'سند عام جديد',
     keywords: 'سندات voucher قبض صرف',
-    to: '/vouchers/new',
+    to: { name: 'voucher-new' },
     permission: { area: 'payments', access: 'write' },
   },
   {
     id: 'action:payment-received',
     group: 'actions',
     title: 'سند قبض من عميل',
-    to: '/payments/new?type=RECEIVED',
+    to: { name: 'payment-new', query: { type: 'RECEIVED' } },
     permission: { area: 'payments', access: 'write' },
   },
 ];

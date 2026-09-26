@@ -22,7 +22,7 @@ export const searchProviders: PaletteSearchProvider[] = [
         title: inv.number,
         subtitle: `${inv.customerName ?? 'عميل نقدي'} — ${formatMoney(inv.grandTotal)}`,
         keywords: inv.customerName,
-        to: `/invoices/${inv.id}`,
+        to: { name: 'invoice', params: { id: inv.id } },
       }));
     },
   },
@@ -46,7 +46,7 @@ export function buildContextCommands(router: Router): PaletteCommand[] {
       run: () => {
         const r = router.currentRoute.value;
         if (r.name !== 'invoice') return;
-        router.push(`/print/invoices/${r.params.id}`);
+        router.push({ name: 'invoice-print', params: { id: r.params.id } });
       },
       permission: { area: 'sales', access: 'read' },
     },
@@ -58,7 +58,7 @@ export function buildContextCommands(router: Router): PaletteCommand[] {
       run: () => {
         const r = router.currentRoute.value;
         if (r.name !== 'invoice') return;
-        router.push(`/invoices/${r.params.id}/refund`);
+        router.push({ name: 'invoice-refund', params: { id: r.params.id } });
       },
       permission: { area: 'sales', access: 'write' },
     },
@@ -71,7 +71,7 @@ export const commands: PaletteCommand[] = [
     group: 'actions',
     title: 'فاتورة مبيعات جديدة',
     keywords: 'فاتورة بيع invoice',
-    to: '/sales/invoices/new',
+    to: { name: 'invoice-new' },
     permission: { area: 'sales', access: 'write' },
   },
 ];
