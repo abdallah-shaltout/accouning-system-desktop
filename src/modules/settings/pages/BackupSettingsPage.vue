@@ -7,8 +7,8 @@ import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
-import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
@@ -41,6 +41,13 @@ function formatBytes(bytes: number): string {
 
 const kindLabel: Record<string, string> = { manual: 'يدوية', auto: 'تلقائية', 'pre-restore': 'قبل الاستعادة' };
 const kindTone: Record<string, 'neutral' | 'primary' | 'warning'> = { manual: 'primary', auto: 'neutral', 'pre-restore': 'warning' };
+
+const historyColumns: Column<BackupHistoryEntry>[] = [
+  { key: 'createdAt', label: 'التاريخ' },
+  { key: 'kind', label: 'النوع' },
+  { key: 'size', label: 'الحجم' },
+  { key: 'actions', label: 'إجراءات', type: 'actions' },
+];
 
 // --- back up now ---------------------------------------------------------------------------
 
@@ -211,9 +218,8 @@ function confirmPasswordStep() {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="الإعدادات" subtitle="النسخ الاحتياطي واستعادة البيانات" />
-    <SettingsTabs />
+  <SettingsPage title="الإعدادات" subtitle="النسخ الاحتياطي واستعادة البيانات" wide>
+    <template #nav><SettingsTabs /></template>
 
     <SkeletonBlock v-if="loading" :lines="6" height="h-9" />
     <div v-else class="grid items-start gap-5 xl:grid-cols-[1fr_360px]">
@@ -254,30 +260,17 @@ function confirmPasswordStep() {
           <template #actions>
             <AppButton size="sm" :icon="History" @click="store.reloadHistory">تحديث</AppButton>
           </template>
-          <EmptyState v-if="!store.history.length" title="لا توجد نسخ احتياطية بعد" compact :icon="History" />
-          <table v-else class="w-full text-body">
-            <thead class="text-xs text-text-secondary">
-              <tr class="border-b border-border">
-                <th class="px-4 py-2 text-start font-medium">التاريخ</th>
-                <th class="px-2 py-2 text-start font-medium">النوع</th>
-                <th class="px-2 py-2 text-start font-medium">الحجم</th>
-                <th class="px-4 py-2 text-start font-medium">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="e in store.history" :key="e.id" class="border-b border-border last:border-0">
-                <td class="num px-4 py-2">{{ formatDateTime(e.manifest.createdAt) }}</td>
-                <td class="px-2 py-2"><StatusBadge :label="kindLabel[e.manifest.kind]" :tone="kindTone[e.manifest.kind]" /></td>
-                <td class="num px-2 py-2 text-text-secondary">{{ formatBytes(e.sizeBytes) }}</td>
-                <td class="px-4 py-2">
-                  <div class="flex items-center gap-1">
-                    <AppButton size="sm" variant="ghost" :icon="ShieldCheck" :loading="verifying === e.id" @click="verify(e)">تحقّق</AppButton>
-                    <AppButton size="sm" variant="ghost" :icon="Trash" :disabled="!canWrite" @click="removeEntry(e)">حذف</AppButton>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <DataTable :columns="historyColumns" :rows="store.history" :page-size="0" empty-title="لا توجد نسخ احتياطية بعد" :empty-icon="History">
+            <template #cell-createdAt="{ row }"><span class="num">{{ formatDateTime(row.manifest.createdAt) }}</span></template>
+            <template #cell-kind="{ row }"><StatusBadge :label="kindLabel[row.manifest.kind]" :tone="kindTone[row.manifest.kind]" /></template>
+            <template #cell-size="{ row }"><span class="num text-text-secondary">{{ formatBytes(row.sizeBytes) }}</span></template>
+            <template #cell-actions="{ row }">
+              <div class="flex items-center gap-1">
+                <AppButton size="sm" variant="ghost" :icon="ShieldCheck" :loading="verifying === row.id" @click="verify(row)">تحقّق</AppButton>
+                <AppButton size="sm" variant="ghost" :icon="Trash" :disabled="!canWrite" @click="removeEntry(row)">حذف</AppButton>
+              </div>
+            </template>
+          </DataTable>
         </AppCard>
       </div>
 
@@ -385,5 +378,5 @@ function confirmPasswordStep() {
         </template>
       </template>
     </AppModal>
-  </div>
+  </SettingsPage>
 </template>

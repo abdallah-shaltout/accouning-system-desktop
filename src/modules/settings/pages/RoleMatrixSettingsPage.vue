@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Minus, Pencil, RotateCcw } from '@lucide/vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { ROLE_LABEL } from '@/modules/core/helpers/labels';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
@@ -82,10 +82,15 @@ async function resetRole(role: Role) {
 }
 </script>
 
+<!--
+  v2 doc 17 Phase F-5: kept as a raw <table> — this is an interactive permission-cycling matrix
+  (columns are roles, cells are click-to-cycle buttons), not tabular row data, so DataTable's
+  column/row model doesn't fit. Documented exception, same category as the guard script's
+  existing allow-list (scripts/check-ui-rules.js header comment).
+-->
 <template>
-  <div>
-    <PageHeader title="المستخدمون والأدوار" subtitle="مصفوفة الصلاحيات لكل دور — انقر خلية للتبديل بين لا يوجد / عرض / كامل" />
-    <SettingsTabs />
+  <SettingsPage title="المستخدمون والأدوار" subtitle="مصفوفة الصلاحيات لكل دور — انقر خلية للتبديل بين لا يوجد / عرض / كامل" wide>
+    <template #nav><SettingsTabs /></template>
 
     <AppCard padding="none">
       <div class="overflow-x-auto">
@@ -136,5 +141,5 @@ async function resetRole(role: Role) {
       </div>
     </AppCard>
     <p class="mt-3 text-xs text-text-secondary">الخلايا المحاطة بإطار أزرق مُعدَّلة عن قالب الدور الافتراضي.</p>
-  </div>
+  </SettingsPage>
 </template>

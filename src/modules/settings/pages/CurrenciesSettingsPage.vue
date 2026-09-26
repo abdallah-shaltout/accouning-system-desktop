@@ -13,8 +13,8 @@ import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
-import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
@@ -49,6 +49,18 @@ onMounted(async () => {
 function latestRate(code: string): number | undefined {
   return rates.value[code]?.[0]?.rate;
 }
+
+const currencyColumns: Column<Currency>[] = [
+  { key: 'nameAr', label: 'العملة' },
+  { key: 'code', label: 'الرمز' },
+  { key: 'rate', label: 'آخر سعر صرف' },
+  { key: 'active', label: 'نشطة' },
+  { key: 'actions', label: '', type: 'actions' },
+];
+const rateColumns: Column<{ date: string; rate: number }>[] = [
+  { key: 'date', label: 'التاريخ' },
+  { key: 'rate', label: 'السعر' },
+];
 
 // --- Add currency ---
 const currencyFormOpen = ref(false);
@@ -133,9 +145,8 @@ async function saveRate() {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="العملات" :subtitle="`العملة الأساسية: ${settingsStore.currency} (تُعدّل من تبويب «عام»)`" />
-    <SettingsTabs />
+  <SettingsPage title="العملات" :subtitle="`العملة الأساسية: ${settingsStore.currency} (تُعدّل من تبويب «عام»)`">
+    <template #nav><SettingsTabs /></template>
 
     <SkeletonBlock v-if="loading" :lines="4" height="h-12" />
     <div v-else class="space-y-5">
@@ -143,50 +154,33 @@ async function saveRate() {
         <template #actions>
           <AppButton v-if="canWrite" size="sm" :icon="Plus" @click="openAddCurrency">إضافة عملة</AppButton>
         </template>
-        <EmptyState v-if="!currencies.length" title="لا توجد عملات إضافية" description="أضف عملة مثل الدولار لبيع عملاء أجانب أو فتح صندوق/حساب بنكي بعملة أجنبية" />
-        <table v-else class="w-full text-body">
-          <thead class="text-xs text-text-secondary">
-            <tr class="border-b border-border">
-              <th class="px-4 py-2 text-start font-medium">العملة</th>
-              <th class="px-2 py-2 text-start font-medium">الرمز</th>
-              <th class="px-2 py-2 text-start font-medium">آخر سعر صرف</th>
-              <th class="px-2 py-2 text-start font-medium">نشطة</th>
-              <th class="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="c in currencies" :key="c.code" class="border-b border-border last:border-0">
-              <td class="px-4 py-2 font-medium">{{ c.nameAr }} <span class="text-tiny text-text-secondary">({{ c.symbol }})</span></td>
-              <td class="px-2 py-2"><span class="num text-text-secondary">{{ c.code }}</span></td>
-              <td class="px-2 py-2">
-                <span v-if="c.fixed" class="num">{{ c.fixedRate }} (ثابت)</span>
-                <span v-else-if="latestRate(c.code)" class="num">{{ latestRate(c.code) }}</span>
-                <span v-else class="text-text-secondary">—</span>
-              </td>
-              <td class="px-2 py-2"><AppSwitch :model-value="c.active" :disabled="!canWrite" @update:model-value="() => toggleActive(c)" /></td>
-              <td class="px-4 py-2 text-end">
-                <AppButton v-if="!c.fixed && canWrite" size="sm" variant="ghost" @click="openAddRate(c.code)">سعر جديد</AppButton>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable
+          :columns="currencyColumns"
+          :rows="currencies"
+          :page-size="0"
+          empty-title="لا توجد عملات إضافية"
+          empty-description="أضف عملة مثل الدولار لبيع عملاء أجانب أو فتح صندوق/حساب بنكي بعملة أجنبية"
+        >
+          <template #cell-nameAr="{ row }">{{ row.nameAr }} <span class="text-tiny text-text-secondary">({{ row.symbol }})</span></template>
+          <template #cell-code="{ row }"><span class="num text-text-secondary">{{ row.code }}</span></template>
+          <template #cell-rate="{ row }">
+            <span v-if="row.fixed" class="num">{{ row.fixedRate }} (ثابت)</span>
+            <span v-else-if="latestRate(row.code)" class="num">{{ latestRate(row.code) }}</span>
+            <span v-else class="text-text-secondary">—</span>
+          </template>
+          <template #cell-active="{ row }"><AppSwitch :model-value="row.active" :disabled="!canWrite" @update:model-value="() => toggleActive(row)" /></template>
+          <template #cell-actions="{ row }">
+            <AppButton v-if="!row.fixed && canWrite" size="sm" variant="ghost" @click="openAddRate(row.code)">سعر جديد</AppButton>
+          </template>
+        </DataTable>
       </AppCard>
 
       <AppCard v-for="c in currencies.filter((x) => !x.fixed && rates[x.code]?.length)" :key="`rates-${c.code}`" :title="`سجل أسعار الصرف — ${c.nameAr}`" padding="none">
-        <table class="w-full text-body">
-          <thead class="text-xs text-text-secondary">
-            <tr class="border-b border-border">
-              <th class="px-4 py-2 text-start font-medium">التاريخ</th>
-              <th class="px-2 py-2 text-start font-medium">السعر (1 {{ c.code }} = ؟ {{ settingsStore.currency }})</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="r in rates[c.code]" :key="r.date" class="border-b border-border last:border-0">
-              <td class="px-4 py-2 num">{{ r.date }}</td>
-              <td class="px-2 py-2 num">{{ r.rate }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable :columns="rateColumns" :rows="rates[c.code]" row-key="date" :page-size="0">
+          <template #cell-date="{ row }"><span class="num">{{ row.date }}</span></template>
+          <template #cell-rate="{ row }"><span class="num">{{ row.rate }}</span></template>
+        </DataTable>
+        <p class="border-t border-border px-4 py-2 text-tiny text-text-secondary">السعر: 1 {{ c.code }} = ؟ {{ settingsStore.currency }}</p>
       </AppCard>
     </div>
 
@@ -224,5 +218,5 @@ async function saveRate() {
         <AppButton variant="primary" :loading="savingRate" @click="saveRate">حفظ</AppButton>
       </template>
     </AppModal>
-  </div>
+  </SettingsPage>
 </template>
