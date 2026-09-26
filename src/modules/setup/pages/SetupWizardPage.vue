@@ -11,9 +11,6 @@ import { Check } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
 import { dirIcon } from '@/modules/core/helpers/dirIcon';
-import { flushSnapshot } from '@/mocks/persist';
-import { seedEmptyCompany } from '@/mocks/seed';
-import { db } from '@/mocks/db';
 import { WIZARD_STEPS, defaultWizardState, type WizardState } from '../types';
 import * as setupService from '../services/setupService';
 
@@ -34,8 +31,8 @@ const toast = useToast();
 
 // A fresh install has no `db.users` yet (see router guard `isFreshInstall`) — the wizard needs an
 // empty shell (accounts/branch/taxes/payment-method placeholders) to work against from step 1, the
-// same shell `seedEmptyCompany()` builds for the old one-click "ابدأ شركتك" stub.
-if (db.users.length === 0) seedEmptyCompany();
+// same shell `setupService.ensureEmptyCompanyShell()` builds for the old one-click "ابدأ شركتك" stub.
+setupService.ensureEmptyCompanyShell();
 
 const state = reactive<WizardState>(defaultWizardState());
 const stepIndex = ref(0);
@@ -98,7 +95,7 @@ async function commitCurrentStep(): Promise<boolean> {
     }
     doneSteps.value.add(step.value.key);
     await setupService.markStepDone(step.value.key);
-    await flushSnapshot();
+    await setupService.persistProgress();
     return true;
   } catch (err) {
     stepError.value = errorMessage(err);

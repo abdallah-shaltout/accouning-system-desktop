@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { ExternalLink, RotateCw, X, ZoomIn, ZoomOut } from '@lucide/vue';
-import type { AttachmentMeta } from '@/mocks/attachments';
+import type { AttachmentMeta } from '../../services/attachmentService';
 import { formatFileSize } from '../../helpers/attachments';
 import AppButton from './AppButton.vue';
 

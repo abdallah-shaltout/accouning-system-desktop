@@ -9,8 +9,7 @@ import NeedsAttentionPanel from '@/modules/core/components/insights/NeedsAttenti
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDateLong, formatMoney } from '@/modules/core/helpers/format';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
-import { db } from '@/mocks/db';
-import { getDashboardSummary } from '@/modules/core/services/dashboardService';
+import { getDashboardSummary, getJournalDraftCount } from '@/modules/core/services/dashboardService';
 
 /**
  * v2 (docs/v2/01-personas.md §3, docs/v2/11 Part B "role homes" table): "Insight cards + cash &
@@ -21,7 +20,7 @@ import { getDashboardSummary } from '@/modules/core/services/dashboardService';
 const auth = useAuthStore();
 const summary = useAsync(getDashboardSummary);
 
-const draftCount = computed(() => db.journalDrafts.length);
+const draftCount = computed(() => getJournalDraftCount());
 const greeting = computed(() => (new Date().getHours() < 12 ? 'صباح الخير' : 'مساء الخير'));
 </script>
 

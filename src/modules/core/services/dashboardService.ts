@@ -1,9 +1,12 @@
 import { clone, db, delay, localDateKey, round2, sum } from '@/mocks';
 import { accountFor } from '@/mocks/backend/accounts';
+import { on } from '@/mocks/events';
 import { invoiceOutstanding } from '@/modules/invoices/helpers/totals';
 import type { Invoice } from '@/modules/invoices/types';
 import type { Product } from '@/modules/products/types';
 import type { SystemRole } from '@/modules/accounting/types';
+import type { StockTransfer } from '@/modules/products/types';
+import type { ApprovalRequest } from '@/modules/approvals/types';
 import type { ActivityEntry, DashboardSummary } from '../types';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
@@ -291,3 +294,43 @@ export const getTopCustomers = wrap('core.getTopCustomers', async function getTo
     .sort((a, b) => b.total - a.total)
     .slice(0, limit);
 });
+
+// =================================================================================================
+// Notifications drawer reads (docs/v2/14-platform.md §6) — moved here from `useNotifications.ts`
+// directly reading `db` (seam rule: controllers call services, not `src/mocks`).
+// =================================================================================================
+
+/** Stock transfers `SENT` (in transit) toward the given branch (or all branches when omitted). */
+export function getInTransitTransfers(homeBranch: string | undefined): StockTransfer[] {
+  return clone(db.stockTransfers.filter((t) => t.status === 'SENT' && (!homeBranch || t.toBranchId === homeBranch)));
+}
+
+/** Pending async approval requests. */
+export function getPendingApprovalRequests(): ApprovalRequest[] {
+  return clone(db.approvalRequests.filter((r) => r.status === 'pending'));
+}
+
+/** ISO timestamp of the last automatic-backup failure, if any. */
+export function getLastBackupFailedAt(): string | undefined {
+  return db.settings.backup?.lastBackupFailedAt;
+}
+
+/** Draft journal entries awaiting posting — used by the accountant home KPI. */
+export function getJournalDraftCount(): number {
+  return db.journalDrafts.length;
+}
+
+/** Current stock value (sum of active products' `stockValue`) — used by the storekeeper home KPI. */
+export function getStockValueSnapshot(): number {
+  return round2(db.products.filter((p) => p.active && p.type === 'product').reduce((a, p) => a + (p.stockValue ?? 0), 0));
+}
+
+/** True once at least one product exists — used to gate the storekeeper home's stock-value KPI loading state. */
+export function hasAnyProducts(): boolean {
+  return db.products.length > 0;
+}
+
+/** Subscribes to ledger-affecting mutations (journal postings, invoices, payments, …) — returns an unsubscribe function. */
+export function onLedgerChanged(listener: () => void): () => void {
+  return on('ledger:changed', listener);
+}

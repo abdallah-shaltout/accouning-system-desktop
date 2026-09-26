@@ -9,8 +9,7 @@ import {
     toggleTheme,
 } from "@/modules/core/controllers/useTheme";
 import { errorMessage } from "@/modules/core/controllers/useToast";
-import { seedDatabase } from "@/mocks/seed";
-import { flushSnapshot } from "@/mocks/persist";
+import { reloadDemoData } from "@/modules/core/services/devToolsService";
 import { APP_NAME_AR } from "@/modules/core/helpers/brand";
 
 const router = useRouter();
@@ -21,8 +20,7 @@ async function startDemo() {
     error.value = "";
     pending.value = "demo";
     try {
-        seedDatabase();
-        await flushSnapshot();
+        await reloadDemoData();
         router.replace({ name: "login" });
     } catch (err) {
         error.value = errorMessage(err);

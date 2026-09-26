@@ -2,10 +2,15 @@ import { computed, ref } from 'vue';
 import type { Component } from 'vue';
 import type { AppRoute } from '@/modules/core/types/route';
 import { AlertTriangle, ShieldAlert, Truck } from '@lucide/vue';
-import { db } from '@/mocks/db';
-import { on } from '@/mocks/events';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import { onCatalogChanged } from '@/modules/products/services/catalogService';
 import { useInsights } from './useInsights';
+import {
+  getInTransitTransfers,
+  getLastBackupFailedAt,
+  getPendingApprovalRequests,
+  onLedgerChanged,
+} from '../services/dashboardService';
 import type { Insight } from '../services/insightTypes';
 
 /**
@@ -58,8 +63,7 @@ function insightToNotification(i: Insight): AppNotification {
 
 /** Stock transfers `SENT` (in transit) toward a branch this user can see — "a transfer arrived" per the doc (shown as pending-receipt, since that's the actionable moment). */
 function transferEvents(homeBranch: string | undefined): AppNotification[] {
-  return db.stockTransfers
-    .filter((t) => t.status === 'SENT' && (!homeBranch || t.toBranchId === homeBranch))
+  return getInTransitTransfers(homeBranch)
     .map((t) => ({
       id: `transfer:${t.id}`,
       severity: 'info' as const,
@@ -74,8 +78,7 @@ function transferEvents(homeBranch: string | undefined): AppNotification[] {
 /** Pending async approval requests (docs/v2/14-platform.md §6 "An approval is requested") — managers/admins only. */
 function approvalEvents(canApprove: boolean): AppNotification[] {
   if (!canApprove) return [];
-  return db.approvalRequests
-    .filter((r) => r.status === 'pending')
+  return getPendingApprovalRequests()
     .map((r) => ({
       id: `approval:${r.id}`,
       severity: 'warning' as const,
@@ -89,7 +92,7 @@ function approvalEvents(canApprove: boolean): AppNotification[] {
 
 /** "An automatic backup failed" (docs/v2/14-platform.md §6) — distinct from the `backup-overdue` insight. */
 function backupFailedEvent(canSeeBackup: boolean): AppNotification[] {
-  const failedAt = db.settings.backup?.lastBackupFailedAt;
+  const failedAt = getLastBackupFailedAt();
   if (!canSeeBackup || !failedAt) return [];
   return [
     {
@@ -109,8 +112,8 @@ const SEVERITY_ORDER: Record<NotificationSeverity, number> = { critical: 0, warn
 export function useNotifications() {
   const auth = useAuthStore();
   const refreshToken = ref(0);
-  on('ledger:changed', () => refreshToken.value++);
-  on('catalog:changed', () => refreshToken.value++);
+  onLedgerChanged(() => refreshToken.value++);
+  onCatalogChanged(() => refreshToken.value++);
 
   const { insights } = useInsights({ limit: 100 });
 

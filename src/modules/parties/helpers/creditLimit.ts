@@ -7,7 +7,7 @@
  * import parties logic directly; `modules/invoices/services/invoiceService.ts` calls this before
  * delegating to `recordSale`.
  */
-import { ApiError } from '@/mocks';
+import { ApiError } from '../services/partyService';
 import type { Customer } from '../types';
 
 export interface CreditLimitCheckInput {

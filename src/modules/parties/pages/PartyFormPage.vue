@@ -31,7 +31,6 @@ import { formatAddress } from '@/modules/core/helpers/format';
 import { PHONE_LABEL } from '@/modules/core/helpers/labels';
 import { hasAddressContent, type Address } from '@/modules/core/types/address';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
-import { uid } from '@/mocks';
 import { partyRoute, partyRouteById } from '../helpers/partyRoutes';
 import { migrateLegacyAddress } from '../helpers/partyAddress';
 import {
@@ -44,6 +43,7 @@ import {
   linkPartyRecords,
   saveCustomer,
   saveSupplier,
+  uid,
   unlinkPartyRecord,
   type DuplicateWarning,
 } from '../services/partyService';

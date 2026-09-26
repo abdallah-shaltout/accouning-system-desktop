@@ -9,7 +9,7 @@ import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDateTime } from '@/modules/core/helpers/format';
-import { db } from '@/mocks';
+import { getJournalEntriesForSource } from '@/modules/accounting/services/accountingService';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getExpense } from '../services/expenseService';
 
@@ -17,8 +17,9 @@ const route = useRoute('expense-detail');
 const auth = useAuthStore();
 const id = String(route.params.id);
 const { data, error, reload } = useAsync(() => getExpense(id));
+const { data: journalEntriesData } = useAsync(() => getJournalEntriesForSource('expense', id));
 
-const journalEntries = computed(() => db.journalEntries.filter((e) => e.sourceRef?.kind === 'expense' && e.sourceRef.id === id).map((e) => ({ id: e.id, number: e.number, description: e.description })));
+const journalEntries = computed(() => journalEntriesData.value ?? []);
 </script>
 
 <template>

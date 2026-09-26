@@ -64,8 +64,7 @@ async function openBackupModal() {
   backupPassword.value = '';
   backupUsePassword.value = false;
   afterResult.value = null;
-  const data = await (await import('../helpers/backupArchive')).collectBackupData();
-  beforeCounts.value = (await import('../helpers/backupArchive')).tableCounts(data);
+  beforeCounts.value = await backupService.previewBackupCounts();
 }
 
 async function runBackupNow() {

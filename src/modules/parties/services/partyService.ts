@@ -8,6 +8,9 @@ import type { AgingBucket, Customer, CustomerInput, PartyGroup, PartyHistoryEntr
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
+/** Re-exported so pages/helpers in this module never need to import `@/mocks` directly (seam rule). */
+export { ApiError, uid };
+
 export interface PartyFilter {
   search?: string;
   includeInactive?: boolean;

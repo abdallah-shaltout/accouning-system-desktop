@@ -2,6 +2,7 @@ import { ApiError, clone, db, delay, inDateRange, includesText, session } from '
 import { activeBatchesFor } from '@/mocks/backend/inventory';
 import {
   cancelPurchase,
+  computePurchaseTotals,
   duplicateSupplierInvoice,
   getDebitNoteDrafts as getDebitNoteDraftsBackend,
   missingSupplierInvoice,
@@ -17,6 +18,11 @@ import type { ProductBatch } from '@/modules/products/types';
 import type { Supplier } from '@/modules/parties/types';
 import type { Payment } from '@/modules/payments/types';
 import { wrap } from '@/modules/diagnostics/services/defineService';
+
+/** Pure line/VAT totals math (docs/v2/06 §3 engine, applied to purchase-tax direction) — used
+ * reactively by `PurchaseFormPage`'s totals preview, so exposed as a plain sync re-export rather
+ * than an async `wrap()`ed call. */
+export { computePurchaseTotals };
 
 import type {
   PurchaseFilter,

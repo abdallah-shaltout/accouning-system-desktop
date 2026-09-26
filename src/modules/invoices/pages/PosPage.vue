@@ -35,10 +35,10 @@ import { dirIcon } from '@/modules/core/helpers/dirIcon';
 import { formatNumber, formatTime } from '@/modules/core/helpers/format';
 import { matchesSearch } from '@/modules/core/helpers/search';
 import * as printService from '@/modules/core/services/printService';
-import { on } from '@/mocks/events';
 import { getCustomers } from '@/modules/parties/services/partyService';
 import type { Customer } from '@/modules/parties/types';
 import { useCatalogStore } from '@/modules/products/controllers/useCatalogStore';
+import { onCatalogChanged } from '@/modules/products/services/catalogService';
 import { getBatches } from '@/modules/products/services/inventoryService';
 import { getProducts } from '@/modules/products/services/productService';
 import type { Product, ProductBatch, ProductUnit } from '@/modules/products/types';
@@ -230,7 +230,7 @@ function rebuildBarcodeIndex() {
   barcodeIndex.value = index;
 }
 watch(products, rebuildBarcodeIndex, { immediate: true });
-const unsubCatalog = on('catalog:changed', async () => {
+const unsubCatalog = onCatalogChanged(async () => {
   products.value = await getProducts();
   rebuildBarcodeIndex();
 });

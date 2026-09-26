@@ -107,12 +107,14 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
 - **UI-only against the mock backend** (`src/mocks/`). There is no real database.
 - **Seam rule:** pages and components call only `modules/*/services/*`. Never import `src/mocks/*`
   from a page, component or store — a real backend must be able to replace the mock without
-  touching screens. **Known legacy violations** (don't add more; move them behind a service when you
-  touch the file — tracked in doc 17 Phase F): `WelcomePage`, `SetupWizardPage`, `DevMenu`
-  (seed/persist/latency), `VoucherDetailPage`, `ExpenseDetailPage`, `AccountantHome`,
-  `StorekeeperHome` (direct `db` reads), `PurchaseFormPage` (`computePurchaseTotals`), `PartyFormPage`
-  (`uid`), `PosPage` (`events.on`), `AttachmentField`/`AttachmentViewer`/`ProductImageGallery`
-  (attachment store).
+  touching screens. Doc 17 Phase F-5b (seam cleanup) closed out every previously-known violation
+  (`WelcomePage`, `SetupWizardPage`, `DevMenu`/`NavUser` seed/persist/latency, `VoucherDetailPage`,
+  `ExpenseDetailPage`, `AccountantHome`, `StorekeeperHome`, `PurchaseFormPage`, `PartyFormPage`,
+  `PosPage`, `AttachmentField`/`AttachmentViewer`/`ProductImageGallery`) plus the 7 discovered while
+  regenerating `AGENT_MEMORY.md` (`NavUser`, `useNotifications`, `helpers/attachments.ts`,
+  `parties/helpers/creditLimit.ts`, `useCatalogStore`, `settings/helpers/backupArchive.ts`,
+  `src/router/index.ts`) — `AGENT_MEMORY.md`'s Boundary report shows 0 as of this writing. Treat any
+  new finding there as a regression to fix, not a list to grow.
 - Decide on the recommended option yourself; ask only about scope-changing or irreversible choices.
 - Small, logically scoped commits. Commit only when asked or when a planned phase says so.
 

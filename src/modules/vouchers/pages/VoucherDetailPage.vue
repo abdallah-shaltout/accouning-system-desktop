@@ -11,7 +11,7 @@ import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { isTauri } from '@tauri-apps/api/core';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDateTime } from '@/modules/core/helpers/format';
-import { db } from '@/mocks';
+import { getJournalEntriesForSource } from '@/modules/accounting/services/accountingService';
 import { renderAndSave } from '@/modules/core/services/pdfService';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
@@ -24,10 +24,11 @@ const auth = useAuthStore();
 const toast = useToast();
 const id = String(route.params.id);
 const { data, error, reload } = useAsync(() => getVoucher(id));
+const { data: journalEntriesData } = useAsync(() => getJournalEntriesForSource('voucher', id));
 
 const KIND_LABEL: Record<VoucherKind, string> = { RECEIPT: 'سند قبض عام', PAYMENT: 'سند صرف عام', TRANSFER: 'تحويل بين الحسابات', OWNER: 'سند مالك' };
 
-const journalEntries = computed(() => db.journalEntries.filter((e) => e.sourceRef?.kind === 'voucher' && e.sourceRef.id === id).map((e) => ({ id: e.id, number: e.number, description: e.description })));
+const journalEntries = computed(() => journalEntriesData.value ?? []);
 
 /** v2 phase 11b (docs/v2/12-documents-pdf-excel.md §3 "voucher" now has a real template): renders
  * through `pdfService` in the desktop app, falling back to the v1 browser print route outside Tauri. */

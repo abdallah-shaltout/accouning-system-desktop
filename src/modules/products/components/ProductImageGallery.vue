@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { GripVertical, Image as ImageIcon, Star, Trash, Upload } from '@lucide/vue';
-import { deleteAttachment, getAttachment, listAttachments, putAttachment, type AttachmentMeta } from '@/mocks/attachments';
+import {
+  fetchAttachment,
+  fetchAttachments,
+  removeAttachment,
+  saveAttachment,
+  type AttachmentMeta,
+} from '@/modules/core/services/attachmentService';
 import { processFile } from '@/modules/core/helpers/attachments';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
@@ -39,7 +45,7 @@ const ordered = computed(() => {
 async function refresh() {
   loading.value = true;
   try {
-    items.value = await listAttachments(props.ownerRef);
+    items.value = await fetchAttachments(props.ownerRef);
     // Reconcile order: drop stale ids, append new ones.
     const ids = items.value.map((i) => i.id);
     const kept = imageIds.value.filter((id) => ids.includes(id));
@@ -54,7 +60,7 @@ onMounted(refresh);
 
 async function loadThumb(meta: AttachmentMeta) {
   if (thumbUrls.value[meta.id]) return;
-  const record = await getAttachment(meta.id);
+  const record = await fetchAttachment(meta.id);
   if (record?.thumbnail) thumbUrls.value = { ...thumbUrls.value, [meta.id]: URL.createObjectURL(record.thumbnail) };
   else if (record?.blob) thumbUrls.value = { ...thumbUrls.value, [meta.id]: URL.createObjectURL(record.blob) };
 }
@@ -75,7 +81,7 @@ async function addFiles(files: FileList | File[]) {
     for (const file of list) {
       try {
         const record = await processFile(file, props.ownerRef, auth.user?.id);
-        await putAttachment(record);
+        await saveAttachment(record);
         imageIds.value = [...imageIds.value, record.id];
       } catch (err) {
         toast.error(err, 'تعذر رفع الصورة');
@@ -102,7 +108,7 @@ async function remove(meta: AttachmentMeta) {
   if (props.readonly) return;
   const ok = await confirm({ title: 'حذف هذه الصورة؟', confirmText: 'حذف', danger: true });
   if (!ok) return;
-  await deleteAttachment(meta.id);
+  await removeAttachment(meta.id);
   items.value = items.value.filter((i) => i.id !== meta.id);
   imageIds.value = imageIds.value.filter((id) => id !== meta.id);
   toast.success('تم حذف الصورة');

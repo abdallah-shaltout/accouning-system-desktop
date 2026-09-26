@@ -25,9 +25,8 @@ import type { Supplier } from '@/modules/parties/types';
 import { getProducts, isLowStock } from '@/modules/products/services/productService';
 import type { Product } from '@/modules/products/types';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
-import { computePurchaseTotals } from '@/mocks/backend/purchases';
 import PurchaseLinesGrid, { type PurchaseLine } from '../components/PurchaseLinesGrid.vue';
-import { getPurchaseOrder, savePurchaseOrder, sendPurchaseOrderToSupplier } from '../services/purchaseService';
+import { computePurchaseTotals, getPurchaseOrder, savePurchaseOrder, sendPurchaseOrderToSupplier } from '../services/purchaseService';
 import type { LandedCostLineInput, LandedCostSpread } from '../types';
 
 type Line = PurchaseLine;

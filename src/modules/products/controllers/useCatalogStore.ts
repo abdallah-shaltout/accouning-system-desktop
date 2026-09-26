@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
 import { computed, onScopeDispose, ref } from 'vue';
-import { on } from '@/mocks/events';
 import * as catalog from '../services/catalogService';
 import type { Category, CustomFieldDef, PriceList, Unit } from '../types';
 
@@ -47,7 +46,7 @@ export const useCatalogStore = defineStore('catalog', () => {
 
   // Products, categories, units and price lists all funnel through catalogService/productService,
   // which emit `catalog:changed` after a save — refetch instead of trusting the one-time `load()`.
-  const unsubscribe = on('catalog:changed', () => {
+  const unsubscribe = catalog.onCatalogChanged(() => {
     void load(true);
   });
   onScopeDispose(unsubscribe);

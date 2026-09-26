@@ -56,3 +56,16 @@ export const getDemoAccounts = wrap('users.getDemoAccounts', async function getD
     .filter((u) => u.active)
     .map((u) => ({ id: u.id, username: u.username, password: db.credentials[u.username], name: u.name, role: u.role }));
 });
+
+/**
+ * No persisted IndexedDB snapshot AND an empty `db` means this is a genuinely fresh install —
+ * `bootMockDb()` (awaited before the app mounts, see `main.ts`) left `db` empty on purpose so the
+ * welcome screen can decide (demo data seeds it, "start company" creates an empty shell). Once
+ * either card has run, `db.users` is non-empty, so this only ever fires once per install.
+ *
+ * Sync (not `wrap()`ped) — called from the router's `beforeEach` guard on every navigation, which
+ * can't await a delayed mock call.
+ */
+export function isFreshInstall(): boolean {
+  return db.users.length === 0;
+}

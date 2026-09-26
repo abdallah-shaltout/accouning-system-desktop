@@ -216,6 +216,20 @@ export const getJournalEntries = wrap('accounting.getJournalEntries', async func
     .map(toRow);
 });
 
+export interface LinkedJournalEntry {
+  id: string;
+  number: string;
+  description: string;
+}
+
+/** Journal entries posted from a specific source document (e.g. an expense or a voucher's "قيود مرتبطة" card). */
+export const getJournalEntriesForSource = wrap('accounting.getJournalEntriesForSource', async function getJournalEntriesForSource(sourceKind: string, sourceId: string): Promise<LinkedJournalEntry[]> {
+  await delay(60);
+  return db.journalEntries
+    .filter((e) => e.sourceRef?.kind === sourceKind && e.sourceRef.id === sourceId)
+    .map((e) => ({ id: e.id, number: e.number, description: e.description }));
+});
+
 /** Server-mode variant of `getJournalEntries` for `DataTable`: paged, sorted and totalled server-side. */
 export const getJournalEntriesPaged = wrap('accounting.getJournalEntriesPaged', async function getJournalEntriesPaged(query: PagedQuery<JournalFilter>): Promise<PagedResult<JournalRow>> {
   await delay();

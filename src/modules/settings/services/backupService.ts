@@ -12,14 +12,16 @@ import { isTauri } from '@tauri-apps/api/core';
 import { db, session } from '@/mocks/db';
 import { mutate, migrations, SCHEMA_VERSION, flushSnapshot } from '@/mocks/persist';
 import { clone } from '@/mocks/utils';
-import { replaceAllAttachments } from '@/mocks/attachments';
+import { getAllAttachmentRecords, replaceAllAttachments } from '@/mocks/attachments';
 import { logActivity } from '@/mocks/backend/core';
 import {
   buildBackupArchive,
   backupFileName,
+  collectBackupData,
   parseArchive,
   decryptArchive,
   readManifest,
+  tableCounts,
   archiveAttachmentToRecord,
   type BackupData,
 } from '../helpers/backupArchive';
@@ -143,6 +145,13 @@ export interface BackupNowResult {
   cancelled?: boolean;
 }
 
+/** Table counts for the current data, shown as a "before" preview in the backup-now modal. */
+export const previewBackupCounts = wrap('settings.previewBackupCounts', async function previewBackupCounts(): Promise<Record<string, number>> {
+  const attachmentRecords = await getAllAttachmentRecords();
+  const data = await collectBackupData(clone(db), attachmentRecords);
+  return tableCounts(data);
+});
+
 /**
  * Runs the whole "نسخة الآن" flow: builds the archive, then either shows a Tauri save dialog and
  * writes the file, or triggers a browser download (and always keeps a browser-mode history copy
@@ -151,7 +160,8 @@ export interface BackupNowResult {
  * see `listHistory()`).
  */
 export const backupNow = wrap('settings.backupNow', async function backupNow(kind: BackupKind, password?: string, opts?: { suggestedPath?: string }): Promise<BackupNowResult> {
-  const { bytes, manifest } = await buildBackupArchive(kind, password);
+  const attachmentRecords = await getAllAttachmentRecords();
+  const { bytes, manifest } = await buildBackupArchive(kind, clone(db), attachmentRecords, SCHEMA_VERSION, password);
   const filename = backupFileName(manifest.company);
 
   if (isTauriMode()) {

@@ -17,8 +17,7 @@ import { useToast } from '../../controllers/useToast';
 import { useConfirm } from '../../controllers/useConfirm';
 import { resolvedTheme, toggleTheme } from '../../controllers/useTheme';
 import { useKeyboardShortcutsSheet } from '../../controllers/useKeyboardShortcutsSheet';
-import { seedDatabase } from '@/mocks/seed';
-import { clearSnapshot, flushSnapshot } from '@/mocks/persist';
+import { reloadDemoData as reloadDemoDataService, resetToEmpty } from '../../services/devToolsService';
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -74,7 +73,7 @@ async function resetData() {
   if (!ok) return;
   busy.value = true;
   try {
-    await clearSnapshot();
+    await resetToEmpty();
     window.location.reload();
   } finally {
     busy.value = false;
@@ -91,8 +90,7 @@ async function reloadDemoData() {
   if (!ok) return;
   busy.value = true;
   try {
-    seedDatabase();
-    await flushSnapshot();
+    await reloadDemoDataService();
     toast.info('تم تحميل البيانات التجريبية');
     window.location.reload();
   } finally {

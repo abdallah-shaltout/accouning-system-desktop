@@ -15,8 +15,7 @@ import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getExpiryReport, getStockCounts } from '@/modules/products/services/inventoryService';
 import { getTransfers } from '@/modules/products/services/transferService';
 import { getPurchaseOrders } from '@/modules/purchases/services/purchaseService';
-import { getLowStockProducts } from '../../services/dashboardService';
-import { db } from '@/mocks/db';
+import { getLowStockProducts, getStockValueSnapshot, hasAnyProducts } from '../../services/dashboardService';
 
 /**
  * v2 (docs/v2/01-personas.md §2 storekeeper, docs/v2/11 Part B "role homes" table): the FULL
@@ -35,7 +34,8 @@ const purchaseOrders = useAsync(() => getPurchaseOrders());
 
 const incomingTransfers = computed(() => transfers.data.value?.filter((t) => t.status === 'SENT') ?? []);
 const receivingToDo = computed(() => purchaseOrders.data.value?.filter((p) => p.status === 'ORDERED') ?? []);
-const stockValue = computed(() => db.products.filter((p) => p.active && p.type === 'product').reduce((a, p) => a + (p.stockValue ?? 0), 0));
+const stockValue = computed(() => getStockValueSnapshot());
+const productsLoaded = computed(() => hasAnyProducts());
 
 const greeting = new Date().getHours() < 12 ? 'صباح الخير' : 'مساء الخير';
 </script>
@@ -59,7 +59,7 @@ const greeting = new Date().getHours() < 12 ? 'صباح الخير' : 'مساء 
     </div>
 
     <div class="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <KpiCard label="قيمة المخزون" :icon="Warehouse" :loading="!db.products.length">
+      <KpiCard label="قيمة المخزون" :icon="Warehouse" :loading="!productsLoaded">
         <span dir="ltr">{{ formatMoney(stockValue) }}</span>
       </KpiCard>
       <KpiCard label="استلام بانتظارك" :icon="PackagePlus" :loading="purchaseOrders.loading.value" :tone="receivingToDo.length > 0 ? 'warning' : undefined" :to="{ name: 'purchases' }">

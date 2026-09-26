@@ -1,5 +1,5 @@
 import { ApiError, clone, db, delay, uid } from '@/mocks';
-import { emit } from '@/mocks/events';
+import { emit, on } from '@/mocks/events';
 import { mutate } from '@/mocks/persist';
 import type { Category, CustomFieldDef, PriceList, Unit, UnitPresetKind } from '../types';
 
@@ -210,3 +210,8 @@ export const reorderCustomFieldDefs = wrap('products.reorderCustomFieldDefs', as
   }));
   emit('catalog:changed');
 });
+
+/** Subscribes to catalog mutations (categories/units/price lists/custom fields all emit this after a save) — returns an unsubscribe function. */
+export function onCatalogChanged(listener: () => void): () => void {
+  return on('catalog:changed', listener);
+}

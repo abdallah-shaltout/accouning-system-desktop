@@ -4,6 +4,8 @@
  * (pages never import `src/mocks/backend` directly).
  */
 import { ApiError, clone, db, delay, session, uid } from '@/mocks';
+import { seedEmptyCompany } from '@/mocks/seed';
+import { flushSnapshot } from '@/mocks/persist';
 import * as setupBackend from '@/mocks/backend/setup';
 import {
   closeOpeningBalanceEquity,
@@ -26,6 +28,24 @@ import type { WizardBranchInput, WizardPaymentMethodInput } from '@/mocks/backen
 import { countryProfile, type CountryCode } from '@/modules/core/helpers/countryProfiles';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
+
+// --- Fresh-install shell -------------------------------------------------------------------------
+
+/**
+ * A fresh install has no `db.users` yet (see the router guard, `authService.isFreshInstall`) — the
+ * wizard needs an empty shell (accounts/branch/taxes/payment-method placeholders) to work against
+ * from step 1, the same shell the old one-click "ابدأ شركتك" stub used to build directly. Idempotent:
+ * a no-op once `db.users` is non-empty. Sync (not `wrap()`ped) — called once at page setup, before
+ * any step has a chance to await anything.
+ */
+export function ensureEmptyCompanyShell(): void {
+  if (db.users.length === 0) seedEmptyCompany();
+}
+
+/** Persists the mock DB snapshot — called after each wizard step commits. */
+export const persistProgress = wrap('setup.persistProgress', async function persistProgress(): Promise<void> {
+  await flushSnapshot();
+});
 
 // --- Progress ----------------------------------------------------------------------------------
 

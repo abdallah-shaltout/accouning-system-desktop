@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { File as FileIcon, FileSpreadsheet, FileText, Image as ImageIcon, Paperclip, Trash, Upload } from '@lucide/vue';
-import { deleteAttachment, getAttachment, listAttachments, putAttachment, type AttachmentKind, type AttachmentMeta } from '@/mocks/attachments';
+import {
+  fetchAttachment,
+  fetchAttachments,
+  removeAttachment,
+  saveAttachment,
+  type AttachmentKind,
+  type AttachmentMeta,
+} from '../../services/attachmentService';
 import { ACCEPT_ATTR, formatFileSize, processFile } from '../../helpers/attachments';
 import { useConfirm } from '../../controllers/useConfirm';
 import { useToast } from '../../controllers/useToast';
@@ -52,7 +59,7 @@ const KIND_ICON: Record<AttachmentKind, typeof FileIcon> = {
 async function refresh() {
   loading.value = true;
   try {
-    items.value = await listAttachments(props.ownerRef);
+    items.value = await fetchAttachments(props.ownerRef);
   } finally {
     loading.value = false;
   }
@@ -68,7 +75,7 @@ async function addFiles(files: FileList | File[]) {
     for (const file of list) {
       try {
         const record = await processFile(file, props.ownerRef, auth.user?.id);
-        await putAttachment(record);
+        await saveAttachment(record);
       } catch (err) {
         toast.error(err, 'تعذر إرفاق الملف');
       }
@@ -106,7 +113,7 @@ onBeforeUnmount(() => {
 });
 
 async function openViewer(meta: AttachmentMeta) {
-  const record = await getAttachment(meta.id);
+  const record = await fetchAttachment(meta.id);
   if (!record) return;
   if (viewerUrl.value) URL.revokeObjectURL(viewerUrl.value);
   viewerUrl.value = URL.createObjectURL(record.blob);
@@ -123,7 +130,7 @@ async function remove(meta: AttachmentMeta) {
   if (!canRemove.value) return;
   const ok = await confirm({ title: `حذف "${meta.name}"؟`, confirmText: 'حذف', danger: true });
   if (!ok) return;
-  await deleteAttachment(meta.id);
+  await removeAttachment(meta.id);
   items.value = items.value.filter((i) => i.id !== meta.id);
   toast.success('تم حذف المرفق');
 }
@@ -131,7 +138,7 @@ async function remove(meta: AttachmentMeta) {
 const thumbUrls = ref<Record<string, string>>({});
 async function loadThumb(meta: AttachmentMeta) {
   if (meta.kind !== 'image' || thumbUrls.value[meta.id]) return;
-  const record = await getAttachment(meta.id);
+  const record = await fetchAttachment(meta.id);
   if (record?.thumbnail) thumbUrls.value = { ...thumbUrls.value, [meta.id]: URL.createObjectURL(record.thumbnail) };
 }
 </script>

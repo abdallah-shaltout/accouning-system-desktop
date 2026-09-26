@@ -9,10 +9,8 @@
  * and `attachments/*` are stored as normal zip entries.
  */
 import { unzipSync, zipSync } from 'fflate';
-import { db, type MockDb } from '@/mocks/db';
-import { clone } from '@/mocks/utils';
-import { getAllAttachmentRecords, type AttachmentRecord } from '@/mocks/attachments';
-import { SCHEMA_VERSION } from '@/mocks/persist';
+import type { MockDb } from '@/mocks/db';
+import type { AttachmentRecord } from '@/mocks/attachments';
 import { decryptBytes, encryptBytes, sha256Hex } from './backupCrypto';
 import type { BackupCrypto, BackupKind, BackupManifest } from '../types/backup';
 
@@ -41,11 +39,14 @@ function bytesToBlob(bytes: Uint8Array, type: string): Blob {
   return new Blob([bytes.slice().buffer], { type });
 }
 
-/** Snapshot everything the backup needs to restore: the mock DB (settings/templates/preferences live inside it) + attachment blobs. */
-export async function collectBackupData(): Promise<BackupData> {
-  const records = await getAllAttachmentRecords();
+/**
+ * Snapshot everything the backup needs to restore: a (caller-supplied, already-cloned) DB snapshot
+ * + every attachment blob (caller-supplied — the service reads these from `@/mocks`, keeping this
+ * helper free of direct mock imports per the seam rule).
+ */
+export async function collectBackupData(dbSnapshot: MockDb, attachmentRecords: AttachmentRecord[]): Promise<BackupData> {
   const attachments: ArchiveAttachment[] = [];
-  for (const r of records) {
+  for (const r of attachmentRecords) {
     const { blob, thumbnail, ...meta } = r;
     attachments.push({
       id: r.id,
@@ -56,7 +57,7 @@ export async function collectBackupData(): Promise<BackupData> {
       thumbnailType: thumbnail?.type,
     });
   }
-  return { db: clone(db), attachments };
+  return { db: dbSnapshot, attachments };
 }
 
 export function tableCounts(data: BackupData): Record<string, number> {
@@ -85,9 +86,9 @@ interface BuildResult {
   manifest: BackupManifest;
 }
 
-/** Builds the zip's bytes. `password`, when given, encrypts everything except the manifest. */
-export async function buildBackupArchive(kind: BackupKind, password?: string): Promise<BuildResult> {
-  const data = await collectBackupData();
+/** Builds the zip's bytes. `password`, when given, encrypts everything except the manifest. `schemaVersion` is stamped into the manifest (caller-supplied — see `collectBackupData`'s doc comment). */
+export async function buildBackupArchive(kind: BackupKind, dbSnapshot: MockDb, attachmentRecords: AttachmentRecord[], schemaVersion: number, password?: string): Promise<BuildResult> {
+  const data = await collectBackupData(dbSnapshot, attachmentRecords);
   const counts = tableCounts(data);
 
   const payloadFiles: Record<string, Uint8Array> = {
@@ -124,7 +125,7 @@ export async function buildBackupArchive(kind: BackupKind, password?: string): P
   const manifest: BackupManifest = {
     app: APP_NAME,
     appVersion: APP_VERSION,
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion,
     createdAt: new Date().toISOString(),
     company: data.db.settings.storeName || 'company',
     counts,

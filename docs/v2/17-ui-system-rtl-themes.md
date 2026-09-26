@@ -595,12 +595,26 @@ designer), and page files over 300 lines (warning).
       keep documented raw-`<table>` exceptions (drag-reorder / permission matrix, no `DataTable` fit).
       See `TODO.md` "doc-17 F-5" entry for the full list, gate results and the not-yet-committed
       `AGENT_MEMORY.md` regen note.)*
-- [ ] **F-5b Seam cleanup:** move the 12 UI files that import `@/mocks/*` directly (listed in
-      `CLAUDE.md` → Workflow → seam rule) behind services (`attachmentService`, `devToolsService`,
-      `setupService`, purchase totals helper in `modules/purchases/helpers`…), then add
-      "no `@/mocks` imports outside `modules/*/services` and `helpers`" to the guard script.
-- [ ] **F-6** Guard script to **error** mode; zero findings; update 15's definition of done to
-      include `bun run check` passing the UI rules.
+- [x] **F-5b Seam cleanup:** moved every file that imported `@/mocks/*` directly (the 11 known-legacy
+      files listed in `CLAUDE.md` → Workflow → seam rule, plus 7 more discovered while regenerating
+      `AGENT_MEMORY.md`: `NavUser`, `useNotifications`, `helpers/attachments.ts`,
+      `parties/helpers/creditLimit.ts`, `useCatalogStore`, `settings/helpers/backupArchive.ts`,
+      `src/router/index.ts`) behind services — new `core/services/attachmentService.ts` and
+      `core/services/devToolsService.ts`, plus additions to `dashboardService`, `catalogService`,
+      `accountingService` (`getJournalEntriesForSource`), `purchaseService` (re-exports
+      `computePurchaseTotals`), `partyService` (re-exports `ApiError`/`uid`), `setupService`
+      (`ensureEmptyCompanyShell`/`persistProgress`) and `authService` (`isFreshInstall`).
+      `settings/helpers/backupArchive.ts`'s `collectBackupData`/`buildBackupArchive` now take their
+      DB snapshot and attachment records as parameters instead of reading `@/mocks` themselves (type-
+      only imports of `MockDb`/`AttachmentRecord` remain, which the seam rule doesn't flag).
+      `AGENT_MEMORY.md`'s Boundary report: 0 new, 0 known seam violations (was 7 new, 11 known).
+      *(done 2026-09-26 — build/check/verify:mocks green (98/0/0), memory regenerated; still open:
+      the guard-script addition below, and no full e2e run this session per the task's own gate —
+      see `TODO.md`.)*
+- [ ] **F-6** Guard script to **error** mode; zero findings; add "no `@/mocks` imports outside
+      `modules/*/services` and `helpers`" as a new rule so seam regressions fail the build (F-5b
+      closed the existing violations but didn't add the automated check); update 15's definition of
+      done to include `bun run check` passing the UI rules.
 
 **Out of scope for F:** POS (`PosPage`) keeps its own full-screen layout, but reuses `LineItemsEditor`'s
 math helpers and `TotalsPanel`; the template designer stays custom.

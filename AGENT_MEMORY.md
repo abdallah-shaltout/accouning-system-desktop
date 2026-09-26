@@ -3,9 +3,9 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **712 files / 73,963 lines** (json 2, md 41, rust 22, ts 218, vue 429).
+Indexed: **715 files / 74,153 lines** (json 3, md 41, rust 22, ts 220, vue 429).
 
-**Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
+**Lookup order:** Where-to-find → Open diagnostics → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
 ## Where to find X
 
@@ -36,12 +36,16 @@ Indexed: **712 files / 73,963 lines** (json 2, md 41, rust 22, ts 218, vue 429).
 | Design system doc | `docs/design_system.md` |
 | Posting rules | `docs/v2/02-accounting-review.md` |
 
+## Open diagnostics (docs/diagnostics — 18.G)
+
+_No open issues._ Full ledger: `docs/diagnostics/ISSUES.md` (`bun run diag`/`diag:check`).
+
 ## Architecture (layers & data flow)
 
 ```text
 pages (112) / components (353) / controllers (23)   src/modules/<domain>/…
         │  may call ONLY ▼                  (seam rule — see Boundary report)
-services (37)   src/modules/<domain>/services/*   ← swap point for a real backend
+services (39)   src/modules/<domain>/services/*   ← swap point for a real backend
    │                                   │
    ▼                                   ▼
 mock backend  src/mocks/     Tauri IPC invoke('<cmd>') → src-tauri/src/lib.rs
@@ -55,32 +59,34 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 
 | Module | Files / lines | Layers (file count) | Routes | Palette |
 |---|---|---|---|---|
-| **accounting** | 12 / 3356 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
+| **accounting** | 12 / 3370 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
 | **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
 | **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
-| **core** | 346 / 19410 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 8, types 5 | 5 |  |
+| **core** | 348 / 19517 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 10, types 5 | 5 |  |
 | **diagnostics** | 20 / 2061 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 1 | 0 | yes |
-| **expenses** | 8 / 946 | pages 5, routes 1, services 1, types 1 | 5 |  |
+| **expenses** | 8 / 947 | pages 5, routes 1, services 1, types 1 | 5 |  |
 | **invoices** | 30 / 5383 | commands 1, components 13, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
-| **parties** | 11 / 1842 | components 1, helpers 3, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
+| **parties** | 11 / 1845 | components 1, helpers 3, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
 | **payments** | 6 / 877 | pages 3, routes 1, services 1, types 1 | 3 |  |
-| **products** | 32 / 5080 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
-| **purchases** | 11 / 1707 | commands 1, components 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
+| **products** | 32 / 5090 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
+| **purchases** | 11 / 1712 | commands 1, components 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
 | **reports** | 44 / 6208 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
-| **settings** | 33 / 4914 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
-| **setup** | 17 / 1656 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
+| **settings** | 33 / 4924 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
+| **setup** | 17 / 1673 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
 | **templates** | 4 / 919 | pages 2, services 1, types 1 | 0 |  |
-| **users** | 11 / 955 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
-| **vouchers** | 9 / 809 | commands 1, pages 5, routes 1, services 1, types 1 | 5 | yes |
+| **users** | 11 / 966 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
+| **vouchers** | 9 / 810 | commands 1, pages 5, routes 1, services 1, types 1 | 5 | yes |
 
 ## Service API (the seam — pages call only these)
 
 | Module | Service | Exports |
 |---|---|---|
-| accounting | `accountingService` | `signedBalance`, `getAccounts`, `accountPath`, `rolledBalance`, `saveAccount`, `deleteAccount`, `reparentAccount`, `getJournalEntries`, `getJournalEntriesPaged`, `getJournalEntry`, `createJournalEntry`, `updateJournalDraft`, `postJournalDraft`, `deleteJournalDraft`, `reverseJournalEntry`, `getFiscalYears`, `getCurrentFiscalYear`, `saveFiscalYear`, `getLockDate`, `saveLockDate`, `getCloseYearPreChecks`, `closeYear`, `reopenYear`, `getJournalTemplates`, `getJournalTemplate`, `createOrUpdateJournalTemplate`, `removeJournalTemplate`, `loadTemplateIntoEntry`, `postRecurringTemplate`, `getVatPeriodTotals`, `submitVatSettlement`, `payVatSettlementNow` |
+| accounting | `accountingService` | `signedBalance`, `getAccounts`, `accountPath`, `rolledBalance`, `saveAccount`, `deleteAccount`, `reparentAccount`, `getJournalEntries`, `getJournalEntriesForSource`, `getJournalEntriesPaged`, `getJournalEntry`, `createJournalEntry`, `updateJournalDraft`, `postJournalDraft`, `deleteJournalDraft`, `reverseJournalEntry`, `getFiscalYears`, `getCurrentFiscalYear`, `saveFiscalYear`, `getLockDate`, `saveLockDate`, `getCloseYearPreChecks`, `closeYear`, `reopenYear`, `getJournalTemplates`, `getJournalTemplate`, `createOrUpdateJournalTemplate`, `removeJournalTemplate`, `loadTemplateIntoEntry`, `postRecurringTemplate`, `getVatPeriodTotals`, `submitVatSettlement`, `payVatSettlementNow` |
 | analytics | `analyticsService` | `getSalesAnalytics`, `getProductAnalytics`, `getCustomerAnalytics` |
 | approvals | `approvalService` | `submitApprovalRequest`, `getApprovalRequests`, `getPendingApprovalCount`, `approveRequest`, `rejectRequest` |
-| core | `dashboardService` | `getDashboardSummary`, `getLowStockProducts`, `getRecentInvoices`, `getRecentActivity`, `getHomeKpis`, `getTopProducts`, `getTopCustomers` |
+| core | `attachmentService` | `fetchAttachments`, `fetchAttachment`, `saveAttachment`, `removeAttachment`, `uid` |
+| core | `dashboardService` | `getInTransitTransfers`, `getPendingApprovalRequests`, `getLastBackupFailedAt`, `getJournalDraftCount`, `getStockValueSnapshot`, `hasAnyProducts`, `onLedgerChanged`, `getDashboardSummary`, `getLowStockProducts`, `getRecentInvoices`, `getRecentActivity`, `getHomeKpis`, `getTopProducts`, `getTopCustomers` |
+| core | `devToolsService` | `resetToEmpty`, `reloadDemoData` |
 | core | `geoService` | `getRegions`, `getCities`, `getDistricts`, `getLabels`, `searchPlaces` |
 | core | `insightEngine` | `getThresholds`, `setThresholds`, `dismissInsight`, `snoozeInsight`, `clearDismissal`, `getInsights`, `getInsightsFor`, `getInsightsForEntity`, `getProductInlineHints`, `forceRefresh` |
 | core | `insightRules` | `INSIGHT_RULES` |
@@ -98,20 +104,20 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | diagnostics | `supportBundleService` | `exportSupportBundle` |
 | expenses | `expenseService` | `getExpenseCategories`, `saveExpenseCategory`, `deleteExpenseCategory`, `getExpenses`, `getExpense`, `createExpense`, `getRecurringExpenses`, `saveRecurringExpense`, `deleteRecurringExpense`, `getDueRecurringExpenses`, `postDueRecurringExpense` |
 | invoices | `invoiceService` | `isOverdue`, `getInvoices`, `getInvoicesPaged`, `getInvoice`, `previewSale`, `createSale`, `createRefund`, `getRefund`, `getInvoicePrintData`, `getCurrentShift`, `getShifts`, `getShift`, `openPosShift`, `getXReport`, `closePosShift`, `forceClosePosShift`, `recordCashInOut`, `getHeldSales`, `holdSale`, `resumeHeldSale`, `discardHeldSale`, `getQuotations`, `getQuotation`, `saveQuotation`, `setQuotationStatus`, `convertQuotationToInvoice` |
-| parties | `partyService` | `findDuplicates`, `checkDuplicates`, `getPartyGroups`, `getCustomers`, `getCustomer`, `saveCustomer`, `getCustomerStatement`, `getSuppliers`, `getSupplier`, `saveSupplier`, `getSupplierStatement`, `linkPartyRecords`, `unlinkPartyRecord`, `getLinkedNetBalance`, `getPartyHistory`, `getPartyAging` |
+| parties | `partyService` | `findDuplicates`, `checkDuplicates`, `getPartyGroups`, `getCustomers`, `getCustomer`, `saveCustomer`, `getCustomerStatement`, `getSuppliers`, `getSupplier`, `saveSupplier`, `getSupplierStatement`, `linkPartyRecords`, `unlinkPartyRecord`, `getLinkedNetBalance`, `getPartyHistory`, `getPartyAging`, `ApiError`, `uid` |
 | payments | `paymentService` | `getPayments`, `getPaymentsPaged`, `getPayment`, `createPayment`, `allocateExistingPayment`, `removeAllocation`, `getOpenDocuments` |
-| products | `catalogService` | `getCategories`, `saveCategory`, `deleteCategory`, `getUnits`, `saveUnit`, `applyUnitPreset`, `deleteUnit`, `getPriceLists`, `savePriceList`, `deletePriceList`, `setPriceListValues`, `getCustomFieldDefs`, `saveCustomFieldDef`, `deleteCustomFieldDef`, `reorderCustomFieldDefs` |
+| products | `catalogService` | `onCatalogChanged`, `getCategories`, `saveCategory`, `deleteCategory`, `getUnits`, `saveUnit`, `applyUnitPreset`, `deleteUnit`, `getPriceLists`, `savePriceList`, `deletePriceList`, `setPriceListValues`, `getCustomFieldDefs`, `saveCustomFieldDef`, `deleteCustomFieldDef`, `reorderCustomFieldDefs` |
 | products | `inventoryService` | `adjustmentValue`, `getStockAdjustments`, `getStockAdjustment`, `createStockAdjustment`, `completeAdjustment`, `deleteDraftAdjustment`, `getStockMovements`, `getStockMovementsPaged`, `getBatches`, `getExpiryReport`, `batchAlertTone`, `writeOffExpiredBatches`, `returnBatchesToSupplier`, `getDebitNoteDrafts`, `getStockCounts`, `getStockCount`, `createStockCount`, `updateStockCountLine`, `submitCountForReview`, `resumeCounting`, `completeStockCount` |
 | products | `productService` | `isLowStock`, `getProducts`, `getProduct`, `findByCode`, `generateEan13`, `createProduct`, `updateProduct`, `suggestSku` |
 | products | `transferService` | `getTransfers`, `getTransfer`, `createTransfer`, `sendTransfer`, `receiveTransfer`, `rejectTransfer`, `branchStockQty` |
-| purchases | `purchaseService` | `getPurchaseOrders`, `getPurchaseOrder`, `savePurchaseOrder`, `sendPurchaseOrderToSupplier`, `receivePurchaseOrder`, `confirmPurchaseOrder`, `cancelPurchaseOrder`, `createPurchaseReturn`, `getPurchaseReturn`, `getActiveBatches`, `getDebitNoteDrafts`, `postDebitNoteDraft` |
+| purchases | `purchaseService` | `getPurchaseOrders`, `getPurchaseOrder`, `savePurchaseOrder`, `sendPurchaseOrderToSupplier`, `receivePurchaseOrder`, `confirmPurchaseOrder`, `cancelPurchaseOrder`, `createPurchaseReturn`, `getPurchaseReturn`, `getActiveBatches`, `getDebitNoteDrafts`, `postDebitNoteDraft`, `computePurchaseTotals` |
 | reports | `reportService` | `getTrialBalance`, `getProfitAndLoss`, `getProfitAndLossComparison`, `getCostCenterProfitAndLoss`, `getCostCenterBudgetVsActual`, `getBalanceSheet`, `getAccountLedger`, `getPartyLedger`, `getSalesReport`, `getInventoryReport`, `getVatReport`, `getVatDetail`, `getLedgerTargets`, `getCashFlowStatement`, `getDayBook`, `getAgingReport`, `getOverdueReport`, `getGrossProfitReport`, `getReturnsReport`, `getDiscountsReport`, `getShiftsReport`, `getLowStockReport`, `getDeadStockReport`, `getStocktakeVariances`, `getTransfersReport`, `getPurchasesReport`, `getExpensesReport`, `getPeriodComparison`, `getBranchComparison`, `getBusinessHealthReport`, `getProfitLeakageReport`, `getDimensionOptions` |
-| settings | `backupService` | `backupSettings`, `saveBackupSettings`, `isTauriMode`, `backupNow`, `listHistory`, `deleteHistoryEntry`, `verifyHistoryEntry`, `pickRestoreFile`, `previewRestore`, `restoreFromArchive`, `isClosingWithBackup`, `initAutoBackup`, `stopAutoBackup`, `pickBackupFolder` |
+| settings | `backupService` | `backupSettings`, `saveBackupSettings`, `isTauriMode`, `previewBackupCounts`, `backupNow`, `listHistory`, `deleteHistoryEntry`, `verifyHistoryEntry`, `pickRestoreFile`, `previewRestore`, `restoreFromArchive`, `isClosingWithBackup`, `initAutoBackup`, `stopAutoBackup`, `pickBackupFolder` |
 | settings | `branchesService` | `getBranches`, `createBranch`, `updateBranch`, `deactivateBranch`, `reactivateBranch`, `getCostCenters`, `createCostCenter`, `updateCostCenter`, `deleteCostCenter`, `getCurrencies`, `getExchangeRates`, `createCurrency`, `updateCurrency`, `saveExchangeRate`, `isBaseCurrencyLocked`, `setBaseCurrency`, `getRevaluationPreview`, `getDefaultRevaluationRates`, `postRevaluation` |
 | settings | `settingsService` | `getSettings`, `updateSettings`, `getTaxes`, `saveTax`, `deleteTax`, `getPaymentMethods`, `savePaymentMethod`, `reorderPaymentMethods`, `deletePaymentMethod` |
-| setup | `setupService` | `getOnboardingProgress`, `saveOnboardingProgress`, `markStepDone`, `markStepSkipped`, `applyBusinessTypeDefaults`, `isBaseCurrencyLocked`, `applyCountryTax`, `applyFiscalYear`, `applyBranches`, `previewCoaTemplate`, `applyCoaTemplate`, `applyPaymentMethods`, `getOpeningBalanceEquityNet`, `isFirstUsePosted`, `postOpeningBalances`, `postOpeningStock`, `recloseOpeningBalanceEquity`, `postPartyOpening`, `reversePartyOpening`, `finishOnboarding`, `uid` |
+| setup | `setupService` | `ensureEmptyCompanyShell`, `persistProgress`, `getOnboardingProgress`, `saveOnboardingProgress`, `markStepDone`, `markStepSkipped`, `applyBusinessTypeDefaults`, `isBaseCurrencyLocked`, `applyCountryTax`, `applyFiscalYear`, `applyBranches`, `previewCoaTemplate`, `applyCoaTemplate`, `applyPaymentMethods`, `getOpeningBalanceEquityNet`, `isFirstUsePosted`, `postOpeningBalances`, `postOpeningStock`, `recloseOpeningBalanceEquity`, `postPartyOpening`, `reversePartyOpening`, `finishOnboarding`, `uid` |
 | templates | `templateService` | `listTemplates`, `getTemplate`, `getDefaultTemplate`, `saveTemplate`, `setAsDefault`, `duplicateTemplate`, `deleteTemplate`, `resetTemplateToDefaults`, `exportTemplate`, `importTemplate`, `createTemplate` |
-| users | `authService` | `login`, `restoreSession`, `logout`, `verifyManagerPin`, `getDemoAccounts` |
+| users | `authService` | `isFreshInstall`, `login`, `restoreSession`, `logout`, `verifyManagerPin`, `getDemoAccounts` |
 | users | `userService` | `getUsers`, `getUser`, `createUser`, `updateUser` |
 | vouchers | `voucherService` | `createReceiptVoucher`, `createPaymentVoucher`, `createTransferVoucher`, `createOwnerVoucher`, `getVouchers`, `getVoucher`, `getUnsettledTenderGroups`, `estimateSettlementFee`, `createCardSettlement`, `getCardSettlements`, `getCardSettlement` |
 
@@ -250,23 +256,23 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 |---|---|---|
 | **accounting** | core (106), users (6), mocks (4), parties (4), reports (3), settings (2), diagnostics (1), invoices (1) | 9 |
 | **analytics** | core (16), diagnostics (1), mocks (1) | 1 |
-| **app** | core (14), settings (5), diagnostics (4), users (3), accounting (2), approvals (2), invoices (2), mocks (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), parties (1), payments (1), products (1), setup (1) | 1 |
-| **approvals** | core (12), mocks (2), diagnostics (1), users (1) | 4 |
-| **core** | mocks (21), users (19), invoices (13), products (12), settings (10), diagnostics (7), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), payments (1), reports (1), setup (1) | 18 |
+| **app** | core (14), settings (5), diagnostics (4), users (4), accounting (2), approvals (2), invoices (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), mocks (1), parties (1), payments (1), products (1), setup (1) | 1 |
+| **approvals** | core (12), mocks (2), diagnostics (1), users (1) | 5 |
+| **core** | users (19), mocks (16), products (14), invoices (13), settings (10), diagnostics (8), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), approvals (1), payments (1), reports (1), setup (1) | 18 |
 | **diagnostics** | core (26), mocks (5) | 18 |
-| **expenses** | core (58), mocks (3), users (3), accounting (2), parties (2), settings (2), diagnostics (1) | 2 |
-| **invoices** | core (171), mocks (10), products (9), settings (9), parties (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
+| **expenses** | core (58), accounting (3), users (3), mocks (2), parties (2), settings (2), diagnostics (1) | 2 |
+| **invoices** | core (171), products (10), mocks (9), settings (9), parties (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
 | **mocks** | core (10), invoices (9), accounting (8), products (8), settings (5), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 17 |
-| **parties** | core (59), mocks (8), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
+| **parties** | core (59), mocks (6), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
 | **payments** | core (42), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
-| **products** | core (203), mocks (15), users (13), settings (8), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
-| **purchases** | core (79), products (5), mocks (4), users (4), invoices (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
+| **products** | core (204), mocks (13), users (13), settings (8), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
+| **purchases** | core (79), products (5), users (4), invoices (3), mocks (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
 | **reports** | core (162), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
-| **settings** | core (175), users (18), mocks (16), diagnostics (7), invoices (3), products (3), templates (2) | 12 |
-| **setup** | core (57), mocks (9), settings (4), accounting (2), products (2), diagnostics (1), parties (1), users (1) | 3 |
+| **settings** | core (175), users (18), mocks (14), diagnostics (7), invoices (3), products (3), templates (2) | 12 |
+| **setup** | core (57), mocks (8), settings (4), accounting (2), products (2), diagnostics (1), parties (1), users (1) | 3 |
 | **templates** | core (16), diagnostics (1) | 3 |
-| **users** | core (36), mocks (7), products (3), diagnostics (2) | 15 |
-| **vouchers** | core (48), mocks (4), settings (2), users (2), accounting (1), diagnostics (1), invoices (1) | 3 |
+| **users** | core (37), mocks (5), products (3), diagnostics (2) | 15 |
+| **vouchers** | core (48), mocks (3), accounting (2), settings (2), users (2), diagnostics (1), invoices (1) | 3 |
 
 **Most-used npm packages** (files importing): `vue (392)`, `@lucide/vue (166)`, `reka-ui (118)`, `vue-router (98)`, `@vueuse/core (79)`, `@tauri-apps/api (16)`, `class-variance-authority (9)`, `pinia (9)`, `zod (5)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
 
@@ -299,7 +305,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 
 | File | Exported functions | Used by |
 |---|---|---|
-| `attachments.ts` | `putAttachment`, `getAttachment`, `deleteAttachment`, `listAttachments`, `getAllAttachmentRecords`, `replaceAllAttachments` | core, products, settings |
+| `attachments.ts` | `putAttachment`, `getAttachment`, `deleteAttachment`, `listAttachments`, `getAllAttachmentRecords`, `replaceAllAttachments` | core, settings |
 | `backend/accounts.ts` | `accountFor`, `accountById`, `settlementAccountFor`, `revenueAccountFor`, `cogsAccountFor`, `purchaseAccountFor`, `saleTaxIdFor`, `purchaseTaxIdFor` | core, invoices, reports |
 | `backend/approvals.ts` | `requestApproval`, `decideApproval`, `listApprovalRequests`, `pendingApprovalCount` | approvals |
 | `backend/balances.ts` | `customerBalance`, `supplierBalance`, `customerBalanceFc`, `supplierBalanceFc`, `customerStatement`, `supplierStatement` | core, invoices, parties, reports |
@@ -321,7 +327,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `backend/shifts.ts` | `currentOpenShift`, `openShift`, `recordShiftMovement`, `shiftSummary`, `closeShift`, `forceCloseShift`, `cashAccountName` | invoices |
 | `backend/transfers.ts` | `listTransfers`, `transferById`, `branchStockQty`, `draftTransfer`, `sendTransfer`, `receiveTransfer`, `rejectTransfer` | products |
 | `backend/vouchers.ts` | `recordReceiptVoucher`, `recordPaymentVoucher`, `recordTransferVoucher`, `recordOwnerVoucher`, `getVoucherById` | vouchers |
-| `db.ts` | `resetDb`, `nextNumber` | core, invoices, router/index, settings, setup |
+| `db.ts` | `resetDb`, `nextNumber` | core, invoices, settings |
 | `events.ts` | `on`, `off`, `emit` | core, invoices, parties, products |
 | `index.ts` | `bootMockDb`, `isBooted` | accounting, analytics, approvals, core, diagnostics, expenses, invoices, main, parties, payments, products, purchases, reports, settings, setup, users, vouchers |
 | `persist.ts` | `flushSnapshot`, `mutate`, `loadSnapshot`, `clearSnapshot` | accounting, core, invoices, parties, products, settings, setup, users |
@@ -329,7 +335,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `seed/branches9.ts` | `seedBranches9` | — |
 | `seed/catalog.ts` | `seedCatalog`, `postOpeningStock` | — |
 | `seed/history.ts` | `seedHistory` | — |
-| `seed/index.ts` | `seedDatabase`, `seedEmptyCompany` | core, setup, users |
+| `seed/index.ts` | `seedDatabase`, `seedEmptyCompany` | core, setup |
 | `seed/people.ts` | `seedPeople` | — |
 | `seed/purchases8.ts` | `seedPurchases8` | — |
 | `seed/settings.ts` | `seedSettings` | — |
@@ -346,33 +352,14 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | App shell | `AppSidebar`, `AppTopbar`, `BrandBranchSwitcher`, `DefaultLayout`, `KeyboardShortcutsSheet`, `NavMain`, `NavQuickActions`, `NavUser`, `NotificationsDrawer` |
 | Core controllers (composables/stores) | `useAppearance`, `useAsync`, `useCommandPalette`, `useConfirm`, `useForm`, `useGridTab`, `useHotkeys`, `useInsights`, `useKeybindings`, `useKeyboardShortcutsSheet`, `useNotificationStore`, `useNotifications`, `useTheme`, `useToast` |
 | Core helpers | `attachments`, `brand`, `countries`, `countryProfiles`, `dirIcon`, `exportXlsx`, `format`, `keyCode`, `keyboardShortcuts`, `labels`, `navigation`, `numbers`, `search`, `tafqit`, `utils`, `validation` |
-| Core services | `dashboardService`, `geoService`, `insightEngine`, `insightRules`, `insightTypes`, `pdfService`, `printService`, `saveFile` |
+| Core services | `attachmentService`, `dashboardService`, `devToolsService`, `geoService`, `insightEngine`, `insightRules`, `insightTypes`, `pdfService`, `printService`, `saveFile` |
 | shadcn primitives | `alert-dialog`, `avatar`, `badge`, `breadcrumb`, `button`, `calendar`, `card`, `collapsible`, `combobox`, `command`, `dialog`, `dropdown-menu`, `empty`, `field`, `input`, `input-group`, `kbd`, `label`, `native-select`, `popover`, `range-calendar`, `separator`, `sheet`, `sidebar`, `skeleton`, `sonner`, `switch`, `table`, `tabs`, `textarea`, `toggle`, `toggle-group`, `tooltip` |
 
 ## Boundary report
 
-### Seam violations — value imports of `src/mocks` outside `services/` (7 new, 11 known)
+### Seam violations — value imports of `src/mocks` outside `services/` (0 new, 0 known)
 
-| File | Mock targets | Status |
-|---|---|---|
-| `src/modules/core/components/layout/NavUser.vue` | `persist.ts`, `seed/index.ts` | **NEW** |
-| `src/modules/core/controllers/useNotifications.ts` | `db.ts`, `events.ts` | **NEW** |
-| `src/modules/core/helpers/attachments.ts` | `index.ts` | **NEW** |
-| `src/modules/parties/helpers/creditLimit.ts` | `index.ts` | **NEW** |
-| `src/modules/products/controllers/useCatalogStore.ts` | `events.ts` | **NEW** |
-| `src/modules/settings/helpers/backupArchive.ts` | `attachments.ts`, `db.ts`, `persist.ts`, `utils.ts` | **NEW** |
-| `src/router/index.ts` | `db.ts` | **NEW** |
-| `src/modules/core/components/dashboard/AccountantHome.vue` | `db.ts` | known legacy |
-| `src/modules/core/components/dashboard/StorekeeperHome.vue` | `db.ts` | known legacy |
-| `src/modules/core/components/ui/AttachmentField.vue` | `attachments.ts` | known legacy |
-| `src/modules/expenses/pages/ExpenseDetailPage.vue` | `index.ts` | known legacy |
-| `src/modules/invoices/pages/PosPage.vue` | `events.ts` | known legacy |
-| `src/modules/parties/pages/PartyFormPage.vue` | `index.ts` | known legacy |
-| `src/modules/products/components/ProductImageGallery.vue` | `attachments.ts` | known legacy |
-| `src/modules/purchases/pages/PurchaseFormPage.vue` | `backend/purchases.ts` | known legacy |
-| `src/modules/setup/pages/SetupWizardPage.vue` | `db.ts`, `persist.ts`, `seed/index.ts` | known legacy |
-| `src/modules/users/pages/WelcomePage.vue` | `persist.ts`, `seed/index.ts` | known legacy |
-| `src/modules/vouchers/pages/VoucherDetailPage.vue` | `index.ts` | known legacy |
+_none_
 
 ### Pages over 250 lines (CLAUDE.md rule 12)
 
@@ -388,7 +375,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `src/modules/parties/pages/PartyDetailPage.vue` | 409 |
 | `src/modules/products/pages/StockAdjustmentFormPage.vue` | 394 |
 | `src/modules/accounting/pages/ChartOfAccountsPage.vue` | 392 |
-| `src/modules/purchases/pages/PurchaseFormPage.vue` | 356 |
+| `src/modules/purchases/pages/PurchaseFormPage.vue` | 355 |
 | `src/modules/reports/pages/LedgerPage.vue` | 350 |
 | `src/modules/invoices/pages/InvoiceFormPage.vue` | 348 |
 | `src/modules/accounting/pages/JournalDetailPage.vue` | 337 |
@@ -396,7 +383,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `src/modules/settings/pages/PaymentMethodsSettingsPage.vue` | 278 |
 | `src/modules/payments/pages/PaymentFormPage.vue` | 273 |
 | `src/modules/products/pages/LabelBuilderPage.vue` | 273 |
-| `src/modules/settings/pages/BackupSettingsPage.vue` | 269 |
+| `src/modules/settings/pages/BackupSettingsPage.vue` | 268 |
 | `src/modules/accounting/pages/FiscalYearsPage.vue` | 261 |
 | `src/modules/products/pages/PriceListsPage.vue` | 255 |
 

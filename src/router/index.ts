@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router';
 import DefaultLayout from '@/modules/core/components/layout/DefaultLayout.vue';
-import { db } from '@/mocks/db';
+import { isFreshInstall } from '@/modules/users/services/authService';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
 import { APP_NAME_AR } from '@/modules/core/helpers/brand';
@@ -54,16 +54,6 @@ const router = createRouter({
   routes: [...blankRoutes, { path: '/', component: DefaultLayout, children: shellRoutes }],
   scrollBehavior: () => ({ top: 0 }),
 });
-
-/**
- * No persisted IndexedDB snapshot AND an empty `db` means this is a genuinely fresh install —
- * `bootMockDb()` (awaited before the app mounts, see main.ts) left `db` empty on purpose so the
- * welcome screen can decide (demo data seeds it, "start company" creates an empty shell). Once
- * either card has run, `db.users` is non-empty, so this only ever fires once per install.
- */
-function isFreshInstall(): boolean {
-  return db.users.length === 0;
-}
 
 router.beforeEach(async (to) => {
   if (to.name === 'welcome') return true;
