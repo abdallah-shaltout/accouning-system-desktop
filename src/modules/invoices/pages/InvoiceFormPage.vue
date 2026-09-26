@@ -10,6 +10,7 @@ import { FileText, Plus, Save, Send, Trash } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
+import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
 import JournalPreview from '@/modules/core/components/JournalPreview.vue';
@@ -297,14 +298,8 @@ const amountInWords = computed(() => tafqit(totals.value.gross));
         <AppCard title="بيانات الفاتورة">
           <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
             <AppCombobox v-model="customerId" class="col-span-2" :options="customerOptions" placeholder="عميل نقدي" search-placeholder="اسم أو رقم ضريبي" clearable />
-            <div>
-              <label class="field-label" for="inv-date">التاريخ</label>
-              <input id="inv-date" v-model="invoiceDate" type="date" class="control h-10" />
-            </div>
-            <div>
-              <label class="field-label" for="due-date">تاريخ الاستحقاق</label>
-              <input id="due-date" v-model="dueDate" type="date" class="control h-10" />
-            </div>
+            <AppDatePicker v-model="invoiceDate" label="التاريخ" />
+            <AppDatePicker v-model="dueDate" label="تاريخ الاستحقاق" />
             <AppSelect
               v-model="invoiceType"
               label="نوع الفاتورة"
@@ -318,10 +313,7 @@ const amountInWords = computed(() => tafqit(totals.value.gross));
               <label class="field-label" for="po-ref">مرجع أمر الشراء</label>
               <input id="po-ref" v-model="poReference" class="control h-10" />
             </div>
-            <div v-if="asQuotation">
-              <label class="field-label" for="expiry-date">صالح حتى</label>
-              <input id="expiry-date" v-model="expiryDate" type="date" class="control h-10" />
-            </div>
+            <AppDatePicker v-if="asQuotation" v-model="expiryDate" label="صالح حتى" />
           </div>
           <div v-if="customer" class="mt-3 rounded-lg bg-surface p-3 text-body">
             <p v-if="customer.vatNumber">الرقم الضريبي: <span class="num">{{ customer.vatNumber }}</span></p>
