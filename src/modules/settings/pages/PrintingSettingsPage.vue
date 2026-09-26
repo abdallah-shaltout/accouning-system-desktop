@@ -8,7 +8,7 @@ import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
@@ -131,9 +131,8 @@ async function testThermalPrint() {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="الإعدادات" subtitle="نوع الطابعة ومقاس الورق للفواتير والإيصالات" />
-    <SettingsTabs />
+  <SettingsPage title="الإعدادات" subtitle="نوع الطابعة ومقاس الورق للفواتير والإيصالات" wide>
+    <template #nav><SettingsTabs /></template>
 
     <div class="grid items-start gap-5 xl:grid-cols-[1fr_420px]">
       <div class="space-y-5">
@@ -245,5 +244,5 @@ async function testThermalPrint() {
         </div>
       </AppCard>
     </div>
-  </div>
+  </SettingsPage>
 </template>

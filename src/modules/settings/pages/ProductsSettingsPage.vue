@@ -8,7 +8,7 @@ import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
@@ -131,16 +131,14 @@ async function applyPreset(kind: UnitPresetKind) {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="إعدادات المنتجات" subtitle="حقول مخصصة تظهر في تبويب «إضافي» ببطاقة المنتج، وقوالب وحدات جاهزة">
-      <template v-if="canWrite" #actions>
-        <AppButton variant="primary" :icon="Plus" @click="openCreate">حقل جديد</AppButton>
-      </template>
-    </PageHeader>
-    <SettingsTabs />
+  <SettingsPage title="إعدادات المنتجات" subtitle="حقول مخصصة تظهر في تبويب «إضافي» ببطاقة المنتج، وقوالب وحدات جاهزة" wide>
+    <template #nav><SettingsTabs /></template>
 
     <div class="grid items-start gap-5 lg:grid-cols-[1fr_320px]">
       <AppCard title="الحقول المخصصة" padding="none">
+        <template v-if="canWrite" #actions>
+          <AppButton size="sm" variant="primary" :icon="Plus" @click="openCreate">حقل جديد</AppButton>
+        </template>
         <SkeletonBlock v-if="loading" class="p-4" :lines="4" />
         <EmptyState v-else-if="!catalog.customFieldDefs.length" title="لا توجد حقول مخصصة بعد" compact />
         <ul v-else class="divide-y divide-border">
@@ -191,5 +189,5 @@ async function applyPreset(kind: UnitPresetKind) {
         <AppButton type="submit" form="cf-form" variant="primary" :loading="saving">حفظ</AppButton>
       </template>
     </AppModal>
-  </div>
+  </SettingsPage>
 </template>

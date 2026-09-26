@@ -9,7 +9,7 @@ import { FileClock, ShieldCheck } from '@lucide/vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import SearchInput from '@/modules/core/components/ui/SearchInput.vue';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/modules/core/components/shadcn/dialog';
 import { useAsync } from '@/modules/core/controllers/useAsync';
@@ -19,6 +19,7 @@ import type { User } from '@/modules/users/types';
 import AuditDiffView from '@/modules/diagnostics/components/AuditDiffView.vue';
 import { getAuditEntities, getAuditEntries } from '@/modules/diagnostics/services/auditService';
 import type { AuditAction, AuditEntry } from '@/modules/diagnostics/types';
+import SettingsTabs from '../components/SettingsTabs.vue';
 
 const ACTION_LABEL: Record<AuditAction, string> = {
   create: 'إنشاء',
@@ -76,8 +77,8 @@ const columns: Column<AuditEntry>[] = [
 </script>
 
 <template>
-  <div>
-    <PageHeader title="سجل التدقيق" subtitle="سجل تدقيق كامل لكل عملية إنشاء أو تعديل أو ترحيل على بيانات المنشأة" />
+  <SettingsPage title="سجل التدقيق" subtitle="سجل تدقيق كامل لكل عملية إنشاء أو تعديل أو ترحيل على بيانات المنشأة" wide>
+    <template #nav><SettingsTabs /></template>
 
     <div class="mb-3 flex flex-wrap items-center gap-2">
       <AppSelect v-model="userId" :options="userOptions" />
@@ -121,5 +122,5 @@ const columns: Column<AuditEntry>[] = [
         <AuditDiffView v-if="selected" :entry="selected" />
       </DialogContent>
     </Dialog>
-  </div>
+  </SettingsPage>
 </template>
