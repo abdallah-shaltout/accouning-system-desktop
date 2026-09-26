@@ -212,6 +212,19 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
 - Never change posting rules, VAT math (tax-inclusive by default, discount order: line → invoice →
   VAT), weighted-average cost or the system-role account resolution without reading
   `docs/v2/02-accounting-review.md` and keeping `bun run verify:mocks` fully green.
+- **Debugging a wrong number.** Use the accounting debugger (18.F) before guessing: `/dev/diagnostics`
+  → المحاسبة for a document's posting trace / account resolution / balances before-after, "اشرح هذا
+  الرقم" from any resolved account, and the subledger-vs-GL drift report; `runAllInvariants()` in
+  `src/mocks/backend/invariants.ts` is the one copy of the 14 invariants both `bun run verify:mocks`
+  and that tab use — don't add a second copy of an invariant check anywhere else. Reproduce with
+  "بدء تسجيل إعادة الإنتاج" + "تصدير حالة لإعادة الإنتاج", replay it headlessly with
+  `bun run verify:replay <bundle.json>`.
+- **Every accounting bug fix ships with a `scripts/verify/cases/*.json` regression case** (a
+  minimized repro bundle from the step above, PII scrubbed) that reproduces the bug and passes
+  after the fix — checked via `bun run verify:replay` with no argument (replays every case). An
+  `ACC-` ledger issue (`docs/diagnostics/issues/ACC-NNNN-<slug>.md`, same schema as the other
+  diagnostics ledger kinds — see "Diagnostics" above) can only move to `status: verified` once its
+  `regression_test` names that case and it's green; `fixed` alone is not enough.
 
 ## Diagnostics (18.B — read before touching errors, performance or the audit trail)
 
@@ -231,7 +244,11 @@ correlation id.
   should call `logAudit` (or the `logActivity` adapter) at the same point it always did, not `log.*`.
 - **Where to look.** `/dev/diagnostics` (dev builds, linked from the sidebar user menu's dev section
   and the command palette) has tabs for Errors (grouped by fingerprint), Performance (p50/p95 +
-  budget breaches), Debug (namespace toggles + live tail), Audit and Accounting (stub — Phase F).
+  budget breaches), Debug (namespace toggles + live tail), Audit and Accounting (18.F — pick a
+  posted document to see its posting trace / journal lines / account resolution / balances
+  before-after, plus a document-independent invariants panel, a subledger-vs-GL drift report, and
+  "بدء تسجيل إعادة الإنتاج" + "تصدير حالة لإعادة الإنتاج" for a repro bundle — see "Accounting
+  safety" below).
   `Ctrl+Shift+D` opens a docked overlay with the last 50 entries across every channel without
   leaving the page. In dev, `.diagnostics/logs/<channel>.jsonl` (gitignored) holds today's entries on
   disk — read it directly instead of reproducing a bug through the UI when a log line will do.
