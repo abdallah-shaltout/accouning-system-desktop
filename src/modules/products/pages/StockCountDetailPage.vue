@@ -121,7 +121,7 @@ async function apply() {
   try {
     const adj = await completeStockCount(id);
     toast.success('تم اعتماد الجرد', adj.number);
-    router.push(`/inventory/adjustments/${adj.id}`);
+    router.push({ name: 'adjustment', params: { id: adj.id } });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -151,7 +151,7 @@ const variance = computed(() => {
   <div>
     <ErrorState v-if="count.error.value" :message="count.error.value" @retry="count.reload" />
     <template v-else>
-      <PageHeader :title="c ? `جرد ${c.number}` : '…'" back="/inventory/counts">
+      <PageHeader :title="c ? `جرد ${c.number}` : '…'" :back="{ name: 'counts' }">
         <template v-if="c" #badge>
           <StatusBadge v-if="c.blind" tone="primary" label="أعمى" :dot="false" />
           <StatusBadge

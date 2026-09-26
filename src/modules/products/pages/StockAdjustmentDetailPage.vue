@@ -72,7 +72,7 @@ async function remove() {
   <div>
     <ErrorState v-if="adj.error.value" :message="adj.error.value" @retry="adj.reload" />
     <template v-else>
-      <PageHeader :title="a ? `${ADJUSTMENT_TYPE[a.type].label} ${a.number}` : '…'" back="/inventory/adjustments">
+      <PageHeader :title="a ? `${ADJUSTMENT_TYPE[a.type].label} ${a.number}` : '…'" :back="{ name: 'adjustments' }">
         <template v-if="a" #badge>
           <StatusBadge :tone="a.status === 'COMPLETED' ? 'success' : 'neutral'" :label="a.status === 'COMPLETED' ? 'معتمدة' : 'مسودة'" />
         </template>
@@ -80,7 +80,7 @@ async function remove() {
           <span class="num">{{ formatDateTime(a.date) }}</span><template v-if="a.note"> · {{ a.note }}</template>
         </template>
         <template #actions>
-          <AppButton v-if="a?.journalEntryId && auth.can('accounting')" :icon="BookOpen" :to="`/accounting/journal/${a.journalEntryId}`">القيد المحاسبي</AppButton>
+          <AppButton v-if="a?.journalEntryId && auth.can('accounting')" :icon="BookOpen" :to="{ name: 'journal-entry', params: { id: a.journalEntryId } }">القيد المحاسبي</AppButton>
           <template v-if="isDraft && auth.can('inventory', 'write')">
             <AppButton variant="danger" :icon="Trash" @click="remove">حذف المسودة</AppButton>
             <AppButton variant="primary" :icon="CircleCheck" :loading="busy" @click="complete">اعتماد</AppButton>
@@ -104,7 +104,7 @@ async function remove() {
           <tbody class="bg-background">
             <tr v-for="l in a.lines" :key="l.productId" class="border-b border-border last:border-0">
               <td class="px-4 py-2.5">
-                <RouterLink :to="`/products/${l.productId}`" class="hover:text-primary">{{ products.get(l.productId)?.name ?? '…' }}</RouterLink>
+                <RouterLink :to="{ name: 'product', params: { id: l.productId } }" class="hover:text-primary">{{ products.get(l.productId)?.name ?? '…' }}</RouterLink>
                 <span class="num block text-tiny text-text-secondary">{{ products.get(l.productId)?.sku }}</span>
               </td>
               <td class="px-3 py-2.5"><span class="num text-text-secondary">{{ formatNumber(l.systemQty) }}</span></td>

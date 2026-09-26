@@ -49,7 +49,7 @@ const columns: Column<StockCount>[] = [
       :empty-icon="ClipboardCheck"
       empty-title="لا توجد عمليات جرد"
       @retry="reload"
-      @row-click="(c) => router.push(`/inventory/counts/${c.id}`)"
+      @row-click="(c) => router.push({ name: 'count', params: { id: c.id } })"
     >
       <template #cell-startedAt="{ row }"><span class="num text-text-secondary">{{ formatDateTime(row.startedAt) }}</span></template>
       <template #cell-scope="{ row }">{{ SCOPE_LABEL[row.scope] }}<span v-if="row.location" class="text-text-secondary"> — {{ row.location }}</span></template>

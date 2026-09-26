@@ -271,7 +271,7 @@ async function submit(asDraft: boolean) {
       asDraft,
     );
     toast.success(asDraft ? 'تم حفظ المسودة' : 'تم اعتماد التسوية', adj.number);
-    router.push(`/inventory/adjustments/${adj.id}`);
+    router.push({ name: 'adjustment', params: { id: adj.id } });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -287,7 +287,7 @@ function onApproved(userId: string) {
 
 <template>
   <div>
-    <PageHeader title="تسوية مخزون جديدة" back="/inventory/adjustments" />
+    <PageHeader title="تسوية مخزون جديدة" :back="{ name: 'adjustments' }" />
 
     <div class="grid items-start gap-5 xl:grid-cols-[1fr_340px]">
       <div class="space-y-5">

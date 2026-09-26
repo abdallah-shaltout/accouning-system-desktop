@@ -49,7 +49,7 @@ async function start() {
       note: note.value.trim() || undefined,
     });
     toast.success('بدأ الجرد', count.number);
-    router.push(`/inventory/counts/${count.id}`);
+    router.push({ name: 'count', params: { id: count.id } });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -60,7 +60,7 @@ async function start() {
 
 <template>
   <div>
-    <PageHeader title="جرد جديد" back="/inventory/counts" />
+    <PageHeader title="جرد جديد" :back="{ name: 'counts' }" />
     <AppCard title="نطاق الجرد" class="mx-auto max-w-xl">
       <div class="space-y-4">
         <div>

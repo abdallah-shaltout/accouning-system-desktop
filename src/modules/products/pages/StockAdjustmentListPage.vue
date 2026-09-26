@@ -55,9 +55,9 @@ const columns: Column<StockAdjustment>[] = [
   <div>
     <PageHeader title="تسويات المخزون" subtitle="إدخال بضاعة، إتلاف وفقد، والجرد الدوري — كل تسوية تنشئ قيداً محاسبياً">
       <template v-if="auth.can('inventory', 'write')" #actions>
-        <AppButton :icon="PackageMinus" to="/inventory/adjustments/new?type=LOSS">إتلاف / فقد</AppButton>
-        <AppButton :icon="ClipboardCheck" to="/inventory/adjustments/new?type=STOCKTAKE">جرد جديد</AppButton>
-        <AppButton variant="primary" :icon="PackagePlus" to="/inventory/adjustments/new?type=STOCK_IN">إدخال مخزون</AppButton>
+        <AppButton :icon="PackageMinus" :to="{ name: 'adjustment-new', query: { type: 'LOSS' } }">إتلاف / فقد</AppButton>
+        <AppButton :icon="ClipboardCheck" :to="{ name: 'adjustment-new', query: { type: 'STOCKTAKE' } }">جرد جديد</AppButton>
+        <AppButton variant="primary" :icon="PackagePlus" :to="{ name: 'adjustment-new', query: { type: 'STOCK_IN' } }">إدخال مخزون</AppButton>
       </template>
     </PageHeader>
 
@@ -75,7 +75,7 @@ const columns: Column<StockAdjustment>[] = [
       :empty-icon="ClipboardList"
       empty-title="لا توجد تسويات"
       @retry="reload"
-      @row-click="(a) => router.push(`/inventory/adjustments/${a.id}`)"
+      @row-click="(a) => router.push({ name: 'adjustment', params: { id: a.id } })"
     >
       <template #cell-number="{ row }"><span class="num font-medium">{{ row.number }}</span></template>
       <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDateTime(row.date) }}</span></template>
