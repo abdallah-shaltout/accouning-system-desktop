@@ -4,7 +4,7 @@
  * actions) + tabs — overview / documents / payments / statement / aging / attachments / history.
  * The attachments tab (Phase 0 demo usage) is kept as-is; the rest are new for Phase 4.
  */
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   ClipboardList,
@@ -26,10 +26,9 @@ import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
-import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import DetailPage, { type DetailTab } from '@/modules/core/components/layouts/DetailPage.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { formatDate, formatDateTime, formatNumber } from '@/modules/core/helpers/format';
 import { INVOICE_STATUS, PHONE_LABEL, PURCHASE_STATUS } from '@/modules/core/helpers/labels';
@@ -66,9 +65,22 @@ const payments = useAsync(() => getPayments({ targetId: id }));
 const aging = useAsync<AgingBucket[]>(() => getPartyAging(props.kind, id));
 const history = useAsync(() => getPartyHistory(id));
 
-const tab = ref<'overview' | 'documents' | 'payments' | 'statement' | 'aging' | 'attachments' | 'history'>('overview');
 const ownerRef = computed(() => `${props.kind}:${id}`);
 const p = computed(() => party.data.value);
+
+function withCount(label: string, count?: number): string {
+  return count ? `${label} (${formatNumber(count)})` : label;
+}
+
+const tabs = computed<DetailTab[]>(() => [
+  { key: 'overview', label: 'نظرة عامة' },
+  { key: 'documents', label: withCount('المستندات', documents.data.value?.length) },
+  { key: 'payments', label: withCount('المدفوعات', payments.data.value?.length) },
+  { key: 'statement', label: withCount('كشف الحساب', statement.data.value?.length) },
+  { key: 'aging', label: 'الأعمار' },
+  { key: 'attachments', label: 'المرفقات' },
+  { key: 'history', label: withCount('السجل', history.data.value?.length) },
+]);
 
 const ALLOCATION_LABEL: Record<AllocationStatus, string> = { full: 'مخصص بالكامل', partial: 'مخصص جزئياً', unallocated: 'غير مخصص' };
 const ALLOCATION_TONE: Record<AllocationStatus, 'success' | 'warning' | 'neutral'> = { full: 'success', partial: 'warning', unallocated: 'neutral' };
@@ -139,6 +151,13 @@ const payLink = (docId?: string): AppRoute => ({
   query: { type: isCustomer.value ? 'RECEIVED' : 'PAID', party: id, ref: docId },
 });
 
+const agingDocColumns: Column<AgingBucket['documents'][number]>[] = [
+  { key: 'number', label: 'المستند' },
+  { key: 'date', label: 'التاريخ', type: 'date' },
+  { key: 'dueDate', label: 'الاستحقاق', type: 'date' },
+  { key: 'outstanding', label: 'المتبقي', type: 'money' },
+];
+
 const phones = computed(() => p.value?.phones?.length ? p.value.phones : p.value?.phone ? [{ id: 'legacy', label: 'mobile' as const, number: p.value.phone }] : []);
 function whatsappHref(number: string) {
   return `https://wa.me/${number.replace(/\D/g, '')}`;
@@ -148,26 +167,27 @@ function whatsappHref(number: string) {
 <template>
   <div>
     <ErrorState v-if="party.error.value" :message="party.error.value" @retry="party.reload" />
-    <template v-else>
-      <PageHeader :title="p?.name ?? '…'" :back="base">
-        <template v-if="p && !p.active" #badge><StatusBadge label="موقوف" /></template>
-        <template #subtitle>
-          {{ isCustomer ? ((p as Customer)?.type === 'company' ? 'عميل — منشأة' : 'عميل — فرد') : 'مورد' }}
-          <span v-if="p?.code" class="num text-text-secondary"> · {{ p.code }}</span>
-        </template>
-        <template #actions>
-          <AppButton v-if="auth.can('reports')" :icon="FileText" :to="{ name: 'report-ledger', query: { [isCustomer ? 'customer' : 'supplier']: id } }">كشف حساب للطباعة</AppButton>
-          <AppButton v-if="auth.can('parties', 'write')" :icon="Pencil" :to="partyRoute(kind, 'edit', id)">تعديل</AppButton>
-          <AppButton v-if="auth.can('payments', 'write') && (p?.balance ?? 0) > 0" variant="primary" :icon="HandCoins" :to="payLink()">
-            {{ isCustomer ? 'تحصيل دفعة' : 'سداد دفعة' }}
-          </AppButton>
-        </template>
-      </PageHeader>
+    <DetailPage
+      v-else
+      :title="p?.name ?? '…'"
+      :status="p && !p.active ? { label: 'موقوف', tone: 'neutral' } : undefined"
+      :chips="[
+        { label: isCustomer ? ((p as Customer)?.type === 'company' ? 'عميل' : 'عميل فرد') : 'مورد', value: (isCustomer ? ((p as Customer)?.type === 'company' ? 'منشأة' : 'فرد') : (p?.code ?? '—')) },
+      ]"
+      :back="base"
+      :tabs="tabs"
+    >
+      <template #actions>
+        <AppButton v-if="auth.can('reports')" :icon="FileText" :to="{ name: 'report-ledger', query: { [isCustomer ? 'customer' : 'supplier']: id } }">كشف حساب للطباعة</AppButton>
+        <AppButton v-if="auth.can('parties', 'write')" :icon="Pencil" :to="partyRoute(kind, 'edit', id)">تعديل</AppButton>
+        <AppButton v-if="auth.can('payments', 'write') && (p?.balance ?? 0) > 0" variant="primary" :icon="HandCoins" :to="payLink()">
+          {{ isCustomer ? 'تحصيل دفعة' : 'سداد دفعة' }}
+        </AppButton>
+      </template>
 
-      <InsightHints v-if="isCustomer" :rule-keys="CUSTOMER_INSIGHT_RULES" :entity-id="id" class="mb-4" />
+      <template #aside>
+        <InsightHints v-if="isCustomer" :rule-keys="CUSTOMER_INSIGHT_RULES" :entity-id="id" />
 
-      <div class="grid items-start gap-5 xl:grid-cols-[300px_1fr]">
-        <div class="space-y-4">
           <AppCard padding="sm">
             <p class="text-xs text-text-secondary">{{ isCustomer ? 'الرصيد المستحق علينا تحصيله' : 'الرصيد المستحق للمورد' }}</p>
             <SkeletonBlock v-if="!p" class="mt-2" height="h-8" />
@@ -232,26 +252,11 @@ function whatsappHref(number: string) {
               </li>
             </ul>
           </AppCard>
-        </div>
-
-        <div>
-          <div class="mb-3 flex items-center justify-between">
-            <SegmentedControl
-              v-model="tab"
-              :options="[
-                { value: 'overview', label: 'نظرة عامة' },
-                { value: 'documents', label: 'المستندات', count: documents.data.value?.length },
-                { value: 'payments', label: 'المدفوعات', count: payments.data.value?.length },
-                { value: 'statement', label: 'كشف الحساب', count: statement.data.value?.length },
-                { value: 'aging', label: 'الأعمار' },
-                { value: 'attachments', label: 'المرفقات' },
-                { value: 'history', label: 'السجل', count: history.data.value?.length },
-              ]"
-            />
-          </div>
+      </template>
 
           <!-- نظرة عامة -->
-          <div v-if="tab === 'overview'" class="space-y-4">
+          <template #tab-overview>
+          <div class="space-y-4">
             <AppCard title="آخر المستندات" padding="none">
               <DataTable
                 :columns="documentColumns"
@@ -286,10 +291,11 @@ function whatsappHref(number: string) {
               </DataTable>
             </AppCard>
           </div>
+          </template>
 
           <!-- المستندات -->
+          <template #tab-documents>
           <DataTable
-            v-else-if="tab === 'documents'"
             :columns="documentColumns"
             :rows="documents.data.value"
             :loading="documents.loading.value"
@@ -306,10 +312,11 @@ function whatsappHref(number: string) {
             <template #cell-grandTotal="{ row }"><MoneyText :value="row.grandTotal" plain /></template>
             <template #cell-outstanding="{ row }"><MoneyText :value="row.outstanding" plain class="font-medium text-warning" /></template>
           </DataTable>
+          </template>
 
           <!-- المدفوعات -->
+          <template #tab-payments>
           <DataTable
-            v-else-if="tab === 'payments'"
             :columns="paymentColumns"
             :rows="payments.data.value"
             :loading="payments.loading.value"
@@ -325,10 +332,11 @@ function whatsappHref(number: string) {
             <template #cell-allocationStatus="{ row }"><StatusBadge :tone="ALLOCATION_TONE[row.allocationStatus]" :label="ALLOCATION_LABEL[row.allocationStatus]" /></template>
             <template #cell-amount="{ row }"><MoneyText :value="row.amount" /></template>
           </DataTable>
+          </template>
 
           <!-- كشف الحساب -->
+          <template #tab-statement>
           <DataTable
-            v-else-if="tab === 'statement'"
             :columns="statementColumns"
             :rows="statement.data.value ? [...statement.data.value].reverse() : undefined"
             :loading="statement.loading.value"
@@ -346,9 +354,11 @@ function whatsappHref(number: string) {
             <template #cell-credit="{ row }"><MoneyText :value="row.credit" plain dash-zero /></template>
             <template #cell-balance="{ row }"><MoneyText :value="row.balance" plain class="font-medium" /></template>
           </DataTable>
+          </template>
 
           <!-- الأعمار -->
-          <div v-else-if="tab === 'aging'" class="space-y-3">
+          <template #tab-aging>
+          <div class="space-y-3">
             <div v-if="aging.loading.value"><SkeletonBlock :lines="4" height="h-12" /></div>
             <template v-else>
               <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -358,37 +368,26 @@ function whatsappHref(number: string) {
                 </AppCard>
               </div>
               <AppCard v-for="b in (aging.data.value ?? []).filter((x) => x.documents.length)" :key="`docs-${b.key}`" :title="b.label" padding="none">
-                <table class="w-full text-body">
-                  <thead class="border-b border-border text-xs text-text-secondary">
-                    <tr>
-                      <th class="px-3 py-2 text-start">المستند</th>
-                      <th class="px-2 py-2 text-start">التاريخ</th>
-                      <th class="px-2 py-2 text-start">الاستحقاق</th>
-                      <th class="px-2 py-2 text-end">المتبقي</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-border">
-                    <tr v-for="d in b.documents" :key="d.id">
-                      <td class="px-3 py-2">
-                        <RouterLink :to="isCustomer ? { name: 'invoice', params: { id: d.id } } : { name: 'purchase', params: { id: d.id } }" class="num text-primary hover:underline">{{ d.number }}</RouterLink>
-                      </td>
-                      <td class="num px-2 py-2 text-text-secondary">{{ formatDate(d.date) }}</td>
-                      <td class="num px-2 py-2 text-text-secondary">{{ d.dueDate ? formatDate(d.dueDate) : '—' }}</td>
-                      <td class="px-2 py-2 text-end"><MoneyText :value="d.outstanding" plain class="font-medium text-warning" /></td>
-                    </tr>
-                  </tbody>
-                </table>
+                <DataTable :columns="agingDocColumns" :rows="b.documents" :page-size="0" empty-title="لا توجد">
+                  <template #cell-number="{ row }">
+                    <RouterLink :to="isCustomer ? { name: 'invoice', params: { id: row.id } } : { name: 'purchase', params: { id: row.id } }" class="num text-primary hover:underline">{{ row.number }}</RouterLink>
+                  </template>
+                </DataTable>
               </AppCard>
             </template>
           </div>
+          </template>
 
           <!-- المرفقات -->
-          <AppCard v-else-if="tab === 'attachments'" padding="sm">
+          <template #tab-attachments>
+          <AppCard padding="sm">
             <AttachmentField :owner-ref="ownerRef" />
           </AppCard>
+          </template>
 
           <!-- السجل -->
-          <AppCard v-else-if="tab === 'history'" padding="none">
+          <template #tab-history>
+          <AppCard padding="none">
             <SkeletonBlock v-if="history.loading.value" :lines="4" class="p-4" />
             <ul v-else-if="history.data.value?.length" class="divide-y divide-border">
               <li v-for="h in history.data.value" :key="h.id" class="flex items-start gap-2.5 px-4 py-3 text-body">
@@ -401,8 +400,7 @@ function whatsappHref(number: string) {
             </ul>
             <p v-else class="p-4 text-center text-xs text-text-secondary">لا يوجد سجل بعد</p>
           </AppCard>
-        </div>
-      </div>
-    </template>
+          </template>
+    </DetailPage>
   </div>
 </template>
