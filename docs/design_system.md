@@ -166,6 +166,8 @@ A page is **assembled**, not hand-written, from two layers in `modules/core/comp
 - **Layer 3 — page layouts** (`components/layouts/`): `ListPage`, `FormPage`, `DetailPage`,
   `SettingsPage`, and reports' existing `ReportShell` (`modules/reports/components/ReportShell.vue`)
   — align new report filters with `FilterBar` inside its `#filters` slot rather than hand-rolling one.
+  `SettingsPage` defaults to a `max-w-3xl` single column; pass `wide` for the few settings pages that
+  pair content with a sticky aside (logo preview, print preview, status card).
 
 Every new page (once migrated — see the plan's F-1..F-6 batches) follows these rules:
 

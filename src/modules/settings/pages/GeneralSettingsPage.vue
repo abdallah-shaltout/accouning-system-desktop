@@ -5,16 +5,17 @@
 // `companyBlock()` reads `company.logo`/`stamp`/`signature` synchronously by value when building a
 // Typst document payload, so the image has to be an inline string, not a blob reference.
 import { computed, onMounted, reactive, ref } from 'vue';
-import { ImagePlus, Save, Trash } from '@lucide/vue';
+import { Save } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import ImageUploadField from '../components/ImageUploadField.vue';
 import SettingsTabs from '../components/SettingsTabs.vue';
 import { useSettingsStore } from '../controllers/useSettingsStore';
 import { isBaseCurrencyLocked } from '../services/branchesService';
@@ -54,9 +55,6 @@ const form = reactive({
 const errors = ref<Record<string, string>>({});
 const saving = ref(false);
 const loading = ref(true);
-const fileInput = ref<HTMLInputElement>();
-const stampInput = ref<HTMLInputElement>();
-const signatureInput = ref<HTMLInputElement>();
 
 onMounted(async () => {
   await store.load(true);
@@ -83,25 +81,6 @@ onMounted(async () => {
   currencyLocked.value = await isBaseCurrencyLocked();
   loading.value = false;
 });
-
-function readImageInto(file: File | undefined, target: 'logo' | 'stamp' | 'signature', label: string) {
-  if (!file) return;
-  if (!file.type.startsWith('image/')) return toast.warning('اختر ملف صورة');
-  if (file.size > 600 * 1024) return toast.warning(`حجم ${label} كبير`, 'الحد الأقصى 600 كيلوبايت');
-  const reader = new FileReader();
-  reader.onload = () => (form[target] = String(reader.result));
-  reader.readAsDataURL(file);
-}
-
-function onLogo(e: Event) {
-  readImageInto((e.target as HTMLInputElement).files?.[0], 'logo', 'الشعار');
-}
-function onStamp(e: Event) {
-  readImageInto((e.target as HTMLInputElement).files?.[0], 'stamp', 'الختم');
-}
-function onSignature(e: Event) {
-  readImageInto((e.target as HTMLInputElement).files?.[0], 'signature', 'التوقيع');
-}
 
 async function save() {
   errors.value = {};
@@ -138,9 +117,8 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
 </script>
 
 <template>
-  <div>
-    <PageHeader title="الإعدادات" subtitle="بيانات المتجر التي تظهر على الفواتير" />
-    <SettingsTabs />
+  <SettingsPage title="الإعدادات" subtitle="بيانات المتجر التي تظهر على الفواتير" wide>
+    <template #nav><SettingsTabs /></template>
 
     <SkeletonBlock v-if="loading" :lines="8" height="h-9" />
     <form v-else class="grid items-start gap-5 xl:grid-cols-[1fr_360px]" novalidate @submit.prevent="save">
@@ -204,44 +182,16 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
 
       <div class="space-y-5 xl:sticky xl:top-0">
         <AppCard title="الشعار">
-          <div class="flex items-center gap-4">
-            <div class="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-background">
-              <img v-if="form.logo" :src="form.logo" alt="شعار المتجر" class="size-full object-contain" />
-              <ImagePlus v-else class="size-6 text-text-secondary" />
-            </div>
-            <div class="space-y-2">
-              <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onLogo" />
-              <AppButton size="sm" :icon="ImagePlus" :disabled="!canWrite" @click="fileInput?.click()">{{ form.logo ? 'تغيير' : 'رفع شعار' }}</AppButton>
-              <AppButton v-if="form.logo" size="sm" variant="ghost" :icon="Trash" :disabled="!canWrite" @click="form.logo = undefined">إزالة</AppButton>
-              <p class="text-tiny text-text-secondary">PNG أو JPG، حتى 600 كيلوبايت. يُحفظ محلياً.</p>
-            </div>
+          <div class="space-y-2">
+            <ImageUploadField v-model="form.logo" label="رفع شعار" change-label="تغيير" alt="شعار المتجر" :disabled="!canWrite" />
+            <p class="text-tiny text-text-secondary">PNG أو JPG، حتى 600 كيلوبايت. يُحفظ محلياً.</p>
           </div>
         </AppCard>
 
         <AppCard title="الختم والتوقيع" subtitle="تُستخدم مستقبلاً على قوالب المستندات المخصصة">
           <div class="space-y-4">
-            <div class="flex items-center gap-4">
-              <div class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-background">
-                <img v-if="form.stamp" :src="form.stamp" alt="ختم الشركة" class="size-full object-contain" />
-                <ImagePlus v-else class="size-5 text-text-secondary" />
-              </div>
-              <div class="space-y-2">
-                <input ref="stampInput" type="file" accept="image/*" class="hidden" @change="onStamp" />
-                <AppButton size="sm" :icon="ImagePlus" :disabled="!canWrite" @click="stampInput?.click()">{{ form.stamp ? 'تغيير الختم' : 'رفع ختم' }}</AppButton>
-                <AppButton v-if="form.stamp" size="sm" variant="ghost" :icon="Trash" :disabled="!canWrite" @click="form.stamp = undefined">إزالة</AppButton>
-              </div>
-            </div>
-            <div class="flex items-center gap-4">
-              <div class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-background">
-                <img v-if="form.signature" :src="form.signature" alt="توقيع المخول" class="size-full object-contain" />
-                <ImagePlus v-else class="size-5 text-text-secondary" />
-              </div>
-              <div class="space-y-2">
-                <input ref="signatureInput" type="file" accept="image/*" class="hidden" @change="onSignature" />
-                <AppButton size="sm" :icon="ImagePlus" :disabled="!canWrite" @click="signatureInput?.click()">{{ form.signature ? 'تغيير التوقيع' : 'رفع توقيع' }}</AppButton>
-                <AppButton v-if="form.signature" size="sm" variant="ghost" :icon="Trash" :disabled="!canWrite" @click="form.signature = undefined">إزالة</AppButton>
-              </div>
-            </div>
+            <ImageUploadField v-model="form.stamp" size="sm" label="رفع ختم" change-label="تغيير الختم" alt="ختم الشركة" :disabled="!canWrite" />
+            <ImageUploadField v-model="form.signature" size="sm" label="رفع توقيع" change-label="تغيير التوقيع" alt="توقيع المخول" :disabled="!canWrite" />
             <p class="text-tiny text-text-secondary">PNG بخلفية شفافة يُفضّل، حتى 600 كيلوبايت لكل صورة. تُحفظ محلياً.</p>
           </div>
         </AppCard>
@@ -249,5 +199,5 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
         <AppButton v-if="canWrite" type="submit" variant="primary" block :icon="Save" :loading="saving">حفظ الإعدادات</AppButton>
       </div>
     </form>
-  </div>
+  </SettingsPage>
 </template>

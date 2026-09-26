@@ -6,9 +6,13 @@
  * "nav below header, content below nav" shell, with the nav passed via the `#nav` slot so pages keep
  * using `SettingsTabs` as-is.
  *
- * Not wired into any existing settings page yet (F-5 migrates them — out of scope for F-0).
+ * F-5 (doc 17 Phase F, migration batch): wired into every settings page. Most pages are a single
+ * narrow column of cards (`max-w-3xl`, the default). A few (General, Backup, Printing, Products
+ * settings) pair a form/list with a sticky aside (logo preview, status card, print preview, unit
+ * presets) in a wider `xl:grid-cols-[1fr_360px]`-style layout — `wide` drops the width cap for those
+ * so the aside has room, while every narrow page keeps the same fixed reading width as before.
  */
-defineProps<{ title: string; subtitle?: string }>();
+defineProps<{ title: string; subtitle?: string; wide?: boolean }>();
 </script>
 
 <template>
@@ -20,7 +24,7 @@ defineProps<{ title: string; subtitle?: string }>();
 
     <slot name="nav" />
 
-    <div class="max-w-3xl">
+    <div :class="wide ? '' : 'max-w-3xl'">
       <slot />
     </div>
   </div>
