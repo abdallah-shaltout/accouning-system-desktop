@@ -8,19 +8,19 @@
  */
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bookmark, ChevronDown, FileDown, Paperclip, Plus, Printer, Wallet, X } from '@lucide/vue';
+import { Bookmark, ChevronDown, FileDown, Paperclip, Printer, Wallet, X } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCombobox from '@/modules/core/components/ui/AppCombobox.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import DirIcon from '@/modules/core/components/ui/DirIcon.vue';
 import { dirIcon } from '@/modules/core/helpers/dirIcon';
-import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
-import SearchInput from '@/modules/core/components/ui/SearchInput.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
+import SearchInput from '@/modules/core/components/ui/SearchInput.vue';
+import ListPage from '@/modules/core/components/layouts/ListPage.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { useHotkeys } from '@/modules/core/controllers/useHotkeys';
 import { useToast } from '@/modules/core/controllers/useToast';
@@ -309,16 +309,19 @@ function openDayBook() {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="القيود اليومية" subtitle="القيود الآلية الناتجة عن المبيعات والمشتريات والسندات والمخزون، والقيود اليدوية">
-      <template #actions>
-        <AppButton :icon="Printer" @click="openDayBook">دفتر اليومية PDF</AppButton>
-        <AppButton :icon="FileDown" :loading="exporting" @click="exportEntries">تصدير</AppButton>
-        <AppButton variant="ghost" :loading="exporting" @click="exportEntriesWithLines">تصدير بالأسطر</AppButton>
-        <AppButton v-if="auth.can('accounting', 'write')" variant="primary" :icon="Plus" :to="{ name: 'journal-new' }" kbd="N">قيد يدوي</AppButton>
-      </template>
-    </PageHeader>
+  <ListPage
+    title="القيود اليومية"
+    subtitle="القيود الآلية الناتجة عن المبيعات والمشتريات والسندات والمخزون، والقيود اليدوية"
+    :primary-action-label="auth.can('accounting', 'write') ? 'قيد يدوي' : undefined"
+    :primary-action-to="{ name: 'journal-new' }"
+  >
+    <template #actions>
+      <AppButton :icon="Printer" @click="openDayBook">دفتر اليومية PDF</AppButton>
+      <AppButton :icon="FileDown" :loading="exporting" @click="exportEntries">تصدير</AppButton>
+      <AppButton variant="ghost" :loading="exporting" @click="exportEntriesWithLines">تصدير بالأسطر</AppButton>
+    </template>
 
+    <template #filters>
     <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex flex-wrap items-center gap-2">
         <SegmentedControl v-model="type" :options="typeOptions" />
@@ -384,6 +387,7 @@ function openDayBook() {
         <input v-model="reversedOnly" type="checkbox" class="size-4 rounded border-border" /> معكوس فقط
       </label>
     </div>
+    </template>
 
     <div v-if="error" class="rounded-xl border border-danger/30 bg-danger/5 p-4 text-body text-danger">
       {{ error }}
@@ -473,5 +477,5 @@ function openDayBook() {
         <AppButton variant="primary" @click="saveCurrentAsView">حفظ</AppButton>
       </template>
     </AppModal>
-  </div>
+  </ListPage>
 </template>

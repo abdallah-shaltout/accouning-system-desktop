@@ -11,14 +11,11 @@ import { isTauri } from '@tauri-apps/api/core';
 import { useRoute, useRouter } from 'vue-router';
 import { Bookmark, Download, Printer, ReceiptText, ShoppingCart } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
-import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
-import DateRangeFilter from '@/modules/core/components/ui/DateRangeFilter.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
-import SearchInput from '@/modules/core/components/ui/SearchInput.vue';
-import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import ListPage from '@/modules/core/components/layouts/ListPage.vue';
+import FilterBar from '@/modules/core/components/blocks/FilterBar.vue';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { daysAgoKey, formatDate, formatDateTime, formatNumber, todayKey } from '@/modules/core/helpers/format';
@@ -46,15 +43,25 @@ const auth = useAuthStore();
 const toast = useToast();
 
 const openOnly = route.query.payment === 'open';
-const view = ref<View>(openOnly ? 'open' : 'all');
-const search = ref(String(route.query.q ?? ''));
-const from = ref(openOnly ? '' : daysAgoKey(6));
-const to = ref(openOnly ? '' : todayKey());
-const source = ref<'' | 'POS' | 'DESK'>('');
-const cashierId = ref('');
-const customerId = ref('');
-const minAmount = ref<number | undefined>();
-const maxAmount = ref<number | undefined>();
+const view = computed<View>(() => {
+  const v = route.query.view;
+  if (typeof v === 'string' && ['all', 'PAID', 'PARTIALLY_PAID', 'UNPAID', 'open', 'REFUNDED', 'overdue', 'today-branch'].includes(v)) return v as View;
+  return openOnly ? 'open' : 'all';
+});
+const search = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''));
+const from = computed(() => (typeof route.query.from === 'string' ? route.query.from : openOnly || view.value === 'overdue' ? '' : view.value === 'today-branch' ? todayKey() : daysAgoKey(6)));
+const to = computed(() => (typeof route.query.to === 'string' ? route.query.to : openOnly || view.value === 'overdue' ? '' : todayKey()));
+const source = computed(() => (typeof route.query.source === 'string' ? (route.query.source as 'POS' | 'DESK') : ''));
+const cashierId = computed(() => (typeof route.query.cashierId === 'string' ? route.query.cashierId : ''));
+const customerId = computed(() => (typeof route.query.customerId === 'string' ? route.query.customerId : ''));
+const minAmount = computed(() => (typeof route.query.minAmount === 'string' ? Number(route.query.minAmount) : undefined));
+const maxAmount = computed(() => (typeof route.query.maxAmount === 'string' ? Number(route.query.maxAmount) : undefined));
+
+function setQuery(patch: Record<string, string | undefined>) {
+  const next: Record<string, string | undefined> = { ...route.query as Record<string, string>, ...patch };
+  for (const k of Object.keys(next)) if (!next[k]) delete next[k];
+  void router.replace({ query: next });
+}
 
 const { data, loading, error, reload } = useAsync(() => getInvoices({ from: from.value || undefined, to: to.value || undefined }));
 watch([from, to], reload);
@@ -62,16 +69,12 @@ watch([from, to], reload);
 const { data: cashiers } = useAsync(() => getUsers());
 const { data: customers } = useAsync(() => getCustomers());
 
-watch(view, (v) => {
-  router.replace({ query: { payment: v === 'open' ? 'open' : undefined } });
-  if (v === 'overdue') {
-    from.value = '';
-    to.value = '';
-  } else if (v === 'today-branch') {
-    from.value = todayKey();
-    to.value = todayKey();
-  }
-});
+function setView(v: View) {
+  const patch: Record<string, string | undefined> = { view: v === 'all' ? undefined : v, payment: v === 'open' ? 'open' : undefined };
+  if (v === 'overdue') Object.assign(patch, { from: undefined, to: undefined });
+  else if (v === 'today-branch') Object.assign(patch, { from: todayKey(), to: todayKey() });
+  setQuery(patch);
+}
 
 function matches(r: InvoiceRow, v: View) {
   if (v === 'all') return true;
@@ -93,18 +96,14 @@ const rows = computed(() =>
     .filter((r) => maxAmount.value === undefined || r.grandTotal <= maxAmount.value),
 );
 
-const viewOptions = computed(() =>
-  (
-    [
-      ['all', 'الكل'],
-      ['PAID', 'مدفوعة'],
-      ['PARTIALLY_PAID', 'جزئياً'],
-      ['UNPAID', 'غير مدفوعة'],
-      ['open', 'مستحقات مفتوحة'],
-      ['REFUNDED', 'مسترجعة'],
-    ] as [View, string][]
-  ).map(([value, label]) => ({ value, label, count: data.value?.filter((r) => matches(r, value)).length })),
-);
+const viewOptions = [
+  { value: 'all', label: 'الكل' },
+  { value: 'PAID', label: 'مدفوعة' },
+  { value: 'PARTIALLY_PAID', label: 'جزئياً' },
+  { value: 'UNPAID', label: 'غير مدفوعة' },
+  { value: 'open', label: 'مستحقات مفتوحة' },
+  { value: 'REFUNDED', label: 'مسترجعة' },
+];
 
 const summary = computed(() => ({
   total: rows.value.reduce((a, r) => a + r.grandTotal - r.refundedAmount, 0),
@@ -169,7 +168,7 @@ function statusText(r: InvoiceRow): string {
 function printAll() {
   const list = rows.value;
   const filters = [
-    view.value !== 'all' ? (viewOptions.value.find((o) => o.value === view.value)?.label ?? SAVED_VIEWS.find((v) => v.id === view.value)?.label) : '',
+    view.value !== 'all' ? (viewOptions.find((o) => o.value === view.value)?.label ?? SAVED_VIEWS.find((v) => v.id === view.value)?.label) : '',
     source.value ? (source.value === 'POS' ? 'نقطة بيع' : 'فاتورة مكتبية') : '',
     cashierId.value ? `الكاشير: ${cashiers.value?.find((u) => u.id === cashierId.value)?.name ?? ''}` : '',
     customerId.value ? `العميل: ${customers.value?.find((c) => c.id === customerId.value)?.name ?? ''}` : '',
@@ -229,42 +228,41 @@ function printAll() {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="الفواتير" subtitle="فواتير المبيعات وحالة السداد والمرتجعات">
-      <template #actions>
-        <AppButton :icon="Download" :loading="zipping" @click="downloadPdfsZip">تنزيل PDF (مضغوط)</AppButton>
-        <AppButton :icon="Printer" :disabled="loading && !data" data-testid="invoices-print" @click="printAll">طباعة</AppButton>
-        <AppButton v-if="auth.can('pos', 'write')" variant="primary" :icon="ShoppingCart" :to="{ name: 'pos' }">بيع جديد</AppButton>
-      </template>
-    </PageHeader>
+  <ListPage title="الفواتير" subtitle="فواتير المبيعات وحالة السداد والمرتجعات">
+    <template #actions>
+      <AppButton :icon="Download" :loading="zipping" @click="downloadPdfsZip">تنزيل PDF (مضغوط)</AppButton>
+      <AppButton :icon="Printer" :disabled="loading && !data" data-testid="invoices-print" @click="printAll">طباعة</AppButton>
+      <AppButton v-if="auth.can('pos', 'write')" variant="primary" :icon="ShoppingCart" :to="{ name: 'pos' }">بيع جديد</AppButton>
+    </template>
 
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-      <SegmentedControl v-model="view" :options="viewOptions" />
-      <div class="flex flex-wrap items-center gap-2">
+    <template #filters>
+      <div class="mb-3 flex flex-wrap items-center gap-2">
         <span v-for="v in SAVED_VIEWS" :key="v.id" class="inline-flex">
           <button
             type="button"
             class="flex h-8 items-center gap-1.5 rounded-full border px-3 text-body transition-colors"
             :class="view === v.id ? 'border-primary bg-primary text-on-primary' : 'border-border text-text-secondary hover:bg-surface-hover'"
-            @click="view = v.id"
+            @click="setView(v.id)"
           >
             <Bookmark class="size-3" />{{ v.label }}
           </button>
         </span>
-        <SearchInput v-model="search" placeholder="رقم الفاتورة أو اسم العميل" />
       </div>
-    </div>
-
-    <div class="mb-3 grid grid-cols-2 gap-2 md:grid-cols-6">
-      <DateRangeFilter v-model:from="from" v-model:to="to" class="col-span-2" />
-      <AppSelect v-model="source" :options="[{ value: '', label: 'كل المصادر' }, { value: 'POS', label: 'نقطة بيع' }, { value: 'DESK', label: 'فاتورة مكتبية' }]" />
-      <AppSelect v-model="cashierId" :options="[{ value: '', label: 'كل الكاشيرين' }, ...(cashiers ?? []).map((u) => ({ value: u.id, label: u.name }))]" />
-      <AppSelect v-model="customerId" :options="[{ value: '', label: 'كل العملاء' }, ...(customers ?? []).map((c) => ({ value: c.id, label: c.name }))]" />
-      <div class="flex gap-1">
-        <input v-model.number="minAmount" type="number" class="control h-9 w-full" placeholder="من مبلغ" />
-        <input v-model.number="maxAmount" type="number" class="control h-9 w-full" placeholder="إلى مبلغ" />
+      <FilterBar
+        search-placeholder="رقم الفاتورة أو اسم العميل"
+        date-range
+        :filters="[
+          { key: 'view', label: 'الحالة', options: viewOptions },
+          { key: 'source', label: 'المصدر', placeholder: 'كل المصادر', options: [{ value: 'POS', label: 'نقطة بيع' }, { value: 'DESK', label: 'فاتورة مكتبية' }] },
+          { key: 'cashierId', label: 'الكاشير', placeholder: 'كل الكاشيرين', options: (cashiers ?? []).map((u) => ({ value: u.id, label: u.name })) },
+          { key: 'customerId', label: 'العميل', placeholder: 'كل العملاء', options: (customers ?? []).map((c) => ({ value: c.id, label: c.name })) },
+        ]"
+      />
+      <div class="mb-3 flex gap-1">
+        <input :value="minAmount" type="number" class="control h-9 w-full" placeholder="من مبلغ" @change="setQuery({ minAmount: ($event.target as HTMLInputElement).value || undefined })" />
+        <input :value="maxAmount" type="number" class="control h-9 w-full" placeholder="إلى مبلغ" @change="setQuery({ maxAmount: ($event.target as HTMLInputElement).value || undefined })" />
       </div>
-    </div>
+    </template>
 
     <DataTable
       :columns="columns"
@@ -306,5 +304,5 @@ function printAll() {
     </DataTable>
 
     <ReportPrintDialog v-model:open="printOpen" :doc="printDoc" :file-name="`سجل الفواتير ${from || ''}_${to || ''}`" />
-  </div>
+  </ListPage>
 </template>
