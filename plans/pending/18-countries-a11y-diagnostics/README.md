@@ -15,7 +15,7 @@ Seven phases, in this order. Each one leaves the app working, so you can stop af
 | Phase | File | What | Size | Status |
 |---|---|---|---|---|
 | A | [phase-a-phone-switch.md](phase-a-phone-switch.md) | **Quick fixes**: phone input (layout, trunk `0`, validation timing, Windows flags), switch "on" = right in RTL | S | done |
-| B | [phase-b-diagnostics.md](phase-b-diagnostics.md) | **Diagnostics foundation**: one logger, 5 channels (error, perf, debug, audit, accounting), log files, the "failed to fix" issue ledger | M | pending |
+| B | [phase-b-diagnostics.md](phase-b-diagnostics.md) | **Diagnostics foundation**: one logger, 5 channels (error, perf, debug, audit, accounting), log files, the "failed to fix" issue ledger | M | done |
 | C | [phase-c-contrast.md](phase-c-contrast.md) | **Contrast & accessibility**: token fixes backed by measured ratios, `check-contrast.ts`, focus and field semantics | S–M | pending |
 | D | [phase-d-country-profiles.md](phase-d-country-profiles.md) | **Country profiles (EG first, SA)**: one owner file for per-country rules; wizard asks country first; **fix the VAT rate for Egypt** | M | pending |
 | E | [phase-e-address-picker.md](phase-e-address-picker.md) | **Address picker**: `eg.json` / `sa.json`, `geoService`, one shared `AddressFields` block used everywhere | M | pending |

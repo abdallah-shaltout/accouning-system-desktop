@@ -1,8 +1,14 @@
 # 18.B — Diagnostics foundation (error · perf · debug · audit · accounting)
 
-**Today:** `main.ts` has `app.config.errorHandler` → `console.error`, `ErrorBoundary.vue` → `console.error`, and
-`logActivity()` in the mock backend writes a one-line message to `db.activity`. Nothing is stored or searchable, and
-nothing survives a restart. There is no timing data and no way to turn tracing on for a feature under test.
+**Status: done (2026-09-26).** B1–B3 (logger, 5 channels, Rust `diag_*` + `tauri-plugin-log`, `defineService`
+codemod, IndexedDB ring buffer, `/__diag` dev middleware) shipped first. B4–B7 (business audit trail +
+Settings → سجل التدقيق, `/dev/diagnostics` + `Ctrl+Shift+D` overlay, error-toast code + "تصدير ملف التشخيص"
+export, and the `docs/diagnostics/` issue ledger + `bun run diag`/`diag:check`) completed in this pass.
+`bun run build`/`check`/`verify:mocks` (49 ok, 0 failed) all green; see the phase's commits for the full gate log.
+
+**Before this phase:** `main.ts` had `app.config.errorHandler` → `console.error`, `ErrorBoundary.vue` → `console.error`, and
+`logActivity()` in the mock backend wrote a one-line message to `db.activity`. Nothing was stored or searchable, and
+nothing survived a restart. There was no timing data and no way to turn tracing on for a feature under test.
 
 ### B1. The model
 
@@ -59,21 +65,21 @@ Writes are batched (every 1 s or 50 entries) and never block the UI. If logging 
 
 ### B4. Business audit (upgrade of `db.activity`)
 
-- [ ] Structured audit record: `{ entity, entityId, action: 'create'|'update'|'post'|'void'|'reverse'|'delete'|'login'|'settings', before?, after? (field diff only), userId, branchId, at, reason? }`.
-- [ ] Written in the backend at the same points that call `logActivity()` today. `logActivity` becomes a thin adapter so the activity feed keeps working.
-- [ ] Append-only: no delete or update API. Included in backups (`backupArchive`).
-- [ ] Page **Settings → سجل التدقيق**: `DataTable` with filters (user, entity, action, date), a diff view, Excel export, and palette search. Admin role only.
+- [x] Structured audit record: `{ entity, entityId, action: 'create'|'update'|'post'|'void'|'reverse'|'delete'|'login'|'settings', before?, after? (field diff only), userId, branchId, at, reason? }`.
+- [x] Written in the backend at the same points that call `logActivity()` today. `logActivity` becomes a thin adapter so the activity feed keeps working.
+- [x] Append-only: no delete or update API. Included in backups (`backupArchive`).
+- [x] Page **Settings → سجل التدقيق**: `DataTable` with filters (user, entity, action, date), a diff view, Excel export, and palette search. Admin role only.
 
 ### B5. Developer-facing UI
 
-- [ ] `/dev/diagnostics` page (dev menu + palette "التشخيص"): tabs for Errors (grouped by fingerprint with counts, first/last seen), Performance (p50/p95 per service and route, slowest long tasks, budget breaches), Debug (live tail with a namespace filter), Audit, Accounting (Phase F).
-- [ ] Debug namespaces: toggle from the DevMenu or the palette ("تشغيل التتبع: posting"), or `localStorage['equal.debug'] = 'posting,pos.*'`. Per device, off by default.
-- [ ] `Ctrl+Shift+D` overlay: last 50 entries, docked, `no-print`.
+- [x] `/dev/diagnostics` page (dev menu + palette "التشخيص"): tabs for Errors (grouped by fingerprint with counts, first/last seen), Performance (p50/p95 per service and route, slowest long tasks, budget breaches), Debug (live tail with a namespace filter), Audit, Accounting (Phase F).
+- [x] Debug namespaces: toggle from the DevMenu or the palette ("تشغيل التتبع: posting"), or `localStorage['equal.debug'] = 'posting,pos.*'`. Per device, off by default.
+- [x] `Ctrl+Shift+D` overlay: last 50 entries, docked, `no-print`.
 
 ### B6. User-facing (non-technical owner and cashier)
 
-- [ ] Error toast shows a short code (`رمز الخطأ: E-7F3A` = fingerprint prefix) so support can find the entry.
-- [ ] **Settings → حول / الدعم → "تصدير ملف التشخيص"**: a zip with the logs, app version, OS, redacted settings, and **optionally** (explicit checkbox) a DB snapshot. Saved via the shared `saveFile` helper (rule 21).
+- [x] Error toast shows a short code (`رمز الخطأ: E-7F3A` = fingerprint prefix) so support can find the entry.
+- [x] **Settings → حول / الدعم → "تصدير ملف التشخيص"**: a zip with the logs, app version, OS, redacted settings, and **optionally** (explicit checkbox) a DB snapshot. Saved via the shared `saveFile` helper (rule 21).
 
 ### B7. The "failed to fix" issue ledger (repo side)
 
@@ -110,13 +116,13 @@ fixed_in: <commit>
 The body holds the repro steps, what was tried and failed (so nobody repeats it), and the related files.
 
 **Tasks**
-- [ ] `src/modules/diagnostics/` scaffold + `logService` + `LogEntry` types + redaction + fingerprinting.
-- [ ] Hook `main.ts` errorHandler, `ErrorBoundary`, `window.onerror`, `unhandledrejection` into the `error` channel.
-- [ ] `defineService` wrapper + codemod over the 28 services; memory parser updated; `bun run memory` shows no loss.
-- [ ] Rust `diag_*` commands + `tauri-plugin-log`; capabilities for the log dir; IPC table shows no gaps.
-- [ ] IndexedDB ring buffer (browser) + Vite `/__diag` middleware (dev) + `.diagnostics/` in `.gitignore`.
-- [ ] Perf: route timing (router hooks), long tasks, startup mark, snapshot size; budgets in one config file `src/modules/diagnostics/config.ts` (service 150 ms, route 300 ms, long task 50 ms, startup 1.5 s, snapshot 5 MB).
-- [ ] B4 audit, B5 page + overlay, B6 toast code + export bundle.
-- [ ] `scripts/diagnostics/`: `bun run diag` (rebuild `ISSUES.md`, create stubs for new fingerprints) and `bun run diag:check` (stale index fails).
-- [ ] Docs: `docs/design_system.md` (error code in toasts), CLAUDE.md "Diagnostics" section (how to log, when to open or close a ledger issue).
+- [x] `src/modules/diagnostics/` scaffold + `logService` + `LogEntry` types + redaction + fingerprinting.
+- [x] Hook `main.ts` errorHandler, `ErrorBoundary`, `window.onerror`, `unhandledrejection` into the `error` channel.
+- [x] `defineService` wrapper + codemod over the 28 services; memory parser updated; `bun run memory` shows no loss.
+- [x] Rust `diag_*` commands + `tauri-plugin-log`; capabilities for the log dir; IPC table shows no gaps.
+- [x] IndexedDB ring buffer (browser) + Vite `/__diag` middleware (dev) + `.diagnostics/` in `.gitignore`.
+- [x] Perf: route timing (router hooks), long tasks, startup mark, snapshot size; budgets in one config file `src/modules/diagnostics/config.ts` (service 150 ms, route 300 ms, long task 50 ms, startup 1.5 s, snapshot 5 MB).
+- [x] B4 audit, B5 page + overlay, B6 toast code + export bundle.
+- [x] `scripts/diagnostics/`: `bun run diag` (rebuild `ISSUES.md`, create stubs for new fingerprints) and `bun run diag:check` (stale index fails).
+- [x] Docs: `docs/design_system.md` (error code in toasts), CLAUDE.md "Diagnostics" section (how to log, when to open or close a ledger issue).
 
