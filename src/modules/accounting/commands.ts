@@ -24,7 +24,7 @@ export const searchProviders: PaletteSearchProvider[] = [
                 group: "journal" as const,
                 title: e.number,
                 subtitle: e.description,
-                to: `/accounting/journal/${e.id}`,
+                to: { name: "journal-entry", params: { id: e.id } },
             }));
         },
     },
@@ -49,7 +49,7 @@ export const searchProviders: PaletteSearchProvider[] = [
                     title: a.name,
                     subtitle: `${a.code} — الرصيد ${formatMoney(a.balance)}`,
                     keywords: a.code,
-                    to: `/reports/ledger?account=${a.id}`,
+                    to: { name: "report-ledger", query: { account: a.id } },
                 }));
         },
     },
@@ -79,14 +79,14 @@ export const commands: PaletteCommand[] = [
         group: "actions",
         title: "قيد يدوي جديد",
         keywords: "محاسبة journal قيد",
-        to: "/accounting/journal/new",
+        to: { name: "journal-new" },
         permission: { area: "accounting", access: "write" },
     },
     {
         id: "action:chart-of-accounts",
         group: "actions",
         title: "شجرة الحسابات",
-        to: "/accounting/accounts",
+        to: { name: "accounts" },
         permission: { area: "accounting", access: "read" },
     },
 ];

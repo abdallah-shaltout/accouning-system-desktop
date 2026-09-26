@@ -1,5 +1,6 @@
 import type { Component } from 'vue';
-import type { RouteLocationNormalizedLoaded, RouteLocationRaw } from 'vue-router';
+import type { RouteLocationNormalizedLoaded } from 'vue-router';
+import type { AppRoute } from '@/modules/core/types/route';
 import type { Access, Area } from '@/modules/users/types';
 
 /**
@@ -54,7 +55,7 @@ export interface PaletteResult {
   icon?: Component;
   keywords?: string;
   /** Navigates here when chosen. Mutually exclusive with `run` in practice, but both are allowed. */
-  to?: RouteLocationRaw;
+  to?: AppRoute;
   /** Runs an arbitrary action (theme toggle, open a modal, etc.) instead of/in addition to navigating. */
   run?: () => void;
   permission?: PalettePermission;
