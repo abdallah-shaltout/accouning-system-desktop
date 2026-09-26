@@ -1,7 +1,8 @@
 # 21 — Real backend (Tauri + Rust + SeaORM + MariaDB)
 
-> **Status (2026-09-26):** D1–D3 answered. Part 01 written. 01.A (contract generator + D3
-> rounding in the mock) is done. 01.B–01.D wait on D8–D10.
+> **Status (2026-09-26):** planning closed. D1–D3 and D8–D10 answered. Part 01 written, 01.A done
+> (contract generator + D3 rounding in the mock). **Next session: 01.B, starting with `settings`.**
+> See the "Next step" section of `00-MASTER-PLAN.md`.
 
 The overview, rules, target layout, build order, definition of done and open decisions are all in
 [`00-MASTER-PLAN.md`](00-MASTER-PLAN.md). This README is only the entry point the `plans/`

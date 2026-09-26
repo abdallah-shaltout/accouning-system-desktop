@@ -5,6 +5,9 @@
 import path from 'node:path';
 import type { Disposition } from './types';
 
+/** D9 (plan 21): print templates move from per-device localStorage to the DB, shared per branch. */
+const d9 = { disposition: 'port', reason: 'D9 — templates move from localStorage to the DB, shared per branch' } as const;
+
 export const config = {
   /** Repo root — this file lives in scripts/contract/. */
   root: path.resolve(import.meta.dirname, '../..'),
@@ -48,7 +51,19 @@ export const config = {
    * Hand decisions that override the heuristic (Part 01 reviewers add rows here, always with a
    * reason). Key = the `wrap()` source name.
    */
-  overrides: {} as Record<string, { disposition: Disposition; reason: string }>,
+  overrides: {
+    'templates.listTemplates': d9,
+    'templates.getTemplate': d9,
+    'templates.getDefaultTemplate': d9,
+    'templates.saveTemplate': d9,
+    'templates.setAsDefault': d9,
+    'templates.duplicateTemplate': d9,
+    'templates.deleteTemplate': d9,
+    'templates.resetTemplateToDefaults': d9,
+    'templates.exportTemplate': d9,
+    'templates.importTemplate': d9,
+    'templates.createTemplate': d9,
+  } as Record<string, { disposition: Disposition; reason: string }>,
 
   /** Field-name patterns → DTO/column hints (only applied to fields whose type fits). */
   hints: {

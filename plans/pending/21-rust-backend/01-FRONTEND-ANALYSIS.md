@@ -1,8 +1,8 @@
 # 21 · Part 01 — Frontend analysis (the contract the Rust backend must honour)
 
 > **Status (2026-09-26):** 01.A done. Tooling is in place and D3 rounding is applied to the mock.
-> 01.B–01.D pending. 01.B needs D8 and D9 answered first (§4). Parts 02–04 are not written until
-> this part's gate is green.
+> D8–D10 are answered (§4). **Next: 01.B, starting with `settings`.** Parts 02–04 are not written
+> until this part's gate is green.
 
 ## 1. Purpose
 
@@ -41,13 +41,13 @@ write through an object passed into a helper is not tracked. Reviewers confirm t
 ## 3. What the first run found (2026-09-26)
 
 **339** functions: **298 port**, **8 rust-existing** (they already `invoke` `render_pdf` /
-`render_preview`), **33 frontend**. **46** MockDb tables, **254** module types, **240** mock-engine
+`render_preview`), **33 frontend**. After the D9 overrides: **309 port**, 8 rust-existing, 22 frontend. **46** MockDb tables, **254** module types, **240** mock-engine
 functions, **61** path-string links.
 
 | # | Finding (evidence) | Consequence |
 |---|---|---|
 | F1 | Shared managers are reached by: **ledger 42** fns, **stock 18**, **activity 74**, **numbering 46**, **period 42**, **currency 4** (README "Shared managers"). | That is the exact caller list for `shared::ledger/stock/activity`. Part 02 sizes and tests those modules against it. |
-| F2 | **Templates are per-device.** All 11 `templateService` fns use `localStorage` (`templateService.ts:14`, key `pdf_templates_v1`). The same holds for insight dismiss/snooze (`insightEngine`) and backup history (`backupService`, IndexedDB). | Under D1, a second terminal would print with different templates. Decision **D9**. |
+| F2 | **Templates are per-device.** All 11 `templateService` fns use `localStorage` (`templateService.ts:14`, key `pdf_templates_v1`). The same holds for insight dismiss/snooze (`insightEngine`) and backup history (`backupService`, IndexedDB). | **D9:** templates move to the DB, shared per branch. The 11 fns are overridden to `port`. Insight dismiss/snooze stays per device. |
 | F3 | **Terminal identity already exists.** `terminalId` is on held sales and shifts (`invoices/types/index.ts:163,208,229`). | The Rust `AppState` needs a stable terminal id per install. D8 decides how terminals reach the DB. |
 | F4 | **Auth is a mock.** `session = { userId: '' }` (`mocks/db.ts:257`), and `db.credentials` holds plain-text passwords (`mocks/db.ts`). | Rust owns the session and stores password + manager-PIN hashes (argon2). The `authService` contract (login/restore/logout/verifyManagerPin) stays the same. |
 | F5 | **Error codes** are a closed set: `NOT_FOUND` 92, `CONFLICT` 23, `FORBIDDEN` 16, `VALIDATION` 7, `UNAUTHORIZED` 2 (`mocks/utils.ts:52`). The UI shows the Arabic message. | `AppError` serializes to `{ code, message }` with the same five codes and the same Arabic messages (listed per module in 01.B). |
@@ -56,16 +56,17 @@ functions, **61** path-string links.
 | F8 | **Server-side validation** exists only as frontend Zod schemas (`parties/validators/partySchema.ts`, `products/validators/productSchema.ts`, `users/validators/userSchema.ts`) plus `ApiError('…','VALIDATION')` checks inside the mock. | Rust must re-validate every command input. The Zod schemas and mock checks are the rule list. |
 | F9 | **Dev-only surface:** `devToolsService.resetToEmpty/reloadDemoData`, and `accountingDebugService` (posting trace, invariants, drift, repro bundles). | These become debug-build-only Rust commands. A **snapshot importer** (MockDb JSON → MariaDB) serves demo data, the Part 04 parity harness and D10. |
 | F10 | **Backup** (`backupService`) snapshots the IndexedDB MockDb through `plugin-fs`. | Under MariaDB, backup/restore moves to `infrastructure/backup`. The service contract stays, and the dispositions flip to `port` in 01.B. |
+| F11 | **`StoreSettings` mixes branch-wide and per-machine values** (`settings/types/index.ts`, `printer`): store name, currency, country and plan 22's default `a4Template`/`imageTemplate` belong to the branch, but thermal `printerName`/`host`/`connection`, `a4PrinterName` and `labelPrinterName` belong to one machine. | Under D8, `db.settings` becomes one shared DB row, so one terminal saving its printer would change it for all. 01.D splits settings into **branch** (DB) and **device** (local to each install, e.g. the Tauri app-data folder). `settings.md` marks every `StoreSettings` field as one or the other. Plan 22 (in progress) adds the template defaults; they are branch-level, which matches D9. |
 
 ## 4. Decisions needed for this part
 
-D1–D3 are answered and recorded in `00-MASTER-PLAN.md`. New decisions:
+All decisions this part needs are answered (full text in `00-MASTER-PLAN.md` §9):
 
-| # | Question | Recommendation | Blocks |
-|---|---|---|---|
-| D8 | **How does a terminal reach the data?** (a) Every terminal runs its own Rust backend, connected over the LAN to the Main PC's MariaDB. (b) Terminals call the Main PC's app through an HTTP API. | **(a).** No second server to build. MariaDB already gives transactions and row locks between terminals, and the Main PC just hosts the DB plus the future sync worker. Cost: numbering and stock need row locks (`SELECT … FOR UPDATE`), and cross-terminal refresh needs a small change-version table that terminals poll. | 01.B concurrency notes, 02-A |
-| D9 | Should print **templates** be shared per branch (DB), or stay per device? | Templates go to the DB, shared per branch. Insight dismiss/snooze stays per device (personal UI state). | 01.B `templates`, `core` |
-| D10 | Does anyone have **real data** in the current IndexedDB store that must move into MariaDB? | Build the snapshot importer anyway (F9). Ship it as a one-time "import from previous version" step only if the answer is yes. | 02, 04 |
+| # | Decision | What 01.B / 01.D must record because of it |
+|---|---|---|
+| D8 | Each terminal runs its own Rust app, connected straight to the Main PC's MariaDB over the LAN. MariaDB row locks, no HTTP server. | Every module file's §5 "Concurrency" lists the rows two terminals can race on and the lock or unique constraint that settles it. `cross-cutting.md` specifies the change-version table for cross-terminal refresh (F6). |
+| D9 | Print templates move to the DB, shared per branch. | `templates.md` designs the `print_templates` DTO/entity from `PdfTemplate` (`templates/types`), with per-branch default handling (`setAsDefault`). |
+| D10 | Real/beta data exists. The snapshot importer ships to users. | `cross-cutting.md` specifies the import source (IndexedDB `mock-db`/`snapshot`/`current` + schema `version`, `localStorage` `pdf_templates_v1`) and the table → entity map the importer follows. Every module file notes fields that need transformation on import (path-string links, plain-text credentials → hashes, mock ids → UUIDv7). |
 
 ## 5. Phases
 
@@ -105,7 +106,7 @@ build order, so Part 03 can start on the first module while later ones are still
 - [ ] `settings.md` (42) · [ ] `setup.md` (21) · [ ] `users.md` (9) · [ ] `approvals.md` (5)
 - [ ] `parties.md` (16) · [ ] `products.md` (51) · [ ] `purchases.md` (12) · [ ] `invoices.md` (26)
 - [ ] `payments.md` (7) · [ ] `vouchers.md` (11) · [ ] `expenses.md` (11) · [ ] `accounting.md` (33)
-- [ ] `reports.md` (32) · [ ] `analytics.md` (3) · [ ] `core.md` (35) · [ ] `templates.md` (11, after D9)
+- [ ] `reports.md` (32) · [ ] `analytics.md` (3) · [ ] `core.md` (35) · [ ] `templates.md` (11, D9: DB per branch)
 - [ ] `diagnostics.md` (14): decide which read endpoints Rust serves in debug builds (F9)
 
 For each module file, the reviewer must:
@@ -139,6 +140,9 @@ For each module file, the reviewer must:
 - [ ] Auth + session (F4): login/restore/logout/manager PIN, password hashing, role checks (the
       same `area` roles as `core/helpers/navigation.ts`).
 - [ ] Terminal identity (F3) and what is per terminal (held sales, shift) vs. per branch.
+- [ ] Settings split (F11): every `StoreSettings` field classed **branch** (DB) or **device**
+      (local per install: printers, connection, backup folder on the Main PC). Define the device
+      store and the one `settingsService` contract that merges both, so pages don't change.
 - [ ] `AppError` catalogue (F5): code → HTTP-like meaning → how the UI shows it (`E-XXXX` toast).
 - [ ] Events (F6): the three names, payloads, and the cross-terminal refresh mechanism (D8).
 - [ ] Paging (`core/types/paging.ts` `PagedQuery`/`PagedResult`), sorting and search semantics
@@ -148,10 +152,15 @@ For each module file, the reviewer must:
 - [ ] **Table → entity ownership map** for all 46 tables: owning module, which become child
       tables (invoice lines, journal lines, allocations), and which are settings blobs (`settings`,
       `counters`). This is the direct input to Part 02-B.
+- [ ] **Import spec (D10):** how the shipped importer reads the old store (IndexedDB `mock-db` →
+      `snapshot` → `current`, `version` from `src/mocks/persist.ts`; `localStorage`
+      `pdf_templates_v1`), the per-table transforms (id → UUIDv7 with a kept mapping, path links →
+      `RouteRef`, `credentials` → argon2 hashes, templates → `print_templates` of the active branch),
+      and the rules: idempotent, one transaction, invariants green or roll back.
 
 ## 6. Gate (Part 01 is done when all of these hold)
 
-- [ ] D8, D9, D10 answered and recorded in `00-MASTER-PLAN.md`.
+- [x] D8, D9, D10 answered and recorded in `00-MASTER-PLAN.md` (2026-09-26).
 - [ ] 16 module files + `cross-cutting.md` complete, with every checklist box ticked.
 - [ ] Every service function has a confirmed disposition, either the heuristic's or an override
       with a reason.

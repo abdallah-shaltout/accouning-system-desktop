@@ -36,7 +36,7 @@
 | [`renderReportPdf`](../../../src/modules/core/services/pdfService.ts#L799) | `report: ReportDocument` | `Promise<Uint8Array<ArrayBufferLike> \| null>` | **rust-existing** — already calls Rust (render_pdf) |  |  |  |  |
 | [`resetToEmpty`](../../../src/modules/core/services/devToolsService.ts#L14) |  | `Promise<void>` | **port** — reads backend data |  |  |  |  |
 | [`sampleInvoicePayload`](../../../src/modules/core/services/pdfService.ts#L595) |  | `DocumentPayload` | **frontend** — pure computation, no data access |  |  |  |  |
-| [`saveFile`](../../../src/modules/core/services/saveFile.ts#L92) | `data: string \| Uint8Array<ArrayBufferLike> \| Blob, options: SaveFileOptions` | `Promise<string \| true \| null>` | **frontend** — webview/plugin only (@tauri-apps/api, @tauri-apps/plugin-di… |  |  |  |  |
+| [`saveFile`](../../../src/modules/core/services/saveFile.ts#L95) | `data: string \| Uint8Array<ArrayBufferLike> \| Blob, options: SaveFileOptions` | `Promise<string \| true \| null>` | **frontend** — webview/plugin only (@tauri-apps/api, @tauri-apps/plugin-di… |  |  |  |  |
 | [`saveReportPdf`](../../../src/modules/core/services/pdfService.ts#L822) | `report: ReportDocument, filename: string` | `Promise<boolean>` | **rust-existing** — already calls Rust (render_pdf) |  |  |  |  |
 | [`setThresholds`](../../../src/modules/core/services/insightEngine.ts#L28) | `patch: Partial<InsightThresholds>` | `InsightThresholds` | **port** — reads and writes backend data | settings |  |  |  |
 | [`snoozeInsight`](../../../src/modules/core/services/insightEngine.ts#L70) | `userId: string \| undefined, insightId: string, untilIso?: string \| undefined` | `void` | **frontend** — webview/plugin only (localStorage) |  |  |  |  |

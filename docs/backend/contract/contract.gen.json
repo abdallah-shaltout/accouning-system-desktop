@@ -5242,7 +5242,7 @@
       "service": "saveFile",
       "name": "saveFile",
       "file": "src/modules/core/services/saveFile.ts",
-      "line": 92,
+      "line": 95,
       "params": [
         {
           "name": "data",
@@ -21973,8 +21973,9 @@
         ],
         "capabilities": []
       },
-      "disposition": "frontend",
-      "dispositionReason": "webview/plugin only (localStorage)"
+      "disposition": "port",
+      "dispositionReason": "override: D9 — templates move from localStorage to the DB, shared per branch",
+      "rustCommand": "templates_create_template"
     },
     {
       "source": "templates.deleteTemplate",
@@ -22004,8 +22005,9 @@
         ],
         "capabilities": []
       },
-      "disposition": "frontend",
-      "dispositionReason": "webview/plugin only (localStorage)"
+      "disposition": "port",
+      "dispositionReason": "override: D9 — templates move from localStorage to the DB, shared per branch",
+      "rustCommand": "templates_delete_template"
     },
     {
       "source": "templates.duplicateTemplate",
@@ -22037,8 +22039,9 @@
         ],
         "capabilities": []
       },
-      "disposition": "frontend",
-      "dispositionReason": "webview/plugin only (localStorage)"
+      "disposition": "port",
+      "dispositionReason": "override: D9 — templates move from localStorage to the DB, shared per branch",
+      "rustCommand": "templates_duplicate_template"
     },
     {
       "source": "templates.exportTemplate",
@@ -22069,8 +22072,9 @@
         "platform": [],
         "capabilities": []
       },
-      "disposition": "frontend",
-      "dispositionReason": "pure computation, no data access"
+      "disposition": "port",
+      "dispositionReason": "override: D9 — templates move from localStorage to the DB, shared per branch",
+      "rustCommand": "templates_export_template"
     },
     {
       "source": "templates.getDefaultTemplate",
@@ -22103,8 +22107,9 @@
         ],
         "capabilities": []
       },
-      "disposition": "frontend",
-      "dispositionReason": "webview/plugin only (localStorage)"
+      "disposition": "port",
+      "dispositionReason": "override: D9 — templates move from localStorage to the DB, shared per branch",
+      "rustCommand": "templates_get_default_template"
     },
     {
       "source": "templates.getTemplate",
@@ -22136,8 +22141,9 @@
         ],
         "capabilities": []
       },
-      "disposition": "frontend",
-      "dispositionReason": "webview/plugin only (localStorage)"
+      "disposition": "port",
+      "dispositionReason": "override: D9 — templates move from localStorage to the DB, shared per branch",
+      "rustCommand": "templates_get_template"
     },
     {
       "source": "templates.importTemplate",
@@ -22170,8 +22176,9 @@
         ],
         "capabilities": []
       },
-      "disposition": "frontend",
-      "dispositionReason": "webview/plugin only (localStorage)"
+      "disposition": "port",
+      "dispositionReason": "override: D9 — templates move from localStorage to the DB, shared per branch",
+      "rustCommand": "templates_import_template"
     },
     {
       "source": "templates.listTemplates",
@@ -22204,8 +22211,9 @@
         ],
         "capabilities": []
       },
-      "disposition": "frontend",
-      "dispositionReason": "webview/plugin only (localStorage)"
+      "disposition": "port",
+      "dispositionReason": "override: D9 — templates move from localStorage to the DB, shared per branch",
+      "rustCommand": "templates_list_templates"
     },
     {
       "source": "templates.resetTemplateToDefaults",
@@ -22237,8 +22245,9 @@
         ],
         "capabilities": []
       },
-      "disposition": "frontend",
-      "dispositionReason": "webview/plugin only (localStorage)"
+      "disposition": "port",
+      "dispositionReason": "override: D9 — templates move from localStorage to the DB, shared per branch",
+      "rustCommand": "templates_reset_template_to_defaults"
     },
     {
       "source": "templates.saveTemplate",
@@ -22270,8 +22279,9 @@
         ],
         "capabilities": []
       },
-      "disposition": "frontend",
-      "dispositionReason": "webview/plugin only (localStorage)"
+      "disposition": "port",
+      "dispositionReason": "override: D9 — templates move from localStorage to the DB, shared per branch",
+      "rustCommand": "templates_save_template"
     },
     {
       "source": "templates.setAsDefault",
@@ -22301,8 +22311,9 @@
         ],
         "capabilities": []
       },
-      "disposition": "frontend",
-      "dispositionReason": "webview/plugin only (localStorage)"
+      "disposition": "port",
+      "dispositionReason": "override: D9 — templates move from localStorage to the DB, shared per branch",
+      "rustCommand": "templates_set_as_default"
     },
     {
       "source": "users.createUser",
@@ -38325,7 +38336,7 @@
         },
         {
           "name": "printer",
-          "type": "{ mode: PrinterMode; thermalWidthMm: ThermalWidth; /** Phase 14: native transport settings for the receipt printer. Optional — absent until the printer settings page is saved once (mirrors `backup?`'s lazy-init pattern). */ thermal?: ThermalPrinterSettings; /** Phase 14: A4 printer is informational-only (system default is used; no printer_name override yet). */ a4PrinterName?: string; /** Phase 14: label printer is a placeholder field — label printing itself is Phase 11b's job. */ labelPrinterName?: string; }",
+          "type": "{ mode: PrinterMode; thermalWidthMm: ThermalWidth; /** Phase 14: native transport settings for the receipt printer. Optional — absent until the printer settings page is saved once (mirrors `backup?`'s lazy-init pattern). */ thermal?: ThermalPrinterSettings; /** Phase 14: A4 printer is informational-only (system default is used; no printer_name override yet). */ a4PrinterName?: string; /** Phase 14: label printer is a placeholder field — label printing itself is Phase 11b's job. */ labelPrinterName?: string; /** Plan 22: default A4 / mobile-image invoice template (print page gallery → \"تعيين كافتراضي\"). Absent = the registry default. */ a4Template?: import('@/modules/invoices/helpers/invoiceTemplates').A4TemplateId; imageTemplate?: import('@/modules/invoices/helpers/invoiceTemplates').ImageTemplateId; }",
           "optional": false
         },
         {

@@ -26,7 +26,7 @@ are **heuristic suggestions** until a reviewer confirms them in `scripts/contrac
 | **reports** | 32 | 32 |  |  |  |  | 0 |  | [reports.md](reports.md) |
 | **settings** | 42 | 36 |  | 6 |  |  | 12 | activity, ledger, numbering, period | [settings.md](settings.md) |
 | **setup** | 21 | 21 |  |  |  |  | 15 | activity, ledger, numbering, period, stock | [setup.md](setup.md) |
-| **templates** | 11 |  |  | 11 |  |  | 0 |  | [templates.md](templates.md) |
+| **templates** | 11 | 11 |  |  |  |  | 0 |  | [templates.md](templates.md) |
 | **users** | 9 | 9 |  |  |  |  | 4 | activity | [users.md](users.md) |
 | **vouchers** | 11 | 11 |  |  |  |  | 6 | activity, ledger, numbering, period | [vouchers.md](vouchers.md) |
 

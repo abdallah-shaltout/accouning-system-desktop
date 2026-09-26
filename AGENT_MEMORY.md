@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **753 files / 118,436 lines** (json 4, md 78, rust 22, ts 220, vue 429).
+Indexed: **756 files / 118,771 lines** (json 4, md 79, rust 22, ts 222, vue 429).
 
 **Lookup order:** Where-to-find → Open diagnostics → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -71,7 +71,7 @@ Known failures not yet fixed — check before starting work in an affected area.
 ## Architecture (layers & data flow)
 
 ```text
-pages (112) / components (353) / controllers (23)   src/modules/<domain>/…
+pages (112) / components (353) / controllers (24)   src/modules/<domain>/…
         │  may call ONLY ▼                  (seam rule — see Boundary report)
 services (39)   src/modules/<domain>/services/*   ← swap point for a real backend
    │                                   │
@@ -90,16 +90,16 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **accounting** | 12 / 3370 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
 | **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
 | **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
-| **core** | 348 / 19554 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 10, types 5 | 5 |  |
+| **core** | 348 / 19557 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 10, types 5 | 5 |  |
 | **diagnostics** | 20 / 2061 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 1 | 0 | yes |
 | **expenses** | 8 / 945 | pages 5, routes 1, services 1, types 1 | 5 |  |
-| **invoices** | 30 / 5385 | commands 1, components 13, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
+| **invoices** | 32 / 5589 | commands 1, components 13, controllers 2, helpers 3, pages 10, routes 1, services 1, types 1 | 11 | yes |
 | **parties** | 11 / 1846 | components 1, helpers 3, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
 | **payments** | 6 / 877 | pages 3, routes 1, services 1, types 1 | 3 |  |
 | **products** | 32 / 5092 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
 | **purchases** | 11 / 1712 | commands 1, components 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
 | **reports** | 44 / 6206 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
-| **settings** | 33 / 4964 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
+| **settings** | 33 / 4967 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
 | **setup** | 17 / 1698 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
 | **templates** | 4 / 919 | pages 2, services 1, types 1 | 0 |  |
 | **users** | 11 / 966 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
@@ -289,20 +289,20 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **core** | users (19), mocks (16), products (14), invoices (13), settings (10), diagnostics (8), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), approvals (1), payments (1), reports (1), setup (1) | 18 |
 | **diagnostics** | core (26), mocks (5) | 18 |
 | **expenses** | core (59), accounting (3), users (3), mocks (2), parties (2), settings (2), diagnostics (1) | 2 |
-| **invoices** | core (173), products (10), mocks (9), settings (9), parties (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
+| **invoices** | core (177), products (10), mocks (9), settings (9), parties (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
 | **mocks** | core (14), invoices (9), accounting (8), products (8), settings (5), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 17 |
 | **parties** | core (60), mocks (6), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
 | **payments** | core (42), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
 | **products** | core (206), mocks (13), users (13), settings (8), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
 | **purchases** | core (79), products (5), users (4), invoices (3), mocks (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
 | **reports** | core (163), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
-| **settings** | core (175), users (18), mocks (14), diagnostics (7), invoices (3), products (3), templates (2) | 12 |
+| **settings** | core (175), users (18), mocks (14), diagnostics (7), invoices (5), products (3), templates (2) | 12 |
 | **setup** | core (57), mocks (8), settings (4), accounting (2), products (2), diagnostics (1), parties (1), users (1) | 3 |
 | **templates** | core (16), diagnostics (1) | 3 |
 | **users** | core (37), mocks (5), products (3), diagnostics (2) | 15 |
 | **vouchers** | core (48), mocks (3), accounting (2), settings (2), users (2), diagnostics (1), invoices (1) | 3 |
 
-**Most-used npm packages** (files importing): `vue (392)`, `@lucide/vue (166)`, `reka-ui (118)`, `vue-router (98)`, `@vueuse/core (79)`, `@tauri-apps/api (16)`, `class-variance-authority (9)`, `pinia (9)`, `zod (5)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
+**Most-used npm packages** (files importing): `vue (393)`, `@lucide/vue (166)`, `reka-ui (118)`, `vue-router (98)`, `@vueuse/core (79)`, `@tauri-apps/api (16)`, `class-variance-authority (9)`, `pinia (9)`, `zod (5)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
 
 ## Rust ↔ Vue IPC contract
 
@@ -430,7 +430,7 @@ _none_
 | Desktop shell | Tauri v2 — product `Equal`, identifier `com.abdallah.accounting-app` (never change) |
 | Rust crates | `tauri`, `tauri-plugin-opener`, `serde`, `serde_json`, `tauri-plugin-sql`, `tauri-plugin-fs`, `tauri-plugin-dialog`, `tauri-plugin-log`, `typst`, `typst-pdf`, `typst-library`, `typst-layout`, `typst-syntax`, `typst-utils`, `typst-svg`, `qrcode`, `image`, `ecow`, `time`, `lopdf`, `resvg`, `usvg`, `tiny-skia`, `windows` |
 | Rust extra binaries | `typst_spike`, `pdf_smoke`, `report_smoke`, `thermal_smoke` |
-| Frontend deps | `@fontsource-variable/cairo`, `@fontsource/ibm-plex-sans-arabic`, `@fontsource/noto-naskh-arabic`, `@fontsource/tajawal`, `@lucide/vue`, `@tailwindcss/vite`, `@tauri-apps/api`, `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@vueuse/core`, `bwip-js`, `class-variance-authority`, `clsx`, `exceljs`, `fflate`, `libphonenumber-js`, `pinia`, `reka-ui`, `tailwind-merge`, `tailwindcss`, `tw-animate-css`, `uqr`, `vue`, `vue-router`, `vue-sonner`, `zod` |
+| Frontend deps | `@fontsource-variable/cairo`, `@fontsource/ibm-plex-sans-arabic`, `@fontsource/noto-naskh-arabic`, `@fontsource/tajawal`, `@lucide/vue`, `@tailwindcss/vite`, `@tauri-apps/api`, `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@vueuse/core`, `bwip-js`, `class-variance-authority`, `clsx`, `exceljs`, `fflate`, `libphonenumber-js`, `modern-screenshot`, `pinia`, `reka-ui`, `tailwind-merge`, `tailwindcss`, `tw-animate-css`, `uqr`, `vue`, `vue-router`, `vue-sonner`, `zod` |
 | Dev deps | `@tauri-apps/cli`, `@types/node`, `@vitejs/plugin-vue`, `typescript`, `vite`, `vue-tsc` |
 
 | Command | Runs |
@@ -536,3 +536,4 @@ _none_
 | `plans/pending/21-rust-backend/01-FRONTEND-ANALYSIS.md` | 21 · Part 01 — Frontend analysis (the contract the Rust backend must honour) |
 | `plans/pending/21-rust-backend/01-frontend-analysis/TEMPLATE.md` | 21 · 01.B — `<module>` contract |
 | `plans/pending/21-rust-backend/README.md` | 21 — Real backend (Tauri + Rust + SeaORM + MariaDB) |
+| `plans/pending/22-invoice-templates/README.md` | 22 — Invoice templates: 10 × A4, 10 × mobile image, thermal unchanged |

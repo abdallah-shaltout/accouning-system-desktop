@@ -1,9 +1,10 @@
 # 21 — Real backend: Tauri + Rust + SeaORM + MariaDB (master plan)
 
-> **Status (2026-09-26):** D1–D3 are answered (§9). Part 01 is written, and its phase 01.A (the
-> contract generator + D3 rounding in the mock) is done. 01.B–01.D wait on D8–D10
-> (see `01-FRONTEND-ANALYSIS.md` §4). Parts 02–04 are written one at a time, each after the part
-> before it passes its gate, so every plan file uses real findings instead of guesses.
+> **Status (2026-09-26):** planning is closed. Decisions D1–D3 and D8–D10 are answered (§9).
+> Part 01 is written, and its phase 01.A (the contract generator + D3 rounding in the mock) is
+> done. **Next session starts at 01.B** (see "Next step" at the bottom). Parts 02–04 are written
+> one at a time, each after the part before it passes its gate, so every plan file uses real
+> findings instead of guesses.
 
 ## 1. Goal
 
@@ -162,6 +163,9 @@ that the earlier ones create. Reports come last because they only read what the 
 | D1 | **Branch Master Server.** Each branch has one Main PC that runs the app and hosts the branch's MariaDB. Other devices in the branch connect to it over the LAN. The branch works 100% offline. Later, only the Main PC syncs with the central cloud server (Coolify). | One MariaDB per branch. Installer and backup target the Main PC. `sync_status` exists from day one. The sync worker (Main PC only) is a later part. How terminals reach the DB is D8. |
 | D2 | **UUIDv7** for every primary key. | Rule 8 above. Time-ordered inserts, no clustered-index fragmentation, collision-free across branches for the cloud sync. |
 | D3 | **Half away from zero**, in both backends. | Applied to the mock in 01.A before any porting (rule 5 above). |
+| D8 | **Every terminal runs its own Tauri/Rust app**, which connects straight to the Main PC's MariaDB over the LAN (a connection string). There is no intermediary HTTP server. Concurrency relies on MariaDB connections and row-level locks. | 02-A: a connection-string setting (Main PC = `localhost`, terminals = the Main PC's LAN address), a pool per app. Races between terminals are settled in the DB: numbering and stock rows use `SELECT … FOR UPDATE` inside the command's transaction, and unique constraints guard document numbers. Cross-terminal refresh (`ledger:changed` etc.) comes from a small change-version table that each app polls. |
+| D9 | **Print templates move to the database, shared per branch.** Every cashier prints the same formats. | The 11 `templateService` functions are `port` (overrides in `scripts/contract/config.ts`). A `print_templates` entity per branch. The existing `localStorage` templates (`pdf_templates_v1`) are imported once by the D10 importer. Insight dismiss/snooze stays per device (personal UI state). |
+| D10 | **Real/beta data exists in browser storage.** Build the snapshot importer, and ship it. | One importer (MockDb snapshot JSON → MariaDB, ids remapped to UUIDv7 with a kept mapping) does three jobs: (1) a one-time "import from the previous version" step shipped to users, reading the IndexedDB snapshot (`src/mocks/persist.ts`, DB `mock-db`, store `snapshot`, key `current`, schema `version`) plus `localStorage` templates; (2) demo data in dev; (3) the Part 04 parity harness. It must be idempotent, run in one transaction, and end with the Rust invariants green, or roll back. |
 
 ### Open
 
@@ -171,9 +175,6 @@ that the earlier ones create. Reports come last because they only read what the 
 | D5 | **Mock after cutover.** Keep it for browser dev/e2e (kept equal by the parity harness) or delete it? | Keep until Tauri e2e covers the full suite, then delete. | 04-E |
 | D6 | **Sync payload.** What the Main PC sends to and receives from the cloud. | Column only (`sync_status`) now. The sync design becomes its own part once the cloud API exists. | none now |
 | D7 | **Undo in a closed period.** Refuse, or post the compensation on the first open date? | Refuse unless admin, which matches `reverseJournal`'s `allowClosedPeriod: isAdmin` today. | 02-E |
-| D8 | **How a terminal reaches the data.** Its own Rust backend talking to the Main PC's MariaDB, or an HTTP API on the Main PC? | Own Rust backend → Main PC's MariaDB (details in `01-FRONTEND-ANALYSIS.md` §4). | 01.B, 02-A |
-| D9 | **Print templates** shared per branch (DB), or per device (today: `localStorage`)? | Shared per branch, in the DB. | 01.B |
-| D10 | **Existing data** in the IndexedDB store that must move into MariaDB? | Build the snapshot importer anyway, and ship it only if yes. | 02, 04 |
 
 ## 10. Risks we plan for
 
@@ -186,5 +187,13 @@ that the earlier ones create. Reports come last because they only read what the 
 
 ## Next step
 
-Answer **D8–D10**, then run Part 01's phases 01.B → 01.D (`01-FRONTEND-ANALYSIS.md` §5). The
-first module review (`settings`) can start as soon as D8 is answered.
+Open a fresh session and say: *"Execute plan 21, Part 01 phase 01.B, starting with `settings`."*
+The agent should:
+
+1. Read `CLAUDE.md` → `AGENT_MEMORY.md` → this file → `01-FRONTEND-ANALYSIS.md`.
+2. Run `bun run contract`. If it reports changes, the code moved since planning (plan 22, invoice
+   templates, was in progress on 2026-09-26), so review the diff in `docs/backend/contract/` first.
+3. Copy `01-frontend-analysis/TEMPLATE.md` to `01-frontend-analysis/settings.md`, and fill it from
+   `docs/backend/contract/settings.md` + the mock files in its closure. Then move to the next module
+   in the 01.B order.
+4. Use only the fast gates between steps. Full e2e runs once, at the very end (§8).
