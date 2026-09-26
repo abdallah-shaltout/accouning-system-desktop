@@ -14,23 +14,23 @@ const settingsStore = useSettingsStore();
 // before this phase for a single-branch, single-currency, no-cost-center business.
 const tabs = computed(() =>
   [
-    { to: '/settings/general', label: 'عام', show: auth.can('settings') },
-    { to: '/settings/taxes', label: 'الضرائب', show: auth.can('settings') },
-    { to: '/settings/payment-methods', label: 'طرق الدفع', show: auth.can('settings') },
-    { to: '/settings/products', label: 'المنتجات', show: auth.can('inventory', 'write') },
-    { to: '/settings/branches', label: 'الفروع', show: auth.can('settings') && !!settingsStore.settings?.features?.branches },
-    { to: '/settings/cost-centers', label: 'مراكز التكلفة', show: auth.can('settings') && !!settingsStore.settings?.features?.costCenters },
-    { to: '/settings/currencies', label: 'العملات', show: auth.can('settings') && !!settingsStore.settings?.features?.currencies },
-    { to: '/settings/recommendations', label: 'التوصيات', show: auth.can('settings') },
-    { to: '/settings/roles', label: 'المستخدمون والأدوار', show: auth.can('users') },
+    { to: { name: 'settings-general' } as const, label: 'عام', show: auth.can('settings') },
+    { to: { name: 'settings-taxes' } as const, label: 'الضرائب', show: auth.can('settings') },
+    { to: { name: 'settings-payment-methods' } as const, label: 'طرق الدفع', show: auth.can('settings') },
+    { to: { name: 'settings-products' } as const, label: 'المنتجات', show: auth.can('inventory', 'write') },
+    { to: { name: 'settings-branches' } as const, label: 'الفروع', show: auth.can('settings') && !!settingsStore.settings?.features?.branches },
+    { to: { name: 'settings-cost-centers' } as const, label: 'مراكز التكلفة', show: auth.can('settings') && !!settingsStore.settings?.features?.costCenters },
+    { to: { name: 'settings-currencies' } as const, label: 'العملات', show: auth.can('settings') && !!settingsStore.settings?.features?.currencies },
+    { to: { name: 'settings-recommendations' } as const, label: 'التوصيات', show: auth.can('settings') },
+    { to: { name: 'settings-roles' } as const, label: 'المستخدمون والأدوار', show: auth.can('users') },
     // 18.B4: business audit trail, admin-only (same gate as the roles tab).
-    { to: '/settings/audit-log', label: 'سجل التدقيق', show: auth.can('users') },
-    { to: '/settings/printing', label: 'الطباعة والأجهزة', show: auth.can('settings') },
-    { to: '/settings/appearance', label: 'المظهر', show: true },
-    { to: '/settings/keyboard-shortcuts', label: 'اختصارات لوحة المفاتيح', show: true },
-    { to: '/settings/backup', label: 'النسخ الاحتياطي', show: auth.can('settings') },
+    { to: { name: 'settings-audit-log' } as const, label: 'سجل التدقيق', show: auth.can('users') },
+    { to: { name: 'settings-printing' } as const, label: 'الطباعة والأجهزة', show: auth.can('settings') },
+    { to: { name: 'settings-appearance' } as const, label: 'المظهر', show: true },
+    { to: { name: 'settings-keyboard-shortcuts' } as const, label: 'اختصارات لوحة المفاتيح', show: true },
+    { to: { name: 'settings-backup' } as const, label: 'النسخ الاحتياطي', show: auth.can('settings') },
     // 18.B6: version info + support-bundle export, open to every signed-in user.
-    { to: '/settings/about', label: 'حول / الدعم', show: true },
+    { to: { name: 'settings-about' } as const, label: 'حول / الدعم', show: true },
   ].filter((t) => t.show),
 );
 </script>
@@ -40,10 +40,10 @@ const tabs = computed(() =>
     <nav class="flex gap-1" aria-label="أقسام الإعدادات">
       <RouterLink
         v-for="t in tabs"
-        :key="t.to"
+        :key="t.to.name"
         :to="t.to"
         class="-mb-px shrink-0 border-b-2 px-3 py-2 text-body transition-colors"
-        :class="route.path === t.to ? 'border-primary font-medium text-text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'"
+        :class="route.name === t.to.name ? 'border-primary font-medium text-text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'"
       >
         {{ t.label }}
       </RouterLink>

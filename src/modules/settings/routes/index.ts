@@ -3,7 +3,7 @@ import type { RouteRecordRaw } from 'vue-router';
 const section = 'الإعدادات';
 
 const routes: RouteRecordRaw[] = [
-  { path: '/settings', redirect: '/settings/general' },
+  { path: '/settings', name: 'settings', redirect: { name: 'settings-general' } },
   { path: '/settings/general', name: 'settings-general', component: () => import('../pages/GeneralSettingsPage.vue'), meta: { title: 'عام', section, area: 'settings' } },
   // Phase 3 (docs/v2/06-sales-and-pos.md §3, docs/v2/09-purchases-payments-expenses.md §2): tax
   // categories (S/Z/E/O) and payment methods, split out of the old "General & taxes" page.

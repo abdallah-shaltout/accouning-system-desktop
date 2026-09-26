@@ -19,7 +19,7 @@ const actions = computed(() => QUICK_ACTIONS.filter((a) => auth.can(a.area, 'wri
   <SidebarGroup v-if="actions.length && state === 'expanded'">
     <SidebarGroupLabel>إجراءات سريعة</SidebarGroupLabel>
     <SidebarMenu>
-      <SidebarMenuItem v-for="action in actions" :key="action.to">
+      <SidebarMenuItem v-for="action in actions" :key="action.label">
         <SidebarMenuButton as-child size="sm">
           <RouterLink :to="action.to">
             <component :is="action.icon" />

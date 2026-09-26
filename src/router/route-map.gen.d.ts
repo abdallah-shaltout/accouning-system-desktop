@@ -90,6 +90,7 @@ export interface RouteNamedMap {
   'report-vat': RouteRecordInfo<'report-vat', '/reports/vat', Record<never, never>, Record<never, never>>;
   'report-vat-detail': RouteRecordInfo<'report-vat-detail', '/reports/vat-detail', Record<never, never>, Record<never, never>>;
   'reports': RouteRecordInfo<'reports', '/reports', Record<never, never>, Record<never, never>>;
+  'settings': RouteRecordInfo<'settings', '/settings', Record<never, never>, Record<never, never>>;
   'settings-about': RouteRecordInfo<'settings-about', '/settings/about', Record<never, never>, Record<never, never>>;
   'settings-appearance': RouteRecordInfo<'settings-appearance', '/settings/appearance', Record<never, never>, Record<never, never>>;
   'settings-audit-log': RouteRecordInfo<'settings-audit-log', '/settings/audit-log', Record<never, never>, Record<never, never>>;

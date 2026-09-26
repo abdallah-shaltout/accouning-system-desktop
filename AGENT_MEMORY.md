@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **697 files / 72,625 lines** (md 41, rust 22, ts 214, vue 420).
+Indexed: **697 files / 72,682 lines** (md 41, rust 22, ts 214, vue 420).
 
 **Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -58,16 +58,16 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **accounting** | 12 / 3340 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
 | **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
 | **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
-| **core** | 340 / 18427 | commandPalette 1, components 294, controllers 14, helpers 15, pages 4, routes 1, services 7, types 4 | 5 |  |
-| **diagnostics** | 20 / 2060 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 1 | 0 | yes |
+| **core** | 340 / 18437 | commandPalette 1, components 294, controllers 14, helpers 15, pages 4, routes 1, services 7, types 4 | 5 |  |
+| **diagnostics** | 20 / 2061 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 1 | 0 | yes |
 | **expenses** | 8 / 962 | pages 5, routes 1, services 1, types 1 | 5 |  |
 | **invoices** | 29 / 5248 | commands 1, components 12, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
 | **parties** | 10 / 1793 | components 1, helpers 2, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
 | **payments** | 6 / 888 | pages 3, routes 1, services 1, types 1 | 3 |  |
 | **products** | 30 / 5045 | components 6, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
 | **purchases** | 10 / 1633 | commands 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
-| **reports** | 44 / 6198 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
-| **settings** | 29 / 5093 | commands 1, components 1, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
+| **reports** | 44 / 6199 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
+| **settings** | 29 / 5094 | commands 1, components 1, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
 | **setup** | 17 / 1608 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
 | **templates** | 4 / 919 | pages 2, services 1, types 1 | 0 |  |
 | **users** | 11 / 963 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
@@ -211,7 +211,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | reports | `/reports/branch-comparison` | report-branch-comparison | مقارنة الفروع | reports | BranchComparisonPage.vue |
 | reports | `/reports/business-health` | report-business-health | الصحة المالية | reports | BusinessHealthPage.vue |
 | reports | `/reports/profit-leakage` | report-profit-leakage | تسرب الربح | reports | ProfitLeakagePage.vue |
-| settings | `/settings` |  |  |  | (redirect) |
+| settings | `/settings` | settings |  |  | (redirect) |
 | settings | `/settings/general` | settings-general | عام | settings | GeneralSettingsPage.vue |
 | settings | `/settings/taxes` | settings-taxes | الضرائب | settings | TaxesSettingsPage.vue |
 | settings | `/settings/payment-methods` | settings-payment-methods | طرق الدفع | settings | PaymentMethodsSettingsPage.vue |
@@ -252,7 +252,7 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **app** | core (14), settings (5), diagnostics (4), users (3), accounting (2), approvals (2), invoices (2), mocks (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), parties (1), payments (1), products (1), setup (1) | 1 |
 | **approvals** | core (11), mocks (2), diagnostics (1), users (1) | 4 |
 | **core** | mocks (21), users (19), invoices (13), products (12), settings (10), diagnostics (7), parties (3), purchases (3), accounting (2), templates (2), vouchers (2), app (1), payments (1), reports (1), setup (1) | 18 |
-| **diagnostics** | core (25), mocks (5) | 18 |
+| **diagnostics** | core (26), mocks (5) | 18 |
 | **expenses** | core (59), mocks (3), users (3), accounting (2), parties (2), settings (2), diagnostics (1) | 2 |
 | **invoices** | core (164), mocks (9), settings (9), parties (8), products (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
 | **mocks** | invoices (9), accounting (8), products (8), settings (5), diagnostics (4), core (3), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 17 |
@@ -260,8 +260,8 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **payments** | core (44), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
 | **products** | core (202), mocks (15), users (13), settings (7), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
 | **purchases** | core (76), mocks (4), products (4), users (4), invoices (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
-| **reports** | core (158), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
-| **settings** | core (147), users (18), mocks (16), diagnostics (7), invoices (3), products (3), templates (2) | 11 |
+| **reports** | core (159), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
+| **settings** | core (148), users (18), mocks (16), diagnostics (7), invoices (3), products (3), templates (2) | 11 |
 | **setup** | core (49), mocks (9), settings (4), accounting (2), products (2), diagnostics (1), parties (1), users (1) | 3 |
 | **templates** | core (16), diagnostics (1) | 3 |
 | **users** | core (36), mocks (7), products (3), diagnostics (2) | 15 |

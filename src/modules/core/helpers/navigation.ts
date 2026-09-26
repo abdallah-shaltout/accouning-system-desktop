@@ -27,10 +27,11 @@ import {
     Wallet,
 } from "@lucide/vue";
 import type { Area } from "@/modules/users/types";
+import type { AppRoute } from "@/modules/core/types/route";
 
 export interface NavItem {
     label: string;
-    to: string;
+    to: AppRoute;
     icon: Component;
     area: Area;
     /** Match only this exact path (otherwise any sub-path activates the item). */
@@ -54,7 +55,7 @@ export const NAVIGATION: NavGroup[] = [
         items: [
             {
                 label: "الرئيسية",
-                to: "/",
+                to: { name: 'home' },
                 icon: House,
                 area: "dashboard",
                 exact: true,
@@ -67,26 +68,26 @@ export const NAVIGATION: NavGroup[] = [
         items: [
             {
                 label: "نقطة البيع",
-                to: "/pos",
+                to: { name: 'pos' },
                 icon: ShoppingCart,
                 area: "pos",
             },
-            { label: "الورديات", to: "/pos/shifts", icon: Wallet, area: "pos" },
+            { label: "الورديات", to: { name: 'pos-shifts' }, icon: Wallet, area: "pos" },
             {
                 label: "الفواتير",
-                to: "/invoices",
+                to: { name: 'invoices' },
                 icon: ReceiptText,
                 area: "sales",
             },
             {
                 label: "فاتورة جديدة",
-                to: "/sales/invoices/new",
+                to: { name: 'invoice-new' },
                 icon: Receipt,
                 area: "sales",
             },
             {
                 label: "عروض الأسعار",
-                to: "/sales/quotations",
+                to: { name: 'quotations' },
                 icon: ClipboardList,
                 area: "sales",
             },
@@ -98,50 +99,50 @@ export const NAVIGATION: NavGroup[] = [
         items: [
             {
                 label: "المنتجات",
-                to: "/products",
+                to: { name: 'products' },
                 icon: Package,
                 area: "inventory",
             },
             {
                 label: "التصنيفات والوحدات",
-                to: "/catalog/categories",
+                to: { name: 'categories' },
                 icon: FolderTree,
                 area: "inventory",
             },
             {
                 label: "قوائم الأسعار",
-                to: "/catalog/price-lists",
+                to: { name: 'price-lists' },
                 icon: Tags,
                 area: "inventory",
             },
             {
                 label: "تسويات المخزون",
-                to: "/inventory/adjustments",
+                to: { name: 'adjustments' },
                 icon: ClipboardList,
                 area: "inventory",
             },
             {
                 label: "الجرد",
-                to: "/inventory/counts",
+                to: { name: 'counts' },
                 icon: ClipboardCheck,
                 area: "inventory",
             },
             {
                 label: "حركة المخزون",
-                to: "/inventory/movements",
+                to: { name: 'movements' },
                 icon: ArrowLeftRight,
                 area: "inventory",
             },
             {
                 label: "تقرير الصلاحية",
-                to: "/inventory/expiry",
+                to: { name: 'expiry' },
                 icon: AlertTriangle,
                 area: "inventory",
             },
             // v2 phase 9 (docs/v2/07 §4, deferred from phase 6): branch-to-branch stock transfers.
             {
                 label: "تحويلات الفروع",
-                to: "/inventory/transfers",
+                to: { name: 'transfers' },
                 icon: Truck,
                 area: "inventory",
             },
@@ -153,13 +154,13 @@ export const NAVIGATION: NavGroup[] = [
         items: [
             {
                 label: "العملاء",
-                to: "/customers",
+                to: { name: 'customers' },
                 icon: Users,
                 area: "parties",
             },
             {
                 label: "الموردين",
-                to: "/suppliers",
+                to: { name: 'suppliers' },
                 icon: Truck,
                 area: "parties",
             },
@@ -171,13 +172,13 @@ export const NAVIGATION: NavGroup[] = [
         items: [
             {
                 label: "أوامر الشراء",
-                to: "/purchases",
+                to: { name: 'purchases' },
                 icon: ShoppingBag,
                 area: "purchases",
             },
             {
                 label: "المصروفات",
-                to: "/expenses",
+                to: { name: 'expenses' },
                 icon: Receipt,
                 area: "expenses",
             },
@@ -189,31 +190,31 @@ export const NAVIGATION: NavGroup[] = [
         items: [
             {
                 label: "شجرة الحسابات",
-                to: "/accounting/accounts",
+                to: { name: 'accounts' },
                 icon: BookOpen,
                 area: "accounting",
             },
             {
                 label: "القيود اليومية",
-                to: "/accounting/journal",
+                to: { name: 'journal' },
                 icon: Wallet,
                 area: "accounting",
             },
             {
                 label: "قوالب القيود المتكررة",
-                to: "/accounting/journal-templates",
+                to: { name: 'journal-templates' },
                 icon: Repeat,
                 area: "accounting",
             },
             {
                 label: "تسوية ضريبة القيمة المضافة",
-                to: "/accounting/vat-settlement",
+                to: { name: 'vat-settlement' },
                 icon: Receipt,
                 area: "accounting",
             },
             {
                 label: "السنة المالية",
-                to: "/accounting/fiscal-years",
+                to: { name: 'fiscal-years' },
                 icon: CalendarRange,
                 area: "accounting",
             },
@@ -225,19 +226,19 @@ export const NAVIGATION: NavGroup[] = [
         items: [
             {
                 label: "سندات القبض والصرف",
-                to: "/payments",
+                to: { name: 'payments' },
                 icon: HandCoins,
                 area: "payments",
             },
             {
                 label: "تسوية البطاقات",
-                to: "/payments/settlements",
+                to: { name: 'card-settlements' },
                 icon: CreditCard,
                 area: "payments",
             },
             {
                 label: "السندات العامة",
-                to: "/vouchers",
+                to: { name: 'vouchers' },
                 icon: Wallet,
                 area: "payments",
             },
@@ -249,14 +250,14 @@ export const NAVIGATION: NavGroup[] = [
         items: [
             {
                 label: "التقارير",
-                to: "/reports",
+                to: { name: 'reports' },
                 icon: ChartColumn,
                 area: "reports",
             },
             // v2 phase 10 (docs/v2/11-journal-dashboard-insights.md Part C).
             {
                 label: "التحليلات",
-                to: "/analytics",
+                to: { name: 'analytics' },
                 icon: LineChart,
                 area: "analytics",
             },
@@ -269,14 +270,14 @@ export const NAVIGATION: NavGroup[] = [
             // v2 phase 13b (docs/v2/14-platform.md §6): async manager approvals queue.
             {
                 label: "طلبات الاعتماد",
-                to: "/approvals",
+                to: { name: 'approvals' },
                 icon: ShieldCheck,
                 area: "approvals",
             },
-            { label: "المستخدمين", to: "/users", icon: UserCog, area: "users" },
+            { label: "المستخدمين", to: { name: 'users' }, icon: UserCog, area: "users" },
             {
                 label: "الإعدادات",
-                to: "/settings",
+                to: { name: 'settings' },
                 icon: Settings,
                 area: "settings",
             },
@@ -286,19 +287,19 @@ export const NAVIGATION: NavGroup[] = [
 
 export interface QuickAction {
     label: string;
-    to: string;
+    to: AppRoute;
     icon: Component;
     area: Area;
 }
 
 /** "إجراءات سريعة" list below the groups (docs/v2/17 Phase D — the sidebar-07 "Projects" slot). Filtered by permission, hidden in icon mode. */
 export const QUICK_ACTIONS: QuickAction[] = [
-    { label: "بيع جديد", to: "/pos", icon: ShoppingCart, area: "pos" },
+    { label: "بيع جديد", to: { name: 'pos' }, icon: ShoppingCart, area: "pos" },
     {
         label: "فاتورة جديدة",
-        to: "/sales/invoices/new",
+        to: { name: 'invoice-new' },
         icon: Receipt,
         area: "sales",
     },
-    { label: "سند قبض", to: "/payments", icon: HandCoins, area: "payments" },
+    { label: "سند قبض", to: { name: 'payments' }, icon: HandCoins, area: "payments" },
 ];
