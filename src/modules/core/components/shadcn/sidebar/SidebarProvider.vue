@@ -4,7 +4,7 @@ import { defaultDocument, useEventListener, useMediaQuery, useVModel } from "@vu
 import { TooltipProvider } from "reka-ui"
 import { computed, ref } from "vue"
 import { cn } from '@/modules/core/helpers/utils'
-import { provideSidebarContext, SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME, SIDEBAR_KEYBOARD_SHORTCUT, SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON } from "./utils"
+import { loadSidebarWidthPx, provideSidebarContext, saveSidebarWidthPx, SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME, SIDEBAR_KEYBOARD_SHORTCUT, SIDEBAR_WIDTH_ICON } from "./utils"
 
 const props = withDefaults(defineProps<{
   defaultOpen?: boolean
@@ -21,6 +21,11 @@ const emits = defineEmits<{
 
 const isMobile = useMediaQuery("(max-width: 768px)")
 const openMobile = ref(false)
+const widthPx = ref(loadSidebarWidthPx())
+
+function setWidthPx(value: number) {
+  widthPx.value = saveSidebarWidthPx(value)
+}
 
 const open = useVModel(props, "open", emits, {
   defaultValue: props.defaultOpen ?? false,
@@ -62,6 +67,8 @@ provideSidebarContext({
   openMobile,
   setOpenMobile,
   toggleSidebar,
+  widthPx,
+  setWidthPx,
 })
 </script>
 
@@ -70,7 +77,7 @@ provideSidebarContext({
     <div
       data-slot="sidebar-wrapper"
       :style="{
-        '--sidebar-width': SIDEBAR_WIDTH,
+        '--sidebar-width': `${widthPx}px`,
         '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
       }"
       :class="cn('group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full', props.class)"

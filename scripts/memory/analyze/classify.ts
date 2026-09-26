@@ -3,7 +3,7 @@ import type { Config } from '../config';
 import type { Location } from '../types';
 
 export function locate(file: string, config: Config): Location {
-  const { modules, mocks, rust, docs } = config.paths;
+  const { modules, mocks, rust, docs, plans } = config.paths;
   if (file.startsWith(modules + '/')) {
     const [module, second, ...rest] = file.slice(modules.length + 1).split('/');
     // `routes.ts` / `commands.ts` at module root count as their own layer.
@@ -12,7 +12,7 @@ export function locate(file: string, config: Config): Location {
   }
   if (file.startsWith(mocks + '/')) return { area: 'mocks' };
   if (file.startsWith(rust + '/')) return { area: 'rust' };
-  if (file.startsWith(docs + '/')) return { area: 'docs' };
+  if (file.startsWith(docs + '/') || file.startsWith(plans + '/')) return { area: 'docs' };
   return { area: 'app' };
 }
 

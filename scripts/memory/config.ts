@@ -14,7 +14,7 @@ export interface Config {
   ignorePrefixes: string[];
   aliases: Record<string, string>;
   resolveSuffixes: string[];
-  paths: Record<'modules' | 'mocks' | 'rust' | 'rustEntry' | 'packageJson' | 'tauriConf' | 'cargoToml' | 'coreKit' | 'docs', string>;
+  paths: Record<'modules' | 'mocks' | 'rust' | 'rustEntry' | 'packageJson' | 'tauriConf' | 'cargoToml' | 'coreKit' | 'docs' | 'plans', string>;
   seam: { allowedLayers: string[]; forbiddenTarget: string; compositionRoots: string[]; knownLegacy: string[] };
   maxPageLines: number;
   landmarks: [label: string, path: string][];
@@ -27,7 +27,7 @@ export const config: Config = {
   output: 'AGENT_MEMORY.md',
 
   /** Directories walked by the scanner. */
-  scanRoots: ['src', 'src-tauri/src', 'docs'],
+  scanRoots: ['src', 'src-tauri/src', 'docs', 'plans'],
   /** Extensions read and parsed; everything else is ignored. */
   extensions: { ts: 'ts', vue: 'vue', rs: 'rust', md: 'md' },
   /** Directory names skipped anywhere in the tree (heavy, generated or vendored). */
@@ -54,6 +54,7 @@ export const config: Config = {
     cargoToml: 'src-tauri/Cargo.toml',
     coreKit: 'src/modules/core/components',
     docs: 'docs',
+    plans: 'plans',
   },
 
   /** Seam rule (CLAUDE.md): only these module layers may import the mock backend. */

@@ -50,7 +50,9 @@ function onOpen(n: (typeof all.value)[number]) {
 
     <!-- rtl-ok: the sheet opens from the left, the side toward the topbar's start edge in RTL -->
     <SheetContent side="left" dir="rtl" class="flex w-full flex-col gap-0 p-0 sm:max-w-sm">
-      <SheetHeader class="flex-row items-center justify-between space-y-0 border-b border-border">
+      <!-- pe-8: reserves room for SheetContent's absolutely-positioned close button (end-4), which
+           otherwise overlaps "تعليم الكل كمقروء" since both land at the sheet's end edge here. -->
+      <SheetHeader class="flex-row items-center justify-between space-y-0 border-b border-border pe-8">
         <SheetTitle>الإشعارات</SheetTitle>
         <button v-if="unreadCount > 0" type="button" class="flex items-center gap-1 text-tiny text-primary hover:underline" @click="markAllRead">
           <CheckCheck class="size-3.5" /> تعليم الكل كمقروء

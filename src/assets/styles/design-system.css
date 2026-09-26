@@ -28,7 +28,10 @@
   --color-background: #ffffff;
   --color-surface: #f4f4f5;
   --color-surface-hover: #e4e4e7;
-  --color-border: #d4d4d8;
+  /* #c4c4c9, not shadcn's stock #d4d4d8 — the stock value only clears ~1.48:1 against white, which
+     reads as nearly invisible (sidebar edge, outline buttons); this clears ~1.74:1 while staying a
+     hairline, not a real 3:1 boundary (that's --color-border-control below). */
+  --color-border: #c4c4c9;
   --color-text-primary: #09090b;
   --color-text-secondary: #71717a;
   --color-primary: #4f46e5;
@@ -217,7 +220,7 @@
   --color-background: #ffffff;
   --color-surface: #f4f4f5;
   --color-surface-hover: #e4e4e7;
-  --color-border: #d4d4d8;
+  --color-border: #c4c4c9;
   --color-text-primary: #18181b;
   --color-text-secondary: #71717a;
 }
@@ -233,7 +236,7 @@
   --color-background: #ffffff;
   --color-surface: #f5f5f4;
   --color-surface-hover: #e7e5e4;
-  --color-border: #d6d3d1;
+  --color-border: #c6c2c0;
   --color-text-primary: #1c1917;
   --color-text-secondary: #78716c;
 }
@@ -249,7 +252,7 @@
   --color-background: #ffffff;
   --color-surface: #f1f5f9;
   --color-surface-hover: #e2e8f0;
-  --color-border: #cbd5e1;
+  --color-border: #bfc8d3;
   --color-text-primary: #0f172a;
   --color-text-secondary: #64748b;
 }
@@ -265,7 +268,7 @@
   --color-background: #ffffff;
   --color-surface: #f3f4f6;
   --color-surface-hover: #e5e7eb;
-  --color-border: #d1d5db;
+  --color-border: #c2c5cb;
   --color-text-primary: #111827;
   --color-text-secondary: #6b7280;
 }
