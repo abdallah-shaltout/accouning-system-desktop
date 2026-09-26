@@ -8,6 +8,8 @@ import { mutate } from '../persist';
 import { ApiError, localDateKey, round2, sum, uid } from '../utils';
 import { accountById, accountFor } from './accounts';
 import { baseCurrency } from './currency';
+import { newCorrelationId } from '@/modules/diagnostics/services/logService';
+import { recordPostingTrace } from './posting-trace';
 
 export { accountById, accountFor, settlementAccountFor } from './accounts';
 
@@ -30,15 +32,31 @@ export interface PostingLine {
   currency?: string;
   amountFc?: number;
   rate?: number;
+  /**
+   * 18.F1 — optional annotations a caller can attach to explain how it arrived at this line: line
+   * discount, invoice-discount allocation, VAT base/rate/rounding, WAC before/after, FX rate. Every
+   * field is optional and purely observational — nothing here feeds back into the posted amounts,
+   * so a caller that never sets `trace` posts exactly as it always has. Read by
+   * `posting-trace.ts` to build the document's `PostingTrace`.
+   */
+  trace?: {
+    lineDiscount?: Record<string, unknown>;
+    invoiceDiscount?: Record<string, unknown>;
+    vat?: { base: number; rate: number; tax: number; roundingDelta?: number };
+    cost?: { qtyBefore: number; avgBefore: number; qtyAfter: number; avgAfter: number };
+    fx?: { rate: number; amountFc: number; base: number; roundingDelta?: number };
+    note?: string;
+  };
 }
 
 /** Resolve posting lines to account ids, drop zero lines, and assert debits = credits. */
 export function resolvePosting(lines: PostingLine[]) {
-  const resolved: JournalLine[] = lines
-    .map((l) => {
-      const account = l.accountId ? accountById(l.accountId) : accountFor(l.role!, { branchId: l.branchId, currency: l.currency });
-      const branchId = l.branchId ?? DEFAULT_BRANCH_ID;
-      return {
+  const pairs: { input: PostingLine; resolved: JournalLine }[] = lines.map((l) => {
+    const account = l.accountId ? accountById(l.accountId) : accountFor(l.role!, { branchId: l.branchId, currency: l.currency });
+    const branchId = l.branchId ?? DEFAULT_BRANCH_ID;
+    return {
+      input: l,
+      resolved: {
         id: uid('jl'),
         accountId: account.id,
         description: l.description,
@@ -54,15 +72,17 @@ export function resolvePosting(lines: PostingLine[]) {
         currency: l.currency ?? baseCurrency(),
         amountFc: l.amountFc,
         rate: l.rate,
-      };
-    })
-    .filter((l) => l.debit > 0 || l.credit > 0);
+      },
+    };
+  });
+  const keptPairs = pairs.filter((p) => p.resolved.debit > 0 || p.resolved.credit > 0);
+  const resolved = keptPairs.map((p) => p.resolved);
   const totalDebit = sum(resolved, (l) => l.debit);
   const totalCredit = sum(resolved, (l) => l.credit);
   if (Math.abs(totalDebit - totalCredit) > 0.001) {
     throw new ApiError(`القيد غير متوازن: المدين ${totalDebit} ≠ الدائن ${totalCredit}`);
   }
-  return { lines: resolved, totalDebit, totalCredit };
+  return { lines: resolved, totalDebit, totalCredit, tracePairs: keptPairs };
 }
 
 /**
@@ -111,9 +131,10 @@ export function postJournal(opts: {
   allowClosedPeriod?: boolean;
   attachmentIds?: string[];
   templateId?: string;
+  correlationId?: string;
 }): JournalEntry {
   assertOpenPeriod(opts.date, opts.allowClosedPeriod);
-  const { lines, totalDebit, totalCredit } = resolvePosting(opts.lines);
+  const { lines, totalDebit, totalCredit, tracePairs } = resolvePosting(opts.lines);
   if (lines.length < 2) throw new ApiError('يجب أن يحتوي القيد على سطرين على الأقل');
   const now = new Date().toISOString();
   const entry: JournalEntry = {
@@ -136,6 +157,14 @@ export function postJournal(opts: {
   };
   mutate(() => db.journalEntries.push(entry));
   emit('ledger:changed');
+  recordPostingTrace({
+    docType: opts.sourceRef?.kind ?? opts.type,
+    docId: entry.id,
+    correlationId: opts.correlationId ?? newCorrelationId(),
+    pairs: tracePairs,
+    totalDebit,
+    totalCredit,
+  });
   return entry;
 }
 
