@@ -1,0 +1,144 @@
+{
+  "country": "EG",
+  "source": "placeholder — replace with Tech-Labs/egypt-governorates-and-cities-db",
+  "sourceCommit": "placeholder — not fetched (no network access this session), run `bun run geo:build` once available",
+  "license": "MIT",
+  "generatedAt": "2026-09-26T00:00:00.000Z",
+  "labels": { "region": "المحافظة", "city": "المدينة / المركز", "district": null },
+  "regions": [
+    { "id": "1", "ar": "القاهرة", "en": "Cairo", "cities": [
+      { "id": "1-1", "ar": "مدينة نصر", "en": "Nasr City", "districts": [] },
+      { "id": "1-2", "ar": "المعادي", "en": "Maadi", "districts": [] },
+      { "id": "1-3", "ar": "مصر الجديدة", "en": "Heliopolis", "districts": [] },
+      { "id": "1-4", "ar": "القاهرة الجديدة", "en": "New Cairo", "districts": [] },
+      { "id": "1-5", "ar": "شبرا", "en": "Shubra", "districts": [] },
+      { "id": "1-6", "ar": "حلوان", "en": "Helwan", "districts": [] }
+    ] },
+    { "id": "2", "ar": "الجيزة", "en": "Giza", "cities": [
+      { "id": "2-1", "ar": "الدقي", "en": "Dokki", "districts": [] },
+      { "id": "2-2", "ar": "المهندسين", "en": "Mohandessin", "districts": [] },
+      { "id": "2-3", "ar": "6 أكتوبر", "en": "6th of October", "districts": [] },
+      { "id": "2-4", "ar": "الشيخ زايد", "en": "Sheikh Zayed", "districts": [] },
+      { "id": "2-5", "ar": "الهرم", "en": "Haram", "districts": [] }
+    ] },
+    { "id": "3", "ar": "الإسكندرية", "en": "Alexandria", "cities": [
+      { "id": "3-1", "ar": "سيدي جابر", "en": "Sidi Gaber", "districts": [] },
+      { "id": "3-2", "ar": "سموحة", "en": "Smouha", "districts": [] },
+      { "id": "3-3", "ar": "العجمي", "en": "Agami", "districts": [] },
+      { "id": "3-4", "ar": "المنتزه", "en": "Montaza", "districts": [] }
+    ] },
+    { "id": "4", "ar": "الدقهلية", "en": "Dakahlia", "cities": [
+      { "id": "4-1", "ar": "المنصورة", "en": "Mansoura", "districts": [] },
+      { "id": "4-2", "ar": "طلخا", "en": "Talkha", "districts": [] },
+      { "id": "4-3", "ar": "ميت غمر", "en": "Mit Ghamr", "districts": [] }
+    ] },
+    { "id": "5", "ar": "البحر الأحمر", "en": "Red Sea", "cities": [
+      { "id": "5-1", "ar": "الغردقة", "en": "Hurghada", "districts": [] },
+      { "id": "5-2", "ar": "رأس غارب", "en": "Ras Gharib", "districts": [] },
+      { "id": "5-3", "ar": "مرسى علم", "en": "Marsa Alam", "districts": [] }
+    ] },
+    { "id": "6", "ar": "البحيرة", "en": "Beheira", "cities": [
+      { "id": "6-1", "ar": "دمنهور", "en": "Damanhur", "districts": [] },
+      { "id": "6-2", "ar": "كفر الدوار", "en": "Kafr El Dawwar", "districts": [] },
+      { "id": "6-3", "ar": "رشيد", "en": "Rashid", "districts": [] }
+    ] },
+    { "id": "7", "ar": "الفيوم", "en": "Fayoum", "cities": [
+      { "id": "7-1", "ar": "الفيوم", "en": "Fayoum City", "districts": [] },
+      { "id": "7-2", "ar": "سنورس", "en": "Sinnuris", "districts": [] },
+      { "id": "7-3", "ar": "إطسا", "en": "Itsa", "districts": [] }
+    ] },
+    { "id": "8", "ar": "الغربية", "en": "Gharbia", "cities": [
+      { "id": "8-1", "ar": "طنطا", "en": "Tanta", "districts": [] },
+      { "id": "8-2", "ar": "المحلة الكبرى", "en": "El Mahalla El Kubra", "districts": [] },
+      { "id": "8-3", "ar": "كفر الزيات", "en": "Kafr El Zayat", "districts": [] }
+    ] },
+    { "id": "9", "ar": "الإسماعيلية", "en": "Ismailia", "cities": [
+      { "id": "9-1", "ar": "الإسماعيلية", "en": "Ismailia City", "districts": [] },
+      { "id": "9-2", "ar": "فايد", "en": "Fayed", "districts": [] },
+      { "id": "9-3", "ar": "التل الكبير", "en": "El Tal El Kebir", "districts": [] }
+    ] },
+    { "id": "10", "ar": "المنوفية", "en": "Monufia", "cities": [
+      { "id": "10-1", "ar": "شبين الكوم", "en": "Shibin El Kom", "districts": [] },
+      { "id": "10-2", "ar": "منوف", "en": "Menouf", "districts": [] },
+      { "id": "10-3", "ar": "أشمون", "en": "Ashmoun", "districts": [] }
+    ] },
+    { "id": "11", "ar": "المنيا", "en": "Minya", "cities": [
+      { "id": "11-1", "ar": "المنيا", "en": "Minya City", "districts": [] },
+      { "id": "11-2", "ar": "ملوي", "en": "Mallawi", "districts": [] },
+      { "id": "11-3", "ar": "بني مزار", "en": "Beni Mazar", "districts": [] }
+    ] },
+    { "id": "12", "ar": "القليوبية", "en": "Qalyubia", "cities": [
+      { "id": "12-1", "ar": "بنها", "en": "Banha", "districts": [] },
+      { "id": "12-2", "ar": "شبرا الخيمة", "en": "Shubra El Kheima", "districts": [] },
+      { "id": "12-3", "ar": "القناطر الخيرية", "en": "El Qanater El Khaireya", "districts": [] }
+    ] },
+    { "id": "13", "ar": "الوادي الجديد", "en": "New Valley", "cities": [
+      { "id": "13-1", "ar": "الخارجة", "en": "El Kharga", "districts": [] },
+      { "id": "13-2", "ar": "الداخلة", "en": "El Dakhla", "districts": [] }
+    ] },
+    { "id": "14", "ar": "السويس", "en": "Suez", "cities": [
+      { "id": "14-1", "ar": "السويس", "en": "Suez City", "districts": [] },
+      { "id": "14-2", "ar": "الجناين", "en": "El Ganayen", "districts": [] }
+    ] },
+    { "id": "15", "ar": "أسوان", "en": "Aswan", "cities": [
+      { "id": "15-1", "ar": "أسوان", "en": "Aswan City", "districts": [] },
+      { "id": "15-2", "ar": "كوم أمبو", "en": "Kom Ombo", "districts": [] },
+      { "id": "15-3", "ar": "إدفو", "en": "Edfu", "districts": [] }
+    ] },
+    { "id": "16", "ar": "أسيوط", "en": "Assiut", "cities": [
+      { "id": "16-1", "ar": "أسيوط", "en": "Assiut City", "districts": [] },
+      { "id": "16-2", "ar": "ديروط", "en": "Dairut", "districts": [] },
+      { "id": "16-3", "ar": "منفلوط", "en": "Manfalut", "districts": [] }
+    ] },
+    { "id": "17", "ar": "بني سويف", "en": "Beni Suef", "cities": [
+      { "id": "17-1", "ar": "بني سويف", "en": "Beni Suef City", "districts": [] },
+      { "id": "17-2", "ar": "الواسطى", "en": "El Wasta", "districts": [] }
+    ] },
+    { "id": "18", "ar": "بورسعيد", "en": "Port Said", "cities": [
+      { "id": "18-1", "ar": "بورسعيد", "en": "Port Said City", "districts": [] },
+      { "id": "18-2", "ar": "بورفؤاد", "en": "Port Fouad", "districts": [] }
+    ] },
+    { "id": "19", "ar": "دمياط", "en": "Damietta", "cities": [
+      { "id": "19-1", "ar": "دمياط", "en": "Damietta City", "districts": [] },
+      { "id": "19-2", "ar": "رأس البر", "en": "Ras El Bar", "districts": [] },
+      { "id": "19-3", "ar": "فارسكور", "en": "Faraskur", "districts": [] }
+    ] },
+    { "id": "20", "ar": "جنوب سيناء", "en": "South Sinai", "cities": [
+      { "id": "20-1", "ar": "شرم الشيخ", "en": "Sharm El Sheikh", "districts": [] },
+      { "id": "20-2", "ar": "دهب", "en": "Dahab", "districts": [] },
+      { "id": "20-3", "ar": "طور سيناء", "en": "El Tor", "districts": [] }
+    ] },
+    { "id": "21", "ar": "كفر الشيخ", "en": "Kafr El Sheikh", "cities": [
+      { "id": "21-1", "ar": "كفر الشيخ", "en": "Kafr El Sheikh City", "districts": [] },
+      { "id": "21-2", "ar": "دسوق", "en": "Desouk", "districts": [] },
+      { "id": "21-3", "ar": "بلطيم", "en": "Baltim", "districts": [] }
+    ] },
+    { "id": "22", "ar": "مطروح", "en": "Matrouh", "cities": [
+      { "id": "22-1", "ar": "مرسى مطروح", "en": "Marsa Matrouh", "districts": [] },
+      { "id": "22-2", "ar": "الحمام", "en": "El Hammam", "districts": [] }
+    ] },
+    { "id": "23", "ar": "الأقصر", "en": "Luxor", "cities": [
+      { "id": "23-1", "ar": "الأقصر", "en": "Luxor City", "districts": [] },
+      { "id": "23-2", "ar": "إسنا", "en": "Esna", "districts": [] }
+    ] },
+    { "id": "24", "ar": "قنا", "en": "Qena", "cities": [
+      { "id": "24-1", "ar": "قنا", "en": "Qena City", "districts": [] },
+      { "id": "24-2", "ar": "نجع حمادي", "en": "Nag Hammadi", "districts": [] }
+    ] },
+    { "id": "25", "ar": "شمال سيناء", "en": "North Sinai", "cities": [
+      { "id": "25-1", "ar": "العريش", "en": "El Arish", "districts": [] },
+      { "id": "25-2", "ar": "رفح", "en": "Rafah", "districts": [] },
+      { "id": "25-3", "ar": "الشيخ زويد", "en": "Sheikh Zuweid", "districts": [] }
+    ] },
+    { "id": "26", "ar": "سوهاج", "en": "Sohag", "cities": [
+      { "id": "26-1", "ar": "سوهاج", "en": "Sohag City", "districts": [] },
+      { "id": "26-2", "ar": "أخميم", "en": "Akhmim", "districts": [] },
+      { "id": "26-3", "ar": "جرجا", "en": "Girga", "districts": [] }
+    ] },
+    { "id": "27", "ar": "الشرقية", "en": "Sharqia", "cities": [
+      { "id": "27-1", "ar": "الزقازيق", "en": "Zagazig", "districts": [] },
+      { "id": "27-2", "ar": "العاشر من رمضان", "en": "10th of Ramadan", "districts": [] },
+      { "id": "27-3", "ar": "بلبيس", "en": "Bilbeis", "districts": [] }
+    ] }
+  ]
+}

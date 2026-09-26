@@ -18,7 +18,8 @@
     "memory": "bun run scripts/memory/run.ts",
     "memory:check": "bun run scripts/memory/run.ts --check",
     "diag": "bun run scripts/diagnostics/run.ts",
-    "diag:check": "bun run scripts/diagnostics/run.ts --check"
+    "diag:check": "bun run scripts/diagnostics/run.ts --check",
+    "geo:build": "bun run scripts/geo/build.ts"
   },
   "dependencies": {
     "@fontsource-variable/cairo": "^5.3.0",

@@ -1,0 +1,62 @@
+{
+  "country": "SA",
+  "source": "placeholder — small seed dataset, NOT the homaily dataset (GPL-2.0, licensing decision pending)",
+  "sourceCommit": "n/a — hand-authored seed, not derived from any pinned upstream commit",
+  "license": "placeholder — pending licensing decision, see plans/pending/18-countries-a11y-diagnostics/README.md",
+  "generatedAt": "2026-09-26T00:00:00.000Z",
+  "labels": { "region": "المنطقة", "city": "المدينة", "district": "الحي" },
+  "regions": [
+    { "id": "1", "ar": "منطقة الرياض", "en": "Riyadh Region", "cities": [
+      { "id": "1-1", "ar": "الرياض", "en": "Riyadh", "districts": [
+        { "id": "1-1-1", "ar": "العليا", "en": "Al Olaya" },
+        { "id": "1-1-2", "ar": "الملز", "en": "Al Malaz" },
+        { "id": "1-1-3", "ar": "النخيل", "en": "Al Nakheel" },
+        { "id": "1-1-4", "ar": "السليمانية", "en": "Al Sulimaniyah" }
+      ] },
+      { "id": "1-2", "ar": "الخرج", "en": "Al Kharj", "districts": [] },
+      { "id": "1-3", "ar": "الدرعية", "en": "Diriyah", "districts": [] }
+    ] },
+    { "id": "2", "ar": "منطقة مكة المكرمة", "en": "Makkah Region", "cities": [
+      { "id": "2-1", "ar": "جدة", "en": "Jeddah", "districts": [
+        { "id": "2-1-1", "ar": "الروضة", "en": "Al Rawdah" },
+        { "id": "2-1-2", "ar": "الشاطئ", "en": "Al Shati" },
+        { "id": "2-1-3", "ar": "البلد", "en": "Al Balad" }
+      ] },
+      { "id": "2-2", "ar": "مكة المكرمة", "en": "Makkah", "districts": [
+        { "id": "2-2-1", "ar": "العزيزية", "en": "Al Aziziyah" },
+        { "id": "2-2-2", "ar": "الشوقية", "en": "Al Shawqiyah" }
+      ] },
+      { "id": "2-3", "ar": "الطائف", "en": "Taif", "districts": [] }
+    ] },
+    { "id": "3", "ar": "منطقة المدينة المنورة", "en": "Madinah Region", "cities": [
+      { "id": "3-1", "ar": "المدينة المنورة", "en": "Madinah", "districts": [
+        { "id": "3-1-1", "ar": "قباء", "en": "Quba" },
+        { "id": "3-1-2", "ar": "العزيزية", "en": "Al Aziziyah" }
+      ] },
+      { "id": "3-2", "ar": "ينبع", "en": "Yanbu", "districts": [] }
+    ] },
+    { "id": "4", "ar": "المنطقة الشرقية", "en": "Eastern Province", "cities": [
+      { "id": "4-1", "ar": "الدمام", "en": "Dammam", "districts": [
+        { "id": "4-1-1", "ar": "الشاطئ", "en": "Al Shati" },
+        { "id": "4-1-2", "ar": "الفيصلية", "en": "Al Faisaliyah" }
+      ] },
+      { "id": "4-2", "ar": "الخبر", "en": "Al Khobar", "districts": [] },
+      { "id": "4-3", "ar": "الأحساء", "en": "Al Ahsa", "districts": [] },
+      { "id": "4-4", "ar": "الجبيل", "en": "Jubail", "districts": [] }
+    ] },
+    { "id": "5", "ar": "منطقة عسير", "en": "Asir Region", "cities": [
+      { "id": "5-1", "ar": "أبها", "en": "Abha", "districts": [] },
+      { "id": "5-2", "ar": "خميس مشيط", "en": "Khamis Mushait", "districts": [] }
+    ] },
+    { "id": "6", "ar": "منطقة القصيم", "en": "Qassim Region", "cities": [
+      { "id": "6-1", "ar": "بريدة", "en": "Buraydah", "districts": [] },
+      { "id": "6-2", "ar": "عنيزة", "en": "Unaizah", "districts": [] }
+    ] },
+    { "id": "7", "ar": "منطقة تبوك", "en": "Tabuk Region", "cities": [
+      { "id": "7-1", "ar": "تبوك", "en": "Tabuk", "districts": [] }
+    ] },
+    { "id": "8", "ar": "منطقة حائل", "en": "Hail Region", "cities": [
+      { "id": "8-1", "ar": "حائل", "en": "Hail", "districts": [] }
+    ] }
+  ]
+}

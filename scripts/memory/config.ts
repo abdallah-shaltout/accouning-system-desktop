@@ -32,7 +32,7 @@ export const config: Config = {
   /** Directories walked by the scanner. */
   scanRoots: ['src', 'src-tauri/src', 'docs', 'plans'],
   /** Extensions read and parsed; everything else is ignored. */
-  extensions: { ts: 'ts', vue: 'vue', rs: 'rust', md: 'md' },
+  extensions: { ts: 'ts', vue: 'vue', rs: 'rust', md: 'md', json: 'json' },
   /** Directory names skipped anywhere in the tree (heavy, generated or vendored). */
   ignoreDirs: [
     'node_modules', 'dist', 'dist-ssr', 'build', 'target', 'gen', '.git', '.claude', '.vscode',

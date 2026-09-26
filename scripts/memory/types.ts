@@ -1,6 +1,6 @@
 /** Data contracts passed between pipeline stages: scan → parse → analyze → render. */
 
-export type Lang = 'ts' | 'vue' | 'rust' | 'md';
+export type Lang = 'ts' | 'vue' | 'rust' | 'md' | 'json';
 
 /** Stage 1 output: one scanned file. `path` is repo-relative, POSIX. */
 export interface SourceFile {
