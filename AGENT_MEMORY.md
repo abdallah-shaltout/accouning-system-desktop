@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **706 files / 73,081 lines** (md 41, rust 22, ts 215, vue 428).
+Indexed: **706 files / 73,084 lines** (md 41, rust 22, ts 215, vue 428).
 
 **Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -61,11 +61,11 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **core** | 341 / 18682 | commandPalette 1, components 294, controllers 14, helpers 16, pages 4, routes 1, services 7, types 4 | 5 |  |
 | **diagnostics** | 20 / 2061 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 1 | 0 | yes |
 | **expenses** | 8 / 946 | pages 5, routes 1, services 1, types 1 | 5 |  |
-| **invoices** | 30 / 5382 | commands 1, components 13, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
+| **invoices** | 30 / 5383 | commands 1, components 13, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
 | **parties** | 10 / 1780 | components 1, helpers 2, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
 | **payments** | 6 / 877 | pages 3, routes 1, services 1, types 1 | 3 |  |
-| **products** | 32 / 5079 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
-| **purchases** | 11 / 1706 | commands 1, components 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
+| **products** | 32 / 5080 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
+| **purchases** | 11 / 1707 | commands 1, components 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
 | **reports** | 44 / 6208 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
 | **settings** | 33 / 4877 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
 | **setup** | 17 / 1652 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
