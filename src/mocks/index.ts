@@ -39,3 +39,16 @@ export {
   uid,
   type LatencyMode,
 } from './utils';
+
+/** 18.F2/F3: runtime accounting invariants — the one copy shared by `verify:mocks` and the app's
+ * debug-mode watcher / `/dev/diagnostics` "المحاسبة" tab. */
+export { runAllInvariants, type InvariantResult } from './backend/invariants';
+
+/** 18.F1/F3: posting traces — the in-memory ring + debug-mode per-entry store built at the
+ * `resolvePosting`/`postJournal` choke point. */
+export { recentPostingTraces, postingTraceFor, type PostingTrace, type PostingTraceStep } from './backend/posting-trace';
+
+/** 18.F3: party balance/allocation reads, reused by the drift report so it never recomputes its
+ * own copy of the GL-vs-subledger math `invariants.ts` already defines. */
+export { customerBalance, supplierBalance } from './backend/balances';
+export { unallocatedCreditFor } from './backend/payments';

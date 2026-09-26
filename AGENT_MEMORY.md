@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **696 files / 72,194 lines** (md 41, rust 22, ts 213, vue 420).
+Indexed: **696 files / 72,411 lines** (md 41, rust 22, ts 213, vue 420).
 
 **Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -59,7 +59,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
 | **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
 | **core** | 340 / 18427 | commandPalette 1, components 294, controllers 14, helpers 15, pages 4, routes 1, services 7, types 4 | 5 |  |
-| **diagnostics** | 19 / 1629 | commands 1, components 7, config 1, controllers 1, pages 1, services 7, types 1 | 0 | yes |
+| **diagnostics** | 19 / 1846 | commands 1, components 7, config 1, controllers 1, pages 1, services 7, types 1 | 0 | yes |
 | **expenses** | 8 / 962 | pages 5, routes 1, services 1, types 1 | 5 |  |
 | **invoices** | 29 / 5248 | commands 1, components 12, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
 | **parties** | 10 / 1793 | components 1, helpers 2, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
@@ -251,7 +251,7 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **app** | core (14), settings (5), diagnostics (4), users (3), accounting (2), approvals (2), invoices (2), mocks (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), parties (1), payments (1), products (1), setup (1) | 1 |
 | **approvals** | core (11), mocks (2), diagnostics (1), users (1) | 4 |
 | **core** | mocks (21), users (19), invoices (13), products (12), settings (10), diagnostics (7), parties (3), purchases (3), accounting (2), templates (2), vouchers (2), app (1), payments (1), reports (1), setup (1) | 18 |
-| **diagnostics** | core (17), mocks (3) | 18 |
+| **diagnostics** | core (23), mocks (5) | 18 |
 | **expenses** | core (59), mocks (3), users (3), accounting (2), parties (2), settings (2), diagnostics (1) | 2 |
 | **invoices** | core (164), mocks (9), settings (9), parties (8), products (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
 | **mocks** | invoices (9), accounting (8), products (8), settings (5), diagnostics (4), core (3), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 17 |
@@ -266,7 +266,7 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **users** | core (36), mocks (7), products (3), diagnostics (2) | 15 |
 | **vouchers** | core (52), mocks (4), settings (2), users (2), accounting (1), diagnostics (1), invoices (1) | 3 |
 
-**Most-used npm packages** (files importing): `vue (386)`, `@lucide/vue (162)`, `reka-ui (118)`, `vue-router (100)`, `@vueuse/core (79)`, `@tauri-apps/api (16)`, `class-variance-authority (9)`, `pinia (9)`, `zod (5)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
+**Most-used npm packages** (files importing): `vue (387)`, `@lucide/vue (162)`, `reka-ui (118)`, `vue-router (100)`, `@vueuse/core (79)`, `@tauri-apps/api (16)`, `class-variance-authority (9)`, `pinia (9)`, `zod (5)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
 
 ## Rust ↔ Vue IPC contract
 
