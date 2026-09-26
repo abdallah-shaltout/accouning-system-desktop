@@ -112,7 +112,7 @@ async function save() {
     const user = id.value ? await updateUser(id.value, input) : await createUser(input);
     auth.patchCurrent(user);
     toast.success(id.value ? 'تم حفظ التعديلات' : 'تمت إضافة المستخدم', user.name);
-    router.push('/users');
+    router.push({ name: 'users' });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -123,7 +123,7 @@ async function save() {
 
 <template>
   <div>
-    <PageHeader :title="id ? 'تعديل مستخدم' : 'مستخدم جديد'" :subtitle="id ? form.name : 'أضف حساباً لموظف وحدد صلاحياته'" back="/users" />
+    <PageHeader :title="id ? 'تعديل مستخدم' : 'مستخدم جديد'" :subtitle="id ? form.name : 'أضف حساباً لموظف وحدد صلاحياته'" :back="{ name: 'users' }" />
 
     <ErrorState v-if="loadError" :message="loadError" @retry="load" />
     <div v-else-if="loading" class="grid gap-5 lg:grid-cols-[1fr_320px]">
@@ -164,7 +164,7 @@ async function save() {
         </AppCard>
 
         <div class="flex justify-end gap-2">
-          <AppButton to="/users">إلغاء</AppButton>
+          <AppButton :to="{ name: 'users' }">إلغاء</AppButton>
           <AppButton type="submit" variant="primary" :icon="Save" :loading="saving">حفظ</AppButton>
         </div>
       </div>

@@ -58,7 +58,7 @@ const columns: Column<User>[] = [
   <div>
     <PageHeader title="المستخدمين" subtitle="الصلاحيات، حدود الخصم، وقوائم الأسعار لكل مستخدم">
       <template #actions>
-        <AppButton variant="primary" :icon="Plus" to="/users/new">مستخدم جديد</AppButton>
+        <AppButton variant="primary" :icon="Plus" :to="{ name: 'user-editor', params: { id: 'new' } }">مستخدم جديد</AppButton>
       </template>
     </PageHeader>
 
@@ -75,7 +75,7 @@ const columns: Column<User>[] = [
       clickable
       :empty-icon="UserCog"
       @retry="reload"
-      @row-click="(u) => router.push(`/users/${u.id}`)"
+      @row-click="(u) => router.push({ name: 'user-editor', params: { id: u.id } })"
     >
       <template #cell-name="{ row }">
         <span class="font-medium">{{ row.name }}</span>

@@ -113,7 +113,7 @@ async function next() {
   if (!ok) return;
   if (isLast.value) {
     toast.success('تم إعداد الشركة بنجاح', 'يمكنك الآن تسجيل الدخول');
-    router.replace('/login');
+    router.replace({ name: 'login' });
     return;
   }
   stepIndex.value += 1;

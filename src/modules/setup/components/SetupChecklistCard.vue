@@ -37,7 +37,7 @@ onMounted(async () => {
   <AppCard v-if="loaded && pending.length" title="إكمال الإعداد">
     <ul class="space-y-1.5">
       <li v-for="p in pending" :key="p.key">
-        <RouterLink to="/setup" class="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-surface-hover">
+        <RouterLink :to="{ name: 'setup-wizard' }" class="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-surface-hover">
           <span>{{ p.label }}</span>
           <DirIcon :icon="dirIcon.open" class="size-3.5 text-text-secondary" />
         </RouterLink>

@@ -23,7 +23,7 @@ async function startDemo() {
     try {
         seedDatabase();
         await flushSnapshot();
-        router.replace("/login");
+        router.replace({ name: "login" });
     } catch (err) {
         error.value = errorMessage(err);
     } finally {
@@ -35,7 +35,7 @@ async function startDemo() {
 // shell itself on mount (same `seedEmptyCompany()` this stub used to call directly) — see
 // src/modules/setup/pages/SetupWizardPage.vue.
 function startFresh() {
-    router.push("/setup");
+    router.push({ name: "setup-wizard" });
 }
 </script>
 
