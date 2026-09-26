@@ -174,7 +174,7 @@ async function applyPreset(kind: UnitPresetKind) {
           </AppButton>
         </div>
         <p class="mt-3 text-xs text-text-secondary">
-          إدارة الوحدات نفسها من <RouterLink to="/catalog/categories" class="text-primary hover:underline">التصنيفات والوحدات</RouterLink>.
+          إدارة الوحدات نفسها من <RouterLink :to="{ name: 'categories' }" class="text-primary hover:underline">التصنيفات والوحدات</RouterLink>.
         </p>
       </AppCard>
     </div>

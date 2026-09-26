@@ -19,18 +19,18 @@ const router = useRouter();
 const templates = ref(listTemplates('invoice'));
 
 function openTemplate(id: string) {
-  router.push(`/settings/templates/${id}`);
+  router.push({ name: 'settings-template-designer', params: { id } });
 }
 
 function newTemplate() {
   const created = createTemplate('invoice', 'invoice_standard', `قالب جديد ${templates.value.length + 1}`);
-  router.push(`/settings/templates/${created.id}`);
+  router.push({ name: 'settings-template-designer', params: { id: created.id } });
 }
 </script>
 
 <template>
   <div>
-    <PageHeader title="قوالب الطباعة" subtitle="فاتورة ضريبية — قياسية ومبسطة" back="/settings/general">
+    <PageHeader title="قوالب الطباعة" subtitle="فاتورة ضريبية — قياسية ومبسطة" :back="{ name: 'settings-general' }">
       <template #actions>
         <AppButton variant="primary" :icon="FilePlus2" @click="newTemplate">قالب جديد</AppButton>
       </template>

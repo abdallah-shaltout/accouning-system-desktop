@@ -140,7 +140,7 @@ function duplicate() {
   if (!template.value) return;
   persist();
   const copy = duplicateTemplate(template.value.id);
-  if (copy) router.push(`/settings/templates/${copy.id}`);
+  if (copy) router.push({ name: 'settings-template-designer', params: { id: copy.id } });
 }
 
 function resetToDefaults() {
@@ -168,7 +168,7 @@ async function onImportFile(e: Event) {
     const json = JSON.parse(text) as TemplateExport;
     const imported = importTemplate(json);
     toast.success('تم استيراد القالب');
-    router.push(`/settings/templates/${imported.id}`);
+    router.push({ name: 'settings-template-designer', params: { id: imported.id } });
   } catch (err) {
     toast.error(err, 'تعذر استيراد القالب');
   } finally {
@@ -249,12 +249,12 @@ function toggle(key: keyof typeof accordions) {
 
 <template>
   <div v-if="loadError">
-    <PageHeader title="قالب الطباعة" back="/settings/templates" />
+    <PageHeader title="قالب الطباعة" :back="{ name: 'settings-templates' }" />
     <p class="text-body text-danger">{{ loadError }}</p>
   </div>
   <div v-else-if="template" class="flex h-[calc(100vh-6rem)] flex-col">
     <!-- Top bar -->
-    <PageHeader :title="template.name" back="/settings/templates">
+    <PageHeader :title="template.name" :back="{ name: 'settings-templates' }">
       <template #subtitle>
         <span v-if="template.isDefault" class="inline-flex items-center gap-1 text-xs text-primary"><Star class="size-3 fill-current" /> القالب الافتراضي</span>
         <span v-else class="text-xs text-text-secondary">فاتورة ضريبية</span>
