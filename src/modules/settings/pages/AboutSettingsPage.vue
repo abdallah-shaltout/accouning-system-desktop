@@ -10,7 +10,7 @@ import { Info, LifeBuoy } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { APP_NAME_AR, APP_SHORT } from '@/modules/core/helpers/brand';
 import { exportSupportBundle } from '@/modules/diagnostics/services/supportBundleService';
@@ -34,9 +34,8 @@ async function exportBundle() {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="حول / الدعم" subtitle="معلومات الإصدار وتصدير ملف تشخيص لإرساله للدعم الفني" />
-    <SettingsTabs />
+  <SettingsPage title="حول / الدعم" subtitle="معلومات الإصدار وتصدير ملف تشخيص لإرساله للدعم الفني">
+    <template #nav><SettingsTabs /></template>
 
     <div class="grid gap-4 sm:grid-cols-2">
       <AppCard title="حول التطبيق" padding="sm">
@@ -57,5 +56,5 @@ async function exportBundle() {
         </div>
       </AppCard>
     </div>
-  </div>
+  </SettingsPage>
 </template>

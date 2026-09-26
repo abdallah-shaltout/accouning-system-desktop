@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
@@ -61,9 +61,8 @@ async function save() {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="التوصيات" subtitle="الحدود المستخدمة في محرك التوصيات (يحتاج انتباهك) — قابلة للتعديل حسب طبيعة النشاط" />
-    <SettingsTabs />
+  <SettingsPage title="التوصيات" subtitle="الحدود المستخدمة في محرك التوصيات (يحتاج انتباهك) — قابلة للتعديل حسب طبيعة النشاط">
+    <template #nav><SettingsTabs /></template>
 
     <SkeletonBlock v-if="loading" :lines="6" height="h-9" />
     <AppCard v-else padding="md">
@@ -74,5 +73,5 @@ async function save() {
         <AppButton variant="primary" :loading="saving" @click="save">حفظ</AppButton>
       </div>
     </AppCard>
-  </div>
+  </SettingsPage>
 </template>

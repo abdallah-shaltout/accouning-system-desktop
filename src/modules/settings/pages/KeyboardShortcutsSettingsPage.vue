@@ -12,7 +12,7 @@ import { computed, ref } from 'vue';
 import { RotateCcw } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import { Kbd } from '@/modules/core/components/shadcn/kbd';
 import { comboLabel, comboOfEvent } from '@/modules/core/helpers/keyCode';
 import { useKeybindings } from '@/modules/core/controllers/useKeybindings';
@@ -67,42 +67,39 @@ function onCaptureKeydown(e: KeyboardEvent, id: string) {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="الإعدادات" subtitle="تفضيلات العرض على هذا الجهاز" />
-    <SettingsTabs />
+  <SettingsPage title="الإعدادات" subtitle="تفضيلات العرض على هذا الجهاز">
+    <template #nav><SettingsTabs /></template>
 
-    <div class="max-w-3xl space-y-5">
-      <AppCard title="اختصارات لوحة المفاتيح" subtitle="تعمل حسب موضع المفتاح الفعلي — نفس الاختصار يعمل بأي لغة لوحة مفاتيح">
-        <div class="mb-4 flex justify-end">
-          <AppButton size="sm" variant="ghost" :icon="RotateCcw" @click="resetAllCombos">استعادة الكل للافتراضي</AppButton>
-        </div>
+    <AppCard title="اختصارات لوحة المفاتيح" subtitle="تعمل حسب موضع المفتاح الفعلي — نفس الاختصار يعمل بأي لغة لوحة مفاتيح">
+      <div class="mb-4 flex justify-end">
+        <AppButton size="sm" variant="ghost" :icon="RotateCcw" @click="resetAllCombos">استعادة الكل للافتراضي</AppButton>
+      </div>
 
-        <div class="space-y-6">
-          <div v-for="[group, items] in groups" :key="group">
-            <p class="mb-2 text-tiny font-medium text-text-secondary">{{ group }}</p>
-            <ul class="divide-y divide-border rounded-lg border border-border">
-              <li v-for="s in items" :key="s.id" class="flex items-center justify-between gap-3 px-3 py-2.5">
-                <span class="text-body">{{ s.label }}</span>
-                <div class="flex items-center gap-2">
-                  <button
-                    v-if="capturingId === s.id"
-                    type="button"
-                    class="rounded-md border border-primary bg-primary/5 px-3 py-1 text-tiny text-primary"
-                    autofocus
-                    @keydown="onCaptureKeydown($event, s.id)"
-                    @blur="cancelCapture"
-                  >
-                    اضغط أي مفتاح…
-                  </button>
-                  <Kbd v-else class="num cursor-pointer" @click="startCapture(s.id)">{{ comboLabel(s.combo) }}</Kbd>
-                  <AppButton v-if="s.isCustom" size="sm" variant="ghost" :icon="RotateCcw" aria-label="استعادة الافتراضي" @click="resetCombo(s.id)" />
-                </div>
-              </li>
-            </ul>
-          </div>
-          <p v-if="conflictMessage" class="text-tiny text-danger">{{ conflictMessage }}</p>
+      <div class="space-y-6">
+        <div v-for="[group, items] in groups" :key="group">
+          <p class="mb-2 text-tiny font-medium text-text-secondary">{{ group }}</p>
+          <ul class="divide-y divide-border rounded-lg border border-border">
+            <li v-for="s in items" :key="s.id" class="flex items-center justify-between gap-3 px-3 py-2.5">
+              <span class="text-body">{{ s.label }}</span>
+              <div class="flex items-center gap-2">
+                <button
+                  v-if="capturingId === s.id"
+                  type="button"
+                  class="rounded-md border border-primary bg-primary/5 px-3 py-1 text-tiny text-primary"
+                  autofocus
+                  @keydown="onCaptureKeydown($event, s.id)"
+                  @blur="cancelCapture"
+                >
+                  اضغط أي مفتاح…
+                </button>
+                <Kbd v-else class="num cursor-pointer" @click="startCapture(s.id)">{{ comboLabel(s.combo) }}</Kbd>
+                <AppButton v-if="s.isCustom" size="sm" variant="ghost" :icon="RotateCcw" aria-label="استعادة الافتراضي" @click="resetCombo(s.id)" />
+              </div>
+            </li>
+          </ul>
         </div>
-      </AppCard>
-    </div>
-  </div>
+        <p v-if="conflictMessage" class="text-tiny text-danger">{{ conflictMessage }}</p>
+      </div>
+    </AppCard>
+  </SettingsPage>
 </template>
