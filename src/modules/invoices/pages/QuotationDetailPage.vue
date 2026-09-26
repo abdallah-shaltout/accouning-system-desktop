@@ -17,7 +17,7 @@ import TenderDialog from '../components/TenderDialog.vue';
 import { convertQuotationToInvoice, getQuotation, setQuotationStatus } from '../services/invoiceService';
 import type { Tender } from '../types';
 
-const route = useRoute();
+const route = useRoute('quotation');
 const router = useRouter();
 const toast = useToast();
 const id = String(route.params.id);

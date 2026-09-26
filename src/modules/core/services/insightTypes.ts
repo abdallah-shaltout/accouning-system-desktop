@@ -1,5 +1,5 @@
 import type { Component } from 'vue';
-import type { RouteLocationRaw } from 'vue-router';
+import type { AppRoute } from '@/modules/core/types/route';
 import type { Role } from '@/modules/users/types';
 
 /**
@@ -21,7 +21,7 @@ export interface Insight {
   metric?: string;
   /** Deep-links to a pre-filled screen that resolves the insight. */
   actionLabel: string;
-  actionTo: RouteLocationRaw;
+  actionTo: AppRoute;
   icon: Component;
   /** Roles allowed to see this insight (on top of any per-instance role targeting). */
   roles: readonly Role[];

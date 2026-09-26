@@ -8,7 +8,7 @@
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
 import type { Tone } from '@/modules/core/helpers/labels';
-import type { RouteLocationRaw } from 'vue-router';
+import type { AppRoute } from '@/modules/core/types/route';
 
 export interface MetaChip {
   label: string;
@@ -21,7 +21,7 @@ defineProps<{
   number?: string;
   status?: { label: string; tone: Tone };
   chips?: MetaChip[];
-  back?: RouteLocationRaw;
+  back?: AppRoute;
 }>();
 </script>
 

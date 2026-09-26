@@ -31,7 +31,11 @@ export function buildContextCommands(router: Router): PaletteCommand[] {
       group: 'actions',
       title: 'طباعة هذا السند',
       when: (route: RouteLocationNormalizedLoaded) => route.name === 'voucher-detail',
-      run: () => router.push(`/print/vouchers/${router.currentRoute.value.params.id}`),
+      run: () => {
+        const r = router.currentRoute.value;
+        if (r.name !== 'voucher-detail') return;
+        router.push(`/print/vouchers/${r.params.id}`);
+      },
       permission: { area: 'payments', access: 'read' },
     },
   ];

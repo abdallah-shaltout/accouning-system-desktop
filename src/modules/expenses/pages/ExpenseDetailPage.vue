@@ -13,7 +13,7 @@ import { db } from '@/mocks';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getExpense } from '../services/expenseService';
 
-const route = useRoute();
+const route = useRoute('expense-detail');
 const auth = useAuthStore();
 const id = String(route.params.id);
 const { data, error, reload } = useAsync(() => getExpense(id));

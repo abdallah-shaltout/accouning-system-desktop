@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { RouteLocationRaw } from 'vue-router';
+import type { AppRoute } from '@/modules/core/types/route';
 import DirIcon from '@/modules/core/components/ui/DirIcon.vue';
 import { dirIcon } from '@/modules/core/helpers/dirIcon';
 
-defineProps<{ title: string; subtitle?: string; back?: RouteLocationRaw }>();
+defineProps<{ title: string; subtitle?: string; back?: AppRoute }>();
 </script>
 
 <template>

@@ -20,7 +20,7 @@ import type { ProductBatch } from '@/modules/products/types';
 import { createPurchaseReturn, getActiveBatches, getPurchaseOrder } from '../services/purchaseService';
 import type { RefundMethod } from '../types';
 
-const route = useRoute();
+const route = useRoute('purchase-return');
 const router = useRouter();
 const toast = useToast();
 const confirm = useConfirm();

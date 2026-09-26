@@ -19,7 +19,7 @@ import { getInvoicePrintData } from '../services/invoiceService';
  * Chrome-free print preview. Layout defaults to StoreSettings.printer and can be switched here
  * for a one-off print. `?auto=1` opens the print dialog as soon as the document renders (POS).
  */
-const route = useRoute();
+const route = useRoute('invoice-print');
 const router = useRouter();
 const settings = useSettingsStore();
 const id = String(route.params.id);

@@ -20,7 +20,7 @@ import { useCatalogStore } from '../controllers/useCatalogStore';
 import { batchAlertTone, getBatches, getStockMovements } from '../services/inventoryService';
 import { getProduct, isLowStock } from '../services/productService';
 
-const route = useRoute();
+const route = useRoute('product');
 const router = useRouter();
 const auth = useAuthStore();
 const catalog = useCatalogStore();

@@ -16,6 +16,7 @@ import {
 import { mutate } from '@/mocks/persist';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
+import type { AppRoute } from '@/modules/core/types/route';
 import type { Account, AccountInput, FiscalYear, JournalEntry, JournalEntryInput, JournalFilter, JournalTemplate } from '../types';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
@@ -154,7 +155,7 @@ export const reparentAccount = wrap('accounting.reparentAccount', async function
 // --- Journal ---------------------------------------------------------------------------------
 
 /** `sourceLink` = app route of the document behind a SYSTEM entry. */
-export type JournalRow = JournalEntry & { createdByName: string; sourceLink?: string; sourceLabel?: string; attachmentCount: number };
+export type JournalRow = JournalEntry & { createdByName: string; sourceLink?: AppRoute; sourceLabel?: string; attachmentCount: number };
 
 const SOURCE_LABEL: Record<string, string> = {
   invoice: 'فاتورة مبيعات',
@@ -287,26 +288,26 @@ export const reverseJournalEntry = wrap('accounting.reverseJournalEntry', async 
 });
 
 /** Where the SYSTEM entry came from, as an app route. */
-function sourceLink(entry: Pick<JournalEntry, 'sourceRef'>): string | undefined {
+function sourceLink(entry: Pick<JournalEntry, 'sourceRef'>): AppRoute | undefined {
   const ref = entry.sourceRef;
   if (!ref) return undefined;
   switch (ref.kind) {
     case 'invoice':
-      return `/invoices/${ref.id}`;
+      return { name: 'invoice', params: { id: ref.id } };
     case 'refund': {
       const r = db.refunds.find((x) => x.id === ref.id);
-      return r ? `/invoices/${r.invoiceId}` : undefined;
+      return r ? { name: 'invoice', params: { id: r.invoiceId } } : undefined;
     }
     case 'purchaseOrder':
-      return `/purchases/${ref.id}`;
+      return { name: 'purchase', params: { id: ref.id } };
     case 'purchaseReturn': {
       const r = db.purchaseReturns.find((x) => x.id === ref.id);
-      return r ? `/purchases/${r.purchaseOrderId}` : undefined;
+      return r ? { name: 'purchase', params: { id: r.purchaseOrderId } } : undefined;
     }
     case 'payment':
-      return `/payments?highlight=${ref.id}`;
+      return { name: 'payments', query: { highlight: ref.id } };
     case 'stockAdjustment':
-      return `/inventory/adjustments/${ref.id}`;
+      return { name: 'adjustment', params: { id: ref.id } };
   }
 }
 

@@ -17,7 +17,7 @@ import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStor
 import { getVoucher } from '../services/voucherService';
 import type { VoucherKind } from '../types';
 
-const route = useRoute();
+const route = useRoute('voucher-print');
 const router = useRouter();
 const settings = useSettingsStore();
 const id = String(route.params.id);

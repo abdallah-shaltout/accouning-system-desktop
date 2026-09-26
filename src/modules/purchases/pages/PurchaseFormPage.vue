@@ -46,11 +46,11 @@ interface LandedRow {
   spreadBy: LandedCostSpread;
 }
 
-const route = useRoute();
+const route = useRoute<'purchase-new' | 'purchase-edit'>();
 const router = useRouter();
 const toast = useToast();
 const settings = useSettingsStore();
-const id = computed(() => (route.params.id ? String(route.params.id) : undefined));
+const id = computed(() => ('id' in route.params ? String(route.params.id) : undefined));
 
 const supplierId = ref<string | undefined>(typeof route.query.supplier === 'string' ? route.query.supplier : undefined);
 const date = ref(todayKey());

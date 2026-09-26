@@ -17,7 +17,7 @@ import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
 import { getPurchaseOrder } from '../services/purchaseService';
 
-const route = useRoute();
+const route = useRoute('purchase-print');
 const router = useRouter();
 const settings = useSettingsStore();
 const id = String(route.params.id);

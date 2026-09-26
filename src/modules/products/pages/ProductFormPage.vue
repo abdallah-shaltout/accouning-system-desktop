@@ -32,13 +32,13 @@ import { createProduct, getProduct, suggestSku, updateProduct } from '../service
 import type { ProductType, ProductUnit, ProductUnitPrice, StockMode } from '../types';
 import { productSchema } from '../validators/productSchema';
 
-const route = useRoute();
+const route = useRoute<'product-new' | 'product-edit'>();
 const router = useRouter();
 const toast = useToast();
 const catalog = useCatalogStore();
 const auth = useAuthStore();
 
-const id = computed(() => (route.params.id ? String(route.params.id) : undefined));
+const id = computed(() => ('id' in route.params ? String(route.params.id) : undefined));
 const unitsOnly = computed(() => roleCanEditUnitsOnly(auth.role));
 
 type Tab = 'basic' | 'units' | 'prices' | 'tax' | 'stock' | 'extra';

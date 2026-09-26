@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **690 files / 71,120 lines** (md 41, rust 22, ts 207, vue 420).
+Indexed: **692 files / 71,285 lines** (md 41, rust 22, ts 209, vue 420).
 
 **Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -14,6 +14,7 @@ Indexed: **690 files / 71,120 lines** (md 41, rust 22, ts 207, vue 420).
 | App bootstrap | `src/main.ts` |
 | Router (module route aggregation, guards) | `src/router/index.ts` |
 | Route meta typing | `src/router/route-meta.d.ts` |
+| Typed route names (generated) | `src/router/route-map.gen.d.ts` |
 | Sidebar navigation groups | `src/modules/core/helpers/navigation.ts` |
 | Brand / product name | `src/modules/core/helpers/brand.ts` |
 | Formatting (money, dates, numbers) | `src/modules/core/helpers/format.ts` |
@@ -57,20 +58,20 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **accounting** | 12 / 3339 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
 | **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
 | **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
-| **core** | 339 / 18406 | commandPalette 1, components 294, controllers 14, helpers 15, pages 4, routes 1, services 7, types 3 | 5 |  |
+| **core** | 340 / 18416 | commandPalette 1, components 294, controllers 14, helpers 15, pages 4, routes 1, services 7, types 4 | 5 |  |
 | **diagnostics** | 18 / 1391 | commands 1, components 7, config 1, controllers 1, pages 1, services 6, types 1 | 0 | yes |
 | **expenses** | 8 / 962 | pages 5, routes 1, services 1, types 1 | 5 |  |
-| **invoices** | 29 / 5239 | commands 1, components 12, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
+| **invoices** | 29 / 5247 | commands 1, components 12, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
 | **parties** | 9 / 1766 | components 1, helpers 1, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
 | **payments** | 6 / 887 | pages 3, routes 1, services 1, types 1 | 3 |  |
 | **products** | 30 / 5044 | components 6, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
-| **purchases** | 10 / 1621 | commands 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
+| **purchases** | 10 / 1633 | commands 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
 | **reports** | 44 / 6198 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
 | **settings** | 29 / 5093 | commands 1, components 1, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
 | **setup** | 17 / 1607 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
 | **templates** | 4 / 919 | pages 2, services 1, types 1 | 0 |  |
 | **users** | 11 / 963 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
-| **vouchers** | 9 / 815 | commands 1, pages 5, routes 1, services 1, types 1 | 5 | yes |
+| **vouchers** | 9 / 819 | commands 1, pages 5, routes 1, services 1, types 1 | 5 | yes |
 
 ## Service API (the seam — pages call only these)
 
@@ -246,9 +247,9 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 |---|---|---|
 | **accounting** | core (102), users (6), mocks (4), parties (4), reports (3), settings (2), diagnostics (1), invoices (1) | 9 |
 | **analytics** | core (16), diagnostics (1), mocks (1) | 1 |
-| **app** | core (14), settings (5), diagnostics (4), users (3), accounting (2), approvals (2), invoices (2), mocks (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), parties (1), payments (1), products (1), setup (1) | 0 |
+| **app** | core (14), settings (5), diagnostics (4), users (3), accounting (2), approvals (2), invoices (2), mocks (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), parties (1), payments (1), products (1), setup (1) | 1 |
 | **approvals** | core (11), mocks (2), diagnostics (1), users (1) | 4 |
-| **core** | mocks (21), users (19), invoices (13), products (12), settings (10), diagnostics (7), parties (3), purchases (3), accounting (2), templates (2), vouchers (2), payments (1), reports (1), setup (1) | 18 |
+| **core** | mocks (21), users (19), invoices (13), products (12), settings (10), diagnostics (7), parties (3), purchases (3), accounting (2), templates (2), vouchers (2), app (1), payments (1), reports (1), setup (1) | 18 |
 | **diagnostics** | core (17), mocks (2) | 18 |
 | **expenses** | core (59), mocks (3), users (3), accounting (2), parties (2), settings (2), diagnostics (1) | 2 |
 | **invoices** | core (163), mocks (9), settings (9), parties (8), products (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
@@ -264,7 +265,7 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **users** | core (36), mocks (7), products (3), diagnostics (2) | 15 |
 | **vouchers** | core (52), mocks (4), settings (2), users (2), accounting (1), diagnostics (1), invoices (1) | 3 |
 
-**Most-used npm packages** (files importing): `vue (386)`, `@lucide/vue (162)`, `reka-ui (118)`, `vue-router (105)`, `@vueuse/core (79)`, `@tauri-apps/api (16)`, `class-variance-authority (9)`, `pinia (9)`, `zod (5)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
+**Most-used npm packages** (files importing): `vue (386)`, `@lucide/vue (162)`, `reka-ui (118)`, `vue-router (101)`, `@vueuse/core (79)`, `@tauri-apps/api (16)`, `class-variance-authority (9)`, `pinia (9)`, `zod (5)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
 
 ## Rust ↔ Vue IPC contract
 

@@ -20,7 +20,7 @@ import { roleCanSeePurchasePrices } from '@/modules/users/helpers/permissions';
 import { getPurchaseOrder, receivePurchaseOrder } from '../services/purchaseService';
 import type { ReceiveLineInput } from '../types';
 
-const route = useRoute();
+const route = useRoute('purchase-receive');
 const router = useRouter();
 const toast = useToast();
 const confirm = useConfirm();

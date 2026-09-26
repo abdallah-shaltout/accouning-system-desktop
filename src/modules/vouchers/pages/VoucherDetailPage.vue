@@ -18,7 +18,7 @@ import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getVoucher } from '../services/voucherService';
 import type { VoucherKind } from '../types';
 
-const route = useRoute();
+const route = useRoute('voucher-detail');
 const router = useRouter();
 const auth = useAuthStore();
 const toast = useToast();

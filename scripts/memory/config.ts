@@ -8,6 +8,7 @@ import type { Lang } from './types';
 export interface Config {
   root: string;
   output: string;
+  routeMapOutput: string;
   scanRoots: string[];
   extensions: Record<string, Lang>;
   ignoreDirs: string[];
@@ -25,6 +26,8 @@ export const config: Config = {
   root: path.resolve(import.meta.dirname, '../..'),
   /** Generated file (repo-relative). */
   output: 'AGENT_MEMORY.md',
+  /** Generated typed route map (repo-relative). */
+  routeMapOutput: 'src/router/route-map.gen.d.ts',
 
   /** Directories walked by the scanner. */
   scanRoots: ['src', 'src-tauri/src', 'docs', 'plans'],
@@ -79,6 +82,7 @@ export const config: Config = {
     ['App bootstrap', 'src/main.ts'],
     ['Router (module route aggregation, guards)', 'src/router/index.ts'],
     ['Route meta typing', 'src/router/route-meta.d.ts'],
+    ['Typed route names (generated)', 'src/router/route-map.gen.d.ts'],
     ['Sidebar navigation groups', 'src/modules/core/helpers/navigation.ts'],
     ['Brand / product name', 'src/modules/core/helpers/brand.ts'],
     ['Formatting (money, dates, numbers)', 'src/modules/core/helpers/format.ts'],

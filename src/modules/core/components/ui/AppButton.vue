@@ -6,7 +6,8 @@
  * avoid a layout shift across every page that weren't part of this rebrand.
  */
 import { computed, type Component } from 'vue';
-import { RouterLink, type RouteLocationRaw } from 'vue-router';
+import { RouterLink } from 'vue-router';
+import type { AppRoute } from '@/modules/core/types/route';
 import { LoaderCircle } from '@lucide/vue';
 import { Button } from '@/modules/core/components/shadcn/button';
 import type { ButtonVariants } from '@/modules/core/components/shadcn/button';
@@ -23,7 +24,7 @@ const props = withDefaults(
     icon?: Component;
     /** Mirror `icon` in RTL — for back/forward/prev/next navigation icons (see dirIcon.ts). */
     iconRtlFlip?: boolean;
-    to?: RouteLocationRaw;
+    to?: AppRoute;
     block?: boolean;
     /** Keyboard hint rendered inside the button, e.g. "F12". */
     kbd?: string;

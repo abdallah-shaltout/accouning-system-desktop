@@ -28,7 +28,7 @@ import { allocateExistingPayment, getOpenDocuments, getPayment, removeAllocation
 import type { OpenDocument, PaymentAllocationInput } from '../types';
 import { allocationStatusFor } from '../types';
 
-const route = useRoute();
+const route = useRoute('payment-detail');
 const auth = useAuthStore();
 const toast = useToast();
 const confirm = useConfirm();

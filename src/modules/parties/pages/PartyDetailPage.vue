@@ -49,7 +49,7 @@ import type { AgingBucket, Customer, PartyStatementRow, Supplier } from '../type
 
 const props = defineProps<{ kind: 'customer' | 'supplier' }>();
 
-const route = useRoute();
+const route = useRoute<'customer' | 'supplier'>();
 const router = useRouter();
 const auth = useAuthStore();
 const id = String(route.params.id);

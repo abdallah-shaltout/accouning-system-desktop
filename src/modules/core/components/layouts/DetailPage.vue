@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/modules/core/compone
 import DetailHeader, { type MetaChip } from '@/modules/core/components/blocks/DetailHeader.vue';
 import StatCards, { type StatCard } from '@/modules/core/components/blocks/StatCards.vue';
 import type { Tone } from '@/modules/core/helpers/labels';
-import type { RouteLocationRaw } from 'vue-router';
+import type { AppRoute } from '@/modules/core/types/route';
 
 export interface DetailTab {
   key: string;
@@ -25,7 +25,7 @@ const props = withDefaults(
     number?: string;
     status?: { label: string; tone: Tone };
     chips?: MetaChip[];
-    back?: RouteLocationRaw;
+    back?: AppRoute;
     stats?: StatCard[];
     /** Omit for a single-section page (no tab bar rendered). */
     tabs?: DetailTab[];

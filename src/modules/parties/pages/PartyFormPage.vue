@@ -46,11 +46,11 @@ import { isValidIban } from '../validators/partySchema';
 import { postPartyOpening, reversePartyOpening } from '@/modules/setup/services/setupService';
 
 const props = defineProps<{ kind: 'customer' | 'supplier' }>();
-const route = useRoute();
+const route = useRoute<'customer-new' | 'customer-edit' | 'supplier-new' | 'supplier-edit'>();
 const router = useRouter();
 const toast = useToast();
 
-const id = computed(() => (route.params.id && route.params.id !== 'new' ? String(route.params.id) : undefined));
+const id = computed(() => ('id' in route.params && route.params.id !== 'new' ? String(route.params.id) : undefined));
 const isCustomer = computed(() => props.kind === 'customer');
 
 interface FormState {

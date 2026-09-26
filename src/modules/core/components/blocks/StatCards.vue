@@ -5,14 +5,15 @@
  * (CLAUDE.md RTL rule 17 — physical/numeric directions like trends are not mirrored). Optional `to`
  * makes the whole card a `RouterLink`.
  */
-import { RouterLink, type RouteLocationRaw } from 'vue-router';
+import { RouterLink } from 'vue-router';
+import type { AppRoute } from '@/modules/core/types/route';
 
 export interface StatCard {
   label: string;
   value: string;
   /** e.g. "+12%" / "-3%" — rendered LTR, colored by sign, never mirrored. */
   trend?: string;
-  to?: RouteLocationRaw;
+  to?: AppRoute;
 }
 
 defineProps<{ cards: StatCard[] }>();

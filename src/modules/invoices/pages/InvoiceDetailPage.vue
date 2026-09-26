@@ -20,7 +20,7 @@ import { useRouter } from 'vue-router';
 import { round2 } from '../helpers/totals';
 import { getInvoice } from '../services/invoiceService';
 
-const route = useRoute();
+const route = useRoute('invoice');
 const router = useRouter();
 const auth = useAuthStore();
 const toast = useToast();

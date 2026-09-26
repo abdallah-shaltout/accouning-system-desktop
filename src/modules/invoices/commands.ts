@@ -43,7 +43,11 @@ export function buildContextCommands(router: Router): PaletteCommand[] {
       group: 'actions',
       title: 'طباعة هذه الفاتورة',
       when: (route) => isInvoicePage(route),
-      run: () => router.push(`/print/invoices/${router.currentRoute.value.params.id}`),
+      run: () => {
+        const r = router.currentRoute.value;
+        if (r.name !== 'invoice') return;
+        router.push(`/print/invoices/${r.params.id}`);
+      },
       permission: { area: 'sales', access: 'read' },
     },
     {
@@ -51,7 +55,11 @@ export function buildContextCommands(router: Router): PaletteCommand[] {
       group: 'actions',
       title: 'إنشاء إشعار دائن',
       when: (route) => isInvoicePage(route),
-      run: () => router.push(`/invoices/${router.currentRoute.value.params.id}/refund`),
+      run: () => {
+        const r = router.currentRoute.value;
+        if (r.name !== 'invoice') return;
+        router.push(`/invoices/${r.params.id}/refund`);
+      },
       permission: { area: 'sales', access: 'write' },
     },
   ];

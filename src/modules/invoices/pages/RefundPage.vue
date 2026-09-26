@@ -18,7 +18,7 @@ import { invoiceOutstanding, round2 } from '../helpers/totals';
 import { createRefund, getInvoice } from '../services/invoiceService';
 import type { RefundMethod } from '../types';
 
-const route = useRoute();
+const route = useRoute('invoice-refund');
 const router = useRouter();
 const toast = useToast();
 const confirm = useConfirm();

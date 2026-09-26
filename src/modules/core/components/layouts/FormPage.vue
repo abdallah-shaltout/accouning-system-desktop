@@ -7,13 +7,13 @@
  * Not wired into any existing form page yet (F-2/F-3 migrate invoice/purchase/journal/product/party/…
  * forms — out of scope for F-0); this is the shell those pages will assemble once that batch starts.
  */
-import type { RouteLocationRaw } from 'vue-router';
+import type { AppRoute } from '@/modules/core/types/route';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 
 defineProps<{
   title: string;
   subtitle?: string;
-  back?: RouteLocationRaw;
+  back?: AppRoute;
 }>();
 </script>
 

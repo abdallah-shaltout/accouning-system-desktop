@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Component } from 'vue';
-import type { RouteLocationRaw } from 'vue-router';
+import type { AppRoute } from '@/modules/core/types/route';
 import { TrendingDown, TrendingUp } from '@lucide/vue';
 import { dirIcon } from '../../helpers/dirIcon';
 import { formatNumber } from '../../helpers/format';
@@ -13,7 +13,7 @@ defineProps<{
   label: string;
   icon: Component;
   loading?: boolean;
-  to?: RouteLocationRaw;
+  to?: AppRoute;
   tone?: 'danger' | 'warning';
   changePct?: number | null;
 }>();

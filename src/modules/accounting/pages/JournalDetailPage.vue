@@ -30,7 +30,7 @@ import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getAccounts, getJournalEntry, reverseJournalEntry, type AccountWithBalance } from '../services/accountingService';
 import type { JournalEntryType } from '../types';
 
-const route = useRoute();
+const route = useRoute('journal-entry');
 const router = useRouter();
 const auth = useAuthStore();
 const toast = useToast();

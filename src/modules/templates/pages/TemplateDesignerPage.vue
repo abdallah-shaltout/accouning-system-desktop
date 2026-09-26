@@ -53,7 +53,7 @@ import {
 } from '../services/templateService';
 import type { FontFamilyOption, LogoPosition, LogoSize, PaperSize, PdfTemplate, TemplateExport } from '../types';
 
-const route = useRoute();
+const route = useRoute('settings-template-designer');
 const router = useRouter();
 const toast = useToast();
 

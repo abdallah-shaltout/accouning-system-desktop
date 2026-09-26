@@ -21,7 +21,7 @@ import { heading, kpis, money, note, row, table as printTable } from '@/modules/
 import { useOfficialPrint } from '@/modules/reports/print/useOfficialPrint';
 import { getShift } from '../services/invoiceService';
 
-const route = useRoute();
+const route = useRoute('pos-shift-report');
 const id = String(route.params.id);
 const { data, error, reload } = useAsync(() => getShift(id));
 const shift = computed(() => data.value);

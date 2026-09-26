@@ -33,7 +33,11 @@ export function buildContextCommands(router: Router): PaletteCommand[] {
       group: 'actions',
       title: 'طباعة أمر الشراء',
       when: isPurchasePage,
-      run: () => router.push(`/print/purchases/${router.currentRoute.value.params.id}`),
+      run: () => {
+        const r = router.currentRoute.value;
+        if (r.name !== 'purchase') return;
+        router.push(`/print/purchases/${r.params.id}`);
+      },
       permission: { area: 'purchases', access: 'read' },
     },
     {
@@ -41,7 +45,11 @@ export function buildContextCommands(router: Router): PaletteCommand[] {
       group: 'actions',
       title: 'استلام أمر الشراء',
       when: isPurchasePage,
-      run: () => router.push(`/purchases/${router.currentRoute.value.params.id}/receive`),
+      run: () => {
+        const r = router.currentRoute.value;
+        if (r.name !== 'purchase') return;
+        router.push(`/purchases/${r.params.id}/receive`);
+      },
       permission: { area: 'purchases', access: 'write' },
     },
     {
@@ -49,7 +57,11 @@ export function buildContextCommands(router: Router): PaletteCommand[] {
       group: 'actions',
       title: 'مرتجع مشتريات',
       when: isPurchasePage,
-      run: () => router.push(`/purchases/${router.currentRoute.value.params.id}/return`),
+      run: () => {
+        const r = router.currentRoute.value;
+        if (r.name !== 'purchase') return;
+        router.push(`/purchases/${r.params.id}/return`);
+      },
       permission: { area: 'purchases', access: 'write' },
     },
   ];

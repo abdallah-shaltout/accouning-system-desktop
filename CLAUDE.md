@@ -49,7 +49,8 @@ by `bun run memory` (pipeline in `scripts/memory/`: scan → parse → analyze �
 - After a **structural change**, run `bun run memory` and commit `AGENT_MEMORY.md` with that change.
   Structural changes are: a new/renamed/moved module, service, route, page, shared component, mock
   file or Rust command, or a new domain. The run takes under a second. `bun run memory:check` fails
-  when the file is stale.
+  when the file is stale. `bun run memory` also regenerates `src/router/route-map.gen.d.ts` (typed
+  route names). Adding, renaming or removing a route without re-running it breaks `vue-tsc`.
 - If you find the memory stale and can't regenerate it (for example, a read-only task), **tell the
   user to run `bun run memory`** and say what looked out of date.
 
@@ -194,6 +195,17 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
     with an `area` for role filtering — do not add new top-level groups without a reason.
 24. Every new page gets `meta.title` (and `meta.section`) for the breadcrumb, and is findable from
     the command palette.
+25. **Every navigation target is a named route object**: `{ name, params?, query?, hash? }`.
+    Never a path string (`'/invoices'`, `` `/invoices/${id}` ``) and never `{ path: … }`. This covers
+    `router.push/replace`, `RouterLink`/`AppButton`/`KpiCard` `:to`, `PageHeader :back`, sidebar
+    and quick-action items, settings tabs, palette commands, service link fields (`actionTo`,
+    `sourceLink`, `refLink`, `link`) and route-record `redirect`s. Type any prop or field that
+    holds a destination as `AppRoute` (`core/types/route.ts`). Route names and params are
+    type-checked by the generated `src/router/route-map.gen.d.ts`. Read params with
+    `useRoute('<route-name>')`. Same-page query/hash updates may leave out `name`
+    (`router.replace({ query: { ...route.query, x } })`). `scripts/check-routes.js` enforces this
+    (it joins `bun run check` in plan 20.D). The only escape is `/* route-ok: <reason> */`, for a URL
+    round-trip such as the login `?redirect=` fullPath.
 
 ## Accounting safety
 
@@ -267,3 +279,4 @@ bun run stop                  # free ports 1420/1421 when done
 - Don't use physical left/right utilities or mirror icons blindly.
 - Don't add reduced-motion code or silent downloads.
 - Don't skip hooks (`--no-verify`) or leave the suite red.
+- Don't navigate with path strings or `{ path }`. Use `{ name, params, query }` (rule 25).

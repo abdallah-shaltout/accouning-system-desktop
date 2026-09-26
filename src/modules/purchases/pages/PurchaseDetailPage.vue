@@ -20,7 +20,7 @@ import { renderAndSave } from '@/modules/core/services/pdfService';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { cancelPurchaseOrder, getPurchaseOrder, sendPurchaseOrderToSupplier } from '../services/purchaseService';
 
-const route = useRoute();
+const route = useRoute('purchase');
 const router = useRouter();
 const auth = useAuthStore();
 const toast = useToast();

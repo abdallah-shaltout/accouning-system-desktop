@@ -7,7 +7,7 @@
  * Not wired into any existing list page yet (F-1 migrates invoices/products/customers/… — out of
  * scope for F-0); this is the shell those pages will assemble once that batch starts.
  */
-import type { RouteLocationRaw } from 'vue-router';
+import type { AppRoute } from '@/modules/core/types/route';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import type { Component } from 'vue';
@@ -15,10 +15,10 @@ import type { Component } from 'vue';
 defineProps<{
   title: string;
   subtitle?: string;
-  back?: RouteLocationRaw;
+  back?: AppRoute;
   primaryActionLabel?: string;
   primaryActionIcon?: Component;
-  primaryActionTo?: RouteLocationRaw;
+  primaryActionTo?: AppRoute;
 }>();
 defineEmits<{ 'primary-action': [] }>();
 </script>

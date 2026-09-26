@@ -15,6 +15,7 @@ import {
 } from '@/mocks/backend/inventory';
 import { mutate } from '@/mocks/persist';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
+import type { AppRoute } from '@/modules/core/types/route';
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
 import type {
@@ -89,7 +90,7 @@ export interface MovementFilter {
 }
 
 /** Stock ledger, newest first. `refLink` points at the source document screen. */
-export const getStockMovements = wrap('products.getStockMovements', async function getStockMovements(filter: MovementFilter = {}): Promise<(StockMovement & { productName: string; refLink?: string })[]> {
+export const getStockMovements = wrap('products.getStockMovements', async function getStockMovements(filter: MovementFilter = {}): Promise<(StockMovement & { productName: string; refLink?: AppRoute })[]> {
   await delay();
   return db.stockMovements
     .filter(
@@ -102,7 +103,7 @@ export const getStockMovements = wrap('products.getStockMovements', async functi
     .map((m) => ({ ...clone(m), productName: db.products.find((p) => p.id === m.productId)?.name ?? '—', refLink: refLink(m) }));
 });
 
-export type StockMovementRow = StockMovement & { productName: string; refLink?: string };
+export type StockMovementRow = StockMovement & { productName: string; refLink?: AppRoute };
 
 /** Server-mode variant of `getStockMovements` for `DataTable`: paged and sorted server-side. */
 export const getStockMovementsPaged = wrap('products.getStockMovementsPaged', async function getStockMovementsPaged(query: PagedQuery<MovementFilter>): Promise<PagedResult<StockMovementRow>> {
@@ -134,22 +135,22 @@ export const getStockMovementsPaged = wrap('products.getStockMovementsPaged', as
   return { rows: rows.slice(start, start + query.pageSize), total };
 });
 
-function refLink(m: StockMovement): string | undefined {
+function refLink(m: StockMovement): AppRoute | undefined {
   switch (m.reason) {
     case 'sale':
-      return `/invoices/${m.refId}`;
+      return { name: 'invoice', params: { id: m.refId } };
     case 'refund': {
       const refund = db.refunds.find((r) => r.id === m.refId);
-      return refund ? `/invoices/${refund.invoiceId}` : undefined;
+      return refund ? { name: 'invoice', params: { id: refund.invoiceId } } : undefined;
     }
     case 'purchase':
-      return `/purchases/${m.refId}`;
+      return { name: 'purchase', params: { id: m.refId } };
     case 'purchase_return': {
       const ret = db.purchaseReturns.find((r) => r.id === m.refId);
-      return ret ? `/purchases/${ret.purchaseOrderId}` : undefined;
+      return ret ? { name: 'purchase', params: { id: ret.purchaseOrderId } } : undefined;
     }
     default:
-      return `/inventory/adjustments/${m.refId}`;
+      return { name: 'adjustment', params: { id: m.refId } };
   }
 }
 

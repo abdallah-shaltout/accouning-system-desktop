@@ -24,7 +24,7 @@ import {
 import { getProducts } from '../services/productService';
 import type { Product } from '../types';
 
-const route = useRoute();
+const route = useRoute('count');
 const router = useRouter();
 const auth = useAuthStore();
 const toast = useToast();
