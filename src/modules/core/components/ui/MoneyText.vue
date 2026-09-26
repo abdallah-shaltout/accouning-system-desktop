@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { formatMoney } from '../../helpers/format';
+import { profileByCurrency } from '../../helpers/countryProfiles';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
 import RiyalIcon from './RiyalIcon.vue';
 
@@ -25,6 +26,9 @@ const props = withDefaults(
 
 const settings = useSettingsStore();
 const displayCurrency = computed(() => props.currency ?? settings.currency);
+// v2 doc 18.D: a symbol per active currency — `RiyalIcon` (the drawn glyph) only for SAR, the
+// profile's Arabic symbol ("ج.م" for EGP, "ر.س" for any other/unknown currency) otherwise.
+const currencySymbol = computed(() => profileByCurrency(displayCurrency.value).currency.symbolAr);
 const isZero = computed(() => Math.abs(props.value ?? 0) < 0.005);
 const tone = computed(() => {
   if (!props.signed || isZero.value) return '';
@@ -39,7 +43,7 @@ const tone = computed(() => {
       <span class="num">{{ formatMoney(value) }}</span>
       <template v-if="!plain">
         <RiyalIcon v-if="displayCurrency === 'SAR'" class="opacity-70" />
-        <span v-else class="text-[0.85em] opacity-70">{{ displayCurrency }}</span>
+        <span v-else class="text-[0.85em] opacity-70">{{ currencySymbol }}</span>
       </template>
     </template>
   </span>

@@ -3,6 +3,7 @@
  * here is persisted directly — each step's `commit()` writes into the real domain tables
  * (accounts, branches, customers, settings…) through the existing services / new `setupService`.
  */
+import { COUNTRY_PROFILES, DEFAULT_COUNTRY } from '@/modules/core/helpers/countryProfiles';
 
 export type BusinessType =
     | "clothing"
@@ -62,16 +63,16 @@ export const WIZARD_STEPS: WizardStepMeta[] = [
         why: "يضبط الوحدات والحقول وشجرة الحسابات المقترح تلقائياً.",
     },
     {
-        key: "company",
-        label: "بيانات المنشأة",
-        required: true,
-        why: "تظهر في رأس كل فاتورة ومستند مطبوع.",
-    },
-    {
         key: "countryTax",
         label: "الدولة والعملة والضريبة",
         required: true,
         why: "تحدد العملة الأساسية ونسبة الضريبة الافتراضية — تُقفل العملة بعد أول ترحيل.",
+    },
+    {
+        key: "company",
+        label: "بيانات المنشأة",
+        required: true,
+        why: "تظهر في رأس كل فاتورة ومستند مطبوع.",
     },
     {
         key: "fiscalYear",
@@ -143,7 +144,7 @@ export interface WizardState {
         email: string;
     };
     countryTax: {
-        country: "SA" | "EG" | "AE";
+        country: "EG" | "SA";
         currency: string;
         vatRegistered: boolean;
         pricesIncludeTax: boolean;
@@ -175,6 +176,9 @@ export interface WizardState {
 
 export function defaultWizardState(): WizardState {
     const today = new Date().toISOString().slice(0, 10);
+    // v2 doc 18.D (decision 2): default country is Egypt, not Saudi — `countryProfiles.ts` is the
+    // one owner of the actual rate/currency/label values; only the *default choice* lives here.
+    const defaultProfile = COUNTRY_PROFILES[DEFAULT_COUNTRY];
     return {
         businessType: "retail",
         company: {
@@ -188,10 +192,10 @@ export function defaultWizardState(): WizardState {
             email: "",
         },
         countryTax: {
-            country: "SA",
-            currency: "SAR",
+            country: defaultProfile.code,
+            currency: defaultProfile.currency.code,
             vatRegistered: true,
-            pricesIncludeTax: true,
+            pricesIncludeTax: defaultProfile.vat.pricesIncludeTaxDefault,
             extraCurrencies: [],
         },
         fiscalYear: { startMonth: 1, startDay: 1, goLiveDate: today },

@@ -101,6 +101,8 @@ export interface StoreSettings {
   stamp?: string;
   signature?: string;
   currency: string;
+  /** v2 doc 18.D: the company's country (drives VAT rate/label, tax-id/CR pattern, invoice title, e-invoicing scheme via `countryProfiles.ts`). Defaults to 'EG' for a fresh company. */
+  country?: import('@/modules/core/helpers/countryProfiles').CountryCode;
   vatNumber?: string;
   defaultTaxId?: string;
   invoiceNumberPrefix: string;

@@ -13,7 +13,7 @@ const TEMPLATES: { value: 'basic' | 'standard' | 'detailed'; label: string; note
   { value: 'detailed', label: 'مفصّل', note: '~90 حساباً — شيكات، فروع، تأمينات اجتماعية' },
 ];
 
-const preview = computed(() => previewCoaTemplate(props.state.coa.template, props.state.businessType));
+const preview = computed(() => previewCoaTemplate(props.state.coa.template, props.state.countryTax.country, props.state.businessType));
 const roots = computed(() => preview.value.filter((a) => !a.parentId));
 function children(parentId: string) {
   return preview.value.filter((a) => a.parentId === parentId);

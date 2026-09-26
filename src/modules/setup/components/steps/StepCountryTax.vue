@@ -1,24 +1,28 @@
 <script setup lang="ts">
-/** docs/v2/05-onboarding.md §2 step 3: country → base currency + VAT defaults, extra currencies. */
+/**
+ * docs/v2/05-onboarding.md §2 step 3 (v2 doc 18.D: now the *first* content step — see
+ * `WIZARD_STEPS`): country → base currency + VAT defaults, extra currencies. Every country-specific
+ * value (currency, VAT rate/label, default "prices include VAT") reads from `countryProfiles.ts` —
+ * this component only wires the picker to it.
+ */
+import { computed } from 'vue';
 import { Plus, Trash2 } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
+import { COUNTRY_OPTIONS, countryProfile } from '@/modules/core/helpers/countryProfiles';
 import type { WizardState } from '../../types';
 
 const props = defineProps<{ state: WizardState }>();
 
-const COUNTRY_OPTIONS = [
-  { value: 'SA', label: '🇸🇦 السعودية' },
-  { value: 'EG', label: '🇪🇬 مصر' },
-  { value: 'AE', label: '🇦🇪 الإمارات' },
-];
-const CURRENCY_BY_COUNTRY: Record<string, string> = { SA: 'SAR', EG: 'EGP', AE: 'AED' };
+const activeProfile = computed(() => countryProfile(props.state.countryTax.country));
 
 function onCountryChange() {
-  props.state.countryTax.currency = CURRENCY_BY_COUNTRY[props.state.countryTax.country] ?? 'SAR';
+  const profile = countryProfile(props.state.countryTax.country);
+  props.state.countryTax.currency = profile.currency.code;
+  props.state.countryTax.pricesIncludeTax = profile.vat.pricesIncludeTaxDefault;
 }
 
 function addCurrency() {
@@ -35,12 +39,17 @@ function removeCurrency(i: number) {
       <div class="grid gap-4 sm:grid-cols-2">
         <AppSelect v-model="state.countryTax.country" label="الدولة" :options="COUNTRY_OPTIONS" @update:model-value="onCountryChange" />
         <AppInput :model-value="state.countryTax.currency" label="العملة الأساسية" disabled hint="مأخوذة من الدولة — تُقفل بعد أول ترحيل" />
-        <AppSwitch v-model="state.countryTax.vatRegistered" class="sm:col-span-2" label="مسجّل في ضريبة القيمة المضافة" description="يفعّل حقول الفاتورة الضريبية ويحسب 15% افتراضياً" />
+        <AppSwitch
+          v-model="state.countryTax.vatRegistered"
+          class="sm:col-span-2"
+          label="مسجّل في ضريبة القيمة المضافة"
+          :description="`يفعّل حقول الفاتورة الضريبية ويحسب ${activeProfile.vat.standardRate}% افتراضياً`"
+        />
         <AppSwitch
           v-model="state.countryTax.pricesIncludeTax"
           class="sm:col-span-2"
           label="الأسعار المعروضة شاملة الضريبة"
-          description="الوضع الافتراضي للتجزئة في السعودية — يمكن تغييره لاحقاً من الإعدادات"
+          description="الوضع الافتراضي للتجزئة في هذه الدولة — يمكن تغييره لاحقاً من الإعدادات"
         />
       </div>
     </AppCard>

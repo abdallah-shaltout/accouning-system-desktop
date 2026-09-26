@@ -3,7 +3,7 @@
  * around `src/mocks/backend/setup.ts` / `opening.ts`, matching every other module's services shape
  * (pages never import `src/mocks/backend` directly).
  */
-import { clone, db, delay, session, uid } from '@/mocks';
+import { ApiError, clone, db, delay, session, uid } from '@/mocks';
 import * as setupBackend from '@/mocks/backend/setup';
 import {
   closeOpeningBalanceEquity,
@@ -23,6 +23,7 @@ import type { Account, FiscalYear } from '@/modules/accounting/types';
 import type { AccountTemplate } from '@/mocks/fixtures/accounts';
 import type { Branch } from '@/modules/settings/types';
 import type { WizardBranchInput, WizardPaymentMethodInput } from '@/mocks/backend/setup';
+import { countryProfile, type CountryCode } from '@/modules/core/helpers/countryProfiles';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
@@ -80,16 +81,38 @@ export const isBaseCurrencyLocked = wrap('setup.isBaseCurrencyLocked', async fun
   return db.journalEntries.length > 0;
 });
 
-export const applyCountryTax = wrap('setup.applyCountryTax', async function applyCountryTax(input: { currency: string; vatRegistered: boolean; pricesIncludeTax: boolean; extraCurrencies: { code: string; rate: number }[] }): Promise<void> {
+export const applyCountryTax = wrap('setup.applyCountryTax', async function applyCountryTax(input: {
+  country: CountryCode;
+  currency: string;
+  vatRegistered: boolean;
+  pricesIncludeTax: boolean;
+  extraCurrencies: { code: string; rate: number }[];
+}): Promise<void> {
   await delay();
+  if (await isBaseCurrencyLocked()) throw new ApiError('لا يمكن تغيير الدولة أو العملة الأساسية بعد أول ترحيل', 'FORBIDDEN');
+
+  const profile = countryProfile(input.country);
   if (db.settings.currency !== input.currency) setBaseCurrency(input.currency);
-  mutate(() => (db.settings.pricesIncludeTax = input.pricesIncludeTax));
+
+  // v2 doc 18.D: applies the *full* profile, not only currency — tax rate/name, prices-include-VAT
+  // default and `settings.country` (today Egypt was wrongly seeded at 15% because this only ever
+  // touched `pricesIncludeTax`; the VAT rate/name/country now all come from the chosen profile).
+  mutate(() => {
+    db.settings.pricesIncludeTax = input.pricesIncludeTax;
+    db.settings.country = profile.code;
+    db.taxes = db.taxes.map((t) => {
+      if (t.id === 'tax-vat-out') return { ...t, rate: profile.vat.standardRate, name: `${profile.vat.label} (مبيعات)` };
+      if (t.id === 'tax-vat-in') return { ...t, rate: profile.vat.standardRate, name: `${profile.vat.label} (مشتريات)` };
+      return t;
+    });
+  });
+
   for (const c of input.extraCurrencies) {
     if (!c.code || db.currencies.some((x) => x.code === c.code)) continue;
     createCurrency({ code: c.code, nameAr: c.code, symbol: c.code, decimals: 2, active: true, fixed: false, fixedRate: c.rate }, session.userId);
   }
   if (input.extraCurrencies.length) mutate(() => (db.settings.features = { ...db.settings.features, currencies: true }));
-  void input.vatRegistered; // captured for the review screen; taxes are seeded already (`seedEmptyCompany`), no extra posting needed.
+  void input.vatRegistered; // captured for the review screen; no extra posting needed (tax rows are updated above, not posted).
 });
 
 // --- Step: fiscal year ---------------------------------------------------------------------
@@ -111,13 +134,13 @@ export const applyBranches = wrap('setup.applyBranches', async function applyBra
 
 // --- Step: chart of accounts -----------------------------------------------------------------
 
-export const previewCoaTemplate = wrap('setup.previewCoaTemplate', function previewCoaTemplate(template: AccountTemplate, businessType?: string): Account[] {
-  return setupBackend.previewCoaTemplate(template, 'SA', businessType);
+export const previewCoaTemplate = wrap('setup.previewCoaTemplate', function previewCoaTemplate(template: AccountTemplate, country: CountryCode = 'EG', businessType?: string): Account[] {
+  return setupBackend.previewCoaTemplate(template, country, businessType);
 });
 
-export const applyCoaTemplate = wrap('setup.applyCoaTemplate', async function applyCoaTemplate(template: AccountTemplate, businessType?: string): Promise<Account[]> {
+export const applyCoaTemplate = wrap('setup.applyCoaTemplate', async function applyCoaTemplate(template: AccountTemplate, country: CountryCode = 'EG', businessType?: string): Promise<Account[]> {
   await delay();
-  const accounts = setupBackend.applyCoaTemplate(template, 'SA', businessType);
+  const accounts = setupBackend.applyCoaTemplate(template, country, businessType);
   mutate(() => (db.settings.onboarding = { ...db.settings.onboarding, coaTemplate: template }));
   return clone(accounts);
 });

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { setRoleAccessOverrides } from '@/modules/users/helpers/permissions';
+import { DEFAULT_COUNTRY, countryProfile } from '@/modules/core/helpers/countryProfiles';
 import * as settingsService from '../services/settingsService';
 import type { PaymentMethod, StoreSettings, Tax } from '../types';
 
@@ -11,7 +12,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const paymentMethods = ref<PaymentMethod[]>([]);
   const loaded = ref(false);
 
-  const currency = computed(() => settings.value?.currency ?? 'SAR');
+  // v2 doc 18.D: default falls back to the default country's currency (EG/EGP), not a hard-coded SAR.
+  const currency = computed(() => settings.value?.currency ?? countryProfile(DEFAULT_COUNTRY).currency.code);
   const pricesIncludeTax = computed(() => settings.value?.pricesIncludeTax !== false);
   const salesTax = computed(
     () =>

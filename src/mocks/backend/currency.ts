@@ -8,9 +8,10 @@ import type { Currency, ExchangeRate, ExchangeRateInput } from '@/modules/settin
 import { db } from '../db';
 import { mutate } from '../persist';
 import { ApiError, localDateKey, round2, uid } from '../utils';
+import { DEFAULT_COUNTRY, countryProfile } from '@/modules/core/helpers/countryProfiles';
 
 export function baseCurrency(): string {
-  return db.settings.currency || 'SAR';
+  return db.settings.currency || countryProfile(DEFAULT_COUNTRY).currency.code;
 }
 
 export function isBaseCurrency(code: string | undefined): boolean {

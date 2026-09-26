@@ -163,3 +163,17 @@ export const COUNTRY_OPTIONS: { value: CountryCode; label: string }[] = [
   { value: 'EG', label: '🇪🇬 مصر' },
   { value: 'SA', label: '🇸🇦 السعودية' },
 ];
+
+/**
+ * One owned currency-code list for pickers that let a party/document use a currency other than the
+ * store's base currency (`PartyFormPage`, `GeneralSettingsPage`'s multi-currency section) — not only
+ * EG/SA's own currencies, since a customer/supplier can transact in a currency neither country uses.
+ * Doesn't replace `countryProfiles.ts` as the source of the *base*-currency rate/label/symbol.
+ */
+export const CURRENCY_OPTIONS: { value: string; label: string }[] = [
+  { value: 'EGP', label: 'جنيه مصري (EGP)' },
+  { value: 'SAR', label: 'ريال سعودي (SAR)' },
+  { value: 'AED', label: 'درهم إماراتي (AED)' },
+  { value: 'KWD', label: 'دينار كويتي (KWD)' },
+  { value: 'USD', label: 'دولار أمريكي (USD)' },
+];

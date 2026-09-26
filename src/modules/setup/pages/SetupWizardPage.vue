@@ -83,7 +83,7 @@ async function commitCurrentStep(): Promise<boolean> {
         await setupService.applyBranches(state.branches.map((b) => ({ name: b.name, code: b.code, address: b.address })));
         break;
       case 'coa':
-        await setupService.applyCoaTemplate(state.coa.template, state.businessType);
+        await setupService.applyCoaTemplate(state.coa.template, state.countryTax.country, state.businessType);
         break;
       case 'paymentMethods':
         await setupService.applyPaymentMethods(

@@ -18,13 +18,17 @@ import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import FormActions from '@/modules/core/components/blocks/FormActions.vue';
+import FormSection from '@/modules/core/components/blocks/FormSection.vue';
+import FormPage from '@/modules/core/components/layouts/FormPage.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { errorMessage } from '@/modules/core/controllers/useToast';
 import { COUNTRIES } from '@/modules/core/helpers/countries';
+import { CURRENCY_OPTIONS } from '@/modules/core/helpers/countryProfiles';
 import { PHONE_LABEL } from '@/modules/core/helpers/labels';
+import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
 import { uid } from '@/mocks';
 import { partyRoute, partyRouteById } from '../helpers/partyRoutes';
 import {
@@ -50,6 +54,7 @@ const props = defineProps<{ kind: 'customer' | 'supplier' }>();
 const route = useRoute<'customer-new' | 'customer-edit' | 'supplier-new' | 'supplier-edit'>();
 const router = useRouter();
 const toast = useToast();
+const settingsStore = useSettingsStore();
 
 const id = computed(() => ('id' in route.params && route.params.id !== 'new' ? String(route.params.id) : undefined));
 const isCustomer = computed(() => props.kind === 'customer');
@@ -94,7 +99,7 @@ function emptyForm(): FormState {
     vatNumber: '',
     crNumber: '',
     nationalId: '',
-    currency: 'SAR',
+    currency: settingsStore.currency,
     paymentTermsDays: undefined,
     creditLimit: undefined,
     bankName: '',
@@ -143,7 +148,7 @@ async function load() {
         vatNumber: p.vatNumber ?? '',
         crNumber: p.crNumber ?? '',
         nationalId: p.nationalId ?? '',
-        currency: p.currency ?? 'SAR',
+        currency: p.currency ?? settingsStore.currency,
         paymentTermsDays: p.paymentTermsDays,
         creditLimit: (p as Customer).creditLimit,
         bankName: p.bank?.bankName ?? '',
@@ -338,37 +343,32 @@ const countryOptions = COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} 
 </script>
 
 <template>
-  <div>
-    <PageHeader
-      :title="id ? `تعديل ${isCustomer ? 'العميل' : 'المورد'}` : isCustomer ? 'عميل جديد' : 'مورد جديد'"
-      :subtitle="id ? form.name : undefined"
-      :back="id ? partyRoute(kind, 'detail', id) : partyRoute(kind, 'list')"
-    />
-
+  <FormPage
+    :title="id ? `تعديل ${isCustomer ? 'العميل' : 'المورد'}` : isCustomer ? 'عميل جديد' : 'مورد جديد'"
+    :subtitle="id ? form.name : undefined"
+    :back="id ? partyRoute(kind, 'detail', id) : partyRoute(kind, 'list')"
+  >
     <ErrorState v-if="loadError" :message="loadError" @retry="load" />
     <div v-else-if="loading" class="space-y-5">
       <AppCard><SkeletonBlock :lines="6" height="h-9" /></AppCard>
       <AppCard><SkeletonBlock :lines="4" height="h-9" /></AppCard>
     </div>
 
-    <form v-else class="grid items-start gap-5 xl:grid-cols-[1fr_320px]" novalidate @submit.prevent="save">
-      <div class="space-y-5">
+    <form v-else novalidate @submit.prevent="save">
         <!-- الأساسي -->
-        <AppCard title="الأساسي">
-          <div class="grid gap-4 sm:grid-cols-2">
-            <div class="sm:col-span-2">
-              <span class="field-label">النوع</span>
-              <SegmentedControl v-model="form.type" :options="[{ value: 'individual', label: 'فرد' }, { value: 'company', label: 'منشأة' }]" />
-            </div>
-            <AppInput v-model="form.name" class="sm:col-span-2" :label="form.type === 'company' ? 'اسم المنشأة' : 'الاسم'" required :error="nameError" />
-            <AppInput v-model="form.nameEn" label="الاسم (إنجليزي، اختياري)" ltr />
-            <AppSelect v-model="form.groupId" label="المجموعة" placeholder="بدون مجموعة" :options="groups.map((g) => ({ value: g.id, label: g.name }))" />
-            <AppSwitch v-if="id" v-model="form.active" class="sm:col-span-2" label="نشط" description="غير النشط لا يظهر في قوائم الاختيار" />
+        <FormSection title="الأساسي" :columns="2">
+          <div class="sm:col-span-2">
+            <span class="field-label">النوع</span>
+            <SegmentedControl v-model="form.type" :options="[{ value: 'individual', label: 'فرد' }, { value: 'company', label: 'منشأة' }]" />
           </div>
-        </AppCard>
+          <AppInput v-model="form.name" class="sm:col-span-2" :label="form.type === 'company' ? 'اسم المنشأة' : 'الاسم'" required :error="nameError" />
+          <AppInput v-model="form.nameEn" label="الاسم (إنجليزي، اختياري)" ltr />
+          <AppSelect v-model="form.groupId" label="المجموعة" placeholder="بدون مجموعة" :options="groups.map((g) => ({ value: g.id, label: g.name }))" />
+          <AppSwitch v-if="id" v-model="form.active" class="sm:col-span-2" label="نشط" description="غير النشط لا يظهر في قوائم الاختيار" />
+        </FormSection>
 
         <!-- التواصل -->
-        <AppCard title="التواصل">
+        <FormSection title="التواصل">
           <div class="space-y-3">
             <div v-for="(phone, i) in form.phones" :key="phone.id" class="flex items-end gap-2">
               <AppSelect v-model="phone.label" class="w-28 shrink-0" :options="(['mobile', 'work', 'whatsapp'] as const).map((l) => ({ value: l, label: PHONE_LABEL[l] }))" />
@@ -436,7 +436,7 @@ const countryOptions = COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} 
         <!-- التعامل -->
         <AppCard title="التعامل">
           <div class="grid gap-4 sm:grid-cols-3">
-            <AppSelect v-model="form.currency" label="العملة" :options="[{ value: 'SAR', label: 'ريال سعودي (SAR)' }, { value: 'USD', label: 'دولار أمريكي (USD)' }, { value: 'EGP', label: 'جنيه مصري (EGP)' }, { value: 'AED', label: 'درهم إماراتي (AED)' }]" hint="تُقفل بعد أول مستند" />
+            <AppSelect v-model="form.currency" label="العملة" :options="CURRENCY_OPTIONS" hint="تُقفل بعد أول مستند" />
             <AppInput v-model="form.paymentTermsDays" type="number" min="0" label="شروط السداد (أيام)" hint="يُحسب منها تاريخ استحقاق الفواتير الآجلة" />
             <AppInput v-if="isCustomer" v-model="form.creditLimit" type="number" min="0" label="الحد الائتماني" hint="0 = بدون حد" />
           </div>

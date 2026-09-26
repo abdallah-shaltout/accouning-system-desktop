@@ -17,17 +17,24 @@ import { seedShifts } from './shifts';
 import { ADMIN, seedHistory } from './history';
 import { seedPurchases8 } from './purchases8';
 import { seedBranches9 } from './branches9';
+import { countryProfile, type CountryCode } from '@/modules/core/helpers/countryProfiles';
 
 /**
  * Full demo seed: fixtures for every area, the opening position, then a deterministic replay of
  * ~75 days of sales/purchases/payments/refunds/stocktakes. This is what the welcome screen's
  * "explore with demo data" card runs.
+ *
+ * v2 doc 18.D: `country` defaults to SA — unchanged for `bun run dev`'s existing demo experience and
+ * every golden number in it. `scripts/verify/run.ts` calls this once with 'SA' (default) and once
+ * with 'EG' so `verify:mocks` proves every invariant holds for both a 15% and a 14% company — the
+ * replay (`seedHistory`, `seedPurchases8`, …) posts through the real services either way, so it
+ * doesn't need its own EG variant: it just posts against whatever rate/currency `seedSettings` set.
  */
-export function seedDatabase(now = new Date()): void {
-  seedAccounts(now);
+export function seedDatabase(now = new Date(), country: CountryCode = 'SA'): void {
+  seedAccounts(now, country);
   seedCatalog();
   seedPeople();
-  seedSettings();
+  seedSettings(country);
 
   const day0 = new Date(now);
   day0.setDate(day0.getDate() - 75);
@@ -63,9 +70,14 @@ export function seedDatabase(now = new Date()): void {
  * bootstrap step (see `SetupWizardPage.vue`) before walking the owner through CoA template,
  * opening balances and imports — this isn't a stub waiting to be replaced, it's the shell every
  * fresh company starts from either way.
+ *
+ * v2 doc 18.D: `country` defaults to **EG** (decision: a fresh company defaults to Egypt, not Saudi)
+ * — the seeded tax rate/name and currency come from `countryProfiles.ts` so this never hard-codes
+ * 15%/SAR again. The wizard's own `countryTax` step (now the *first* content step) lets the owner
+ * change it before any posting happens; `applyCountryTax` re-applies the chosen profile on top.
  */
-export function seedEmptyCompany(): void {
-  seedAccounts(new Date());
+export function seedEmptyCompany(country: CountryCode = 'EG'): void {
+  seedAccounts(new Date(), country);
   // v2 phase 9: every document/journal-line implicitly uses `DEFAULT_BRANCH_ID`/`branch-main` (see
   // src/mocks/backend/core.ts) even before the owner ever opens Settings → Branches, so a real
   // `Branch` row with that exact id must exist from the very first posting, not only once the
@@ -82,11 +94,12 @@ export function seedEmptyCompany(): void {
   db.products = [];
   db.customers = [];
   db.suppliers = [];
+  const profile = countryProfile(country);
   // v2 phase 3: category/direction are required on Tax now (docs/v2/06-sales-and-pos.md §3) — kept
   // inline here rather than importing the demo fixture, since this is the *empty* company shell.
   db.taxes = [
-    { id: 'tax-vat-out', name: 'ضريبة القيمة المضافة (مبيعات)', rate: 15, type: 'OUTPUT', isDefault: true, active: true, category: 'S', direction: 'sales', accountRole: 'vatOutput' },
-    { id: 'tax-vat-in', name: 'ضريبة القيمة المضافة (مشتريات)', rate: 15, type: 'INPUT', isDefault: true, active: true, category: 'S', direction: 'purchase', accountRole: 'vatInput' },
+    { id: 'tax-vat-out', name: `${profile.vat.label} (مبيعات)`, rate: profile.vat.standardRate, type: 'OUTPUT', isDefault: true, active: true, category: 'S', direction: 'sales', accountRole: 'vatOutput' },
+    { id: 'tax-vat-in', name: `${profile.vat.label} (مشتريات)`, rate: profile.vat.standardRate, type: 'INPUT', isDefault: true, active: true, category: 'S', direction: 'purchase', accountRole: 'vatInput' },
   ];
   db.paymentMethods = [
     { id: 'pm-cash', name: 'نقداً', type: 'cash', accountRole: 'cash', feePct: 0, showInPos: true, showInPayments: true, sortOrder: 1, active: true, canDelete: false },
@@ -94,12 +107,13 @@ export function seedEmptyCompany(): void {
   ];
   db.settings = {
     storeName: 'شركتي',
-    currency: 'SAR',
+    currency: profile.currency.code,
+    country: profile.code,
     defaultTaxId: 'tax-vat-out',
     invoiceNumberPrefix: 'INV-',
     printer: { mode: 'a4', thermalWidthMm: 80 },
     theme: 'light',
-    pricesIncludeTax: true,
+    pricesIncludeTax: profile.vat.pricesIncludeTaxDefault,
   };
   db.users = [{ id: 'usr-1', username: 'admin', name: 'المدير', role: 'admin', maxDiscount: 100, active: true }];
   db.credentials = { admin: 'admin123' };

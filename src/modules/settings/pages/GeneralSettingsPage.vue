@@ -19,12 +19,16 @@ import ImageUploadField from '../components/ImageUploadField.vue';
 import SettingsTabs from '../components/SettingsTabs.vue';
 import { useSettingsStore } from '../controllers/useSettingsStore';
 import { isBaseCurrencyLocked } from '../services/branchesService';
+import { countryProfile, CURRENCY_OPTIONS, DEFAULT_COUNTRY } from '@/modules/core/helpers/countryProfiles';
 
 const store = useSettingsStore();
 const auth = useAuthStore();
 const toast = useToast();
 const canWrite = computed(() => auth.can('settings', 'write'));
 const currencyLocked = ref(false);
+// v2 doc 18.D: the VAT-number field's label/pattern/hint follow the company's own country, not a
+// hard-coded Saudi pattern — falls back to the default country's profile until settings load.
+const activeProfile = computed(() => countryProfile(store.settings?.country ?? DEFAULT_COUNTRY));
 
 const form = reactive({
   storeName: '',
@@ -36,7 +40,7 @@ const form = reactive({
   invoiceNumberPrefix: 'INV-',
   receiptFooter: '',
   defaultTaxId: '',
-  /** v2 (docs/v2/06-sales-and-pos.md §3, README decision 4): default true — Saudi B2C shelf pricing. */
+  /** v2 (docs/v2/06-sales-and-pos.md §3, README decision 4): default true — typical B2C shelf pricing; overwritten by `store.load()` with the company's actual saved value. */
   pricesIncludeTax: true,
   logo: undefined as string | undefined,
   stamp: undefined as string | undefined,
@@ -85,7 +89,7 @@ onMounted(async () => {
 async function save() {
   errors.value = {};
   if (!form.storeName.trim()) errors.value.storeName = 'اسم المتجر مطلوب';
-  if (form.vatNumber && !/^3\d{13}3$/.test(form.vatNumber)) errors.value.vatNumber = '15 رقماً يبدأ وينتهي بالرقم 3';
+  if (form.vatNumber && !activeProfile.value.taxId.pattern.test(form.vatNumber)) errors.value.vatNumber = activeProfile.value.taxId.hint;
   if (!form.invoiceNumberPrefix.trim()) errors.value.invoiceNumberPrefix = 'مطلوب';
   if (Object.keys(errors.value).length) return;
   saving.value = true;
@@ -129,18 +133,13 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
             <AppInput v-model="form.address" class="sm:col-span-2" label="العنوان" :disabled="!canWrite" />
             <AppInput v-model="form.phone" label="الهاتف" ltr :disabled="!canWrite" />
             <AppInput v-model="form.commercialRegister" label="السجل التجاري" ltr :disabled="!canWrite" />
-            <AppInput v-model="form.vatNumber" label="الرقم الضريبي" ltr :disabled="!canWrite" :error="errors.vatNumber" hint="يظهر على الفاتورة وفي رمز QR" />
+            <AppInput v-model="form.vatNumber" :label="activeProfile.taxId.label" ltr :disabled="!canWrite" :error="errors.vatNumber" :hint="activeProfile.taxId.hint" />
             <AppSelect
               v-model="form.currency"
               label="العملة الأساسية"
               :disabled="!canWrite || currencyLocked"
               :hint="currencyLocked ? 'العملة الأساسية مقفلة بعد بدء الترحيل — لا يمكن تغييرها' : undefined"
-              :options="[
-                { value: 'SAR', label: 'ريال سعودي (SAR)' },
-                { value: 'AED', label: 'درهم إماراتي (AED)' },
-                { value: 'KWD', label: 'دينار كويتي (KWD)' },
-                { value: 'USD', label: 'دولار أمريكي (USD)' },
-              ]"
+              :options="CURRENCY_OPTIONS"
             />
           </div>
         </AppCard>
@@ -162,7 +161,7 @@ const outputTaxes = computed(() => store.taxes.filter((t) => t.type === 'OUTPUT'
               v-model="form.pricesIncludeTax"
               class="sm:col-span-2"
               label="الأسعار شاملة الضريبة"
-              description="الأسعار المُدخلة والخصومات تشمل ضريبة القيمة المضافة (الافتراضي للبيع بالتجزئة في السعودية). كل مستند يحفظ نسخته الخاصة من هذا الإعداد."
+              description="الأسعار المُدخلة والخصومات تشمل ضريبة القيمة المضافة (الوضع الافتراضي للبيع بالتجزئة). كل مستند يحفظ نسخته الخاصة من هذا الإعداد."
               :disabled="!canWrite"
             />
           </div>

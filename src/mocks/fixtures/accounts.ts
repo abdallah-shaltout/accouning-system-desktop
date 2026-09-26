@@ -1,4 +1,5 @@
 import type { Account, AccountKind, AccountSubtype, FiscalYear, NormalSide, SystemRole } from '@/modules/accounting/types';
+import type { CountryCode } from '@/modules/core/helpers/countryProfiles';
 
 /**
  * Chart of accounts v2 (docs/v2/03-chart-of-accounts.md). A single tree: the five kinds are the
@@ -218,7 +219,7 @@ export type AccountTemplate = 'basic' | 'standard' | 'detailed';
 
 export interface TemplateOptions {
   template?: AccountTemplate;
-  country?: 'SA' | 'EG' | 'AE';
+  country?: CountryCode;
   businessType?: 'pharmacy' | 'clothing' | 'services' | 'retail' | string;
 }
 

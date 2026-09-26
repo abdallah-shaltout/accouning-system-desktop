@@ -93,8 +93,6 @@ export function resolvePosting(lines: PostingLine[]) {
  */
 export const DEFAULT_BRANCH_ID = 'branch-main';
 export { baseCurrency } from './currency';
-/** @deprecated kept for callers that haven't been touched by this phase — prefer `baseCurrency()`, which reads the real setting. */
-export const BASE_CURRENCY = 'SAR';
 
 /**
  * Fiscal-period guard (docs/v2/02-accounting-review.md B2): a posting date must fall inside an

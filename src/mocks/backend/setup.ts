@@ -11,6 +11,7 @@ import { db } from "../db";
 import { mutate } from "../persist";
 import { ApiError, localDateKey, uid } from "../utils";
 import { createBranch } from "./branches";
+import type { CountryCode } from "@/modules/core/helpers/countryProfiles";
 
 /**
  * Business-type defaults (docs/v2/05 §2 step 1 "Sets the defaults: units, product fields…"). Only
@@ -39,7 +40,7 @@ export function applyBusinessTypeUnitDefaults(businessType: string): void {
 /** Applies a CoA template (docs/v2/05 §2 step 6): replaces `db.accounts` wholesale — only valid before any posting exists. */
 export function applyCoaTemplate(
     template: AccountTemplate,
-    country: "SA" | "EG" | "AE",
+    country: CountryCode,
     businessType?: string,
 ): Account[] {
     if (db.journalEntries.length > 0)
@@ -55,7 +56,7 @@ export function applyCoaTemplate(
 /** Live preview of a template's tree without touching `db` — used by the CoA step's picker. */
 export function previewCoaTemplate(
     template: AccountTemplate,
-    country: "SA" | "EG" | "AE",
+    country: CountryCode,
     businessType?: string,
 ): Account[] {
     return buildAccounts({ template, country, businessType });
