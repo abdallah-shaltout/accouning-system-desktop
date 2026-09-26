@@ -12,11 +12,15 @@ import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
+import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
+import { TableRow, TableCell } from '@/modules/core/components/shadcn/table';
 import ErrorState from '@/modules/core/components/ui/ErrorState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
-import StatusBadge from '@/modules/core/components/ui/StatusBadge.vue';
+import DetailPage, { type DetailTab } from '@/modules/core/components/layouts/DetailPage.vue';
+import type { MetaChip } from '@/modules/core/components/blocks/DetailHeader.vue';
+import type { StatCard } from '@/modules/core/components/blocks/StatCards.vue';
+import type { Tone } from '@/modules/core/helpers/labels';
 import { useAsync } from '@/modules/core/controllers/useAsync';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { formatDate, formatDateTime, todayKey } from '@/modules/core/helpers/format';
@@ -77,6 +81,41 @@ const canReverse = computed(
   () => auth.can('accounting', 'write') && e.value?.type === 'MANUAL' && e.value.status === 'POSTED' && !e.value.reversed && !e.value.reversalOfId,
 );
 const busy = ref(false);
+
+const status = computed((): { label: string; tone: Tone } | undefined => {
+  if (!e.value) return undefined;
+  if (e.value.reversed) return { label: 'معكوس', tone: 'danger' };
+  if (e.value.status === 'DRAFT') return { label: 'مسودة', tone: 'warning' };
+  const tone: Tone = e.value.type === 'SYSTEM' ? 'primary' : e.value.type === 'CLOSING' || e.value.type === 'VAT_SETTLEMENT' ? 'warning' : 'neutral';
+  return { label: TYPE_LABEL[e.value.type], tone };
+});
+
+const chips = computed<MetaChip[]>(() => (e.value ? [{ label: 'البيان', value: e.value.description }] : []));
+
+const stats = computed<StatCard[]>(() => {
+  if (!e.value) return [];
+  return [
+    { label: 'التاريخ', value: formatDateTime(e.value.date) },
+    { label: 'أنشأه', value: e.value.createdByName },
+    { label: 'حالة التوازن', value: 'متوازن ✓ — المدين = الدائن' },
+  ];
+});
+
+const tabs = computed<DetailTab[]>(() => {
+  const t: DetailTab[] = [{ key: 'lines', label: 'بنود القيد' }];
+  if (e.value?.related.length) t.push({ key: 'related', label: 'القيود المرتبطة' });
+  t.push({ key: 'attachments', label: 'المرفقات' });
+  t.push({ key: 'history', label: 'سجل العمليات' });
+  return t;
+});
+
+type JournalLine = NonNullable<typeof e.value>['lines'][number];
+const lineColumns: Column<JournalLine>[] = [
+  { key: 'accountId', label: 'الحساب' },
+  { key: 'description', label: 'البيان' },
+  { key: 'debit', label: 'مدين', type: 'money' },
+  { key: 'credit', label: 'دائن', type: 'money' },
+];
 
 // --- Reversal dialog (B3): date (default today, or the original date if its period is open) + required reason ---
 const reverseOpen = ref(false);
@@ -178,124 +217,105 @@ watch(
 <template>
   <div>
     <ErrorState v-if="entry.error.value" :message="entry.error.value" @retry="entry.reload" />
-    <template v-else>
-      <PageHeader :title="e ? `قيد ${e.number}` : '…'" :back="{ name: 'journal' }">
-        <template v-if="e" #badge>
-          <StatusBadge :tone="e.type === 'SYSTEM' ? 'primary' : e.type === 'CLOSING' || e.type === 'VAT_SETTLEMENT' ? 'warning' : 'neutral'" :label="TYPE_LABEL[e.type]" />
-          <StatusBadge v-if="e.status === 'DRAFT'" tone="warning" label="مسودة" />
-          <StatusBadge v-if="e.reversed" tone="danger" label="معكوس" />
-        </template>
-        <template v-if="e" #subtitle>{{ e.description }}</template>
-        <template #actions>
-          <AppButton v-if="e?.sourceLink" :icon="ExternalLink" :to="e.sourceLink">
-            {{ SOURCE_LABEL[e.sourceRef!.kind] }} <span class="num">{{ e.sourceRef?.number }}</span>
-          </AppButton>
-          <AppButton v-if="e" :icon="Printer" data-testid="journal-print" @click="printEntry">طباعة</AppButton>
-          <AppButton v-if="e" :icon="Copy" @click="duplicateEntry">نسخ إلى قيد جديد</AppButton>
-          <AppButton v-if="canReverse" variant="danger" :icon="Undo2" :loading="busy" @click="openReverseDialog">عكس القيد</AppButton>
-        </template>
-      </PageHeader>
+    <DetailPage
+      v-else
+      :title="e ? `قيد ${e.number}` : '…'"
+      :status="status"
+      :chips="chips"
+      :back="{ name: 'journal' }"
+      :stats="stats"
+      :tabs="tabs"
+    >
+      <template #actions>
+        <AppButton v-if="e?.sourceLink" :icon="ExternalLink" :to="e.sourceLink">
+          {{ SOURCE_LABEL[e.sourceRef!.kind] }} <span class="num">{{ e.sourceRef?.number }}</span>
+        </AppButton>
+        <AppButton v-if="e" :icon="Printer" data-testid="journal-print" @click="printEntry">طباعة</AppButton>
+        <AppButton v-if="e" :icon="Copy" @click="duplicateEntry">نسخ إلى قيد جديد</AppButton>
+        <AppButton v-if="canReverse" variant="danger" :icon="Undo2" :loading="busy" @click="openReverseDialog">عكس القيد</AppButton>
+      </template>
 
-      <div class="mb-4 grid gap-4 sm:grid-cols-3">
-        <AppCard padding="sm">
-          <p class="text-xs text-text-secondary">التاريخ</p>
-          <p class="num mt-1 text-body font-medium">{{ e ? formatDateTime(e.date) : '…' }}</p>
-        </AppCard>
-        <AppCard padding="sm">
-          <p class="text-xs text-text-secondary">أنشأه</p>
-          <p class="mt-1 text-body font-medium">{{ e?.createdByName ?? '…' }}</p>
-        </AppCard>
-        <AppCard padding="sm">
-          <p class="text-xs text-text-secondary">حالة التوازن</p>
-          <p class="mt-1 text-body font-medium text-success">متوازن ✓ — المدين = الدائن</p>
-        </AppCard>
-      </div>
+      <template #tab-lines>
+        <p v-if="e?.reversalOfId" class="mb-3 text-body text-text-secondary">
+          هذا القيد يعكس
+          <RouterLink :to="{ name: 'journal-entry', params: { id: e.reversalOfId } }" class="text-primary hover:underline">القيد الأصلي</RouterLink>.
+          <span v-if="e.reversalReason">السبب: {{ e.reversalReason }}</span>
+        </p>
+        <p v-if="e?.reversedById" class="mb-3 text-body text-text-secondary">
+          تم عكس هذا القيد بالقيد
+          <RouterLink :to="{ name: 'journal-entry', params: { id: e.reversedById } }" class="num text-primary hover:underline">{{ e.reversedByNumber }}</RouterLink>.
+          <span v-if="e.reversalReason">السبب: {{ e.reversalReason }}</span>
+        </p>
 
-      <p v-if="e?.reversalOfId" class="mb-3 text-body text-text-secondary">
-        هذا القيد يعكس
-        <RouterLink :to="{ name: 'journal-entry', params: { id: e.reversalOfId } }" class="text-primary hover:underline">القيد الأصلي</RouterLink>.
-        <span v-if="e.reversalReason">السبب: {{ e.reversalReason }}</span>
-      </p>
-      <p v-if="e?.reversedById" class="mb-3 text-body text-text-secondary">
-        تم عكس هذا القيد بالقيد
-        <RouterLink :to="{ name: 'journal-entry', params: { id: e.reversedById } }" class="num text-primary hover:underline">{{ e.reversedByNumber }}</RouterLink>.
-        <span v-if="e.reversalReason">السبب: {{ e.reversalReason }}</span>
-      </p>
-
-      <div class="overflow-hidden rounded-xl border border-border">
-        <div v-if="!e" class="p-4"><SkeletonBlock :lines="4" /></div>
-        <table v-else class="w-full text-body">
-          <thead class="bg-surface text-xs text-text-secondary">
-            <tr class="border-b border-border">
-              <th class="px-4 py-2.5 text-start font-medium">الحساب</th>
-              <th class="px-3 py-2.5 text-start font-medium">البيان</th>
-              <th class="px-3 py-2.5 text-start font-medium">مدين</th>
-              <th class="px-4 py-2.5 text-start font-medium">دائن</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="l in e.lines" :key="l.id" class="border-b border-border last:border-0">
-              <td class="px-4 py-2.5" :class="l.credit > 0 && 'ps-10'">
-                <RouterLink :to="{ name: 'report-ledger', query: { account: l.accountId } }" class="inline-flex items-center gap-2 hover:text-primary">
-                  <span class="num text-text-secondary">{{ accounts.get(l.accountId)?.code }}</span>{{ accounts.get(l.accountId)?.name ?? '…' }}
-                </RouterLink>
-              </td>
-              <td class="px-3 py-2.5 text-text-secondary">
-                {{ l.description ?? '—' }}
-                <span v-if="l.partyId" class="text-tiny">
-                  — {{ (l.partyKind === 'supplier' ? suppliers : customers).get(l.partyId)?.name ?? '' }}
-                </span>
-              </td>
-              <td class="px-3 py-2.5"><MoneyText v-if="l.debit" :value="l.debit" plain /></td>
-              <td class="px-4 py-2.5"><MoneyText v-if="l.credit" :value="l.credit" plain /></td>
-            </tr>
-          </tbody>
-          <tfoot class="border-t border-border bg-surface font-medium">
-            <tr>
-              <td class="px-4 py-2.5" colspan="2">الإجمالي</td>
-              <td class="px-3 py-2.5"><MoneyText :value="e.totalDebit" /></td>
-              <td class="px-4 py-2.5"><MoneyText :value="e.totalCredit" /></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+        <div class="overflow-hidden rounded-xl border border-border">
+          <div v-if="!e" class="p-4"><SkeletonBlock :lines="4" /></div>
+          <DataTable v-else :columns="lineColumns" :rows="e.lines" row-key="id" :page-size="0">
+            <template #cell-accountId="{ row }">
+              <RouterLink :to="{ name: 'report-ledger', query: { account: row.accountId } }" class="inline-flex items-center gap-2 hover:text-primary" :class="row.credit > 0 && 'ps-10'">
+                <span class="num text-text-secondary">{{ accounts.get(row.accountId)?.code }}</span>{{ accounts.get(row.accountId)?.name ?? '…' }}
+              </RouterLink>
+            </template>
+            <template #cell-description="{ row }">
+              {{ row.description ?? '—' }}
+              <span v-if="row.partyId" class="text-tiny">
+                — {{ (row.partyKind === 'supplier' ? suppliers : customers).get(row.partyId)?.name ?? '' }}
+              </span>
+            </template>
+            <template #cell-debit="{ row }"><MoneyText v-if="row.debit" :value="row.debit" plain /></template>
+            <template #cell-credit="{ row }"><MoneyText v-if="row.credit" :value="row.credit" plain /></template>
+            <template #footer>
+              <TableRow>
+                <TableCell class="px-4 py-2.5" colspan="2">الإجمالي</TableCell>
+                <TableCell class="px-3 py-2.5"><MoneyText :value="e.totalDebit" /></TableCell>
+                <TableCell class="px-4 py-2.5"><MoneyText :value="e.totalCredit" /></TableCell>
+              </TableRow>
+            </template>
+          </DataTable>
+        </div>
+      </template>
 
       <!-- Related entries ("القيود المرتبطة") -->
-      <AppCard v-if="e?.related.length" title="القيود المرتبطة" padding="sm" class="mt-4">
-        <ul class="divide-y divide-border">
-          <li v-for="r in e.related" :key="r.id" class="flex items-center justify-between py-2 text-body">
-            <RouterLink :to="{ name: 'journal-entry', params: { id: r.id } }" class="flex items-center gap-2 hover:text-primary">
-              <span class="num font-medium">{{ r.number }}</span>
-              <span class="text-text-secondary">{{ r.description }}</span>
-            </RouterLink>
-            <span class="num text-text-secondary">{{ formatDateTime(r.date) }}</span>
-          </li>
-        </ul>
-      </AppCard>
+      <template v-if="e?.related.length" #tab-related>
+        <AppCard padding="sm">
+          <ul class="divide-y divide-border">
+            <li v-for="r in e.related" :key="r.id" class="flex items-center justify-between py-2 text-body">
+              <RouterLink :to="{ name: 'journal-entry', params: { id: r.id } }" class="flex items-center gap-2 hover:text-primary">
+                <span class="num font-medium">{{ r.number }}</span>
+                <span class="text-text-secondary">{{ r.description }}</span>
+              </RouterLink>
+              <span class="num text-text-secondary">{{ formatDateTime(r.date) }}</span>
+            </li>
+          </ul>
+        </AppCard>
+      </template>
 
       <!-- Attachments viewer (Phase 0's AttachmentField) -->
-      <AppCard v-if="e" title="المرفقات" padding="sm" class="mt-4">
-        <AttachmentField :owner-ref="`journal:${e.id}`" :readonly="e.status === 'POSTED'" restrict-remove />
-      </AppCard>
+      <template #tab-attachments>
+        <AppCard v-if="e" padding="sm">
+          <AttachmentField :owner-ref="`journal:${e.id}`" :readonly="e.status === 'POSTED'" restrict-remove />
+        </AppCard>
+      </template>
 
       <!-- Audit trail -->
-      <AppCard v-if="e" title="سجل العمليات" padding="sm" class="mt-4">
-        <ol class="space-y-2 text-body">
-          <li class="flex items-center gap-2">
-            <span class="size-1.5 rounded-full bg-text-secondary" />
-            <span>أُنشئ بواسطة {{ e.createdByName }} — <span class="num text-text-secondary">{{ formatDateTime(e.createdAt) }}</span></span>
-          </li>
-          <li v-if="e.postedAt" class="flex items-center gap-2">
-            <span class="size-1.5 rounded-full bg-success" />
-            <span>رُحّل — <span class="num text-text-secondary">{{ formatDateTime(e.postedAt) }}</span></span>
-          </li>
-          <li v-if="e.reversed" class="flex items-center gap-2">
-            <span class="size-1.5 rounded-full bg-danger" />
-            <span>عُكس — {{ e.reversalReason }}</span>
-          </li>
-        </ol>
-      </AppCard>
-    </template>
+      <template #tab-history>
+        <AppCard v-if="e" padding="sm">
+          <ol class="space-y-2 text-body">
+            <li class="flex items-center gap-2">
+              <span class="size-1.5 rounded-full bg-text-secondary" />
+              <span>أُنشئ بواسطة {{ e.createdByName }} — <span class="num text-text-secondary">{{ formatDateTime(e.createdAt) }}</span></span>
+            </li>
+            <li v-if="e.postedAt" class="flex items-center gap-2">
+              <span class="size-1.5 rounded-full bg-success" />
+              <span>رُحّل — <span class="num text-text-secondary">{{ formatDateTime(e.postedAt) }}</span></span>
+            </li>
+            <li v-if="e.reversed" class="flex items-center gap-2">
+              <span class="size-1.5 rounded-full bg-danger" />
+              <span>عُكس — {{ e.reversalReason }}</span>
+            </li>
+          </ol>
+        </AppCard>
+      </template>
+    </DetailPage>
 
     <AppModal v-model:open="reverseOpen" title="عكس القيد" description="سيُنشأ قيد جديد بنفس المبالغ مع تبديل المدين والدائن. يبقى القيد الأصلي في السجل." size="sm">
       <div class="space-y-4">
