@@ -6,6 +6,6 @@ import EmptyState from '../components/ui/EmptyState.vue';
 
 <template>
   <EmptyState :icon="SearchX" title="الصفحة غير موجودة" description="ربما تم نقلها أو أن الرابط غير صحيح.">
-    <AppButton :icon="House" to="/">العودة للرئيسية</AppButton>
+    <AppButton :icon="House" :to="{ name: 'home' }">العودة للرئيسية</AppButton>
   </EmptyState>
 </template>

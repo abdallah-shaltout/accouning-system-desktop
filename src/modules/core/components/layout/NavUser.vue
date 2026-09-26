@@ -56,7 +56,7 @@ async function onOpen(open: boolean) {
 async function switchUser(account: (typeof demo.value)[number]) {
   await auth.switchTo(account.id);
   toast.info(`تم التبديل إلى ${account.name}`, ROLE_LABEL[account.role]);
-  await router.replace({ path: router.currentRoute.value.fullPath, force: true });
+  await router.replace({ path: router.currentRoute.value.fullPath, force: true }); /* route-ok: forces a reload of the current URL after switching accounts, not a navigation target */
 }
 
 async function logout() {
@@ -124,7 +124,7 @@ async function reloadDemoData() {
           </DropdownMenuLabel>
           <DropdownMenuSeparator v-if="auth.can('settings')" />
           <DropdownMenuItem v-if="auth.can('settings')" as-child>
-            <RouterLink to="/settings/backup" class="flex w-full items-center gap-2">
+            <RouterLink :to="{ name: 'settings-backup' }" class="flex w-full items-center gap-2">
               <DatabaseBackup class="size-4" />
               <span v-if="backup.lastBackupAt">آخر نسخة احتياطية: <span class="num">{{ formatDateTime(backup.lastBackupAt) }}</span></span>
               <span v-else>لا توجد نسخة احتياطية بعد</span>
@@ -132,7 +132,7 @@ async function reloadDemoData() {
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem as-child>
-            <RouterLink to="/settings/appearance" class="flex w-full items-center gap-2">
+            <RouterLink :to="{ name: 'settings-appearance' }" class="flex w-full items-center gap-2">
               <Palette class="size-4" />
               <span>المظهر والأرقام</span>
             </RouterLink>
@@ -163,7 +163,7 @@ async function reloadDemoData() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem as-child>
-              <RouterLink to="/dev/diagnostics" class="flex w-full items-center gap-2">
+              <RouterLink :to="{ name: 'dev-diagnostics' }" class="flex w-full items-center gap-2">
                 <Bug class="size-4" />
                 <span>التشخيص</span>
               </RouterLink>

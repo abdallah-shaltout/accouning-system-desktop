@@ -20,7 +20,7 @@ const auth = useAuthStore();
       ابحث أو نفّذ أمراً…
       <kbd class="num rounded border border-border px-1">Ctrl K</kbd>
     </button>
-    <AppButton v-if="auth.can('pos', 'write')" to="/pos" size="sm" :icon="ShoppingCart">نقطة البيع</AppButton>
+    <AppButton v-if="auth.can('pos', 'write')" :to="{ name: 'pos' }" size="sm" :icon="ShoppingCart">نقطة البيع</AppButton>
     <NotificationsDrawer />
   </div>
 </template>

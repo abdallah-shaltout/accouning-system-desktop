@@ -16,6 +16,6 @@ const auth = useAuthStore();
     title="ليست لديك صلاحية لهذه الصفحة"
     :description="`صلاحية ${auth.role ? ROLE_LABEL[auth.role] : ''} لا تسمح بالوصول إلى ${route.query.from ?? 'هذه الصفحة'}. تواصل مع مدير النظام إذا كنت تحتاجها.`"
   >
-    <AppButton :icon="House" to="/">العودة للرئيسية</AppButton>
+    <AppButton :icon="House" :to="{ name: 'home' }">العودة للرئيسية</AppButton>
   </EmptyState>
 </template>
