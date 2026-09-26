@@ -61,7 +61,7 @@ async function remove() {
   try {
     await deleteDraftAdjustment(id);
     toast.success('تم حذف المسودة');
-    router.push('/inventory/adjustments');
+    router.push({ name: 'adjustments' });
   } catch (err) {
     toast.error(err);
   }
