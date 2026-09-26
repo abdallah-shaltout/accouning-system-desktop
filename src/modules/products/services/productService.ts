@@ -133,7 +133,7 @@ export const createProduct = wrap('products.createProduct', async function creat
       session.userId,
     );
   }
-  logActivity('product', `إضافة المنتج ${product.name}`, session.userId, new Date().toISOString(), `/products/${product.id}`);
+  logActivity('product', `إضافة المنتج ${product.name}`, session.userId, new Date().toISOString(), `/products/${product.id}`);  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
   emit('catalog:changed');
   return clone(product);
 });
@@ -154,7 +154,7 @@ export const updateProduct = wrap('products.updateProduct', async function updat
     // have its starting cost edited directly from the form.
     if (product.stockQty <= 0.0001) product.costPrice = _formCostPrice;
   });
-  logActivity('product', `تعديل المنتج ${product.name}`, session.userId, new Date().toISOString(), `/products/${product.id}`);
+  logActivity('product', `تعديل المنتج ${product.name}`, session.userId, new Date().toISOString(), `/products/${product.id}`);  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
   emit('catalog:changed');
   return clone(product);
 });

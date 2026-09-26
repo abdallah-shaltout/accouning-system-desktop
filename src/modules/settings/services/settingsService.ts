@@ -17,7 +17,7 @@ export const updateSettings = wrap('settings.updateSettings', async function upd
     throw new ApiError('الرقم الضريبي يجب أن يكون 15 رقماً يبدأ وينتهي بالرقم 3');
   }
   mutate(() => (db.settings = { ...db.settings, ...clone(patch), printer: { ...db.settings.printer, ...patch.printer } }));
-  logActivity('settings', 'تحديث إعدادات المتجر', session.userId, new Date().toISOString(), '/settings/general');
+  logActivity('settings', 'تحديث إعدادات المتجر', session.userId, new Date().toISOString(), '/settings/general');  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
   return clone(db.settings);
 });
 
@@ -51,7 +51,7 @@ export const saveTax = wrap('settings.saveTax', async function saveTax(input: Om
       db.taxes.push(tax);
     }
   });
-  logActivity('settings', `حفظ الضريبة "${tax!.name}"`, session.userId, new Date().toISOString(), '/settings/taxes');
+  logActivity('settings', `حفظ الضريبة "${tax!.name}"`, session.userId, new Date().toISOString(), '/settings/taxes');  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
   return clone(tax!);
 });
 
@@ -88,7 +88,7 @@ export const savePaymentMethod = wrap('settings.savePaymentMethod', async functi
       db.paymentMethods.push(method);
     }
   });
-  logActivity('settings', `حفظ طريقة الدفع "${method!.name}"`, session.userId, new Date().toISOString(), '/settings/payment-methods');
+  logActivity('settings', `حفظ طريقة الدفع "${method!.name}"`, session.userId, new Date().toISOString(), '/settings/payment-methods');  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
   return clone(method!);
 });
 

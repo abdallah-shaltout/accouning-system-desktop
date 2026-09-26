@@ -114,7 +114,7 @@ export const saveAccount = wrap('accounting.saveAccount', async function saveAcc
     account = { id: uid('acc'), ...input, name: input.name.trim(), parentId: input.parentId || null, canDelete: true };
     mutate(() => db.accounts.push(account));
   }
-  logActivity('journal', `${id ? 'تعديل' : 'إضافة'} الحساب ${account.code} — ${account.name}`, session.userId, new Date().toISOString(), '/accounting/accounts');
+  logActivity('journal', `${id ? 'تعديل' : 'إضافة'} الحساب ${account.code} — ${account.name}`, session.userId, new Date().toISOString(), '/accounting/accounts');  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
   return clone(account);
 });
 
@@ -148,7 +148,7 @@ export const reparentAccount = wrap('accounting.reparentAccount', async function
     cursor = cursor.parentId ? db.accounts.find((a) => a.id === cursor!.parentId) : undefined;
   }
   mutate(() => (account.parentId = newParentId));
-  logActivity('journal', `نقل الحساب ${account.code} — ${account.name}`, session.userId, new Date().toISOString(), '/accounting/accounts');
+  logActivity('journal', `نقل الحساب ${account.code} — ${account.name}`, session.userId, new Date().toISOString(), '/accounting/accounts');  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
   return clone(account);
 });
 
@@ -342,7 +342,7 @@ export const saveFiscalYear = wrap('accounting.saveFiscalYear', async function s
     fy = { id: uid('fy'), ...input };
     mutate(() => db.fiscalYears.push(fy));
   }
-  logActivity('settings', `${id ? 'تعديل' : 'إضافة'} السنة المالية ${fy.name}`, session.userId, new Date().toISOString(), '/accounting/fiscal-years');
+  logActivity('settings', `${id ? 'تعديل' : 'إضافة'} السنة المالية ${fy.name}`, session.userId, new Date().toISOString(), '/accounting/fiscal-years');  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
   return clone(fy);
 });
 
@@ -358,7 +358,7 @@ export const saveLockDate = wrap('accounting.saveLockDate', async function saveL
   mutate(() => {
     db.settings.accounting = { ...db.settings.accounting, lockDate: lockDate || undefined };
   });
-  logActivity('settings', lockDate ? `تحديد تاريخ القفل ${lockDate}` : 'إزالة تاريخ القفل', session.userId, new Date().toISOString(), '/accounting/fiscal-years');
+  logActivity('settings', lockDate ? `تحديد تاريخ القفل ${lockDate}` : 'إزالة تاريخ القفل', session.userId, new Date().toISOString(), '/accounting/fiscal-years');  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
 });
 
 // --- Fiscal-year closing wizard ----------------------------------------------------------------

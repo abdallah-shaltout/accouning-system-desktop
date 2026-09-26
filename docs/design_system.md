@@ -94,6 +94,10 @@ should use the shadcn components directly where no project convention (loading s
 defaults, an icon prop, `MoneyText`-style formatting) is needed on top. Only add a genuinely custom
 component when no shadcn component fits, and keep it in `modules/core/components/ui`.
 
+`AppButton`'s `:to`, `KpiCard`'s `:to` and `PageHeader`'s `:back` take an `AppRoute` object
+(`{ name, params?, query?, hash? }` — `core/types/route.ts`), never a path string (CLAUDE.md
+rule 25).
+
 ### Primary button
 Background `--color-primary`, white text, 6px radius, 10px/16px padding, weight 510. One per view/section — used for "Save", "New Invoice", "Post Journal Entry", etc.
 

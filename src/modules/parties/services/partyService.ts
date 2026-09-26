@@ -118,14 +118,14 @@ export const saveCustomer = wrap('parties.saveCustomer', async function saveCust
     if (data.active === false && customerBalance(id) > 0) throw new ApiError('لا يمكن إيقاف عميل عليه رصيد مستحق');
     mutate(() => Object.assign(found, data, { updatedAt: new Date().toISOString() }));
     customer = found;
-    logActivity('party', `تعديل العميل ${customer.name}`, session.userId, new Date().toISOString(), `/customers/${customer.id}`);
+    logActivity('party', `تعديل العميل ${customer.name}`, session.userId, new Date().toISOString(), `/customers/${customer.id}`);  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
     mutate(() =>
       db.partyHistory.push({ id: uid('phist'), partyId: customer.id, partyKind: 'customer', date: new Date().toISOString(), message: 'تعديل بيانات العميل', userId: session.userId }),
     );
   } else {
     customer = { id: uid('cus'), code: nextCode('customer'), balance: 0, createdAt: new Date().toISOString(), ...data } as Customer;
     mutate(() => db.customers.push(customer));
-    logActivity('party', `إضافة العميل ${customer.name}`, session.userId, new Date().toISOString(), `/customers/${customer.id}`);
+    logActivity('party', `إضافة العميل ${customer.name}`, session.userId, new Date().toISOString(), `/customers/${customer.id}`);  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
     mutate(() =>
       db.partyHistory.push({ id: uid('phist'), partyId: customer.id, partyKind: 'customer', date: new Date().toISOString(), message: 'إنشاء بطاقة العميل', userId: session.userId }),
     );
@@ -175,14 +175,14 @@ export const saveSupplier = wrap('parties.saveSupplier', async function saveSupp
     if (!found) throw new ApiError('المورد غير موجود', 'NOT_FOUND');
     mutate(() => Object.assign(found, data, { updatedAt: new Date().toISOString() }));
     supplier = found;
-    logActivity('party', `تعديل المورد ${supplier.name}`, session.userId, new Date().toISOString(), `/suppliers/${supplier.id}`);
+    logActivity('party', `تعديل المورد ${supplier.name}`, session.userId, new Date().toISOString(), `/suppliers/${supplier.id}`);  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
     mutate(() =>
       db.partyHistory.push({ id: uid('phist'), partyId: supplier.id, partyKind: 'supplier', date: new Date().toISOString(), message: 'تعديل بيانات المورد', userId: session.userId }),
     );
   } else {
     supplier = { id: uid('sup'), code: nextCode('supplier'), balance: 0, createdAt: new Date().toISOString(), ...data } as Supplier;
     mutate(() => db.suppliers.push(supplier));
-    logActivity('party', `إضافة المورد ${supplier.name}`, session.userId, new Date().toISOString(), `/suppliers/${supplier.id}`);
+    logActivity('party', `إضافة المورد ${supplier.name}`, session.userId, new Date().toISOString(), `/suppliers/${supplier.id}`);  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
     mutate(() =>
       db.partyHistory.push({ id: uid('phist'), partyId: supplier.id, partyKind: 'supplier', date: new Date().toISOString(), message: 'إنشاء بطاقة المورد', userId: session.userId }),
     );

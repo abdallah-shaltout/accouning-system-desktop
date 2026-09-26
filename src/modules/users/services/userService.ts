@@ -33,7 +33,7 @@ export const createUser = wrap('users.createUser', async function createUser(inp
     db.users.push(user);
     db.credentials[user.username] = password;
   });
-  logActivity('user', `إضافة المستخدم ${user.name}`, session.userId, new Date().toISOString(), `/users/${user.id}`);
+  logActivity('user', `إضافة المستخدم ${user.name}`, session.userId, new Date().toISOString(), `/users/${user.id}`);  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
   return clone(user);
 });
 
@@ -55,6 +55,6 @@ export const updateUser = wrap('users.updateUser', async function updateUser(id:
     }
     if (password) db.credentials[user.username] = password;
   });
-  logActivity('user', `تعديل بيانات المستخدم ${user.name}`, session.userId, new Date().toISOString(), `/users/${user.id}`);
+  logActivity('user', `تعديل بيانات المستخدم ${user.name}`, session.userId, new Date().toISOString(), `/users/${user.id}`);  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
   return clone(user);
 });

@@ -41,6 +41,15 @@ function lineOf(content, index) {
   return line;
 }
 
+/** Doc comments (`/** ... *​/` and `// ...`) hold plenty of real path text in prose (route names,
+ *  example URLs) that isn't a navigation target — blank them out (preserving line breaks, so
+ *  reported line numbers stay correct) before scanning for literals. */
+function stripComments(content) {
+  return content
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
+}
+
 function isRouteOk(content, index) {
   const lineEnd = content.indexOf("\n", index);
   const line = content.slice(content.lastIndexOf("\n", index) + 1, lineEnd === -1 ? undefined : lineEnd);
@@ -76,26 +85,27 @@ function report(relFile, line, message) {
 }
 
 for (const relFile of files) {
-  const content = readFileSync(path.join(root, relFile), "utf8");
+  const original = readFileSync(path.join(root, relFile), "utf8");
+  const content = stripComments(original);
   const isRouteRecordFile = ROUTE_RECORD_FILE.test(relFile);
 
   if (!isRouteRecordFile) {
     PATH_LITERAL_RE.lastIndex = 0;
     let m;
     while ((m = PATH_LITERAL_RE.exec(content))) {
-      if (isRouteOk(content, m.index)) continue;
+      if (isRouteOk(original, m.index)) continue;
       report(relFile, lineOf(content, m.index), `path-string navigation target: ${m[2]}`);
     }
 
     HOME_TARGET_RE.lastIndex = 0;
     while ((m = HOME_TARGET_RE.exec(content))) {
-      if (isRouteOk(content, m.index)) continue;
+      if (isRouteOk(original, m.index)) continue;
       report(relFile, lineOf(content, m.index), `bare "/" navigation target — use { name: 'home' }`);
     }
 
     PATH_OBJECT_RE.lastIndex = 0;
     while ((m = PATH_OBJECT_RE.exec(content))) {
-      if (isRouteOk(content, m.index)) continue;
+      if (isRouteOk(original, m.index)) continue;
       report(relFile, lineOf(content, m.index), `{ path: ... } navigation target — use { name: ... }`);
     }
   } else {
@@ -103,7 +113,7 @@ for (const relFile of files) {
     const redirectRe = /redirect:\s*["']([^"']*)["']/g;
     let m;
     while ((m = redirectRe.exec(content))) {
-      if (isRouteOk(content, m.index)) continue;
+      if (isRouteOk(original, m.index)) continue;
       report(relFile, lineOf(content, m.index), `redirect path string: ${m[1]} — use { name: ... }`);
     }
   }

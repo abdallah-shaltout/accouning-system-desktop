@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **697 files / 72,691 lines** (md 41, rust 22, ts 214, vue 420).
+Indexed: **697 files / 72,695 lines** (md 41, rust 22, ts 214, vue 420).
 
 **Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -432,7 +432,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `bun run build:android` | `cd src-tauri/gen/android && ./gradlew.bat assembleArm64Debug` |
 | `bun run verify:mocks` | `bun run scripts/verify/run.ts` |
 | `bun run verify:replay` | `bun run scripts/verify/replay.ts` |
-| `bun run check` | `node scripts/check-text-tokens.js && node scripts/check-rtl.js && bun run scripts/check-contrast.ts && node scripts/check-ui-rules.js` |
+| `bun run check` | `node scripts/check-text-tokens.js && node scripts/check-rtl.js && bun run scripts/check-contrast.ts && node scripts/check-ui-rules.js && node scripts/check-routes.js` |
 | `bun run memory` | `bun run scripts/memory/run.ts` |
 | `bun run memory:check` | `bun run scripts/memory/run.ts --check` |
 | `bun run diag` | `bun run scripts/diagnostics/run.ts` |

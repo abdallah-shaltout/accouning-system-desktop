@@ -204,7 +204,7 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
     type-checked by the generated `src/router/route-map.gen.d.ts`. Read params with
     `useRoute('<route-name>')`. Same-page query/hash updates may leave out `name`
     (`router.replace({ query: { ...route.query, x } })`). `scripts/check-routes.js` enforces this
-    (it joins `bun run check` in plan 20.D). The only escape is `/* route-ok: <reason> */`, for a URL
+    (part of `bun run check`). The only escape is `/* route-ok: <reason> */`, for a URL
     round-trip such as the login `?redirect=` fullPath.
 
 ## Accounting safety
@@ -273,7 +273,7 @@ correlation id.
 
 ```bash
 bun run build                 # vue-tsc + vite build
-bun run check                 # text-token guard today; RTL / UI-rule / contrast guards join it (doc 17)
+bun run check                 # text-token, RTL, UI-rule, contrast and route-object guards
 bun run verify:mocks          # accounting invariants — must be all OK, 0 failed
 bun run memory                # regenerate AGENT_MEMORY.md (structural changes); memory:check verifies
 bun run dev                   # (in the background) e2e needs the app on http://localhost:1420
