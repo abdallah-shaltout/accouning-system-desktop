@@ -585,7 +585,11 @@ designer), and page files over 300 lines (warning).
       `verify:mocks` 49/0/0.
 - [ ] **F-3 Simple forms:** product, party, expense, payment, category/unit, price list, user,
       branch, currency → `FormPage` + `useForm`.
-- [ ] **F-4 Detail pages:** invoice, purchase, party, product, journal entry, shift → `DetailPage`.
+- [x] **F-4 Detail pages:** invoice, purchase, party, product, journal entry, shift → `DetailPage`.
+      *(done 2026-09-26 — `InvoiceDetailPage`, `PurchaseDetailPage`, `PartyDetailPage`,
+      `ProductDetailPage`, `JournalDetailPage`, `ShiftReportPage`; build/check/verify:mocks green,
+      check-routes zero new findings; no dedicated e2e run this session — dev server was shared with
+      other in-flight agents.)*
 - [ ] **F-5 Settings pages** → `SettingsPage`.
 - [ ] **F-5b Seam cleanup:** move the 12 UI files that import `@/mocks/*` directly (listed in
       `CLAUDE.md` → Workflow → seam rule) behind services (`attachmentService`, `devToolsService`,

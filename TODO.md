@@ -338,3 +338,16 @@ compiles clean (`bun run build` shows no errors in either file) and is not obvio
 data was lost — it is just attributed to the wrong commit/author. Flagging so the parallel F-2 agent
 (or a human) knows `InvoiceFormPage.vue`/`InvoiceLinesGrid.vue` are already committed on `master` as
 of `fbf5975` and doesn't try to re-commit or worry they vanished.
+
+## 2026-09-26 — e2e: desk_invoice flow fails at InvoiceFormPage (out of F-4 scope)
+
+`python scripts/e2e/run.py --only desk_invoice` fails consistently (reproduced twice) at
+"desk invoice form — accountant": `/sales/invoices/new` does not show the expected h1 text
+"فاتورة مبيعات جديدة" (`InvoiceFormPage.vue`, F-2 line-item forms scope, not F-4 detail pages).
+This is unrelated to this session's `InvoiceDetailPage.vue` migration (`/invoices/:id`, a different
+route/component) — confirmed by running `refund_payment` and `accountant_journal`, which both
+exercise the corresponding *detail* pages this session touched and pass clean with no console
+errors. Also saw `purchases` flow fail at `/purchases/new` (`PurchaseFormPage.vue`, same F-2 scope,
+not `PurchaseDetailPage.vue`). Flagging for whoever owns F-2 (line-item forms) — `InvoiceFormPage.vue`
+and `InvoiceLinesGrid.vue` are already on `master` (see the collision note above) so the failure is
+reproducible there right now, not just in a stale branch.
