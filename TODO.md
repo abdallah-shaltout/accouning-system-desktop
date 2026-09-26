@@ -565,3 +565,72 @@ code — `verify:mocks` (which reads the DB module directly, not through Indexed
 real thing doc 18.E cares about (address formats correctly wherever it's printed) without depending on
 this session's flaky reload behavior. Worth a fresh `bun run dev` restart + retest before relying on
 reload-based e2e checks in this area.
+
+## 2026-09-26 — doc 18.G: `onboarding.py` step 2 has a Playwright strict-mode selector ambiguity
+
+While running the full e2e suite to seed a real `docs/diagnostics/perf-baseline.json` and verify the
+new dev-loop hooks end to end, `onboarding.py`'s step 2 (`get_by_label("الدولة").select_option("SA")`)
+crashed with a Playwright strict-mode violation: the accessible name "الدولة" now resolves to **two**
+elements on that wizard step — the actual country `<select>` and, separately, a `<switch>` whose
+`aria-label`/name is the long sentence "الأسعار المعروضة شاملة الضريبة الوضع الافتراضي للتجزئة في هذه
+الدولة — يمكن تغيي…" (truncated in the error), which apparently contains "الدولة" as a substring, so
+`get_by_label`'s substring/accessible-name matching picks up both. This crashed the whole
+`scripts/e2e/run.py` process with a raw uncaught traceback (not a clean flow failure) — **that part is
+now fixed** as part of 18.G's own hardening (`run.py` now catches any exception a flow raises, logs a
+`BUG-` ledger issue for the crash via the same `--ingest` mechanism, marks that flow failed, and
+continues to the next flow instead of aborting the whole suite).
+
+The underlying selector ambiguity itself is **not fixed** — it's a pre-existing wizard/e2e-selector
+issue unrelated to 18.G's scope (dev-loop tooling, not wizard UI or flow content), and matches the
+"report, don't fix" instruction for out-of-scope issues found incidentally. Whoever owns the setup
+wizard step (`docs/v2/05-onboarding.md`'s step 2, "بيانات المنشأة والضريبة") or `onboarding.py` next
+should either scope `get_by_label("الدولة", exact=True)` to the `<select>` specifically (the flow
+already uses `exact=True` successfully elsewhere in the same file — worth checking why this particular
+line doesn't), or give the "شامل الضريبة" switch a shorter/non-overlapping accessible name. Not
+verified whether this is a new regression (introduced by ANY recent change to that wizard step,
+including the doc 18.E address-fields migration or the concurrent doc-17 F-5b seam cleanup) or a
+long-standing flake — `onboarding.py` wasn't run end-to-end in this session before this. Full e2e run
+otherwise not completed in this session because of this crash on the very first flow (`onboarding`
+runs first by design, per `run.py`'s `ORDER`); a real `docs/diagnostics/perf-baseline.json` seed and a
+full green run are still needed once this is fixed — see 18.G's phase file status note.
+
+## 2026-09-26 -- doc 18.G: full e2e run found 4 more real, reproducible failures (logged, not fixed)
+
+With `run.py` hardened to catch a flow's uncaught exception instead of crashing the whole suite (see
+the entry above), a full `python scripts/e2e/run.py --update-baseline` run completed end to end and
+surfaced real regressions in 4 flows beyond the already-logged `onboarding`/`setup-wizard-eg` selector
+bug. All 4 were re-run **in isolation** (`--only <area>`) to confirm they're reproducible, not run-to-run
+contention from stacking several full suites back to back -- every one reproduced identically. Each now
+has a `docs/diagnostics/issues/BUG-000N-*.md` entry (created by this session's own dev-loop tooling,
+which is the point of 18.G) with the exact error/assertion. Not fixed -- out of this phase's scope
+(dev-loop tooling, not app code) per "report, don't fix":
+
+- **`BUG-0004` `purchases`**: storekeeper's receiving screen -- `TimeoutError: Locator.click: Timeout
+  30000ms exceeded` waiting for `table tbody tr .first .locator("input[type=number]").first` during
+  the short-delivery/backorder step. The landed-cost PO send and "prices hidden from storekeeper"
+  checks before it pass; the receiving table's quantity input never becomes clickable/visible in this
+  session. Possibly related to the concurrent doc-17 F-5b seam-cleanup pass touching
+  `PurchaseFormPage.vue`/`purchaseService.ts` (both show as modified in `git status` during this
+  session) -- worth checking that diff first.
+- **`BUG-0005` `branches-currencies`**: the last assertion, "feature-switches-off: no branch switcher
+  in the sidebar," fails -- every earlier assertion in the same flow (branch switcher visible, USD
+  invoice/currency, cost-center journal split, stock transfers, cost-center P&L) passes. Looks like
+  toggling the multi-branch/multi-currency feature flags off doesn't actually remove the sidebar
+  switcher, or the flow's own flag-toggle step isn't taking effect.
+- **`BUG-0006` `reports-v2`**: `TimeoutError: Timeout 15000ms exceeded while waiting for event
+  "download"` -- an export/download action in the reports-v2 flow never fires a browser download event.
+- **`BUG-0007` `full-persona-pass`**: "[manager] notifications drawer... the queued approval shows up
+  as a notification event" fails -- the cashier's earlier async discount-approval request (which does
+  get queued, per the passing checks right before it) doesn't appear as a notification for the manager.
+
+None of these were investigated further (root cause, whether they're regressions from a specific
+recent commit, or long-standing) -- that's a job for whoever owns those areas next, using exactly the
+ledger entries this phase's tooling just created. `bun run verify:mocks` stayed 98/0/0 throughout (these
+are e2e/UI-level failures, not accounting invariant breaks). Also found and fixed a real gap in this
+phase's own tooling while investigating: `scripts/e2e/run.py`'s e2e-error ingestion didn't apply
+`scripts/diagnostics/run.ts`'s existing `EXCLUDED_ERROR_NAMES` filter (for expected user-facing
+`ApiError` validation messages, not bugs), so a normal "select a customer first" validation message from
+`cashier-pos` briefly created a false `BUG-0003`. Fixed by threading the error's `name` through
+`IngestFinding.error_name` so `ingest()` applies the same filter regardless of which caller fed the
+finding in -- confirmed fixed by re-running `cashier-pos` alone (0 findings created, 1 correctly
+skipped).

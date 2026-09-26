@@ -7,10 +7,14 @@ accounting bug is fixed with F5's rule). F was **not verified against an Egypt s
 written; **D has since landed** (`countryProfiles.ts`, EG default, `verify:mocks` green for both SA
 and EG at 98/0/0) — whoever picks up F next should re-run `bun run verify:mocks` (already green as
 of D) and the full e2e suite (`python scripts/e2e/run.py`, not yet re-run against a live browser
-since D — see D's file) before treating F as fully done. C, G are still pending; D's
+since D — see D's file) before treating F as fully done. C is still pending; D's
 implementation is done but its e2e flow hasn't been run against a live browser yet (see D's file). E's
 implementation is done and verified, but is blocked from being marked fully done by two open data
 items (placeholder Egypt/Saudi geo data, Saudi license decision still unresolved) — see E's file.
+**G is done** (2026-09-26): the e2e runner, `verify:mocks`, and the vite build all now feed
+`docs/diagnostics/ISSUES.md` automatically, and `AGENT_MEMORY.md` has a generated "Open diagnostics"
+section — see G's file for what was verified end to end and the one real pre-existing bug it found
+(logged, not fixed — out of this phase's scope).
 
 Triggered by a review of the setup wizard's "بيانات المنشأة" step. It surfaced three kinds of work:
 
@@ -30,7 +34,7 @@ Seven phases, in this order. Each one leaves the app working, so you can stop af
 | D | [phase-d-country-profiles.md](phase-d-country-profiles.md) | **Country profiles (EG first, SA)**: one owner file for per-country rules; wizard asks country first; **fix the VAT rate for Egypt** | M | implementation done, `verify:mocks` green for both SA and EG (98/0/0) — e2e not yet run against a live browser, see file |
 | E | [phase-e-address-picker.md](phase-e-address-picker.md) | **Address picker**: `eg.json` / `sa.json`, `geoService`, one shared `AddressFields` block used everywhere | M | implementation done, verified (build/check/verify:mocks/e2e all green) — **not fully done**: `eg.json`/`sa.json` are placeholders (no network access), and the Saudi data license decision below is still open, see file |
 | F | [phase-f-accounting-debugger.md](phase-f-accounting-debugger.md) | **Accounting debugger**: posting traces, runtime invariants, inspector page, repro bundles + replay | L | mostly done — see file (auto-watcher + first regression case still open) |
-| G | [phase-g-dev-loop.md](phase-g-dev-loop.md) | **Dev loop**: e2e/verify/perf feed the ledger automatically; open issues appear in `AGENT_MEMORY.md` | S–M | pending |
+| G | [phase-g-dev-loop.md](phase-g-dev-loop.md) | **Dev loop**: e2e/verify/perf feed the ledger automatically; open issues appear in `AGENT_MEMORY.md` | S–M | done — see file (one real pre-existing bug found and logged, not fixed: out of scope) |
 
 **Why this order.** A is small and user-visible. B comes second so that every later phase is built with
 logging already in place, and C–F errors land in the ledger from day one. D must come before E because
