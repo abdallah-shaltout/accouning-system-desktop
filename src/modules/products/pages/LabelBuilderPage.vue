@@ -177,7 +177,7 @@ async function printLabels() {
 
 <template>
   <div>
-    <PageHeader title="منشئ الملصقات" subtitle="اختر المنتجات وقالب الملصق، ثم اطبع" back="/products">
+    <PageHeader title="منشئ الملصقات" subtitle="اختر المنتجات وقالب الملصق، ثم اطبع" :back="{ name: 'products' }">
       <template #actions>
         <AppButton variant="primary" :icon="Printer" :loading="printing" :disabled="totalLabels === 0" @click="printLabels">طباعة ({{ totalLabels }})</AppButton>
       </template>

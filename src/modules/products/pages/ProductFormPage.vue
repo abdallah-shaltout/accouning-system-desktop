@@ -263,7 +263,7 @@ async function save() {
     const product = id.value ? await updateProduct(id.value, input) : await createProduct(input);
     catalog.load(true);
     toast.success(id.value ? 'تم حفظ المنتج' : 'تمت إضافة المنتج', product.name);
-    router.push(`/products/${product.id}`);
+    router.push({ name: 'product', params: { id: product.id } });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -274,7 +274,7 @@ async function save() {
 
 <template>
   <div>
-    <PageHeader :title="id ? 'تعديل منتج' : 'منتج جديد'" :subtitle="id ? form.name : undefined" :back="id ? `/products/${id}` : '/products'" />
+    <PageHeader :title="id ? 'تعديل منتج' : 'منتج جديد'" :subtitle="id ? form.name : undefined" :back="id ? { name: 'product', params: { id } } : { name: 'products' }" />
 
     <ErrorState v-if="loadError" :message="loadError" @retry="load" />
     <AppCard v-else-if="loading"><SkeletonBlock :lines="10" height="h-8" /></AppCard>
@@ -421,9 +421,9 @@ async function save() {
             />
             <p v-else class="text-xs leading-5 text-text-secondary">
               لتغيير الكمية استخدم
-              <RouterLink :to="`/inventory/adjustments/new?type=STOCK_IN&product=${id}`" class="text-primary hover:underline">إدخال مخزون</RouterLink>
+              <RouterLink :to="{ name: 'adjustment-new', query: { type: 'STOCK_IN', product: id } }" class="text-primary hover:underline">إدخال مخزون</RouterLink>
               أو
-              <RouterLink to="/inventory/adjustments/new?type=STOCKTAKE" class="text-primary hover:underline">الجرد</RouterLink>.
+              <RouterLink :to="{ name: 'adjustment-new', query: { type: 'STOCKTAKE' } }" class="text-primary hover:underline">الجرد</RouterLink>.
             </p>
             <AppInput v-model="form.shelfLocation" label="موقع الرف" placeholder="مثال: A-12" />
             <AppSelect v-model="form.preferredSupplierId" label="المورد المفضل" placeholder="—" :options="supplierOptions" />
@@ -434,7 +434,7 @@ async function save() {
           <AppSwitch v-model="form.trackBatches" label="تتبع التشغيلات وتاريخ الصلاحية" description="يطلب رقم تشغيلة وتاريخ صلاحية عند الاستلام؛ البيع بأسبقية الانتهاء (FEFO)" />
           <AppInput v-if="form.trackBatches" v-model="form.expiryAlertDays" class="mt-4" label="التنبيه قبل الانتهاء بـ (أيام)" type="number" min="1" />
           <p v-if="id && form.trackBatches" class="mt-3 text-xs text-text-secondary">
-            عرض التشغيلات الحالية في تبويب <RouterLink :to="`/products/${id}`" class="text-primary hover:underline">"التشغيلات"</RouterLink> على بطاقة المنتج.
+            عرض التشغيلات الحالية في تبويب <RouterLink :to="{ name: 'product', params: { id } }" class="text-primary hover:underline">"التشغيلات"</RouterLink> على بطاقة المنتج.
           </p>
         </AppCard>
         <AppCard v-if="form.type === 'service' || form.stockMode === 'none'" title="المخزون">
@@ -454,7 +454,7 @@ async function save() {
         <AppCard title="حقول إضافية">
           <div v-if="!catalog.customFieldDefs.length" class="text-body text-text-secondary">
             لا توجد حقول مخصصة بعد. يمكن تعريفها من
-            <RouterLink to="/settings/products" class="text-primary hover:underline">إعدادات المنتجات</RouterLink>.
+            <RouterLink :to="{ name: 'settings-products' }" class="text-primary hover:underline">إعدادات المنتجات</RouterLink>.
           </div>
           <div v-else class="space-y-4">
             <template v-for="f in catalog.customFieldDefs.filter((x) => x.active)" :key="f.id">
@@ -472,7 +472,7 @@ async function save() {
         <div class="flex flex-wrap items-center justify-between gap-3">
           <AppSwitch v-model="form.active" label="المنتج نشط" description="المنتجات الموقوفة لا تظهر في نقطة البيع" />
           <div class="flex gap-2">
-            <AppButton :to="id ? `/products/${id}` : '/products'">إلغاء</AppButton>
+            <AppButton :to="id ? { name: 'product', params: { id } } : { name: 'products' }">إلغاء</AppButton>
             <AppButton type="submit" variant="primary" :icon="Save" :loading="saving">حفظ المنتج</AppButton>
           </div>
         </div>

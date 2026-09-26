@@ -184,7 +184,7 @@ async function confirmReturn() {
             <tr v-for="r in group" :key="r.id" class="border-b border-border last:border-0">
               <td class="px-4 py-2"><input type="checkbox" class="size-4" :checked="selected.has(r.id)" @change="toggle(r.id)" /></td>
               <td class="px-2 py-2">
-                <RouterLink :to="`/products/${r.productId}`" class="hover:text-primary">{{ r.productName }}</RouterLink>
+                <RouterLink :to="{ name: 'product', params: { id: r.productId } }" class="hover:text-primary">{{ r.productName }}</RouterLink>
                 <span class="num block text-tiny text-text-secondary">{{ r.productSku }}</span>
               </td>
               <td class="px-2 py-2 num">{{ r.batchNo }}</td>
