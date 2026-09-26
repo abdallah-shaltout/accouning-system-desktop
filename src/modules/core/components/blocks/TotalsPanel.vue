@@ -45,7 +45,7 @@ const props = withDefaults(
       </div>
     </dl>
     <p v-if="showTafqit" class="mt-3 border-t border-border pt-2 text-xs text-text-secondary">
-      {{ tafqit(tafqitAmount ?? rows.find((r) => r.emphasis)?.amount ?? 0) }}
+      {{ tafqit(tafqitAmount ?? rows.find((r) => r.emphasis)?.amount ?? 0, { currency }) }}
     </p>
   </div>
 </template>

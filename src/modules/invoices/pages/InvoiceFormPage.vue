@@ -313,7 +313,7 @@ const totalsRows = computed<TotalsRow[]>(() => [
     </FormSection>
 
     <template #aside>
-      <TotalsPanel :rows="totalsRows" show-tafqit :tafqit-amount="totals.gross" />
+      <TotalsPanel :rows="totalsRows" :currency="settings.currency" show-tafqit :tafqit-amount="totals.gross" />
       <FormField label="خصم الفاتورة %">
         <AppInput v-model.number="discountRate" type="number" min="0" max="100" />
       </FormField>
