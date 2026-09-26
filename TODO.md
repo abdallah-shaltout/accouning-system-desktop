@@ -1,5 +1,29 @@
 # TODO
 
+## 2026-09-26 — doc-18 Phase D follow-up: the seed/EG regression F-2 flagged below is now fixed, verify:mocks 98/0/0
+
+The F-2 note right below ("verify:mocks regressed to 91/0/7 ... `568cfaf` ... squarely doc-18 Phase
+D territory") was accurate and is now resolved. Root cause: `seedDatabase()`/`seedEmptyCompany()`
+mutate a single module-level `db` object without resetting it first; `scripts/verify/run.ts` needed
+to call `seedDatabase()` twice in the same process (once per country) to prove invariants hold for
+both SA and EG, and the second call's replay posted on top of the first's leftover
+accounts/branches/journal entries instead of starting fresh — doubling totals and dangling every
+branch/cost-center id the first seed created. Fixed with `resetDb()` in `src/mocks/db.ts` (clears
+every table back to blank, called at the top of both seed entry points) — this is a general
+correctness fix, not an EG-specific hack; it matches `seedBranches9`'s existing documented
+assumption that `seedDatabase()` can safely re-run against the same `db` within one session.
+
+`bun run verify:mocks` is now **98 ok, 0 todo, 0 failed** (49 SA + 49 EG, same
+line→invoice→VAT discount order holds at 15% and 14%). Committed alongside the rest of doc-18
+Phase D's invoice/tafqit/QR changes — see `git log` for the doc-18 Phase D commits. My own
+`git commit` for this landed swept into a concurrent doc-17 agent's commit (`397426e`, "doc-17
+F-2: log status...") rather than under my own message, the same shared-index race the F-2 note
+below and the "F-4 detail pages" note further down both already describe — confirmed via `git show
+--stat 397426e` that every file I changed (`scripts/verify/run.ts`, `src/mocks/db.ts`,
+`src/mocks/seed/index.ts`, `pdfService.ts`, `printService.ts`, `InvoiceA4.vue`, `InvoiceThermal.vue`,
+`invoiceService.ts`, `TaxesSettingsPage.vue`) is present with the expected content. Nothing lost,
+just misattributed. No action needed from anyone else.
+
 ## 2026-09-26 — doc-17 F-2 (line-item forms): 3 of 4 in-scope forms migrated; verify:mocks regressed by a concurrent doc-18 Phase D change, not by F-2
 
 Migrated to `FormPage` + `LineItemsEditor` + `TotalsPanel`, one commit each, `verify:mocks`
