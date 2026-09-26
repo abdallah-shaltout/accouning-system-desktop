@@ -92,7 +92,7 @@ async function save() {
       repeatMonthly: repeatMonthly.value,
     });
     toast.success('تم تسجيل المصروف', expense.number);
-    router.push(`/expenses/${expense.id}`);
+    router.push({ name: 'expense-detail', params: { id: expense.id } });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -103,7 +103,7 @@ async function save() {
 
 <template>
   <div>
-    <PageHeader title="مصروف جديد" back="/expenses" />
+    <PageHeader title="مصروف جديد" :back="{ name: 'expenses' }" />
     <div v-if="loading" class="text-body text-text-secondary">جارِ التحميل…</div>
     <div v-else class="grid items-start gap-5 lg:grid-cols-[1fr_340px]">
       <AppCard padding="sm">

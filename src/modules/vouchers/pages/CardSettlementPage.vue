@@ -79,7 +79,7 @@ async function submit() {
       note: note.value.trim() || undefined,
     });
     toast.success('تم تسجيل تسوية البطاقات', settlement.number);
-    router.push('/payments');
+    router.push({ name: 'payments' });
   } catch (err) {
     toast.error(err);
   } finally {

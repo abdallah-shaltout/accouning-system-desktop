@@ -23,6 +23,7 @@ import { formatDate, formatDateTime } from '@/modules/core/helpers/format';
 import { PAYMENT_METHOD_LABEL } from '@/modules/core/helpers/labels';
 import { num0 } from '@/modules/core/helpers/numbers';
 import { round2 } from '@/modules/invoices/helpers/totals';
+import type { AppRoute } from '@/modules/core/types/route';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { allocateExistingPayment, getOpenDocuments, getPayment, removeAllocation } from '../services/paymentService';
 import type { OpenDocument, PaymentAllocationInput } from '../types';
@@ -120,9 +121,9 @@ async function unallocate(allocationId: string, number: string) {
   }
 }
 
-function docLink(kind: 'invoice' | 'purchaseOrder' | 'opening', id: string) {
-  if (kind === 'invoice') return `/invoices/${id}`;
-  if (kind === 'purchaseOrder') return `/purchases/${id}`;
+function docLink(kind: 'invoice' | 'purchaseOrder' | 'opening', id: string): AppRoute | undefined {
+  if (kind === 'invoice') return { name: 'invoice', params: { id } };
+  if (kind === 'purchaseOrder') return { name: 'purchase', params: { id } };
   return undefined;
 }
 </script>
@@ -131,10 +132,10 @@ function docLink(kind: 'invoice' | 'purchaseOrder' | 'opening', id: string) {
   <div>
     <ErrorState v-if="payment.error.value" :message="payment.error.value" @retry="payment.reload" />
     <template v-else>
-      <PageHeader :title="p ? `سند ${p.number}` : '…'" back="/payments">
+      <PageHeader :title="p ? `سند ${p.number}` : '…'" :back="{ name: 'payments' }">
         <template v-if="p" #subtitle>
           {{ p.type === 'RECEIVED' ? 'قبض من' : 'صرف إلى' }}
-          <RouterLink :to="`/${p.targetType === 'customer' ? 'customers' : 'suppliers'}/${p.targetId}`" class="text-primary hover:underline">{{ p.partyName }}</RouterLink>
+          <RouterLink :to="p.targetType === 'customer' ? { name: 'customer', params: { id: p.targetId } } : { name: 'supplier', params: { id: p.targetId } }" class="text-primary hover:underline">{{ p.partyName }}</RouterLink>
           — {{ formatDateTime(p.date) }}
         </template>
       </PageHeader>

@@ -40,7 +40,7 @@ const columns: Column<Voucher>[] = [
   <div>
     <PageHeader title="السندات العامة" subtitle="قبض/صرف عام، تحويل بين الحسابات، مسحوبات ورأس مال المالك">
       <template v-if="auth.can('payments', 'write')" #actions>
-        <AppButton variant="primary" :icon="Plus" to="/vouchers/new">سند جديد</AppButton>
+        <AppButton variant="primary" :icon="Plus" :to="{ name: 'voucher-new' }">سند جديد</AppButton>
       </template>
     </PageHeader>
 
@@ -68,7 +68,7 @@ const columns: Column<Voucher>[] = [
       :empty-icon="Wallet"
       empty-title="لا توجد سندات"
       @retry="reload"
-      @row-click="(r) => router.push(`/vouchers/${r.id}`)"
+      @row-click="(r) => router.push({ name: 'voucher-detail', params: { id: r.id } })"
     >
       <template #cell-number="{ row }"><span class="num font-medium">{{ row.number }}</span></template>
       <template #cell-date="{ row }"><span class="num text-text-secondary">{{ formatDate(row.date) }}</span></template>

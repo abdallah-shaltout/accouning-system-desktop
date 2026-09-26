@@ -74,8 +74,8 @@ const columns: Column<PaymentRow>[] = [
   <div>
     <PageHeader title="سندات القبض والصرف" subtitle="تحصيل مستحقات العملاء وسداد الموردين — يمكن للسند الواحد تسوية عدة مستندات، والباقي يظهر رصيداً على الطرف">
       <template v-if="auth.can('payments', 'write')" #actions>
-        <AppButton :icon="Plus" :to="{ path: '/payments/new', query: { type: 'PAID' } }">سند صرف</AppButton>
-        <AppButton variant="primary" :icon="Plus" :to="{ path: '/payments/new', query: { type: 'RECEIVED' } }">سند قبض</AppButton>
+        <AppButton :icon="Plus" :to="{ name: 'payment-new', query: { type: 'PAID' } }">سند صرف</AppButton>
+        <AppButton variant="primary" :icon="Plus" :to="{ name: 'payment-new', query: { type: 'RECEIVED' } }">سند قبض</AppButton>
       </template>
     </PageHeader>
 

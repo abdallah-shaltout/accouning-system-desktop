@@ -46,7 +46,7 @@ async function print() {
   <div>
     <ErrorState v-if="error" :message="error" @retry="reload" />
     <template v-else>
-      <PageHeader :title="data ? `${KIND_LABEL[data.kind]} ${data.number}` : '…'" back="/vouchers">
+      <PageHeader :title="data ? `${KIND_LABEL[data.kind]} ${data.number}` : '…'" :back="{ name: 'vouchers' }">
         <template v-if="data" #actions>
           <AppButton :icon="Printer" @click="print">طباعة</AppButton>
         </template>

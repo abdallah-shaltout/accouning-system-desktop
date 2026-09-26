@@ -110,7 +110,7 @@ async function remove(t: RecurringExpense) {
 
 <template>
   <div>
-    <PageHeader title="المصروفات المتكررة" subtitle="قالب + تاريخ استحقاق تالٍ — يظهر تنبيه عند الاستحقاق في صفحة المصروفات" back="/expenses" />
+    <PageHeader title="المصروفات المتكررة" subtitle="قالب + تاريخ استحقاق تالٍ — يظهر تنبيه عند الاستحقاق في صفحة المصروفات" :back="{ name: 'expenses' }" />
     <SkeletonBlock v-if="loading" :lines="5" height="h-9" />
     <AppCard v-else padding="none">
       <template #actions>

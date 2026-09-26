@@ -159,7 +159,7 @@ const methodOptions = [
 
 <template>
   <div>
-    <PageHeader :title="isReceived ? 'سند قبض' : 'سند صرف'" :subtitle="isReceived ? 'تحصيل مبلغ من عميل وتخصيصه على فاتورة واحدة أو أكثر' : 'سداد مبلغ لمورد وتخصيصه على أمر شراء واحد أو أكثر'" back="/payments" />
+    <PageHeader :title="isReceived ? 'سند قبض' : 'سند صرف'" :subtitle="isReceived ? 'تحصيل مبلغ من عميل وتخصيصه على فاتورة واحدة أو أكثر' : 'سداد مبلغ لمورد وتخصيصه على أمر شراء واحد أو أكثر'" :back="{ name: 'payments' }" />
 
     <div class="grid items-start gap-5 lg:grid-cols-[1fr_340px]">
       <div class="space-y-5">

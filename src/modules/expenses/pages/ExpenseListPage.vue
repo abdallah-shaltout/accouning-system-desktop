@@ -115,7 +115,7 @@ const columns: Column<ExpenseRow>[] = [
                 "
                 #actions
             >
-                <AppButton variant="primary" :icon="Plus" to="/expenses/new"
+                <AppButton variant="primary" :icon="Plus" :to="{ name: 'expense-new' }"
                     >مصروف جديد</AppButton
                 >
             </template>
@@ -201,7 +201,7 @@ const columns: Column<ExpenseRow>[] = [
             :empty-icon="Receipt"
             empty-title="لا توجد مصروفات"
             @retry="reload"
-            @row-click="(r) => router.push(`/expenses/${r.id}`)"
+            @row-click="(r) => router.push({ name: 'expense-detail', params: { id: r.id } })"
         >
             <template #cell-number="{ row }"
                 ><span class="num font-medium">{{ row.number }}</span></template

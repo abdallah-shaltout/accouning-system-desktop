@@ -100,7 +100,7 @@ async function save() {
       const v = await createOwnerVoucher({ ...base, direction: ownerDirection.value, cashAccountId: cashAccountId.value! });
       toast.success('تم تسجيل السند', v.number);
     }
-    router.push('/vouchers');
+    router.push({ name: 'vouchers' });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -111,7 +111,7 @@ async function save() {
 
 <template>
   <div>
-    <PageHeader title="سند عام جديد" back="/vouchers" />
+    <PageHeader title="سند عام جديد" :back="{ name: 'vouchers' }" />
     <div class="grid items-start gap-5 lg:grid-cols-[1fr_340px]">
       <AppCard padding="sm">
         <div class="space-y-4">

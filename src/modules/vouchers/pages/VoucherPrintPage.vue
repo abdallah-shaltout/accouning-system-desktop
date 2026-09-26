@@ -35,7 +35,7 @@ function print() {
   window.print();
 }
 function close() {
-  router.push(`/vouchers/${id}`);
+  router.push({ name: 'voucher-detail', params: { id } });
 }
 useHotkeys({ 'ctrl+p': { id: 'print.document', label: 'طباعة المستند', group: 'الطباعة', handler: print }, Escape: close });
 </script>
