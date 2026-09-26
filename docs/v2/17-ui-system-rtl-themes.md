@@ -492,14 +492,26 @@ interface ThemeConfig {
 
 ## Phase F — One shared UI system
 
-**Status (2026-09-26): F-0 done.** All blocks (`FormField`, `FormSection`, `FormActions`, `useForm()`,
-`FilterBar`, the `DataTable` column-`type` extension, `LineItemsEditor`, `TotalsPanel`, `DetailHeader`,
-`StatCards`) and layouts (`ListPage`, `FormPage`, `DetailPage`, `SettingsPage`) exist in
+**Status (2026-09-26): F-0 and F-1 done.** All blocks (`FormField`, `FormSection`, `FormActions`,
+`useForm()`, `FilterBar`, the `DataTable` column-`type` extension, `LineItemsEditor`, `TotalsPanel`,
+`DetailHeader`, `StatCards`) and layouts (`ListPage`, `FormPage`, `DetailPage`, `SettingsPage`) exist in
 `modules/core/components/{blocks,layouts}/`, are shown in `/dev/ui`, and are documented in
 `docs/design_system.md` → "Building pages". `scripts/check-ui-rules.js` runs in `bun run check` in
-**warning mode** (126 findings today across the still-unmigrated pages — expected, not a regression).
-**F-1 through F-6 have not started** — no existing page was touched; every page still uses its own
-hand-written structure. Next session picks up at F-1 (list pages).
+**warning mode** (still-unmigrated F-2..F-5 pages — expected, not a regression).
+
+F-1 migrated all in-scope list pages onto `ListPage` + `FilterBar` + `DataTable`: vouchers,
+purchase orders, users, stock counts, stock adjustments, expenses, payments, customers/suppliers
+(`PartyListPage`), products, stock transfers, stock movements, invoices, quotations, and the
+journal list (header/primary-action + filter row only — its day-grouped body and inline
+line-expansion table were left as-is, not a good `DataTable` fit and out of scope to redesign
+here). `StockTransferListPage`'s raw `<table>` and inline create/receive modals were extracted to
+`StockTransferModals.vue` to bring it under the ~250-line rule. Commits: `9789885`, `d2da2e0`.
+Verified: `bun run build` clean for every touched file, `check-routes.js` zero findings,
+`verify:mocks` 49/0/0. Full e2e suite not run clean this session — F-2 through F-5 are landing
+concurrently and several of their pages fail `vue-tsc` mid-edit; see `TODO.md` for the two
+flows tried (`products`, `purchases`) and why their failures trace to those other batches, not F-1.
+
+**F-2 through F-6 have not started.**
 
 **The problem** (survey of 109 `*Page.vue` files, 2026-09-25):
 
@@ -564,8 +576,9 @@ designer), and page files over 300 lines (warning).
 
 - [x] **F-0** Build all blocks and layouts, add them to `/dev/ui` (with RTL + dark examples), write
       the "Building pages" doc section and the guard script (warning mode). *(done 2026-09-26)*
-- [ ] **F-1 Lists:** invoices, quotations, products, customers, suppliers, POs, expenses, payments,
+- [x] **F-1 Lists:** invoices, quotations, products, customers, suppliers, POs, expenses, payments,
       vouchers, journal list, stock movements/adjustments/counts/transfers, users → `ListPage`.
+      *(done 2026-09-26 — see status note above; full e2e re-run still owed once F-2..F-5 land)*
 - [ ] **F-2 Line-item forms:** invoice, purchase, journal entry, stock adjustment, stock count,
       transfer → `FormPage` + `LineItemsEditor` + `TotalsPanel`. Highest risk — accounting e2e
       flows (`desk_invoice`, `purchases`, `accountant_journal`, `refund_payment`) must stay green and
