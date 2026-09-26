@@ -18,18 +18,44 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/modules/core/compone
 import { formatDate } from '@/modules/core/helpers/format';
 import {
   explainAccountBalance,
+  exportReproBundle,
   getBalancesAround,
   getDriftReport,
   getInvariantResults,
   getJournalEntryRaw,
   getPostingTrace,
+  isReproRecording,
   listRecentDocuments,
+  startReproRecording,
+  stopReproRecording,
   type AccountingDocSummary,
   type DriftRow,
   type ExplainLine,
 } from '../../services/accountingDebugService';
 import type { InvariantResult } from '@/mocks';
 import type { PostingTrace } from '@/mocks';
+import { useToast } from '@/modules/core/controllers/useToast';
+
+const recording = ref(false);
+onMounted(async () => {
+  recording.value = await isReproRecording();
+});
+
+async function toggleRecording() {
+  if (recording.value) {
+    await stopReproRecording();
+  } else {
+    await startReproRecording();
+  }
+  recording.value = await isReproRecording();
+}
+
+async function exportBundle() {
+  const exported = await exportReproBundle();
+  if (!exported) {
+    useToast().info('لا توجد حالة مسجّلة بعد', 'ابدأ التسجيل أولاً ثم كرّر الخطوات المسبّبة للمشكلة.');
+  }
+}
 
 const documents = ref<AccountingDocSummary[]>([]);
 const selectedId = ref<string>();
@@ -141,9 +167,17 @@ function stepKindLabel(kind: string): string {
 <template>
   <div class="flex flex-col gap-6">
     <section class="flex flex-col gap-3 rounded-xl border border-border p-4">
-      <div class="flex items-center gap-2">
-        <FlaskConical class="size-4 text-text-secondary" />
-        <h3 class="text-body-sm font-medium">مصحح الحسابات — اختر مستنداً</h3>
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <FlaskConical class="size-4 text-text-secondary" />
+          <h3 class="text-body-sm font-medium">مصحح الحسابات — اختر مستنداً</h3>
+        </div>
+        <div class="flex items-center gap-2">
+          <AppButton :variant="recording ? 'danger' : 'secondary'" size="sm" @click="toggleRecording">
+            {{ recording ? 'إيقاف تسجيل إعادة الإنتاج' : 'بدء تسجيل إعادة الإنتاج' }}
+          </AppButton>
+          <AppButton variant="ghost" size="sm" @click="exportBundle">تصدير حالة لإعادة الإنتاج</AppButton>
+        </div>
       </div>
       <AppCombobox v-model="selectedId" :options="docOptions" placeholder="اختر قيداً…" search-placeholder="بحث برقم القيد أو البيان…" />
 

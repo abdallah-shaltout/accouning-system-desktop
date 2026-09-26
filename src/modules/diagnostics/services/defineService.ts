@@ -14,17 +14,29 @@
  * service functions — still resolves through the function expression's own name binding.
  */
 import { log, newCorrelationId, withCorrelation } from './logService';
+import { recordServiceCall } from './actionJournal';
 import { PERF_BUDGET_MS } from '../config';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyFn = (...args: any[]) => any;
+
+/** Every wrapped service function, keyed by its `wrap('module.fn', …)` source name — populated as
+ * a side effect of each service module being imported (18.F4). `scripts/verify/replay.ts` imports
+ * every service file under every module's `services` folder headlessly so this registry is
+ * complete before it looks a recorded action's `source` up here to re-invoke it — the only way to
+ * replay a bundle generically without a hand-written switch over 300+ service functions. */
+const registry = new Map<string, AnyFn>();
+
+export function serviceRegistry(): ReadonlyMap<string, AnyFn> {
+  return registry;
+}
 
 export function wrap<F extends AnyFn>(source: string, fn: F): F {
   const wrapped = (...args: Parameters<F>): ReturnType<F> => {
     const correlationId = newCorrelationId();
     const start = performance.now();
 
-    const finish = (ok: boolean, error?: unknown) => {
+    const finish = (ok: boolean, error?: unknown, result?: unknown) => {
       const durationMs = performance.now() - start;
       log.perf(source, `${durationMs.toFixed(1)}ms`, { durationMs, ok });
       if (durationMs > PERF_BUDGET_MS.service) {
@@ -34,6 +46,8 @@ export function wrap<F extends AnyFn>(source: string, fn: F): F {
         const err = error instanceof Error ? error : new Error(String(error));
         log.error(source, err.message, err, { args: redactArgs(args) });
       }
+      // 18.F4: a no-op unless repro recording was explicitly started — see actionJournal.ts.
+      recordServiceCall({ source, args, correlationId, ok, result, error: ok ? undefined : String(error) });
     };
 
     return withCorrelation(correlationId, () => {
@@ -42,7 +56,7 @@ export function wrap<F extends AnyFn>(source: string, fn: F): F {
         if (result instanceof Promise) {
           return result.then(
             (v) => {
-              finish(true);
+              finish(true, undefined, v);
               return v;
             },
             (e) => {
@@ -51,7 +65,7 @@ export function wrap<F extends AnyFn>(source: string, fn: F): F {
             },
           ) as ReturnType<F>;
         }
-        finish(true);
+        finish(true, undefined, result);
         return result;
       } catch (e) {
         finish(false, e);
@@ -59,6 +73,7 @@ export function wrap<F extends AnyFn>(source: string, fn: F): F {
       }
     });
   };
+  registry.set(source, wrapped);
   return wrapped as F;
 }
 

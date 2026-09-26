@@ -235,3 +235,38 @@ export const explainAccountBalance = wrap(
     return out.sort((a, b) => b.docDate.localeCompare(a.docDate));
   },
 );
+
+// ---------------------------------------------------------------------------------------------
+// Repro bundles + replay (18.F4)
+// ---------------------------------------------------------------------------------------------
+
+/** Starts recording every service call from this point on, snapshotting the current `db` as the
+ * bundle's starting point. UI-only — `scripts/verify/replay.ts` seeds its own `db` headlessly and
+ * never calls this. */
+export const startReproRecording = wrap('diagnostics.startReproRecording', async function startReproRecording(): Promise<void> {
+  const { startRecording } = await import('./actionJournal');
+  startRecording(clone(db));
+});
+
+export const stopReproRecording = wrap('diagnostics.stopReproRecording', async function stopReproRecording(): Promise<void> {
+  const { stopRecording } = await import('./actionJournal');
+  stopRecording();
+});
+
+export const isReproRecording = wrap('diagnostics.isReproRecording', async function isReproRecording(): Promise<boolean> {
+  const { isRecording } = await import('./actionJournal');
+  return isRecording();
+});
+
+/** "تصدير حالة لإعادة الإنتاج" — builds the bundle recorded so far and saves it via the shared
+ * `saveFile` helper (native Save dialog on desktop, per CLAUDE.md "Desktop behavior"). Returns
+ * `false` when nothing has been recorded yet (recording was never started). */
+export const exportReproBundle = wrap('diagnostics.exportReproBundle', async function exportReproBundle(): Promise<boolean> {
+  const { buildReproBundle } = await import('./actionJournal');
+  const bundle = buildReproBundle();
+  if (!bundle) return false;
+  const { saveFile } = await import('@/modules/core/services/saveFile');
+  const stamp = bundle.startedAt.replace(/[:.]/g, '-');
+  await saveFile(JSON.stringify(bundle, null, 2), { suggestedName: `repro-${stamp}.json`, kind: 'json' });
+  return true;
+});

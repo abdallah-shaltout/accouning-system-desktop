@@ -137,8 +137,10 @@ function enqueue(entry: LogEntry): void {
   else scheduleFlush();
 }
 
-/** Namespaces enabled for the `debug` channel (18.B5) — off by default, per device. */
-function debugEnabled(namespace: string): boolean {
+/** Namespaces enabled for the `debug` channel (18.B5) — off by default, per device. Exported for
+ * `actionJournal.ts` (18.F4), which uses the same `accounting` namespace to gate whether repro
+ * recording is offered in the UI. */
+export function debugEnabled(namespace: string): boolean {
   let raw: string | null = null;
   try {
     raw = localStorage.getItem('equal.debug');

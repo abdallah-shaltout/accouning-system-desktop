@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **696 files / 72,411 lines** (md 41, rust 22, ts 213, vue 420).
+Indexed: **697 files / 72,625 lines** (md 41, rust 22, ts 214, vue 420).
 
 **Lookup order:** Where-to-find → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -41,7 +41,7 @@ Indexed: **696 files / 72,411 lines** (md 41, rust 22, ts 213, vue 420).
 ```text
 pages (112) / components (344) / controllers (23)   src/modules/<domain>/…
         │  may call ONLY ▼                  (seam rule — see Boundary report)
-services (35)   src/modules/<domain>/services/*   ← swap point for a real backend
+services (36)   src/modules/<domain>/services/*   ← swap point for a real backend
    │                                   │
    ▼                                   ▼
 mock backend  src/mocks/     Tauri IPC invoke('<cmd>') → src-tauri/src/lib.rs
@@ -59,7 +59,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
 | **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
 | **core** | 340 / 18427 | commandPalette 1, components 294, controllers 14, helpers 15, pages 4, routes 1, services 7, types 4 | 5 |  |
-| **diagnostics** | 19 / 1846 | commands 1, components 7, config 1, controllers 1, pages 1, services 7, types 1 | 0 | yes |
+| **diagnostics** | 20 / 2060 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 1 | 0 | yes |
 | **expenses** | 8 / 962 | pages 5, routes 1, services 1, types 1 | 5 |  |
 | **invoices** | 29 / 5248 | commands 1, components 12, controllers 1, helpers 2, pages 10, routes 1, services 1, types 1 | 11 | yes |
 | **parties** | 10 / 1793 | components 1, helpers 2, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
@@ -87,12 +87,13 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | core | `pdfService` | `render`, `renderAndSave`, `renderPreview`, `sampleInvoicePayload`, `buildLabelItems`, `renderLabels`, `renderLabelsAndSave`, `renderGenericReport`, `renderGenericReportAndSave`, `renderReportPdf`, `saveReportPdf`, `renderLabelsPreview` |
 | core | `printService` | `printReceipt`, `testPrint`, `initPrintResultListener` |
 | core | `saveFile` | `saveFile` |
-| diagnostics | `accountingDebugService` | `listRecentDocuments`, `getPostingTrace`, `getJournalEntryRaw`, `getBalancesAround`, `getInvariantResults`, `getDriftReport`, `explainAccountBalance` |
+| diagnostics | `accountingDebugService` | `listRecentDocuments`, `getPostingTrace`, `getJournalEntryRaw`, `getBalancesAround`, `getInvariantResults`, `getDriftReport`, `explainAccountBalance`, `startReproRecording`, `stopReproRecording`, `isReproRecording`, `exportReproBundle` |
+| diagnostics | `actionJournal` | `isRecording`, `startRecording`, `stopRecording`, `recordServiceCall`, `currentJournal`, `buildReproBundle`, `debugRecordingAvailable` |
 | diagnostics | `auditService` | `getAuditEntries`, `getAuditEntities`, `getAuditEntityKinds` |
-| diagnostics | `defineService` | `wrap` |
+| diagnostics | `defineService` | `serviceRegistry`, `wrap` |
 | diagnostics | `diagnosticsReadService` | `loadChannel`, `groupByFingerprint`, `computePerfStats`, `slowestLongTasks` |
 | diagnostics | `diagnosticsService` | `readLogs`, `clearLogs`, `openLogFolder`, `rotateLogs`, `exportAll`, `initDiagnostics` |
-| diagnostics | `logService` | `fingerprintOf`, `setLogContext`, `newCorrelationId`, `withCorrelation`, `registerSink`, `log` |
+| diagnostics | `logService` | `fingerprintOf`, `setLogContext`, `newCorrelationId`, `withCorrelation`, `registerSink`, `debugEnabled`, `log` |
 | diagnostics | `supportBundleService` | `exportSupportBundle` |
 | expenses | `expenseService` | `getExpenseCategories`, `saveExpenseCategory`, `deleteExpenseCategory`, `getExpenses`, `getExpense`, `createExpense`, `getRecurringExpenses`, `saveRecurringExpense`, `deleteRecurringExpense`, `getDueRecurringExpenses`, `postDueRecurringExpense` |
 | invoices | `invoiceService` | `isOverdue`, `getInvoices`, `getInvoicesPaged`, `getInvoice`, `previewSale`, `createSale`, `createRefund`, `getRefund`, `getInvoicePrintData`, `getCurrentShift`, `getShifts`, `getShift`, `openPosShift`, `getXReport`, `closePosShift`, `forceClosePosShift`, `recordCashInOut`, `getHeldSales`, `holdSale`, `resumeHeldSale`, `discardHeldSale`, `getQuotations`, `getQuotation`, `saveQuotation`, `setQuotationStatus`, `convertQuotationToInvoice` |
@@ -251,7 +252,7 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **app** | core (14), settings (5), diagnostics (4), users (3), accounting (2), approvals (2), invoices (2), mocks (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), parties (1), payments (1), products (1), setup (1) | 1 |
 | **approvals** | core (11), mocks (2), diagnostics (1), users (1) | 4 |
 | **core** | mocks (21), users (19), invoices (13), products (12), settings (10), diagnostics (7), parties (3), purchases (3), accounting (2), templates (2), vouchers (2), app (1), payments (1), reports (1), setup (1) | 18 |
-| **diagnostics** | core (23), mocks (5) | 18 |
+| **diagnostics** | core (25), mocks (5) | 18 |
 | **expenses** | core (59), mocks (3), users (3), accounting (2), parties (2), settings (2), diagnostics (1) | 2 |
 | **invoices** | core (164), mocks (9), settings (9), parties (8), products (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
 | **mocks** | invoices (9), accounting (8), products (8), settings (5), diagnostics (4), core (3), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 17 |
@@ -430,6 +431,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `bun run scaffold` | `node scripts/scaffold.js` |
 | `bun run build:android` | `cd src-tauri/gen/android && ./gradlew.bat assembleArm64Debug` |
 | `bun run verify:mocks` | `bun run scripts/verify/run.ts` |
+| `bun run verify:replay` | `bun run scripts/verify/replay.ts` |
 | `bun run check` | `node scripts/check-text-tokens.js && node scripts/check-rtl.js && bun run scripts/check-contrast.ts && node scripts/check-ui-rules.js` |
 | `bun run memory` | `bun run scripts/memory/run.ts` |
 | `bun run memory:check` | `bun run scripts/memory/run.ts --check` |
