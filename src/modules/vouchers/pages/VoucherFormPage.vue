@@ -9,7 +9,8 @@ import AppDatePicker from '@/modules/core/components/ui/AppDatePicker.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import FormSection from '@/modules/core/components/blocks/FormSection.vue';
+import FormPage from '@/modules/core/components/layouts/FormPage.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { dateKeyToIso, todayKey } from '@/modules/core/helpers/format';
@@ -110,51 +111,48 @@ async function save() {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="سند عام جديد" :back="{ name: 'vouchers' }" />
-    <div class="grid items-start gap-5 lg:grid-cols-[1fr_340px]">
-      <AppCard padding="sm">
-        <div class="space-y-4">
-          <SegmentedControl v-model="kind" :options="kindOptions" />
-          <div class="grid gap-4 sm:grid-cols-2">
-            <AppDatePicker v-model="date" label="التاريخ" required />
-            <AppInput v-model.number="amount" type="number" min="0" step="0.01" label="المبلغ" required />
-          </div>
+  <FormPage title="سند عام جديد" :back="{ name: 'vouchers' }">
+    <FormSection>
+      <SegmentedControl v-model="kind" :options="kindOptions" />
+      <div class="grid gap-4 sm:grid-cols-2">
+        <AppDatePicker v-model="date" label="التاريخ" required />
+        <AppInput v-model.number="amount" type="number" min="0" step="0.01" label="المبلغ" required />
+      </div>
 
-          <template v-if="kind === 'RECEIPT'">
-            <AppSelect v-model="paymentMethodId" label="يُقبض عبر" :options="methodOptions" />
-            <AppCombobox v-model="otherAccountId" label="الحساب الدائن" :options="accountOptions" placeholder="اختر الحساب…" />
-          </template>
-          <template v-else-if="kind === 'PAYMENT'">
-            <AppCombobox v-model="otherAccountId" label="الحساب المدين" :options="accountOptions" placeholder="اختر الحساب…" />
-            <AppSelect v-model="paymentMethodId" label="يُصرف عبر" :options="methodOptions" />
-          </template>
-          <template v-else-if="kind === 'TRANSFER'">
-            <div class="grid gap-4 sm:grid-cols-2">
-              <AppCombobox v-model="sourceAccountId" label="من حساب" :options="accountOptions" placeholder="المصدر…" />
-              <AppCombobox v-model="destinationAccountId" label="إلى حساب" :options="accountOptions" placeholder="الوجهة…" />
-            </div>
-            <div class="grid gap-4 sm:grid-cols-2">
-              <AppInput v-model.number="feeAmount" type="number" min="0" step="0.01" label="عمولة التحويل (اختياري)" />
-              <AppCombobox v-if="feeAmount" v-model="feeAccountId" label="حساب العمولة" :options="accountOptions" placeholder="اختر…" />
-            </div>
-          </template>
-          <template v-else>
-            <SegmentedControl
-              v-model="ownerDirection"
-              :options="[
-                { value: 'drawings', label: 'مسحوبات (خروج)' },
-                { value: 'contribution', label: 'إضافة رأس مال (دخول)' },
-              ]"
-            />
-            <AppSelect v-model="cashAccountId" label="الحساب النقدي/البنكي" :options="cashBankOptions" />
-          </template>
-
-          <AppInput v-model="description" label="الوصف" required />
-          <AppTextarea v-model="note" label="ملاحظات" :rows="2" />
+      <template v-if="kind === 'RECEIPT'">
+        <AppSelect v-model="paymentMethodId" label="يُقبض عبر" :options="methodOptions" />
+        <AppCombobox v-model="otherAccountId" label="الحساب الدائن" :options="accountOptions" placeholder="اختر الحساب…" />
+      </template>
+      <template v-else-if="kind === 'PAYMENT'">
+        <AppCombobox v-model="otherAccountId" label="الحساب المدين" :options="accountOptions" placeholder="اختر الحساب…" />
+        <AppSelect v-model="paymentMethodId" label="يُصرف عبر" :options="methodOptions" />
+      </template>
+      <template v-else-if="kind === 'TRANSFER'">
+        <div class="grid gap-4 sm:grid-cols-2">
+          <AppCombobox v-model="sourceAccountId" label="من حساب" :options="accountOptions" placeholder="المصدر…" />
+          <AppCombobox v-model="destinationAccountId" label="إلى حساب" :options="accountOptions" placeholder="الوجهة…" />
         </div>
-      </AppCard>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <AppInput v-model.number="feeAmount" type="number" min="0" step="0.01" label="عمولة التحويل (اختياري)" />
+          <AppCombobox v-if="feeAmount" v-model="feeAccountId" label="حساب العمولة" :options="accountOptions" placeholder="اختر…" />
+        </div>
+      </template>
+      <template v-else>
+        <SegmentedControl
+          v-model="ownerDirection"
+          :options="[
+            { value: 'drawings', label: 'مسحوبات (خروج)' },
+            { value: 'contribution', label: 'إضافة رأس مال (دخول)' },
+          ]"
+        />
+        <AppSelect v-model="cashAccountId" label="الحساب النقدي/البنكي" :options="cashBankOptions" />
+      </template>
 
+      <AppInput v-model="description" label="الوصف" required />
+      <AppTextarea v-model="note" label="ملاحظات" :rows="2" />
+    </FormSection>
+
+    <template #aside>
       <AppCard title="الترحيل" padding="sm">
         <ul v-if="submitted && problems.length" class="mb-3 list-inside list-disc text-xs text-danger">
           <li v-for="p in problems" :key="p">{{ p }}</li>
@@ -162,6 +160,6 @@ async function save() {
         <AppButton variant="primary" block :icon="Save" :loading="saving" @click="save">حفظ السند</AppButton>
         <p class="mt-3 text-tiny leading-5 text-text-secondary">ينشئ قيداً محاسبياً عادياً مرتبطاً بهذا السند، ويمكن طباعته كسند PDF.</p>
       </AppCard>
-    </div>
-  </div>
+    </template>
+  </FormPage>
 </template>

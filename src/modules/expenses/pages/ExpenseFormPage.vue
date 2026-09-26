@@ -11,7 +11,8 @@ import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import FormSection from '@/modules/core/components/blocks/FormSection.vue';
+import FormPage from '@/modules/core/components/layouts/FormPage.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { dateKeyToIso, todayKey } from '@/modules/core/helpers/format';
@@ -102,50 +103,51 @@ async function save() {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="مصروف جديد" :back="{ name: 'expenses' }" />
+  <FormPage title="مصروف جديد" :back="{ name: 'expenses' }">
     <div v-if="loading" class="text-body text-text-secondary">جارِ التحميل…</div>
-    <div v-else class="grid items-start gap-5 lg:grid-cols-[1fr_340px]">
-      <AppCard padding="sm">
-        <div class="space-y-4">
+    <template v-else>
+      <FormSection :columns="2">
+        <AppDatePicker v-model="date" label="التاريخ" required />
+        <AppCombobox v-model="categoryId" label="التصنيف" required :options="categoryOptions" :error="submitted && !categoryId ? 'اختر التصنيف' : undefined" />
+        <AppInput v-model.number="amount" type="number" min="0" step="0.01" label="المبلغ" required class="sm:col-span-2" />
+      </FormSection>
+
+      <FormSection>
+        <AppSwitch v-model="isTaxInvoice" label="فاتورة ضريبية؟" description="يتم فصل الضريبة عن المبلغ وتُحتسب ضريبة مدخلات قابلة للاسترداد" />
+        <template v-if="isTaxInvoice">
           <div class="grid gap-4 sm:grid-cols-2">
-            <AppDatePicker v-model="date" label="التاريخ" required />
-            <AppCombobox v-model="categoryId" label="التصنيف" required :options="categoryOptions" :error="submitted && !categoryId ? 'اختر التصنيف' : undefined" />
+            <AppSelect v-model="taxId" label="نوع الضريبة" :options="purchaseTaxOptions" />
+            <AppInput v-model="supplierVatNumber" label="الرقم الضريبي للمورد" ltr />
           </div>
-          <AppInput v-model.number="amount" type="number" min="0" step="0.01" label="المبلغ" required />
+          <AppInput v-model="supplierInvoiceNo" label="رقم فاتورة المورد" ltr />
+          <p class="text-tiny text-text-secondary">صافي <span class="num">{{ netAmount.toFixed(2) }}</span> + ضريبة <span class="num">{{ vatAmount.toFixed(2) }}</span></p>
+        </template>
+      </FormSection>
 
-          <AppSwitch v-model="isTaxInvoice" label="فاتورة ضريبية؟" description="يتم فصل الضريبة عن المبلغ وتُحتسب ضريبة مدخلات قابلة للاسترداد" />
-          <template v-if="isTaxInvoice">
-            <div class="grid gap-4 sm:grid-cols-2">
-              <AppSelect v-model="taxId" label="نوع الضريبة" :options="purchaseTaxOptions" />
-              <AppInput v-model="supplierVatNumber" label="الرقم الضريبي للمورد" ltr />
-            </div>
-            <AppInput v-model="supplierInvoiceNo" label="رقم فاتورة المورد" ltr />
-            <p class="text-tiny text-text-secondary">صافي <span class="num">{{ netAmount.toFixed(2) }}</span> + ضريبة <span class="num">{{ vatAmount.toFixed(2) }}</span></p>
-          </template>
-
-          <div>
-            <span class="field-label">الدفع من</span>
-            <SegmentedControl
-              v-model="paidKind"
-              :options="[
-                { value: 'method', label: 'طريقة دفع / صندوق' },
-                { value: 'credit', label: 'آجل لمورد' },
-              ]"
-            />
-          </div>
-          <AppSelect v-if="paidKind === 'method'" v-model="paymentMethodId" label="طريقة الدفع" :options="methodOptions" :error="submitted && !paymentMethodId ? 'اختر طريقة الدفع' : undefined" />
-          <AppCombobox v-else v-model="supplierId" label="المورد" :options="supplierOptions" :error="submitted && !supplierId ? 'اختر المورد' : undefined" />
-
-          <AppTextarea v-model="description" label="الوصف" :rows="2" />
-          <AppSwitch v-model="repeatMonthly" label="تكرار شهري" description="يمكن إنشاء قالب متكرر لاحقاً من صفحة المصروفات المتكررة" />
-          <div>
-            <span class="field-label">المرفقات (صورة الفاتورة)</span>
-            <AttachmentField :owner-ref="draftOwnerRef" />
-          </div>
+      <FormSection>
+        <div>
+          <span class="field-label">الدفع من</span>
+          <SegmentedControl
+            v-model="paidKind"
+            :options="[
+              { value: 'method', label: 'طريقة دفع / صندوق' },
+              { value: 'credit', label: 'آجل لمورد' },
+            ]"
+          />
         </div>
-      </AppCard>
+        <AppSelect v-if="paidKind === 'method'" v-model="paymentMethodId" label="طريقة الدفع" :options="methodOptions" :error="submitted && !paymentMethodId ? 'اختر طريقة الدفع' : undefined" />
+        <AppCombobox v-else v-model="supplierId" label="المورد" :options="supplierOptions" :error="submitted && !supplierId ? 'اختر المورد' : undefined" />
 
+        <AppTextarea v-model="description" label="الوصف" :rows="2" />
+        <AppSwitch v-model="repeatMonthly" label="تكرار شهري" description="يمكن إنشاء قالب متكرر لاحقاً من صفحة المصروفات المتكررة" />
+        <div>
+          <span class="field-label">المرفقات (صورة الفاتورة)</span>
+          <AttachmentField :owner-ref="draftOwnerRef" />
+        </div>
+      </FormSection>
+    </template>
+
+    <template #aside>
       <AppCard title="الترحيل" padding="sm">
         <ul v-if="submitted && problems.length" class="mb-3 list-inside list-disc text-xs text-danger">
           <li v-for="p in problems" :key="p">{{ p }}</li>
@@ -153,6 +155,6 @@ async function save() {
         <AppButton variant="primary" block :icon="Save" :loading="saving" @click="save">حفظ المصروف</AppButton>
         <p class="mt-3 text-tiny leading-5 text-text-secondary">القيد: من حساب المصروف (+ضريبة المدخلات إن وُجدت) إلى حساب طريقة الدفع أو حساب الموردين.</p>
       </AppCard>
-    </div>
-  </div>
+    </template>
+  </FormPage>
 </template>

@@ -12,7 +12,8 @@ import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AttachmentField from '@/modules/core/components/ui/AttachmentField.vue';
 import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import FormSection from '@/modules/core/components/blocks/FormSection.vue';
+import FormPage from '@/modules/core/components/layouts/FormPage.vue';
 import SegmentedControl from '@/modules/core/components/ui/SegmentedControl.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
@@ -158,35 +159,31 @@ const methodOptions = [
 </script>
 
 <template>
-  <div>
-    <PageHeader :title="isReceived ? 'سند قبض' : 'سند صرف'" :subtitle="isReceived ? 'تحصيل مبلغ من عميل وتخصيصه على فاتورة واحدة أو أكثر' : 'سداد مبلغ لمورد وتخصيصه على أمر شراء واحد أو أكثر'" :back="{ name: 'payments' }" />
+  <FormPage :title="isReceived ? 'سند قبض' : 'سند صرف'" :subtitle="isReceived ? 'تحصيل مبلغ من عميل وتخصيصه على فاتورة واحدة أو أكثر' : 'سداد مبلغ لمورد وتخصيصه على أمر شراء واحد أو أكثر'" :back="{ name: 'payments' }">
+    <FormSection>
+      <div class="grid gap-4 sm:grid-cols-[auto_1fr]">
+        <div>
+          <span class="field-label">النوع</span>
+          <SegmentedControl
+            v-model="type"
+            :options="[
+              { value: 'RECEIVED', label: 'قبض من عميل' },
+              { value: 'PAID', label: 'صرف لمورد' },
+            ]"
+          />
+        </div>
+        <AppCombobox
+          v-model="partyId"
+          :label="isReceived ? 'العميل' : 'المورد'"
+          required
+          :options="partyOptions"
+          :placeholder="isReceived ? 'اختر العميل…' : 'اختر المورد…'"
+          :error="submitted && !partyId ? 'مطلوب' : undefined"
+        />
+      </div>
+    </FormSection>
 
-    <div class="grid items-start gap-5 lg:grid-cols-[1fr_340px]">
-      <div class="space-y-5">
-        <AppCard padding="sm">
-          <div class="grid gap-4 sm:grid-cols-[auto_1fr]">
-            <div>
-              <span class="field-label">النوع</span>
-              <SegmentedControl
-                v-model="type"
-                :options="[
-                  { value: 'RECEIVED', label: 'قبض من عميل' },
-                  { value: 'PAID', label: 'صرف لمورد' },
-                ]"
-              />
-            </div>
-            <AppCombobox
-              v-model="partyId"
-              :label="isReceived ? 'العميل' : 'المورد'"
-              required
-              :options="partyOptions"
-              :placeholder="isReceived ? 'اختر العميل…' : 'اختر المورد…'"
-              :error="submitted && !partyId ? 'مطلوب' : undefined"
-            />
-          </div>
-        </AppCard>
-
-        <AppCard :title="`شبكة التخصيص — ${isReceived ? 'الفواتير المفتوحة' : 'أوامر الشراء غير المسددة'}`" padding="none">
+    <AppCard :title="`شبكة التخصيص — ${isReceived ? 'الفواتير المفتوحة' : 'أوامر الشراء غير المسددة'}`" padding="none">
           <template v-if="docs.length" #actions>
             <AppButton size="sm" :icon="Wand2" @click="autoAllocate">تخصيص تلقائي</AppButton>
             <AppButton size="sm" :icon="X" @click="clearAllocations">مسح</AppButton>
@@ -246,8 +243,8 @@ const methodOptions = [
             </span>
           </div>
         </AppCard>
-      </div>
 
+    <template #aside>
       <AppCard title="تفاصيل السند" padding="sm">
         <div class="space-y-4">
           <AppInput v-model="amount" type="number" label="المبلغ" min="0" required />
@@ -270,6 +267,6 @@ const methodOptions = [
           </p>
         </div>
       </AppCard>
-    </div>
-  </div>
+    </template>
+  </FormPage>
 </template>
