@@ -152,3 +152,20 @@ already broken at rest. Left as-is per the accounting-safety rule (don't touch i
 logic without reading the review doc first) and because fixing it wasn't in this pass's scope
 (18.F1-F4, not a bug hunt) — logging here so it isn't lost and doesn't get silently "fixed" by
 changing `runAllInvariants()` to skip it.
+
+## 2026-09-26 — F-4 detail pages: accidental cross-agent commit collision
+
+While migrating detail pages onto `DetailPage` (this session's F-4 scope), a `git commit -m` for
+`JournalDetailPage.vue` (commit `fbf5975`) unexpectedly also included `src/modules/invoices/pages/InvoiceFormPage.vue`
+and a new `src/modules/invoices/components/InvoiceLinesGrid.vue` — work-in-progress from a parallel
+agent's F-2 (line-item forms) pass that must have been staged in the shared index at the moment of
+commit. `git commit -m "..."` commits the whole index, not just the last `git add`'d path, so
+`git add <my-file> && git commit -m ...` is not safe when another process may stage files
+concurrently — should have used `git status --porcelain` immediately before every commit (not just
+before the `git add`) to confirm the index contains only my file.
+
+Per the no-reset/no-restore/no-checkout rule I could not unwind this. Verified the swept-in content
+compiles clean (`bun run build` shows no errors in either file) and is not obviously broken, so no
+data was lost — it is just attributed to the wrong commit/author. Flagging so the parallel F-2 agent
+(or a human) knows `InvoiceFormPage.vue`/`InvoiceLinesGrid.vue` are already committed on `master` as
+of `fbf5975` and doesn't try to re-commit or worry they vanished.
