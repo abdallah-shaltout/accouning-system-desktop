@@ -16,6 +16,10 @@
  * checks the same way (they compare GL balances to recomputed sums, not to hard-coded expected
  * totals — except the branches area's one pinned FX example, which is currency-agnostic by numbers).
  */
+import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { seedDatabase } from '../../src/mocks/seed';
 import type { CountryCode } from '../../src/modules/core/helpers/countryProfiles';
 import * as accounts from './accounts';
@@ -27,7 +31,40 @@ import type { Result } from './shared';
 
 const areas: Record<string, { run: () => Result[] }> = { accounts, inventory, parties, sales, branches };
 
-const only = process.argv[2];
+/** 18.G: every `fail` result becomes an `ACC-` ledger issue, through the same
+ * `scripts/diagnostics/run.ts --ingest` upsert mechanism e2e/perf findings use (see
+ * plans/pending/18-countries-a11y-diagnostics/phase-g-dev-loop.md) — reused, not duplicated, per
+ * Phase F's own note that this was the one piece it left unwired. */
+function reportFailuresToLedger(failures: { area: string; country: string; message: string }[]): void {
+  if (failures.length === 0) return;
+  const findings = failures.map((f) => ({
+    kind: 'accounting' as const,
+    fingerprint: `acc:${f.area}:${f.message.slice(0, 120)}`,
+    area: f.area,
+    title: `verify:mocks (${f.country}) — ${f.message}`,
+    body: [
+      `المصدر: \`scripts/verify/${f.area}.ts\` (seed: ${f.country})`,
+      '',
+      '### الفحص الفاشل',
+      '',
+      '```',
+      f.message,
+      '```',
+      '',
+      'راجع `docs/v2/02-accounting-review.md` §4 قبل التعديل. لا يصبح هذا العنصر `verified` إلا بعد',
+      'إضافة حالة انحدار في `scripts/verify/cases/*.json` (CLAUDE.md "Accounting safety").',
+    ].join('\n'),
+  }));
+  const tmp = path.join(os.tmpdir(), `verify-mocks-findings-${Date.now()}.json`);
+  fs.writeFileSync(tmp, JSON.stringify(findings));
+  try {
+    execFileSync('bun', ['run', 'scripts/diagnostics/run.ts', '--ingest', tmp], { stdio: 'inherit' });
+  } finally {
+    fs.unlinkSync(tmp);
+  }
+}
+
+const only = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const names = only ? [only] : Object.keys(areas);
 for (const n of names) {
   if (!areas[n]) {
@@ -39,6 +76,7 @@ for (const n of names) {
 let failCount = 0;
 let todoCount = 0;
 let okCount = 0;
+const failures: { area: string; country: string; message: string }[] = [];
 
 const COUNTRIES: CountryCode[] = ['SA', 'EG'];
 for (const country of COUNTRIES) {
@@ -52,8 +90,10 @@ for (const country of COUNTRIES) {
     for (const r of results) {
       const icon = r.status === 'ok' ? 'OK  ' : r.status === 'fail' ? 'FAIL' : 'TODO';
       console.log(`  ${icon}  ${r.message}`);
-      if (r.status === 'fail') failCount++;
-      else if (r.status === 'todo') todoCount++;
+      if (r.status === 'fail') {
+        failCount++;
+        failures.push({ area: name, country, message: r.message });
+      } else if (r.status === 'todo') todoCount++;
       else okCount++;
     }
     console.log('');
@@ -61,4 +101,5 @@ for (const country of COUNTRIES) {
 }
 
 console.log(`${okCount} ok, ${todoCount} todo, ${failCount} failed`);
+if (!process.argv.includes('--no-ledger')) reportFailuresToLedger(failures);
 process.exit(failCount > 0 ? 1 : 0);

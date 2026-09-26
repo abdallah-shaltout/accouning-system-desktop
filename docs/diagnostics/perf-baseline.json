@@ -1,0 +1,24 @@
+{
+  "bundleSizeBytes": 6094020,
+  "flows": {
+    "accountant-journal": 9188,
+    "address-picker": 9411,
+    "branches-currencies": 13240,
+    "cashier-pos": 14352,
+    "desk-invoice": 9881,
+    "expenses": 13335,
+    "full-persona-pass": 9285,
+    "home-insights": 14992,
+    "labels-templates": 13583,
+    "onboarding": 4777,
+    "phone-input": 8726,
+    "products": 17305,
+    "purchases": 40674,
+    "refund-payment": 11104,
+    "report-print": 23500,
+    "reports": 6384,
+    "reports-v2": 26303,
+    "role-gating": 4746,
+    "setup-wizard-eg": 4039
+  }
+}

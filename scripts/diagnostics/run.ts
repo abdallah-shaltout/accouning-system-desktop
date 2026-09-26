@@ -1,14 +1,17 @@
 /**
  * The "failed to fix" issue ledger (18.B7) — same generated-index pattern as `AGENT_MEMORY.md`:
  *
- *   bun run diag           # rebuild docs/diagnostics/ISSUES.md, stub any new fingerprint
- *   bun run diag:check     # exit 1 if ISSUES.md is stale (CI / pre-commit)
+ *   bun run diag                      # rebuild docs/diagnostics/ISSUES.md, stub any new fingerprint
+ *   bun run diag:check                # exit 1 if ISSUES.md is stale (CI / pre-commit)
+ *   bun run scripts/diagnostics/run.ts --ingest <findings.json>
+ *                                      # 18.G: create/refresh issues from e2e/perf/verify:mocks/bundle-size
+ *                                      # findings (scripts/e2e/run.py writes this file), then rebuild the index
  *
  * Reads every `docs/diagnostics/issues/*.md` file's frontmatter (see `frontmatter.ts` — the schema
  * is `plans/pending/18-countries-a11y-diagnostics/phase-b-diagnostics.md`'s B7 section) and renders
  * `docs/diagnostics/ISSUES.md`. Never hand-edit ISSUES.md — edit the per-issue files, or let a new
  * fingerprint get stubbed automatically from `.diagnostics/logs/error.jsonl` (the dev-server
- * `/__diag` middleware's local, gitignored output — see `vite.config.ts`).
+ * `/__diag` middleware's local, gitignored output — see `vite.config.ts`), or from `--ingest`.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -70,6 +73,90 @@ function nextId(kind: IssueFrontmatter['kind'], existing: IssueFrontmatter[]): s
 
 function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'issue';
+}
+
+/**
+ * 18.G: one finding fed in from outside this file — an e2e flow failure/console error, a perf
+ * regression against `docs/diagnostics/perf-baseline.json`, a `verify:mocks` invariant failure, or
+ * a bundle-size regression. `scripts/e2e/run.py` (and `verify:mocks`'s wrapper) writes an array of
+ * these to a JSON file and calls `--ingest <file>`, so every "something went wrong" path in the dev
+ * loop creates or refreshes a ledger issue through this one mechanism — the same one B7's automatic
+ * fingerprint stubbing already used, extended to take findings from a fixed shape instead of only
+ * parsing `.diagnostics/logs/error.jsonl`.
+ */
+export interface IngestFinding {
+  kind: IssueFrontmatter['kind'];
+  /** Stable dedupe key — an error fingerprint, `perf:<flow>:<metric>`, `acc:<invariant>:<case>`, or `bundle-size`. */
+  fingerprint: string;
+  area: string;
+  title: string;
+  body: string;
+  debug_namespace?: string;
+  /** The structured error's `name` (e.g. `ApiError`), when this finding came from the `error`
+   * channel — lets `ingest()` apply the same `EXCLUDED_ERROR_NAMES` filter B7's fingerprint
+   * auto-stubbing already uses, so an e2e flow hitting an expected user-facing validation message
+   * (not a bug) doesn't flood the ledger just because a different code path (scripts/e2e/run.py)
+   * fed it in instead of the dev-server log scrape. */
+  error_name?: string;
+}
+
+/** Creates a new issue file for a fingerprint never seen before, or bumps `occurrences`/`last_seen`
+ * on the existing one (re-opening it if it had been marked `fixed`/`wontfix` — a regression that
+ * reappears is not "closed" any more). Returns 'created' | 'refreshed' | 'unchanged' (the last one
+ * only when the issue is already `verified`, which a mechanical rerun must never silently reopen —
+ * an issue that regressed after being verified needs a human to look, so it's left alone here and
+ * the caller should treat that case as still worth surfacing in run output). */
+function upsertIssue(existing: IssueFrontmatter[], finding: IngestFinding, today: string): 'created' | 'refreshed' | 'unchanged' {
+  const current = existing.find((f) => f.fingerprint === finding.fingerprint);
+  if (current) {
+    if (current.status === 'verified') return 'unchanged';
+    current.last_seen = today;
+    current.occurrences = (current.occurrences || 0) + 1;
+    if (current.status === 'fixed' || current.status === 'wontfix') current.status = 'open';
+    const filePath = path.join(ISSUES_DIR, fileFor(current.id)!);
+    const { body } = parseIssueFile(filePath, fs.readFileSync(filePath, 'utf8'));
+    fs.writeFileSync(filePath, serializeIssueFile(current, body));
+    return 'refreshed';
+  }
+
+  const id = nextId(finding.kind, existing);
+  const frontmatter: IssueFrontmatter = {
+    id,
+    kind: finding.kind,
+    status: 'open',
+    area: finding.area,
+    fingerprint: finding.fingerprint,
+    first_seen: today,
+    last_seen: today,
+    occurrences: 1,
+    debug_namespace: finding.debug_namespace,
+  };
+  existing.push(frontmatter);
+  const body = [`## ${finding.title}`, '', finding.body].join('\n');
+  fs.mkdirSync(ISSUES_DIR, { recursive: true });
+  fs.writeFileSync(path.join(ISSUES_DIR, `${id}-${slug(finding.title)}.md`), serializeIssueFile(frontmatter, body));
+  return 'created';
+}
+
+function fileFor(id: string): string | undefined {
+  return fs.existsSync(ISSUES_DIR) ? fs.readdirSync(ISSUES_DIR).find((f) => f.startsWith(id + '-')) : undefined;
+}
+
+function ingest(filePath: string): void {
+  const raw: IngestFinding[] = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  const excluded = raw.filter((f) => f.error_name && EXCLUDED_ERROR_NAMES.has(f.error_name));
+  const findings = raw.filter((f) => !(f.error_name && EXCLUDED_ERROR_NAMES.has(f.error_name)));
+  const existing = readIssues().map((i) => i.frontmatter);
+  const today = new Date().toISOString().slice(0, 10);
+  const counts = { created: 0, refreshed: 0, unchanged: 0 };
+  for (const f of findings) counts[upsertIssue(existing, f, today)]++;
+  fs.writeFileSync(OUTPUT, renderIndex(existing));
+  console.log(
+    `ingested ${findings.length} finding(s): ${counts.created} created, ${counts.refreshed} refreshed, ` +
+      `${counts.unchanged} unchanged (already verified)` +
+      (excluded.length ? `, ${excluded.length} skipped (expected validation error, not a bug)` : '') +
+      ` — docs/diagnostics/ISSUES.md updated.`,
+  );
 }
 
 function stubNewIssues(existing: IssueFrontmatter[]): number {
@@ -144,6 +231,17 @@ function renderIndex(issues: IssueFrontmatter[]): string {
 }
 
 function main() {
+  const ingestIdx = process.argv.indexOf('--ingest');
+  if (ingestIdx !== -1) {
+    const filePath = process.argv[ingestIdx + 1];
+    if (!filePath) {
+      console.error('--ingest requires a findings JSON file path');
+      process.exit(1);
+    }
+    ingest(filePath);
+    return;
+  }
+
   const checkOnly = process.argv.includes('--check');
   const before = readIssues().map((i) => i.frontmatter);
   const beforeCount = before.length;
