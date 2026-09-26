@@ -99,7 +99,7 @@ async function confirmReverse() {
     const reversal = await reverseJournalEntry(id.value, new Date(reverseDate.value).toISOString(), reverseReason.value.trim());
     toast.success('تم عكس القيد', reversal.number);
     reverseOpen.value = false;
-    router.push(`/accounting/journal/${reversal.id}`);
+    router.push({ name: 'journal-entry', params: { id: reversal.id } });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -108,7 +108,7 @@ async function confirmReverse() {
 }
 
 function duplicateEntry() {
-  router.push(`/accounting/journal/new?duplicate=${id.value}`);
+  router.push({ name: 'journal-new', query: { duplicate: id.value } });
 }
 
 // --- Official print: a journal voucher (سند قيد) rendered as its own document, never the screen ---
@@ -179,7 +179,7 @@ watch(
   <div>
     <ErrorState v-if="entry.error.value" :message="entry.error.value" @retry="entry.reload" />
     <template v-else>
-      <PageHeader :title="e ? `قيد ${e.number}` : '…'" back="/accounting/journal">
+      <PageHeader :title="e ? `قيد ${e.number}` : '…'" :back="{ name: 'journal' }">
         <template v-if="e" #badge>
           <StatusBadge :tone="e.type === 'SYSTEM' ? 'primary' : e.type === 'CLOSING' || e.type === 'VAT_SETTLEMENT' ? 'warning' : 'neutral'" :label="TYPE_LABEL[e.type]" />
           <StatusBadge v-if="e.status === 'DRAFT'" tone="warning" label="مسودة" />
@@ -213,12 +213,12 @@ watch(
 
       <p v-if="e?.reversalOfId" class="mb-3 text-body text-text-secondary">
         هذا القيد يعكس
-        <RouterLink :to="`/accounting/journal/${e.reversalOfId}`" class="text-primary hover:underline">القيد الأصلي</RouterLink>.
+        <RouterLink :to="{ name: 'journal-entry', params: { id: e.reversalOfId } }" class="text-primary hover:underline">القيد الأصلي</RouterLink>.
         <span v-if="e.reversalReason">السبب: {{ e.reversalReason }}</span>
       </p>
       <p v-if="e?.reversedById" class="mb-3 text-body text-text-secondary">
         تم عكس هذا القيد بالقيد
-        <RouterLink :to="`/accounting/journal/${e.reversedById}`" class="num text-primary hover:underline">{{ e.reversedByNumber }}</RouterLink>.
+        <RouterLink :to="{ name: 'journal-entry', params: { id: e.reversedById } }" class="num text-primary hover:underline">{{ e.reversedByNumber }}</RouterLink>.
         <span v-if="e.reversalReason">السبب: {{ e.reversalReason }}</span>
       </p>
 
@@ -236,7 +236,7 @@ watch(
           <tbody>
             <tr v-for="l in e.lines" :key="l.id" class="border-b border-border last:border-0">
               <td class="px-4 py-2.5" :class="l.credit > 0 && 'ps-10'">
-                <RouterLink :to="`/reports/ledger?account=${l.accountId}`" class="inline-flex items-center gap-2 hover:text-primary">
+                <RouterLink :to="{ name: 'report-ledger', query: { account: l.accountId } }" class="inline-flex items-center gap-2 hover:text-primary">
                   <span class="num text-text-secondary">{{ accounts.get(l.accountId)?.code }}</span>{{ accounts.get(l.accountId)?.name ?? '…' }}
                 </RouterLink>
               </td>
@@ -264,7 +264,7 @@ watch(
       <AppCard v-if="e?.related.length" title="القيود المرتبطة" padding="sm" class="mt-4">
         <ul class="divide-y divide-border">
           <li v-for="r in e.related" :key="r.id" class="flex items-center justify-between py-2 text-body">
-            <RouterLink :to="`/accounting/journal/${r.id}`" class="flex items-center gap-2 hover:text-primary">
+            <RouterLink :to="{ name: 'journal-entry', params: { id: r.id } }" class="flex items-center gap-2 hover:text-primary">
               <span class="num font-medium">{{ r.number }}</span>
               <span class="text-text-secondary">{{ r.description }}</span>
             </RouterLink>

@@ -326,7 +326,7 @@ async function onDrop(row: TreeRow) {
                     class="text-start disabled:cursor-default"
                     :disabled="row.account.isGroup || !auth.can('reports')"
                     :title="!row.account.isGroup ? 'عرض كشف الحساب' : undefined"
-                    @click="router.push(`/reports/ledger?account=${row.id}`)"
+                    @click="router.push({ name: 'report-ledger', query: { account: row.id } })"
                 >
                     <MoneyText
                         :value="row.balance"

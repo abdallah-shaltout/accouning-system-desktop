@@ -239,7 +239,7 @@ const columns: Column<FiscalYear>[] = [
         <CheckCircle2 class="mx-auto size-10 text-success" />
         <p class="text-body font-medium">تم إقفال السنة المالية بنجاح</p>
         <p v-if="closeResult?.nextYearName" class="text-body text-text-secondary">تم فتح السنة المالية {{ closeResult.nextYearName }}</p>
-        <RouterLink v-if="closeResult" :to="`/accounting/journal/${closeResult.closingEntryId}`" class="text-primary hover:underline">عرض قيد الإقفال</RouterLink>
+        <RouterLink v-if="closeResult" :to="{ name: 'journal-entry', params: { id: closeResult.closingEntryId } }" class="text-primary hover:underline">عرض قيد الإقفال</RouterLink>
       </div>
 
       <template #footer>
