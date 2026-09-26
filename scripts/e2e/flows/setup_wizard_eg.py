@@ -133,10 +133,24 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(900)
         first_name_input = page.locator("table tbody tr").first.locator("input").first
         first_name_input.fill("قميص")
+        page.keyboard.press("Escape")
+        first_name_input.blur()
         page.wait_for_timeout(300)
-        # If a datalist match exists, pick it; otherwise the free-text/manual-price path still lets
-        # qty/price be filled directly on the row.
+        # A genuinely fresh wizard-created company has no seeded product catalog, so "قميص" never
+        # resolves to a real product — the row must be marked free-text explicitly and given a
+        # revenue account, or InvoiceFormPage's `draft.lines` filter (productId || isFreeText) drops
+        # it silently and "ترحيل الفاتورة" just toasts "أضف صنفاً واحداً على الأقل" (see BUG-0012).
         row = page.locator("table tbody tr").first
+        free_text_toggle = row.get_by_role("button", name="سطر حر؟")
+        if free_text_toggle.count():
+            free_text_toggle.first.dispatch_event("click")
+            page.wait_for_timeout(200)
+        # Re-locate: the row's DOM was recreated by the isFreeText re-render above.
+        row = page.locator("table tbody tr").first
+        revenue_select = row.locator("select")
+        if revenue_select.count():
+            revenue_select.first.select_option(index=1)
+            page.wait_for_timeout(200)
         row.locator("input").nth(1).fill("1")
         page.wait_for_timeout(200)
         row.locator("input").nth(2).fill("100")
@@ -157,8 +171,11 @@ def run(base: str, shots_dir: Path) -> int:
         page.wait_for_timeout(1000)
         check(not errors, f"posting the invoice has no console errors ({errors})")
 
-        # Find the posted invoice's print route from the invoice list (first row).
-        page.goto(f"{base}/sales/invoices")
+        # Find the posted invoice's print route from the invoice list (first row). The list route is
+        # `/invoices` (see modules/invoices/routes/index.ts) — NOT `/sales/invoices` (that path 404s;
+        # only `/sales/invoices/new` exists under `/sales/...`), which silently meant this flow never
+        # actually reached a real invoice's print page before (see BUG-0012).
+        page.goto(f"{base}/invoices")
         page.wait_for_timeout(800)
         first_row_link = page.locator("table tbody tr").first.get_by_role("link").first
         if first_row_link.count():
