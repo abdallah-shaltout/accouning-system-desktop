@@ -247,7 +247,7 @@ async function saveAsQuotation(status: 'DRAFT' | 'SENT') {
     });
     if (status === 'SENT') await setQuotationStatus(q.id, 'SENT');
     toast.success('تم حفظ عرض السعر', q.number);
-    router.push(`/sales/quotations/${q.id}`);
+    router.push({ name: 'quotation', params: { id: q.id } });
   } catch (err) {
     toast.error(err);
   } finally {
@@ -278,7 +278,7 @@ async function finish(payment: { tenders: Tender[]; paidAmount: number; tendered
     const invoice = await createSale({ ...draft.value, paymentMethod: 'cash', ...payment });
     tenderOpen.value = false;
     toast.success('تم حفظ الفاتورة', invoice.number);
-    router.push(andPrint ? { path: `/print/invoices/${invoice.id}`, query: { auto: '1', back: `/invoices/${invoice.id}` } } : `/invoices/${invoice.id}`);
+    router.push(andPrint ? { name: 'invoice-print', params: { id: invoice.id }, query: { auto: '1' } } : { name: 'invoice', params: { id: invoice.id } });
   } catch (err) {
     toast.error(err, 'تعذر حفظ الفاتورة');
   } finally {
@@ -291,7 +291,7 @@ const amountInWords = computed(() => tafqit(totals.value.gross));
 
 <template>
   <div>
-    <PageHeader :title="asQuotation ? 'عرض سعر جديد' : 'فاتورة مبيعات جديدة'" :subtitle="asQuotation ? 'يمكن تحويله لفاتورة لاحقاً' : 'فاتورة ضريبية كاملة'" back="/invoices" />
+    <PageHeader :title="asQuotation ? 'عرض سعر جديد' : 'فاتورة مبيعات جديدة'" :subtitle="asQuotation ? 'يمكن تحويله لفاتورة لاحقاً' : 'فاتورة ضريبية كاملة'" :back="{ name: 'invoices' }" />
 
     <div class="grid items-start gap-5 xl:grid-cols-[1fr_340px]">
       <div class="space-y-5">

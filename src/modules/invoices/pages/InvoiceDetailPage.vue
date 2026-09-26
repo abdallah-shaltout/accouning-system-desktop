@@ -45,7 +45,7 @@ async function print() {
     toast.error('تعذر إنشاء ملف PDF');
     return;
   }
-  router.push(`/print/invoices/${id}`);
+  router.push({ name: 'invoice-print', params: { id } });
 }
 </script>
 
@@ -53,7 +53,7 @@ async function print() {
   <div>
     <ErrorState v-if="error" :message="error" @retry="reload" />
     <template v-else>
-      <PageHeader :title="inv ? `فاتورة ${inv.number}` : '…'" back="/invoices">
+      <PageHeader :title="inv ? `فاتورة ${inv.number}` : '…'" :back="{ name: 'invoices' }">
         <template v-if="inv" #badge>
           <StatusBadge v-if="inv.status === 'REFUNDED'" :tone="INVOICE_STATUS.REFUNDED.tone" :label="INVOICE_STATUS.REFUNDED.label" />
           <StatusBadge v-else :tone="PAYMENT_STATUS[inv.paymentStatus].tone" :label="PAYMENT_STATUS[inv.paymentStatus].label" />
@@ -62,8 +62,8 @@ async function print() {
           <span class="num">{{ formatDateTime(inv.date) }}</span> · الكاشير {{ inv.cashierName }}
         </template>
         <template #actions>
-          <AppButton v-if="canRefund" :icon="Undo2" :to="`/invoices/${id}/refund`">إرجاع</AppButton>
-          <AppButton v-if="canPay" :icon="HandCoins" :to="{ path: '/payments/new', query: { type: 'RECEIVED', party: inv?.customerId, ref: id } }">تسجيل دفعة</AppButton>
+          <AppButton v-if="canRefund" :icon="Undo2" :to="{ name: 'invoice-refund', params: { id } }">إرجاع</AppButton>
+          <AppButton v-if="canPay" :icon="HandCoins" :to="{ name: 'payment-new', query: { type: 'RECEIVED', party: inv?.customerId, ref: id } }">تسجيل دفعة</AppButton>
           <AppButton variant="primary" :icon="Printer" @click="print">طباعة</AppButton>
         </template>
       </PageHeader>
@@ -85,7 +85,7 @@ async function print() {
               <tbody class="bg-background">
                 <tr v-for="l in inv.lines" :key="l.id" class="border-b border-border last:border-0">
                   <td class="px-4 py-2.5">
-                    <RouterLink :to="`/products/${l.productId}`" class="hover:text-primary">{{ l.name }}</RouterLink>
+                    <RouterLink :to="{ name: 'product', params: { id: l.productId } }" class="hover:text-primary">{{ l.name }}</RouterLink>
                   </td>
                   <td class="px-3 py-2.5"><span class="num">{{ formatNumber(l.qty) }}</span></td>
                   <td class="px-3 py-2.5"><MoneyText :value="l.price" plain /></td>
@@ -170,7 +170,7 @@ async function print() {
               <div class="flex justify-between gap-3">
                 <dt class="text-text-secondary">العميل</dt>
                 <dd>
-                  <RouterLink v-if="inv.customer" :to="`/customers/${inv.customer.id}`" class="text-primary hover:underline">{{ inv.customer.name }}</RouterLink>
+                  <RouterLink v-if="inv.customer" :to="{ name: 'customer', params: { id: inv.customer.id } }" class="text-primary hover:underline">{{ inv.customer.name }}</RouterLink>
                   <span v-else>عميل نقدي</span>
                 </dd>
               </div>
@@ -183,7 +183,7 @@ async function print() {
           <AppCard v-if="inv && auth.can('accounting')" title="القيود المحاسبية" padding="none">
             <ul class="divide-y divide-border text-body">
               <li v-for="e in inv.journalEntries" :key="e.id">
-                <RouterLink :to="`/accounting/journal/${e.id}`" class="flex items-center gap-2 px-4 py-2 hover:bg-surface-hover">
+                <RouterLink :to="{ name: 'journal-entry', params: { id: e.id } }" class="flex items-center gap-2 px-4 py-2 hover:bg-surface-hover">
                   <BookOpen class="size-3.5 shrink-0 text-text-secondary" />
                   <span class="num text-primary">{{ e.number }}</span>
                   <span class="truncate text-xs text-text-secondary">{{ e.description }}</span>
