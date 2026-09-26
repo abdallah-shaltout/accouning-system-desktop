@@ -12,8 +12,8 @@ import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
-import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
@@ -38,6 +38,14 @@ onMounted(async () => {
   await reload();
   loading.value = false;
 });
+
+const columns: Column<Branch>[] = [
+  { key: 'name', label: 'الفرع' },
+  { key: 'code', label: 'الرمز' },
+  { key: 'address', label: 'العنوان' },
+  { key: 'active', label: 'نشط' },
+  { key: 'actions', label: '', type: 'actions' },
+];
 
 const formOpen = ref(false);
 const editing = ref<Branch | null>(null);
@@ -95,40 +103,25 @@ async function toggle(branch: Branch) {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="الفروع" subtitle="كل فرع يحصل تلقائياً على حساب صندوق ومركز تكلفة خاص به" />
-    <SettingsTabs />
+  <SettingsPage title="الفروع" subtitle="كل فرع يحصل تلقائياً على حساب صندوق ومركز تكلفة خاص به">
+    <template #nav><SettingsTabs /></template>
 
     <SkeletonBlock v-if="loading" :lines="4" height="h-12" />
     <AppCard v-else padding="none">
       <template #actions>
         <AppButton v-if="canWrite" size="sm" :icon="Plus" @click="openCreate">إضافة فرع</AppButton>
       </template>
-      <EmptyState v-if="!branches.length" title="لا توجد فروع" />
-      <table v-else class="w-full text-body">
-        <thead class="text-xs text-text-secondary">
-          <tr class="border-b border-border">
-            <th class="px-4 py-2 text-start font-medium">الفرع</th>
-            <th class="px-2 py-2 text-start font-medium">الرمز</th>
-            <th class="px-2 py-2 text-start font-medium">العنوان</th>
-            <th class="px-2 py-2 text-start font-medium">نشط</th>
-            <th class="px-4 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="b in branches" :key="b.id" class="border-b border-border last:border-0">
-            <td class="px-4 py-2 font-medium">{{ b.name }}</td>
-            <td class="px-2 py-2"><span class="num text-text-secondary">{{ b.code }}</span></td>
-            <td class="px-2 py-2 text-text-secondary">{{ b.address || '—' }}</td>
-            <td class="px-2 py-2"><AppSwitch :model-value="b.active" :disabled="!canWrite" @update:model-value="() => toggle(b)" /></td>
-            <td class="px-4 py-2 text-end">
-              <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-surface-hover hover:text-text-primary" :disabled="!canWrite" @click="openEdit(b)">
-                <Pencil class="size-4" />
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <DataTable :columns="columns" :rows="branches" :page-size="0" empty-title="لا توجد فروع">
+        <template #cell-name="{ row }"><span class="font-medium">{{ row.name }}</span></template>
+        <template #cell-code="{ row }"><span class="num text-text-secondary">{{ row.code }}</span></template>
+        <template #cell-address="{ row }"><span class="text-text-secondary">{{ row.address || '—' }}</span></template>
+        <template #cell-active="{ row }"><AppSwitch :model-value="row.active" :disabled="!canWrite" @update:model-value="() => toggle(row)" /></template>
+        <template #cell-actions="{ row }">
+          <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-surface-hover hover:text-text-primary" :disabled="!canWrite" @click="openEdit(row)">
+            <Pencil class="size-4" />
+          </button>
+        </template>
+      </DataTable>
     </AppCard>
 
     <AppModal v-model:open="formOpen" :title="editing ? 'تعديل فرع' : 'فرع جديد'" :persistent="saving">
@@ -145,5 +138,5 @@ async function toggle(branch: Branch) {
         <AppButton variant="primary" :icon="Power" :loading="saving" @click="save">حفظ</AppButton>
       </template>
     </AppModal>
-  </div>
+  </SettingsPage>
 </template>

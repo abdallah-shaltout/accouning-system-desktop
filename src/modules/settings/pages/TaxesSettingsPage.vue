@@ -8,8 +8,8 @@ import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import AppTextarea from '@/modules/core/components/ui/AppTextarea.vue';
-import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
@@ -33,6 +33,14 @@ const CATEGORY_OPTIONS: { value: TaxCategory; label: string }[] = [
   { value: 'O', label: 'خارج النطاق (O) — خارج نظام الضريبة' },
 ];
 const CATEGORY_LABEL: Record<TaxCategory, string> = { S: 'قياسية', Z: 'صفرية', E: 'معفاة', O: 'خارج النطاق' };
+
+const columns: Column<Tax>[] = [
+  { key: 'name', label: 'الضريبة' },
+  { key: 'category', label: 'الفئة' },
+  { key: 'rate', label: 'النسبة', type: 'number' },
+  { key: 'active', label: 'نشطة' },
+  { key: 'actions', label: '', type: 'actions' },
+];
 
 const loading = ref(true);
 onMounted(async () => {
@@ -135,9 +143,8 @@ async function remove(tax: Tax) {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="الضرائب" subtitle="فئات ضريبة القيمة المضافة (قياسية / صفرية / معفاة / خارج النطاق) المستخدمة في المبيعات والمشتريات" />
-    <SettingsTabs />
+  <SettingsPage title="الضرائب" subtitle="فئات ضريبة القيمة المضافة (قياسية / صفرية / معفاة / خارج النطاق) المستخدمة في المبيعات والمشتريات">
+    <template #nav><SettingsTabs /></template>
 
     <SkeletonBlock v-if="loading" :lines="6" height="h-9" />
     <div v-else class="space-y-5">
@@ -145,79 +152,51 @@ async function remove(tax: Tax) {
         <template #actions>
           <AppButton v-if="canWrite" size="sm" :icon="Plus" @click="openCreate('OUTPUT')">إضافة</AppButton>
         </template>
-        <EmptyState v-if="!salesTaxes.length" title="لا توجد ضرائب مبيعات" />
-        <table v-else class="w-full text-body">
-          <thead class="text-xs text-text-secondary">
-            <tr class="border-b border-border">
-              <th class="px-4 py-2 text-start font-medium">الضريبة</th>
-              <th class="px-2 py-2 text-start font-medium">الفئة</th>
-              <th class="px-2 py-2 text-start font-medium">النسبة</th>
-              <th class="px-2 py-2 text-start font-medium">نشطة</th>
-              <th class="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="t in salesTaxes" :key="t.id" class="border-b border-border last:border-0">
-              <td class="px-4 py-2">
-                {{ t.name }}
-                <span v-if="t.isDefault" class="ms-1.5 rounded-full bg-primary/10 px-1.5 text-tiny text-primary">افتراضية</span>
-                <span v-if="t.category === 'E' && t.exemptionReason" class="block text-tiny text-text-secondary">{{ t.exemptionReason }}</span>
-              </td>
-              <td class="px-2 py-2 text-text-secondary">{{ CATEGORY_LABEL[t.category] }}</td>
-              <td class="px-2 py-2"><span class="num">{{ t.rate }}%</span></td>
-              <td class="px-2 py-2"><AppSwitch :model-value="t.active" :disabled="!canWrite || t.isDefault" @update:model-value="() => toggleActive(t)" /></td>
-              <td class="px-4 py-2 text-end">
-                <div class="flex justify-end gap-1">
-                  <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-surface-hover hover:text-text-primary" :disabled="!canWrite" @click="openEdit(t)">
-                    <Pencil class="size-4" />
-                  </button>
-                  <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger" :disabled="!canWrite || t.isDefault" @click="remove(t)">
-                    <Trash class="size-4" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable :columns="columns" :rows="salesTaxes" :page-size="0" empty-title="لا توجد ضرائب مبيعات">
+          <template #cell-name="{ row }">
+            {{ row.name }}
+            <span v-if="row.isDefault" class="ms-1.5 rounded-full bg-primary/10 px-1.5 text-tiny text-primary">افتراضية</span>
+            <span v-if="row.category === 'E' && row.exemptionReason" class="block text-tiny text-text-secondary">{{ row.exemptionReason }}</span>
+          </template>
+          <template #cell-category="{ row }"><span class="text-text-secondary">{{ CATEGORY_LABEL[row.category] }}</span></template>
+          <template #cell-rate="{ row }"><span class="num">{{ row.rate }}%</span></template>
+          <template #cell-active="{ row }"><AppSwitch :model-value="row.active" :disabled="!canWrite || row.isDefault" @update:model-value="() => toggleActive(row)" /></template>
+          <template #cell-actions="{ row }">
+            <div class="flex justify-end gap-1">
+              <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-surface-hover hover:text-text-primary" :disabled="!canWrite" @click="openEdit(row)">
+                <Pencil class="size-4" />
+              </button>
+              <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger" :disabled="!canWrite || row.isDefault" @click="remove(row)">
+                <Trash class="size-4" />
+              </button>
+            </div>
+          </template>
+        </DataTable>
       </AppCard>
 
       <AppCard title="ضرائب المشتريات" padding="none">
         <template #actions>
           <AppButton v-if="canWrite" size="sm" :icon="Plus" @click="openCreate('INPUT')">إضافة</AppButton>
         </template>
-        <EmptyState v-if="!purchaseTaxes.length" title="لا توجد ضرائب مشتريات" />
-        <table v-else class="w-full text-body">
-          <thead class="text-xs text-text-secondary">
-            <tr class="border-b border-border">
-              <th class="px-4 py-2 text-start font-medium">الضريبة</th>
-              <th class="px-2 py-2 text-start font-medium">الفئة</th>
-              <th class="px-2 py-2 text-start font-medium">النسبة</th>
-              <th class="px-2 py-2 text-start font-medium">نشطة</th>
-              <th class="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="t in purchaseTaxes" :key="t.id" class="border-b border-border last:border-0">
-              <td class="px-4 py-2">
-                {{ t.name }}
-                <span v-if="t.isDefault" class="ms-1.5 rounded-full bg-primary/10 px-1.5 text-tiny text-primary">افتراضية</span>
-              </td>
-              <td class="px-2 py-2 text-text-secondary">{{ CATEGORY_LABEL[t.category] }}</td>
-              <td class="px-2 py-2"><span class="num">{{ t.rate }}%</span></td>
-              <td class="px-2 py-2"><AppSwitch :model-value="t.active" :disabled="!canWrite || t.isDefault" @update:model-value="() => toggleActive(t)" /></td>
-              <td class="px-4 py-2 text-end">
-                <div class="flex justify-end gap-1">
-                  <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-surface-hover hover:text-text-primary" :disabled="!canWrite" @click="openEdit(t)">
-                    <Pencil class="size-4" />
-                  </button>
-                  <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger" :disabled="!canWrite || t.isDefault" @click="remove(t)">
-                    <Trash class="size-4" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable :columns="columns" :rows="purchaseTaxes" :page-size="0" empty-title="لا توجد ضرائب مشتريات">
+          <template #cell-name="{ row }">
+            {{ row.name }}
+            <span v-if="row.isDefault" class="ms-1.5 rounded-full bg-primary/10 px-1.5 text-tiny text-primary">افتراضية</span>
+          </template>
+          <template #cell-category="{ row }"><span class="text-text-secondary">{{ CATEGORY_LABEL[row.category] }}</span></template>
+          <template #cell-rate="{ row }"><span class="num">{{ row.rate }}%</span></template>
+          <template #cell-active="{ row }"><AppSwitch :model-value="row.active" :disabled="!canWrite || row.isDefault" @update:model-value="() => toggleActive(row)" /></template>
+          <template #cell-actions="{ row }">
+            <div class="flex justify-end gap-1">
+              <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-surface-hover hover:text-text-primary" :disabled="!canWrite" @click="openEdit(row)">
+                <Pencil class="size-4" />
+              </button>
+              <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger" :disabled="!canWrite || row.isDefault" @click="remove(row)">
+                <Trash class="size-4" />
+              </button>
+            </div>
+          </template>
+        </DataTable>
       </AppCard>
     </div>
 
@@ -238,5 +217,5 @@ async function remove(tax: Tax) {
         <AppButton variant="primary" :loading="saving" @click="save">حفظ</AppButton>
       </template>
     </AppModal>
-  </div>
+  </SettingsPage>
 </template>

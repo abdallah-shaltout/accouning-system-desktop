@@ -11,8 +11,8 @@ import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
-import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
@@ -41,6 +41,14 @@ onMounted(async () => {
 });
 
 const parentOptions = computed(() => [{ value: '', label: 'بدون (رئيسي)' }, ...centers.value.map((c) => ({ value: c.id, label: c.name }))]);
+
+const columns: Column<CostCenter>[] = [
+  { key: 'name', label: 'المركز' },
+  { key: 'code', label: 'الرمز' },
+  { key: 'type', label: 'النوع' },
+  { key: 'active', label: 'نشط' },
+  { key: 'actions', label: '', type: 'actions' },
+];
 
 const formOpen = ref(false);
 const editing = ref<CostCenter | null>(null);
@@ -96,51 +104,36 @@ async function remove(cc: CostCenter) {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="مراكز التكلفة" subtitle="تُنشأ مراكز الفروع تلقائياً ولا يمكن حذفها؛ استخدم «توزيع» في القيد اليدوي لتقسيم سطر على عدة مراكز" />
-    <SettingsTabs />
+  <SettingsPage title="مراكز التكلفة" subtitle="تُنشأ مراكز الفروع تلقائياً ولا يمكن حذفها؛ استخدم «توزيع» في القيد اليدوي لتقسيم سطر على عدة مراكز">
+    <template #nav><SettingsTabs /></template>
 
     <SkeletonBlock v-if="loading" :lines="4" height="h-12" />
     <AppCard v-else padding="none">
       <template #actions>
         <AppButton v-if="canWrite" size="sm" :icon="Plus" @click="openCreate">إضافة مركز تكلفة</AppButton>
       </template>
-      <EmptyState v-if="!centers.length" title="لا توجد مراكز تكلفة" />
-      <table v-else class="w-full text-body">
-        <thead class="text-xs text-text-secondary">
-          <tr class="border-b border-border">
-            <th class="px-4 py-2 text-start font-medium">المركز</th>
-            <th class="px-2 py-2 text-start font-medium">الرمز</th>
-            <th class="px-2 py-2 text-start font-medium">النوع</th>
-            <th class="px-2 py-2 text-start font-medium">نشط</th>
-            <th class="px-4 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="c in centers" :key="c.id" class="border-b border-border last:border-0">
-            <td class="px-4 py-2 font-medium">{{ c.name }}</td>
-            <td class="px-2 py-2"><span class="num text-text-secondary">{{ c.code }}</span></td>
-            <td class="px-2 py-2 text-text-secondary">{{ TYPE_LABEL[c.type] }}</td>
-            <td class="px-2 py-2"><AppSwitch :model-value="c.active" disabled /></td>
-            <td class="px-4 py-2 text-end">
-              <div class="flex justify-end gap-1">
-                <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-surface-hover hover:text-text-primary" :disabled="!canWrite" @click="openEdit(c)">
-                  <Pencil class="size-4" />
-                </button>
-                <button
-                  v-if="c.canDelete"
-                  type="button"
-                  class="rounded-md p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger"
-                  :disabled="!canWrite"
-                  @click="remove(c)"
-                >
-                  <Trash class="size-4" />
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <DataTable :columns="columns" :rows="centers" :page-size="0" empty-title="لا توجد مراكز تكلفة">
+        <template #cell-name="{ row }"><span class="font-medium">{{ row.name }}</span></template>
+        <template #cell-code="{ row }"><span class="num text-text-secondary">{{ row.code }}</span></template>
+        <template #cell-type="{ row }"><span class="text-text-secondary">{{ TYPE_LABEL[row.type] }}</span></template>
+        <template #cell-active="{ row }"><AppSwitch :model-value="row.active" disabled /></template>
+        <template #cell-actions="{ row }">
+          <div class="flex justify-end gap-1">
+            <button type="button" class="rounded-md p-1.5 text-text-secondary hover:bg-surface-hover hover:text-text-primary" :disabled="!canWrite" @click="openEdit(row)">
+              <Pencil class="size-4" />
+            </button>
+            <button
+              v-if="row.canDelete"
+              type="button"
+              class="rounded-md p-1.5 text-text-secondary hover:bg-danger/10 hover:text-danger"
+              :disabled="!canWrite"
+              @click="remove(row)"
+            >
+              <Trash class="size-4" />
+            </button>
+          </div>
+        </template>
+      </DataTable>
     </AppCard>
 
     <AppModal v-model:open="formOpen" :title="editing ? 'تعديل مركز تكلفة' : 'مركز تكلفة جديد'" :persistent="saving">
@@ -156,5 +149,5 @@ async function remove(cc: CostCenter) {
         <AppButton variant="primary" :loading="saving" @click="save">حفظ</AppButton>
       </template>
     </AppModal>
-  </div>
+  </SettingsPage>
 </template>

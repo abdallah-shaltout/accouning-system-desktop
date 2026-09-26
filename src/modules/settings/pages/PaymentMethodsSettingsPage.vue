@@ -8,7 +8,7 @@ import AppModal from '@/modules/core/components/ui/AppModal.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import EmptyState from '@/modules/core/components/ui/EmptyState.vue';
-import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
+import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
 import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
@@ -180,10 +180,14 @@ async function onDrop(targetId: string) {
 }
 </script>
 
+<!--
+  v2 doc 17 Phase F-5: DataTable has no per-row drag API, so this page keeps its raw <table>
+  for the drag-to-reorder list — documented exception, same category as the guard script's
+  allow-listed pages (see scripts/check-ui-rules.js header comment).
+-->
 <template>
-  <div>
-    <PageHeader title="طرق الدفع" subtitle="كل طريقة تُسوَّى إلى حسابها بحسب الدور المحاسبي — يمكن سحب الصفوف لإعادة الترتيب" />
-    <SettingsTabs />
+  <SettingsPage title="طرق الدفع" subtitle="كل طريقة تُسوَّى إلى حسابها بحسب الدور المحاسبي — يمكن سحب الصفوف لإعادة الترتيب">
+    <template #nav><SettingsTabs /></template>
 
     <SkeletonBlock v-if="loading" :lines="6" height="h-9" />
     <AppCard v-else padding="none">
@@ -269,5 +273,5 @@ async function onDrop(targetId: string) {
         <AppButton variant="primary" :loading="saving" @click="save">حفظ</AppButton>
       </template>
     </AppModal>
-  </div>
+  </SettingsPage>
 </template>
