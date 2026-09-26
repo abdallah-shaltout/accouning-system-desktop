@@ -404,104 +404,97 @@ const countryOptions = COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} 
               <AppButton type="button" class="mt-2" size="sm" :icon="Plus" @click="addContact">إضافة شخص تواصل</AppButton>
             </div>
           </div>
-        </AppCard>
+        </FormSection>
 
         <!-- العنوان الوطني -->
-        <AppCard title="العنوان الوطني">
-          <div class="grid gap-4 sm:grid-cols-3">
-            <AppSelect v-model="form.nationalAddress.country" label="الدولة" placeholder="اختر…" :options="countryOptions" />
-            <AppInput v-model="form.nationalAddress.city" label="المدينة" />
-            <AppInput v-model="form.nationalAddress.district" label="الحي" />
-            <AppInput v-model="form.nationalAddress.street" label="الشارع" />
-            <AppInput v-model="form.nationalAddress.buildingNo" label="رقم المبنى" ltr />
-            <AppInput v-model="form.nationalAddress.additionalNo" label="الرقم الإضافي" ltr />
-            <AppInput v-model="form.nationalAddress.postalCode" label="الرمز البريدي" ltr />
-            <AppInput v-model="form.nationalAddress.unitNo" label="رقم الوحدة" ltr />
-            <AppInput v-model="form.nationalAddress.shortAddress" label="العنوان المختصر" ltr placeholder="RRRD2929" />
-          </div>
-          <p v-if="nationalAddressPreview" class="mt-3 border-t border-border pt-3 text-xs text-text-secondary">
+        <FormSection title="العنوان الوطني" :columns="3">
+          <AppSelect v-model="form.nationalAddress.country" label="الدولة" placeholder="اختر…" :options="countryOptions" />
+          <AppInput v-model="form.nationalAddress.city" label="المدينة" />
+          <AppInput v-model="form.nationalAddress.district" label="الحي" />
+          <AppInput v-model="form.nationalAddress.street" label="الشارع" />
+          <AppInput v-model="form.nationalAddress.buildingNo" label="رقم المبنى" ltr />
+          <AppInput v-model="form.nationalAddress.additionalNo" label="الرقم الإضافي" ltr />
+          <AppInput v-model="form.nationalAddress.postalCode" label="الرمز البريدي" ltr />
+          <AppInput v-model="form.nationalAddress.unitNo" label="رقم الوحدة" ltr />
+          <AppInput v-model="form.nationalAddress.shortAddress" label="العنوان المختصر" ltr placeholder="RRRD2929" />
+          <p v-if="nationalAddressPreview" class="sm:col-span-3 border-t border-border pt-3 text-xs text-text-secondary">
             يظهر في الفاتورة هكذا: <span class="text-text-primary">{{ nationalAddressPreview }}</span>
           </p>
-        </AppCard>
+        </FormSection>
 
         <!-- الضريبة والسجل -->
-        <AppCard title="الضريبة والسجل">
-          <div class="grid gap-4 sm:grid-cols-3">
-            <AppInput v-model="form.vatNumber" label="الرقم الضريبي" ltr placeholder="3xxxxxxxxxxxxx3" :error="vatError" hint="يفعّل الفواتير الضريبية B2B" />
-            <AppInput v-model="form.crNumber" label="رقم السجل التجاري" ltr />
-            <AppInput v-if="form.type === 'individual'" v-model="form.nationalId" label="رقم الهوية الوطنية" ltr />
-          </div>
-        </AppCard>
+        <FormSection title="الضريبة والسجل" :columns="3">
+          <AppInput v-model="form.vatNumber" label="الرقم الضريبي" ltr placeholder="3xxxxxxxxxxxxx3" :error="vatError" hint="يفعّل الفواتير الضريبية B2B" />
+          <AppInput v-model="form.crNumber" label="رقم السجل التجاري" ltr />
+          <AppInput v-if="form.type === 'individual'" v-model="form.nationalId" label="رقم الهوية الوطنية" ltr />
+        </FormSection>
 
         <!-- التعامل -->
-        <AppCard title="التعامل">
-          <div class="grid gap-4 sm:grid-cols-3">
-            <AppSelect v-model="form.currency" label="العملة" :options="CURRENCY_OPTIONS" hint="تُقفل بعد أول مستند" />
-            <AppInput v-model="form.paymentTermsDays" type="number" min="0" label="شروط السداد (أيام)" hint="يُحسب منها تاريخ استحقاق الفواتير الآجلة" />
-            <AppInput v-if="isCustomer" v-model="form.creditLimit" type="number" min="0" label="الحد الائتماني" hint="0 = بدون حد" />
-          </div>
-        </AppCard>
+        <FormSection title="التعامل" :columns="3">
+          <AppSelect v-model="form.currency" label="العملة" :options="CURRENCY_OPTIONS" hint="تُقفل بعد أول مستند" />
+          <AppInput v-model="form.paymentTermsDays" type="number" min="0" label="شروط السداد (أيام)" hint="يُحسب منها تاريخ استحقاق الفواتير الآجلة" />
+          <AppInput v-if="isCustomer" v-model="form.creditLimit" type="number" min="0" label="الحد الائتماني" hint="0 = بدون حد" />
+        </FormSection>
 
         <!-- البنك -->
-        <AppCard title="البنك">
-          <div class="grid gap-4 sm:grid-cols-3">
-            <AppInput v-model="form.bankName" label="اسم البنك" />
-            <AppInput v-model="form.iban" label="الآيبان (IBAN)" ltr placeholder="SA0380000000608010167519" :error="ibanError" />
-            <AppInput v-model="form.accountName" label="اسم صاحب الحساب" />
-          </div>
-        </AppCard>
+        <FormSection title="البنك" :columns="3">
+          <AppInput v-model="form.bankName" label="اسم البنك" />
+          <AppInput v-model="form.iban" label="الآيبان (IBAN)" ltr placeholder="SA0380000000608010167519" :error="ibanError" />
+          <AppInput v-model="form.accountName" label="اسم صاحب الحساب" />
+        </FormSection>
 
         <!-- الحسابات (متقدم) -->
-        <AppCard v-if="!isCustomer" title="الحسابات (متقدم)">
+        <FormSection v-if="!isCustomer" title="الحسابات (متقدم)">
           <AppInput v-model="form.contactPerson" label="الشخص المسؤول" />
-        </AppCard>
+        </FormSection>
 
         <!-- رصيد سابق -->
-        <AppCard title="رصيد سابق (من نظام قديم)">
-          <p v-if="openingStub?.journalEntryId" class="mb-3 flex items-center gap-1.5 text-xs" :class="openingStub.locked ? 'text-text-secondary' : 'text-success'">
+        <FormSection title="رصيد سابق (من نظام قديم)" :columns="3">
+          <p v-if="openingStub?.journalEntryId" class="sm:col-span-3 flex items-center gap-1.5 text-xs" :class="openingStub.locked ? 'text-text-secondary' : 'text-success'">
             <span>مُرحّل كقيد افتتاحي{{ openingStub.locked ? ' — مقفل بعد تخصيص دفعة، التعديل عبر القيد اليدوي فقط' : '' }}.</span>
           </p>
-          <p v-else class="mb-3 text-xs text-text-secondary">
+          <p v-else class="sm:col-span-3 text-xs text-text-secondary">
             يُرحّل كقيد افتتاحي (مدين/دائن مقابل حساب الأرصدة الافتتاحية، أو رأس المال إذا كان التاريخ بعد تاريخ بدء العمل) — يظهر في كشف الحساب كصف "رصيد افتتاحي".
           </p>
-          <div class="grid gap-4 sm:grid-cols-3">
-            <AppInput v-model="form.openingAmount" type="number" min="0" label="المبلغ" :disabled="!!openingStub?.locked" />
-            <div>
-              <span class="field-label">الجهة</span>
-              <SegmentedControl
-                v-model="form.openingSide"
-                class="pointer-events-none opacity-60"
-                :class="!openingStub?.locked && '!pointer-events-auto !opacity-100'"
-                :options="[{ value: 'debit', label: 'مدين (له/علينا)' }, { value: 'credit', label: 'دائن (عليه/لنا)' }]"
-                size="sm"
-              />
-            </div>
-            <AppDatePicker v-model="form.openingAsOf" label="كما في تاريخ" :disabled="!!openingStub?.locked" />
+          <AppInput v-model="form.openingAmount" type="number" min="0" label="المبلغ" :disabled="!!openingStub?.locked" />
+          <div>
+            <span class="field-label">الجهة</span>
+            <SegmentedControl
+              v-model="form.openingSide"
+              class="pointer-events-none opacity-60"
+              :class="!openingStub?.locked && '!pointer-events-auto !opacity-100'"
+              :options="[{ value: 'debit', label: 'مدين (له/علينا)' }, { value: 'credit', label: 'دائن (عليه/لنا)' }]"
+              size="sm"
+            />
           </div>
-          <div v-if="id && !openingStub?.locked" class="mt-3 flex gap-2">
+          <AppDatePicker v-model="form.openingAsOf" label="كما في تاريخ" :disabled="!!openingStub?.locked" />
+          <div v-if="id && !openingStub?.locked" class="sm:col-span-3 flex gap-2">
             <AppButton v-if="!openingStub?.journalEntryId" type="button" size="sm" :loading="openingPosting" :disabled="!form.openingAmount" @click="postOpeningForExisting">
               ترحيل الرصيد الافتتاحي
             </AppButton>
             <AppButton v-else type="button" size="sm" :loading="openingPosting" @click="unpostOpening">إلغاء الترحيل للتعديل</AppButton>
           </div>
-        </AppCard>
+        </FormSection>
 
         <!-- ملاحظات ومرفقات -->
-        <AppCard title="ملاحظات ومرفقات">
+        <FormSection title="ملاحظات ومرفقات">
           <AppTextarea v-model="form.notes" label="ملاحظات" :rows="3" />
-          <div v-if="id" class="mt-4 border-t border-border pt-4">
+          <div v-if="id" class="border-t border-border pt-4">
             <span class="field-label">المرفقات</span>
             <AttachmentField :owner-ref="`${kind}:${id}`" />
           </div>
-          <p v-else class="mt-3 text-xs text-text-secondary">يمكن إضافة المرفقات بعد حفظ البطاقة أول مرة.</p>
-        </AppCard>
+          <p v-else class="text-xs text-text-secondary">يمكن إضافة المرفقات بعد حفظ البطاقة أول مرة.</p>
+        </FormSection>
 
-        <div class="flex justify-end gap-2">
-          <AppButton :to="id ? partyRoute(kind, 'detail', id) : partyRoute(kind, 'list')">إلغاء</AppButton>
-          <AppButton type="submit" variant="primary" :icon="Save" :loading="saving">حفظ</AppButton>
-        </div>
-      </div>
+        <FormActions>
+          <template #primary>
+            <AppButton :to="id ? partyRoute(kind, 'detail', id) : partyRoute(kind, 'list')">إلغاء</AppButton>
+            <AppButton type="submit" variant="primary" :icon="Save" :loading="saving">حفظ</AppButton>
+          </template>
+        </FormActions>
+    </form>
 
+    <template #aside>
       <!-- كلا الدورين -->
       <AppCard title="عميل ومورد معاً" padding="sm">
         <p class="text-xs leading-5 text-text-secondary">
@@ -533,6 +526,6 @@ const countryOptions = COUNTRIES.map((c) => ({ value: c.code, label: `${c.flag} 
           </div>
         </template>
       </AppCard>
-    </form>
-  </div>
+    </template>
+  </FormPage>
 </template>
