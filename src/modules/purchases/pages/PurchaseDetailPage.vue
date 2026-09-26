@@ -44,7 +44,7 @@ async function printPurchaseOrder() {
     toast.error('تعذر إنشاء ملف PDF');
     return;
   }
-  router.push(`/print/purchases/${id}`);
+  router.push({ name: 'purchase-print', params: { id } });
 }
 
 async function doCancel() {
@@ -80,34 +80,34 @@ async function doSend() {
   <div>
     <ErrorState v-if="error" :message="error" @retry="reload" />
     <template v-else>
-      <PageHeader :title="po ? `أمر شراء ${po.number}` : '…'" back="/purchases">
+      <PageHeader :title="po ? `أمر شراء ${po.number}` : '…'" :back="{ name: 'purchases' }">
         <template v-if="po" #badge>
           <StatusBadge :tone="PURCHASE_STATUS[po.status].tone" :label="PURCHASE_STATUS[po.status].label" />
           <StatusBadge v-if="po.status === 'RECEIVED'" :tone="PAYMENT_STATUS[po.paymentStatus].tone" :label="PAYMENT_STATUS[po.paymentStatus].label" />
         </template>
         <template v-if="po" #subtitle>
-          <RouterLink :to="`/suppliers/${po.supplierId}`" class="hover:text-primary">{{ po.supplierName }}</RouterLink> ·
+          <RouterLink :to="{ name: 'supplier', params: { id: po.supplierId } }" class="hover:text-primary">{{ po.supplierName }}</RouterLink> ·
           <span class="num">{{ formatDate(po.date) }}</span>
         </template>
         <template v-if="po && canWrite" #actions>
           <template v-if="po.status === 'DRAFT'">
             <AppButton variant="danger" :icon="Ban" :loading="busy === 'cancel'" @click="doCancel">إلغاء</AppButton>
-            <AppButton :icon="Pencil" :to="`/purchases/${id}/edit`">تعديل</AppButton>
+            <AppButton :icon="Pencil" :to="{ name: 'purchase-edit', params: { id } }">تعديل</AppButton>
             <AppButton :icon="Send" :loading="busy === 'send'" @click="doSend">إرسال للمورد</AppButton>
-            <AppButton variant="primary" :icon="PackageCheck" :to="`/purchases/${id}/receive`">استلام</AppButton>
+            <AppButton variant="primary" :icon="PackageCheck" :to="{ name: 'purchase-receive', params: { id } }">استلام</AppButton>
           </template>
           <template v-else-if="po.status === 'ORDERED'">
             <AppButton variant="danger" :icon="Ban" :loading="busy === 'cancel'" @click="doCancel">إلغاء</AppButton>
             <AppButton :icon="Printer" @click="printPurchaseOrder">طباعة أمر الشراء</AppButton>
-            <AppButton variant="primary" :icon="PackageCheck" :to="`/purchases/${id}/receive`">استلام</AppButton>
+            <AppButton variant="primary" :icon="PackageCheck" :to="{ name: 'purchase-receive', params: { id } }">استلام</AppButton>
           </template>
           <template v-else-if="po.status === 'RECEIVED'">
-            <AppButton :icon="Undo2" :to="`/purchases/${id}/return`">مرتجع للمورد</AppButton>
+            <AppButton :icon="Undo2" :to="{ name: 'purchase-return', params: { id } }">مرتجع للمورد</AppButton>
             <AppButton
               v-if="po.outstanding > 0 && auth.can('payments', 'write')"
               variant="primary"
               :icon="HandCoins"
-              :to="{ path: '/payments/new', query: { type: 'PAID', party: po.supplierId, ref: id } }"
+              :to="{ name: 'payment-new', query: { type: 'PAID', party: po.supplierId, ref: id } }"
             >
               سداد
             </AppButton>
@@ -145,7 +145,7 @@ async function doSend() {
               <tbody class="bg-background">
                 <tr v-for="l in po.lines" :key="l.productId" class="border-b border-border last:border-0">
                   <td class="px-4 py-2.5">
-                    <RouterLink :to="`/products/${l.productId}`" class="hover:text-primary">{{ po.products[l.productId]?.name }}</RouterLink>
+                    <RouterLink :to="{ name: 'product', params: { id: l.productId } }" class="hover:text-primary">{{ po.products[l.productId]?.name }}</RouterLink>
                     <span class="num block text-tiny text-text-secondary">{{ po.products[l.productId]?.sku }}</span>
                   </td>
                   <td class="px-3 py-2.5"><span class="num">{{ formatNumber(l.qty) }}</span></td>
@@ -211,7 +211,7 @@ async function doSend() {
           <AppCard v-if="po?.journalEntries.length && auth.can('accounting')" title="القيود المحاسبية" padding="none">
             <ul class="divide-y divide-border text-body">
               <li v-for="e in po.journalEntries" :key="e.id">
-                <RouterLink :to="`/accounting/journal/${e.id}`" class="flex items-center gap-2 px-4 py-2 hover:bg-surface-hover">
+                <RouterLink :to="{ name: 'journal-entry', params: { id: e.id } }" class="flex items-center gap-2 px-4 py-2 hover:bg-surface-hover">
                   <BookOpen class="size-3.5 shrink-0 text-text-secondary" />
                   <span class="num text-primary">{{ e.number }}</span>
                   <span class="truncate text-xs text-text-secondary">{{ e.description }}</span>
