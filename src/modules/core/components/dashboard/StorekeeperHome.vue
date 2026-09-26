@@ -48,9 +48,9 @@ const greeting = new Date().getHours() < 12 ? 'صباح الخير' : 'مساء 
         <p class="mt-0.5 text-body text-text-secondary">{{ formatDateLong(new Date().toISOString()) }}</p>
       </div>
       <div class="flex flex-wrap gap-2">
-        <AppButton :icon="PackagePlus" to="/inventory/adjustments/new?type=STOCK_IN">إدخال مخزون</AppButton>
-        <AppButton :icon="PackageMinus" to="/inventory/adjustments/new?type=LOSS">إتلاف / فقد</AppButton>
-        <AppButton variant="primary" :icon="ClipboardCheck" to="/inventory/counts/new">جرد جديد</AppButton>
+        <AppButton :icon="PackagePlus" :to="{ name: 'adjustment-new', query: { type: 'STOCK_IN' } }">إدخال مخزون</AppButton>
+        <AppButton :icon="PackageMinus" :to="{ name: 'adjustment-new', query: { type: 'LOSS' } }">إتلاف / فقد</AppButton>
+        <AppButton variant="primary" :icon="ClipboardCheck" :to="{ name: 'count-new' }">جرد جديد</AppButton>
       </div>
     </div>
 
@@ -62,13 +62,13 @@ const greeting = new Date().getHours() < 12 ? 'صباح الخير' : 'مساء 
       <KpiCard label="قيمة المخزون" :icon="Warehouse" :loading="!db.products.length">
         <span dir="ltr">{{ formatMoney(stockValue) }}</span>
       </KpiCard>
-      <KpiCard label="استلام بانتظارك" :icon="PackagePlus" :loading="purchaseOrders.loading.value" :tone="receivingToDo.length > 0 ? 'warning' : undefined" to="/purchases">
+      <KpiCard label="استلام بانتظارك" :icon="PackagePlus" :loading="purchaseOrders.loading.value" :tone="receivingToDo.length > 0 ? 'warning' : undefined" :to="{ name: 'purchases' }">
         {{ formatNumber(receivingToDo.length) }}
       </KpiCard>
-      <KpiCard label="تحويلات واردة" :icon="Truck" :loading="transfers.loading.value" :tone="incomingTransfers.length > 0 ? 'warning' : undefined" to="/inventory/transfers">
+      <KpiCard label="تحويلات واردة" :icon="Truck" :loading="transfers.loading.value" :tone="incomingTransfers.length > 0 ? 'warning' : undefined" :to="{ name: 'transfers' }">
         {{ formatNumber(incomingTransfers.length) }}
       </KpiCard>
-      <KpiCard label="أصناف منخفضة المخزون" :icon="PackageX" :loading="lowStock.loading.value" :tone="(lowStock.data.value?.length ?? 0) > 0 ? 'warning' : undefined" to="/products?stock=low">
+      <KpiCard label="أصناف منخفضة المخزون" :icon="PackageX" :loading="lowStock.loading.value" :tone="(lowStock.data.value?.length ?? 0) > 0 ? 'warning' : undefined" :to="{ name: 'products', query: { stock: 'low' } }">
         {{ formatNumber(lowStock.data.value?.length) }}
       </KpiCard>
     </div>
@@ -76,14 +76,14 @@ const greeting = new Date().getHours() < 12 ? 'صباح الخير' : 'مساء 
     <div class="grid gap-4 xl:grid-cols-3">
       <AppCard title="أصناف منخفضة المخزون" padding="none">
         <template v-if="lowStock.data.value?.length" #actions>
-          <AppButton size="sm" variant="ghost" to="/products?stock=low">عرض الكل</AppButton>
+          <AppButton size="sm" variant="ghost" :to="{ name: 'products', query: { stock: 'low' } }">عرض الكل</AppButton>
         </template>
         <ErrorState v-if="lowStock.error.value" :message="lowStock.error.value" compact @retry="lowStock.reload" />
         <div v-else-if="lowStock.loading.value" class="p-4"><SkeletonBlock :lines="5" /></div>
         <EmptyState v-else-if="!lowStock.data.value?.length" title="المخزون بحالة جيدة" compact />
         <ul v-else class="divide-y divide-border">
           <li v-for="p in lowStock.data.value" :key="p.id">
-            <RouterLink :to="`/products/${p.id}`" class="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-hover">
+            <RouterLink :to="{ name: 'product', params: { id: p.id } }" class="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-hover">
               <span class="min-w-0">
                 <span class="block truncate text-body">{{ p.name }}</span>
                 <span class="num block text-tiny text-text-secondary">{{ p.sku }}</span>
@@ -99,7 +99,7 @@ const greeting = new Date().getHours() < 12 ? 'صباح الخير' : 'مساء 
 
       <AppCard title="تنتهي صلاحيتها قريباً" padding="none">
         <template v-if="expiry.data.value?.length" #actions>
-          <AppButton size="sm" variant="ghost" to="/inventory/expiry">عرض الكل</AppButton>
+          <AppButton size="sm" variant="ghost" :to="{ name: 'expiry' }">عرض الكل</AppButton>
         </template>
         <ErrorState v-if="expiry.error.value" :message="expiry.error.value" compact @retry="expiry.reload" />
         <div v-else-if="expiry.loading.value" class="p-4"><SkeletonBlock :lines="5" /></div>
@@ -117,7 +117,7 @@ const greeting = new Date().getHours() < 12 ? 'صباح الخير' : 'مساء 
 
       <AppCard title="عمليات جرد مفتوحة" padding="none">
         <template v-if="counts.data.value?.some((c) => c.status !== 'COMPLETED')" #actions>
-          <AppButton size="sm" variant="ghost" to="/inventory/counts">عرض الكل</AppButton>
+          <AppButton size="sm" variant="ghost" :to="{ name: 'counts' }">عرض الكل</AppButton>
         </template>
         <ErrorState v-if="counts.error.value" :message="counts.error.value" compact @retry="counts.reload" />
         <div v-else-if="counts.loading.value" class="p-4"><SkeletonBlock :lines="4" /></div>
@@ -125,7 +125,7 @@ const greeting = new Date().getHours() < 12 ? 'صباح الخير' : 'مساء 
         <ul v-else class="divide-y divide-border">
           <template v-for="c in counts.data.value" :key="c.id">
             <li v-if="c.status !== 'COMPLETED'">
-              <RouterLink :to="`/inventory/counts/${c.id}`" class="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-hover">
+              <RouterLink :to="{ name: 'count', params: { id: c.id } }" class="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-surface-hover">
                 <span class="num text-body">{{ c.number }}</span>
                 <StatusBadge :tone="c.status === 'REVIEW' ? 'neutral' : 'warning'" :label="c.status === 'REVIEW' ? 'قيد المراجعة' : 'جارٍ العد'" />
               </RouterLink>
