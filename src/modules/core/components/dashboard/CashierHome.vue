@@ -38,14 +38,14 @@ const greeting = computed(() => (new Date().getHours() < 12 ? 'صباح الخي
         <h1 class="text-lg font-semibold tracking-tight">{{ greeting }}، {{ auth.user?.name.split(' ')[0] }}</h1>
         <p class="mt-0.5 text-body text-text-secondary">{{ formatDateLong(new Date().toISOString()) }}</p>
       </div>
-      <AppButton variant="primary" :icon="ShoppingCart" to="/pos">فتح نقطة البيع</AppButton>
+      <AppButton variant="primary" :icon="ShoppingCart" :to="{ name: 'pos' }">فتح نقطة البيع</AppButton>
     </div>
 
     <div class="grid gap-4 lg:grid-cols-3">
       <AppCard class="lg:col-span-2" title="ورديتي" padding="sm">
         <SkeletonBlock v-if="loading" :lines="4" />
         <EmptyState v-else-if="!shift" :icon="Clock" title="لا توجد وردية مفتوحة" description="افتح وردية من نقطة البيع لبدء البيع" compact>
-          <AppButton size="sm" variant="primary" to="/pos">فتح وردية</AppButton>
+          <AppButton size="sm" variant="primary" :to="{ name: 'pos' }">فتح وردية</AppButton>
         </EmptyState>
         <div v-else class="grid gap-4 sm:grid-cols-4">
           <div>
@@ -65,15 +65,15 @@ const greeting = computed(() => (new Date().getHours() < 12 ? 'صباح الخي
             <p class="mt-1 text-body font-medium">{{ formatTime(shift.openedAt) }}</p>
           </div>
           <div class="sm:col-span-4 flex flex-wrap gap-2 border-t border-border pt-3">
-            <AppButton size="sm" :icon="Banknote" to="/pos">إيداع/سحب نقدي</AppButton>
-            <AppButton size="sm" :icon="Wallet" to="/pos/shifts">تقرير X</AppButton>
-            <AppButton size="sm" variant="primary" to="/pos">إغلاق الوردية</AppButton>
+            <AppButton size="sm" :icon="Banknote" :to="{ name: 'pos' }">إيداع/سحب نقدي</AppButton>
+            <AppButton size="sm" :icon="Wallet" :to="{ name: 'pos-shifts' }">تقرير X</AppButton>
+            <AppButton size="sm" variant="primary" :to="{ name: 'pos' }">إغلاق الوردية</AppButton>
           </div>
         </div>
       </AppCard>
 
       <AppCard title="الورديات" padding="none">
-        <RouterLink to="/pos/shifts" class="flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-hover">
+        <RouterLink :to="{ name: 'pos-shifts' }" class="flex items-center justify-between gap-3 px-4 py-3 hover:bg-surface-hover">
           <span class="text-body">عرض كل الورديات وتاريخها</span>
         </RouterLink>
       </AppCard>
