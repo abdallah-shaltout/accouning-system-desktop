@@ -1,20 +1,38 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { computed, ref, shallowRef, watch, type Component } from 'vue';
-import { ArrowDown, ArrowUp, Download, LoaderCircle } from '@lucide/vue';
+import { ArrowDown, ArrowUp, Download, LoaderCircle, MoreHorizontal } from '@lucide/vue';
 import { rowsPerPage as settingsRowsPerPage, zebraRows } from '../../controllers/useAppearance';
 import { exportXlsx, type ExportColumn } from '../../helpers/exportXlsx';
 import { dirIcon } from '../../helpers/dirIcon';
-import { formatNumber } from '../../helpers/format';
+import { formatDate, formatNumber } from '../../helpers/format';
 import DirIcon from './DirIcon.vue';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell, TableFooter } from '@/modules/core/components/shadcn/table';
 import EmptyState from './EmptyState.vue';
 import ErrorState from './ErrorState.vue';
+import MoneyText from './MoneyText.vue';
+import StatusBadge from './StatusBadge.vue';
+import type { Tone } from '../../helpers/labels';
+
+/**
+ * v2 doc 17 Phase F-0 (F1 "DataTable (extend)"): column `type` turns on automatic formatting +
+ * alignment for the common shapes every list page already needs — money (`MoneyText`), date/number
+ * (`format.ts`), status (`StatusBadge`, via `statusOf`) and a party name. `type: 'actions'` is a
+ * no-print, centered, unsortable column for a row's action buttons/menu. Every type is still
+ * overridable per-cell with the existing `cell-<key>` slot, so no caller is forced to switch.
+ */
+export type ColumnType = 'money' | 'date' | 'number' | 'status' | 'party' | 'actions';
 
 export interface Column<R = any> {
   key: string;
   label: string;
   /** Numeric columns: LTR tabular digits, aligned to the start (right) edge so decimals line up. */
   numeric?: boolean;
+  /** Automatic formatting/alignment for a common column shape — see `ColumnType`. */
+  type?: ColumnType;
+  /** `type: 'status'` only — resolves a raw status value to its label + tone (e.g. `INVOICE_STATUS`). */
+  statusOf?: (value: any, row: R) => { label: string; tone: Tone };
+  /** `type: 'money'` only — pass a per-row currency (foreign-currency documents). */
+  currencyOf?: (row: R) => string | undefined;
   align?: 'start' | 'center' | 'end';
   width?: string;
   sortable?: boolean;
@@ -22,6 +40,8 @@ export interface Column<R = any> {
   class?: string;
   /** Hidden when printing / exporting? (e.g. action columns) */
   noPrint?: boolean;
+  /** Included in the totals footer (sum of this column across all visible rows). */
+  totals?: boolean;
 }
 
 export interface ServerPageQuery<F = any> {
@@ -70,11 +90,27 @@ const props = withDefaults(
     exportFileName?: string;
     /** Overrides which columns/labels go into the export; defaults to `columns` minus `noPrint` ones. */
     exportColumns?: ExportColumn<T>[];
+    /** Enables a leading checkbox column + `selected`/`update:selected` for bulk actions. */
+    selectable?: boolean;
   }>(),
   { rowKey: 'id', skeletonRows: 8, emptyTitle: 'لا توجد سجلات' },
 );
 
-const emit = defineEmits<{ 'row-click': [row: T]; retry: [] }>();
+const emit = defineEmits<{ 'row-click': [row: T]; retry: []; 'update:selected': [keys: (string | number)[]] }>();
+
+const selected = defineModel<(string | number)[]>('selected', { default: () => [] });
+
+function toggleRow(key: string | number) {
+  const set = new Set(selected.value);
+  if (set.has(key)) set.delete(key);
+  else set.add(key);
+  selected.value = [...set];
+}
+function toggleAllVisible(rows: T[]) {
+  const keys = rows.map((r) => r[props.rowKey]);
+  const allSelected = keys.length > 0 && keys.every((k) => selected.value.includes(k));
+  selected.value = allSelected ? selected.value.filter((k) => !keys.includes(k)) : [...new Set([...selected.value, ...keys])];
+}
 
 const isServerMode = computed(() => !!props.fetchPage);
 
@@ -201,10 +237,19 @@ function onRowClick(row: T) {
 }
 
 function alignClass(col: Column<T>) {
-  if (col.align === 'center') return 'text-center';
-  if (col.align === 'end') return 'text-end';
+  if (col.align === 'center' || col.type === 'actions') return 'text-center';
+  if (col.align === 'end' || col.numeric || col.type === 'money' || col.type === 'number') return 'text-end';
   return 'text-start';
 }
+
+/** Sum of every `totals: true` column across the currently visible rows, for the footer. */
+const columnTotals = computed<Record<string, number> | null>(() => {
+  const totalCols = props.columns.filter((c) => c.totals);
+  if (!totalCols.length) return null;
+  const out: Record<string, number> = {};
+  for (const col of totalCols) out[col.key] = visible.value.reduce((sum, row) => sum + (Number(row[col.key]) || 0), 0);
+  return out;
+});
 
 // --- Excel export -------------------------------------------------------------------------------
 
@@ -258,6 +303,15 @@ async function exportRows() {
     <Table class="w-full border-collapse text-body" container-class="overflow-x-auto">
       <TableHeader :class="sticky && 'sticky top-0 z-10'">
         <TableRow class="bg-surface hover:bg-surface">
+          <TableHead v-if="selectable" scope="col" class="no-print w-10 border-b border-border px-3 py-2.5">
+            <input
+              type="checkbox"
+              class="size-4 rounded border-border"
+              aria-label="تحديد الكل"
+              :checked="visible.length > 0 && visible.every((r) => selected.includes(r[rowKey]))"
+              @click.stop="toggleAllVisible(visible)"
+            />
+          </TableHead>
           <TableHead
             v-for="col in columns"
             :key="col.key"
@@ -286,12 +340,12 @@ async function exportRows() {
       </TableBody>
       <TableBody v-else-if="effectiveError">
         <TableRow>
-          <TableCell :colspan="columns.length" class="whitespace-normal"><ErrorState :message="effectiveError" compact @retry="retry" /></TableCell>
+          <TableCell :colspan="columns.length + (selectable ? 1 : 0)" class="whitespace-normal"><ErrorState :message="effectiveError" compact @retry="retry" /></TableCell>
         </TableRow>
       </TableBody>
       <TableBody v-else-if="!visible.length">
         <TableRow>
-          <TableCell :colspan="columns.length" class="whitespace-normal">
+          <TableCell :colspan="columns.length + (selectable ? 1 : 0)" class="whitespace-normal">
             <slot name="empty">
               <EmptyState :title="emptyTitle" :description="emptyDescription" :icon="emptyIcon" compact />
             </slot>
@@ -311,6 +365,15 @@ async function exportRows() {
           ]"
           @click="onRowClick(row)"
         >
+          <TableCell v-if="selectable" class="no-print px-3 align-middle" @click.stop>
+            <input
+              type="checkbox"
+              class="size-4 rounded border-border"
+              :aria-label="`تحديد ${row[rowKey]}`"
+              :checked="selected.includes(row[rowKey])"
+              @change="toggleRow(row[rowKey])"
+            />
+          </TableCell>
           <TableCell
             v-for="col in columns"
             :key="col.key"
@@ -319,14 +382,28 @@ async function exportRows() {
             :class="[alignClass(col), col.class, col.noPrint && 'no-print']"
           >
             <slot :name="`cell-${col.key}`" :row="row" :value="row[col.key]">
-              <span v-if="col.numeric" class="num">{{ formatNumber(row[col.key]) }}</span>
+              <MoreHorizontal v-if="col.type === 'actions'" class="mx-auto size-4 text-text-secondary" />
+              <MoneyText v-else-if="col.type === 'money'" :value="row[col.key]" :currency="col.currencyOf?.(row)" />
+              <span v-else-if="col.type === 'date'" class="num">{{ formatDate(row[col.key]) }}</span>
+              <span v-else-if="col.type === 'number' || col.numeric" class="num">{{ formatNumber(row[col.key]) }}</span>
+              <StatusBadge v-else-if="col.type === 'status'" v-bind="col.statusOf ? col.statusOf(row[col.key], row) : { label: String(row[col.key] ?? '—') }" />
+              <span v-else-if="col.type === 'party'" class="truncate">{{ row[col.key] ?? '—' }}</span>
               <template v-else>{{ row[col.key] ?? '—' }}</template>
             </slot>
           </TableCell>
         </TableRow>
       </TableBody>
-      <TableFooter v-if="$slots.footer && visible.length" class="border-t border-border bg-surface font-medium">
-        <slot name="footer" />
+      <TableFooter v-if="($slots.footer || columnTotals) && visible.length" class="border-t border-border bg-surface font-medium">
+        <slot name="footer">
+          <TableRow class="hover:bg-surface">
+            <TableCell v-if="selectable" />
+            <TableCell v-for="col in columns" :key="col.key" class="px-3 py-2" :class="[alignClass(col), col.noPrint && 'no-print']">
+              <MoneyText v-if="columnTotals && col.key in columnTotals && col.type === 'money'" :value="columnTotals[col.key]" :currency="col.currencyOf?.(visible[0])" />
+              <span v-else-if="columnTotals && col.key in columnTotals" class="num">{{ formatNumber(columnTotals[col.key]) }}</span>
+              <template v-else-if="col === columns[0]">الإجمالي</template>
+            </TableCell>
+          </TableRow>
+        </slot>
       </TableFooter>
     </Table>
     <div
