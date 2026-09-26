@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import { formatDateTime, formatDigits, formatNumber } from '@/modules/core/helpers/format';
 import { SALE_METHOD_LABEL } from '@/modules/core/helpers/labels';
+import { countryProfile } from '@/modules/core/helpers/countryProfiles';
 import { changeDue, round2 } from '../helpers/totals';
 import { zatcaQrBase64 } from '../helpers/zatcaQr';
 import type { PrintData } from '../services/invoiceService';
@@ -13,15 +14,19 @@ const props = defineProps<{ data: PrintData; width: 58 | 80 }>();
 
 const inv = computed(() => props.data.invoice);
 const s = computed(() => props.data.settings);
+const profile = computed(() => countryProfile(s.value.country));
 const narrow = computed(() => props.width === 58);
+// v2 doc 18.D: ZATCA QR only for a Saudi ('zatca-phase1') company — never rendered for Egypt.
 const qr = computed(() =>
-  zatcaQrBase64({
-    sellerName: s.value.storeName,
-    vatNumber: s.value.vatNumber ?? '',
-    timestamp: inv.value.date,
-    invoiceTotal: inv.value.grandTotal,
-    vatTotal: inv.value.taxAmount,
-  }),
+  profile.value.eInvoice === 'zatca-phase1'
+    ? zatcaQrBase64({
+        sellerName: s.value.storeName,
+        vatNumber: s.value.vatNumber ?? '',
+        timestamp: inv.value.date,
+        invoiceTotal: inv.value.grandTotal,
+        vatTotal: inv.value.taxAmount,
+      })
+    : null,
 );
 const change = computed(() => (inv.value.tenderedAmount ? changeDue(inv.value.grandTotal, inv.value.tenderedAmount) : 0));
 </script>
@@ -42,7 +47,7 @@ const change = computed(() => (inv.value.tenderedAmount ? changeDue(inv.value.gr
     </header>
 
     <div class="my-1.5 border-t border-dashed border-black" />
-    <p class="text-center font-semibold">{{ data.customer?.vatNumber ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة' }}</p>
+    <p class="text-center font-semibold">{{ data.customer?.vatNumber ? profile.invoiceTitles.b2b : profile.invoiceTitles.b2c }}</p>
     <dl class="mt-1 space-y-0.5">
       <div class="flex justify-between gap-2"><dt>رقم الفاتورة</dt><dd class="num">{{ formatDigits(inv.number) }}</dd></div>
       <div class="flex justify-between gap-2"><dt>التاريخ</dt><dd class="num">{{ formatDateTime(inv.date) }}</dd></div>
@@ -83,7 +88,7 @@ const change = computed(() => (inv.value.tenderedAmount ? changeDue(inv.value.gr
       </div>
     </dl>
 
-    <div class="my-2 flex justify-center">
+    <div v-if="qr" class="my-2 flex justify-center">
       <QrCode :value="qr" :size="narrow ? '28mm' : '34mm'" :border="1" />
     </div>
     <p v-if="s.receiptFooter" class="text-center">{{ s.receiptFooter }}</p>

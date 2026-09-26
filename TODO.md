@@ -1,5 +1,71 @@
 # TODO
 
+## 2026-09-26 — doc-17 F-2 (line-item forms): 3 of 4 in-scope forms migrated; verify:mocks regressed by a concurrent doc-18 Phase D change, not by F-2
+
+Migrated to `FormPage` + `LineItemsEditor` + `TotalsPanel`, one commit each, `verify:mocks`
+checked **49/0/0 immediately after every single commit** before moving to the next form:
+
+- `StockAdjustmentFormPage.vue` (extracted `products/components/StockAdjustmentLinesGrid.vue`).
+  Extended `LineItemsEditor` with two additive, default-`false` props (`hideActions`,
+  `hideAddButton`) so the STOCKTAKE mode's fixed, pre-filled product list can hide the per-row
+  delete column and the add-line footer button — STOCKTAKE isn't a user-managed line list, so
+  showing those controls would be a UX regression, not just a math one. Both props default to
+  the old always-shown behavior, so no other caller of `LineItemsEditor` is affected.
+- `PurchaseFormPage.vue` (extracted `purchases/components/PurchaseLinesGrid.vue`). Dropped the
+  page's bespoke `useGridTab` Tab-wrap in favor of `LineItemsEditor`'s own Enter/Ctrl+Enter
+  keyboard model, consistent with what the other F-2 forms now use.
+- `InvoiceFormPage.vue` (extracted `invoices/components/InvoiceLinesGrid.vue`) — the form the
+  task brief flagged as highest-risk (datalist-based product resolution via native `change`,
+  free-text toggle, multi-row paste-from-Excel, debounced journal-preview watcher). Kept the
+  datalist/free-text/paste behavior as a custom overlay on `LineItemsEditor` (every column uses
+  its `cell-*` custom slot) rather than forcing it through the generic cell model — paste needs
+  to append rows past the one it started in, which a single-cell slot can't do on its own.
+  `computeInvoiceTotals()`/the `draft`/`totals` computeds are untouched, byte-identical call sites.
+
+**Not migrated — `JournalEntryFormPage.vue` (skipped, not reverted; nothing to revert since it
+was never started):** read in full before starting the batch. It is not a product/qty/price line
+grid at all — it's a debit/credit **account** grid with its own cell-level keyboard nav
+(`COLUMNS`/`cellEls`/`focusCell` across account/party/description/debit/credit), an `=` balancing
+shortcut, its own account-based Excel paste, and Ctrl+D duplicate-line — structurally a different
+shape from `LineItemsEditor` (which is built for product lines with qty/price/discount/tax, not
+debit/credit pairs with a conditional party column). Forcing it in would have meant either
+degrading its keyboard model or turning `LineItemsEditor` into something it isn't. Per the task's
+"use your judgment" guidance for exactly this situation, left as a candidate for a **separate**
+generic grid block (or a deliberately-scoped `LineItemsEditor` extension) rather than jamming it
+into this batch under time/risk pressure. **`StockCountNewPage.vue` and a standalone "transfer
+form" were never in scope for F-2 despite being named in the task brief** — read both before
+starting: `StockCountNewPage` is a scope-selection wizard (all/category/location + blind toggle)
+that creates the count and redirects to `StockCountDetailPage` for the actual line entry (a detail
+page, F-4 scope); stock transfers are created via a modal inside `StockTransferListPage.vue` (an
+F-1 list page), not a dedicated form route. Neither has a line-items grid to migrate under F-2.
+
+**verify:mocks regressed to 91 ok / 0 todo / 7 failed sometime after my `PurchaseFormPage`
+commit (`267d046`)** — inventory GL vs `Σ product.stockValue` mismatch, dangling
+`branchId`/`costCenterId` on journal lines, stock movements out of chronological order, all under
+an `--- inventory (EG) ---` seed context. **This is not caused by any F-2 form change**: `git
+status` at the time showed zero uncommitted changes in any of my 3 form pages or their 3 extracted
+grid components, and the failures are seed/branch/country-scoped, not line-items-rendering-scoped.
+`git log` shows `568cfaf "v2 doc-18 Phase D: wizard country-first reorder, applyCountryTax
+profile, seed country param"` landed immediately after my `267d046` — that commit changes
+`seedEmptyCompany`/`seedAccounts`/`seedSettings`/`seedDatabase` to take a country param and
+defaults the empty-company seed to EG — squarely doc-18 Phase D territory, which this task's brief
+explicitly excludes ("Other agents are working in parallel on ... doc-18 Phase D (country
+profiles...) ... you do NOT touch any of that"). At the same moment, `scripts/verify/run.ts` and
+`src/mocks/db.ts` showed as modified-but-uncommitted in the working tree, suggesting another agent
+is already mid-fix on this. **Did not touch it** — out of scope, and actively owned by someone
+else right now. Whoever lands the doc-18 Phase D / EG-seed fix should re-run `bun run
+verify:mocks` and confirm 49/0/0 (or the new correct total) before the next form batch proceeds;
+my three committed forms were each individually verified green before this regression appeared.
+
+One git-attribution note, not a content problem: my `InvoiceFormPage`/`InvoiceLinesGrid` commit
+landed bundled inside another agent's commit (`fbf5975`, "F-4: JournalDetailPage — use DataTable
+totals column...") rather than under my own message — confirmed via `git show --stat fbf5975`
+that both files are present with the expected content (176-line `InvoiceLinesGrid.vue`,
+`FormPage`/`LineItemsEditor` wiring in the page). Nothing was lost; likely a `git commit -a` (or
+similar) from the other agent racing mine while both were staged in the same shared working tree.
+No action needed, just flagging the pattern for whoever reviews commit history.
+
+
 ## doc-17 F-3 (simple forms) done: expense/payment/voucher/product/party/user forms
 
 This session migrated the 6 non-line-item forms in F-3's list onto `FormPage` + `FormSection`

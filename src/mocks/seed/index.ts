@@ -7,7 +7,7 @@
  * Other Phase-0-parallel tracks and later phases add `src/mocks/seed/<area>.ts` files and wire
  * them in here — never edit the individual area files' internals from an unrelated track.
  */
-import { db } from '../db';
+import { db, resetDb } from '../db';
 import { closeOpeningBalanceEquity } from '../backend/opening';
 import { postOpeningCapital, seedAccounts } from './accounts';
 import { postOpeningStock, seedCatalog } from './catalog';
@@ -31,6 +31,7 @@ import { countryProfile, type CountryCode } from '@/modules/core/helpers/country
  * doesn't need its own EG variant: it just posts against whatever rate/currency `seedSettings` set.
  */
 export function seedDatabase(now = new Date(), country: CountryCode = 'SA'): void {
+  resetDb();
   seedAccounts(now, country);
   seedCatalog();
   seedPeople();
@@ -77,6 +78,7 @@ export function seedDatabase(now = new Date(), country: CountryCode = 'SA'): voi
  * change it before any posting happens; `applyCountryTax` re-applies the chosen profile on top.
  */
 export function seedEmptyCompany(country: CountryCode = 'EG'): void {
+  resetDb();
   seedAccounts(new Date(), country);
   // v2 phase 9: every document/journal-line implicitly uses `DEFAULT_BRANCH_ID`/`branch-main` (see
   // src/mocks/backend/core.ts) even before the owner ever opens Settings → Branches, so a real

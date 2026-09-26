@@ -14,6 +14,7 @@ import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { toNum } from '@/modules/core/helpers/numbers';
+import { countryProfile, DEFAULT_COUNTRY } from '@/modules/core/helpers/countryProfiles';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import SettingsTabs from '../components/SettingsTabs.vue';
 import { useSettingsStore } from '../controllers/useSettingsStore';
@@ -68,7 +69,10 @@ const form = reactive({
 
 function openCreate(type: 'OUTPUT' | 'INPUT') {
   editing.value = null;
-  Object.assign(form, { name: '', rate: type === 'OUTPUT' ? 15 : 15, type, category: 'S', isDefault: false, active: true, exemptionReason: '' });
+  // v2 doc 18.D: the new-tax default rate follows the company's own country (14% EG / 15% SA),
+  // not a hard-coded 15 — reads `store.settings.country`, falling back to the default country.
+  const defaultRate = countryProfile(store.settings?.country ?? DEFAULT_COUNTRY).vat.standardRate;
+  Object.assign(form, { name: '', rate: defaultRate, type, category: 'S', isDefault: false, active: true, exemptionReason: '' });
   errors.value = {};
   formOpen.value = true;
 }

@@ -18,6 +18,7 @@ import { isTauri } from '@tauri-apps/api/core';
 import { encode as uqrEncode } from 'uqr';
 import { formatDate, formatDateTime, formatMoney, formatNumber } from '@/modules/core/helpers/format';
 import { tafqit } from '@/modules/core/helpers/tafqit';
+import { countryProfile } from '@/modules/core/helpers/countryProfiles';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { saveFile } from '@/modules/core/services/saveFile';
 import { getInvoicePrintData, getQuotation, getRefund, getShift } from '@/modules/invoices/services/invoiceService';
@@ -99,14 +100,18 @@ async function buildInvoicePayload(id: string): Promise<DocumentPayload> {
   const inv = data.invoice;
   const s = data.settings;
   const isB2B = !!data.customer?.vatNumber;
+  const profile = countryProfile(s.country);
 
-  const qrValue = zatcaQrBase64({
-    sellerName: s.storeName,
-    vatNumber: s.vatNumber ?? '',
-    timestamp: inv.date,
-    invoiceTotal: inv.grandTotal,
-    vatTotal: inv.taxAmount,
-  });
+  // v2 doc 18.D: ZATCA QR only for a Saudi ('zatca-phase1') company — never rendered for Egypt.
+  const qrValue = profile.eInvoice === 'zatca-phase1'
+    ? zatcaQrBase64({
+        sellerName: s.storeName,
+        vatNumber: s.vatNumber ?? '',
+        timestamp: inv.date,
+        invoiceTotal: inv.grandTotal,
+        vatTotal: inv.taxAmount,
+      })
+    : null;
 
   const lines = inv.lines.map((l) => {
     const net = round2(l.qty * l.price - l.discount);
@@ -131,8 +136,8 @@ async function buildInvoicePayload(id: string): Promise<DocumentPayload> {
       kind: 'invoice',
       number: inv.number,
       date: formatDateTime(inv.date),
-      titleAr: isB2B ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة',
-      titleEn: isB2B ? 'TAX INVOICE' : 'SIMPLIFIED TAX INVOICE',
+      titleAr: isB2B ? profile.invoiceTitles.b2b : profile.invoiceTitles.b2c,
+      titleEn: profile.eInvoice === 'zatca-phase1' ? (isB2B ? 'TAX INVOICE' : 'SIMPLIFIED TAX INVOICE') : 'SALES INVOICE',
     },
     company: {
       name: s.storeName,
@@ -155,11 +160,11 @@ async function buildInvoicePayload(id: string): Promise<DocumentPayload> {
       grand: formatMoney(inv.grandTotal),
       paid: inv.paidAmount > 0 ? formatMoney(inv.paidAmount) : null,
       remaining: inv.paidAmount > 0 ? formatMoney(outstanding) : null,
-      amountInWords: tafqit(inv.grandTotal),
+      amountInWords: tafqit(inv.grandTotal, { currency: s.currency }),
       previousBalance: null,
       currentBalance: null,
     },
-    qr: qrSvg(qrValue),
+    qr: qrValue ? qrSvg(qrValue) : null,
     logo: s.logo ?? null,
   };
 }

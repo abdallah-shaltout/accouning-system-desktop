@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import MoneyText from '@/modules/core/components/ui/MoneyText.vue';
 import { formatDateTime, formatDigits, formatNumber } from '@/modules/core/helpers/format';
 import { SALE_METHOD_LABEL } from '@/modules/core/helpers/labels';
+import { countryProfile } from '@/modules/core/helpers/countryProfiles';
 import { round2 } from '../helpers/totals';
 import { zatcaQrBase64 } from '../helpers/zatcaQr';
 import type { PrintData } from '../services/invoiceService';
@@ -13,15 +14,19 @@ const props = defineProps<{ data: PrintData }>();
 
 const inv = computed(() => props.data.invoice);
 const s = computed(() => props.data.settings);
+const profile = computed(() => countryProfile(s.value.country));
 const isB2B = computed(() => !!props.data.customer?.vatNumber);
+// v2 doc 18.D: ZATCA QR only for a Saudi ('zatca-phase1') company — never rendered for Egypt.
 const qr = computed(() =>
-  zatcaQrBase64({
-    sellerName: s.value.storeName,
-    vatNumber: s.value.vatNumber ?? '',
-    timestamp: inv.value.date,
-    invoiceTotal: inv.value.grandTotal,
-    vatTotal: inv.value.taxAmount,
-  }),
+  profile.value.eInvoice === 'zatca-phase1'
+    ? zatcaQrBase64({
+        sellerName: s.value.storeName,
+        vatNumber: s.value.vatNumber ?? '',
+        timestamp: inv.value.date,
+        invoiceTotal: inv.value.grandTotal,
+        vatTotal: inv.value.taxAmount,
+      })
+    : null,
 );
 const lineNet = (l: { qty: number; price: number; discount: number }) => round2(l.qty * l.price - l.discount);
 const outstanding = computed(() => Math.max(0, round2(inv.value.grandTotal - inv.value.refundedAmount - inv.value.paidAmount)));
@@ -44,8 +49,8 @@ const outstanding = computed(() => Math.max(0, round2(inv.value.grandTotal - inv
         </div>
       </div>
       <div class="text-start">
-        <p class="text-heading-sm font-semibold">{{ isB2B ? 'فاتورة ضريبية' : 'فاتورة ضريبية مبسطة' }}</p>
-        <p class="text-caption tracking-wide text-print-muted" dir="ltr">{{ isB2B ? 'TAX INVOICE' : 'SIMPLIFIED TAX INVOICE' }}</p>
+        <p class="text-heading-sm font-semibold">{{ isB2B ? profile.invoiceTitles.b2b : profile.invoiceTitles.b2c }}</p>
+        <p v-if="profile.eInvoice === 'zatca-phase1'" class="text-caption tracking-wide text-print-muted" dir="ltr">{{ isB2B ? 'TAX INVOICE' : 'SIMPLIFIED TAX INVOICE' }}</p>
         <table class="mt-2 text-tiny">
           <tbody>
             <tr><td class="pe-3 text-print-muted">رقم الفاتورة</td><td class="num font-medium">{{ formatDigits(inv.number) }}</td></tr>
@@ -135,7 +140,7 @@ const outstanding = computed(() => Math.max(0, round2(inv.value.grandTotal - inv
         <p v-if="s.receiptFooter">{{ s.receiptFooter }}</p>
         <p v-if="data.sample" class="mt-1 font-medium text-black">— نموذج اختبار طباعة، ليست فاتورة حقيقية —</p>
       </div>
-      <QrCode :value="qr" size="30mm" />
+      <QrCode v-if="qr" :value="qr" size="30mm" />
     </footer>
   </article>
 </template>

@@ -1,5 +1,6 @@
 import { ApiError, clone, db, delay, inDateRange, includesText, session, uid } from '@/mocks';
 import { accountFor } from '@/mocks/backend/accounts';
+import { salesTaxRate } from '@/mocks/backend/core';
 import { customerBalance } from '@/mocks/backend/balances';
 import { previewSaleJournal, recordRefund, recordSale, returnedQtyByLine } from '@/mocks/backend/sales';
 import { closeShift, currentOpenShift, forceCloseShift, openShift, recordShiftMovement, shiftSummary } from '@/mocks/backend/shifts';
@@ -205,7 +206,10 @@ export const getInvoicePrintData = wrap('invoices.getInvoicePrintData', async fu
     const products = db.products.filter((p) => p.type === 'product').slice(0, 3);
     const lines = products.map((p, i) => ({ id: `s-${i}`, productId: p.id, name: p.name, qty: i + 1, price: p.price, costPrice: p.costPrice, discount: 0 }));
     const subTotal = lines.reduce((a, l) => a + l.qty * l.price, 0);
-    const taxAmount = Math.round(subTotal * 15) / 100;
+    // v2 doc 18.D: the test-print sample used to hard-code 15% — now reads the store's actual
+    // active sales-tax rate, so an Egyptian company's test print shows 14%, not a stray 15%.
+    const taxRate = salesTaxRate();
+    const taxAmount = Math.round(subTotal * taxRate) / 100;
     return {
       invoice: {
         id: 'sample',
@@ -218,7 +222,7 @@ export const getInvoicePrintData = wrap('invoices.getInvoicePrintData', async fu
         subTotal,
         discountRate: 0,
         discountAmount: 0,
-        taxRate: 15,
+        taxRate,
         taxAmount,
         grandTotal: subTotal + taxAmount,
         paymentMethod: 'cash',
