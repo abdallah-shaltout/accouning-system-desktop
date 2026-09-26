@@ -5,16 +5,24 @@
  * before Phase 11a (checked `src/modules/invoices/helpers/` — only
  * `totals.ts` and `zatcaQr.ts`), so this is a fresh implementation.
  *
- * Covers whole riyals (up to 999,999,999) + halalas (the 2-decimal fraction),
- * with correct Arabic grammar for the tricky bits:
+ * Covers whole units (up to 999,999,999) + the minor unit (the 2-decimal
+ * fraction), with correct Arabic grammar for the tricky bits:
  * - 1 and 2 use singular/dual forms ("ريال واحد" / "ريالان"), not "واحد ريال".
  * - 3–10 take the *plural* noun form ("ثلاثة ريالات").
  * - 11+ takes the *singular accusative* noun form ("أحد عشر ريالاً").
  * - "و" (and) joins every level (units-and-tens, hundreds-and-thousands, ...).
- * - Feminine agreement for "ريال" (masculine) — this module doesn't need it, but
- *   the 3-19 unit words below use the masculine set correctly for "ريال"/"هللة"
- *   (هللة is feminine, so its 1/2 forms and unit words switch — handled by `feminine`).
+ * - Feminine agreement for the minor unit noun — "ريال"/"جنيه" are masculine,
+ *   "هللة"/"قرش" flips (هللة feminine, قرش masculine) — see `TafqitCurrencyWords`.
+ *
+ * v2 doc 18.D: takes a `TafqitCurrencyWords` set (major/minor unit words +
+ * nationality adjective + genders) instead of hard-coding "ريال"/"هللة"/"سعودياً",
+ * so `countryProfiles.ts` supplies the right words per currency (EGP: جنيه/قرش,
+ * SAR: ريال/هللة — unchanged wording/grammar for the existing SAR callers).
+ * `TafqitCurrencyWords` is defined here (not in `countryProfiles.ts`) so
+ * `countryProfiles.ts` importing it back is a type-only import — erased at
+ * compile time, so there's no runtime import cycle between the two modules.
  */
+import { profileByCurrency } from './countryProfiles';
 
 const ONES_M = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
 const ONES_F = ['', 'إحدى', 'اثنتان', 'ثلاث', 'أربع', 'خمس', 'ست', 'سبع', 'ثمان', 'تسع'];
@@ -100,40 +108,63 @@ function integerToWords(value: number, feminine = false): string {
   return parts.join(' و');
 }
 
-/** Riyal unit word agreeing with the whole-riyal count (1/2/3-10/11+). */
-function riyalUnit(n: number): string {
-  return scaleForm(n, { one: 'ريال واحد', two: 'ريالان', few: 'ريالات', many: 'ريالاً' });
+/** One noun's singular/dual/plural(3-10)/plural(11+) forms, e.g. { one: 'ريال واحد', two: 'ريالان', few: 'ريالات', many: 'ريالاً' }. */
+export type TafqitUnitWords = ScaleWord;
+
+/**
+ * Per-currency word set `tafqit()` needs: the major/minor unit's four agreement forms, each unit's
+ * grammatical gender (feminine units use the feminine 1-19 word set — هللة does, قرش/ريال/جنيه don't),
+ * and the nationality adjective appended after the major unit ("...سعودياً" / "...مصرياً").
+ */
+export interface TafqitCurrencyWords {
+  /** Bare major-unit noun for the "zero" case ("ريال" / "جنيه" — no agreement suffix). */
+  majorNoun: string;
+  major: TafqitUnitWords;
+  majorFeminine: boolean;
+  minor: TafqitUnitWords;
+  minorFeminine: boolean;
+  nationality: string;
 }
 
-/** Halala unit word agreeing with the halala count (1/2/3-10/11+), feminine noun. */
-function halalaUnit(n: number): string {
-  return scaleForm(n, { one: 'هللة واحدة', two: 'هللتان', few: 'هللات', many: 'هللة' });
-}
+/** The original SAR word set — unchanged wording, kept as the default so every pre-18.D caller (no `currency` passed) reads identically. */
+const SAR_WORDS: TafqitCurrencyWords = {
+  majorNoun: 'ريال',
+  major: { one: 'ريال واحد', two: 'ريالان', few: 'ريالات', many: 'ريالاً' },
+  majorFeminine: false,
+  minor: { one: 'هللة واحدة', two: 'هللتان', few: 'هللات', many: 'هللة' },
+  minorFeminine: true,
+  nationality: 'سعودياً',
+};
 
 export interface TafqitOptions {
-  currency?: 'ريال سعودي' | string;
+  /** Currency code (e.g. 'SAR', 'EGP') — looks up the word set via `countryProfiles.ts`. Omitted = SAR wording (unchanged). */
+  currency?: string;
   /** Prefix, e.g. "فقط لا غير:" — pass '' to omit. */
   prefix?: string;
 }
 
 /**
- * Converts a money amount (SAR, 2-decimal halalas) into Arabic words, e.g.
- * `tafqit(3425.75)` → "ثلاثة آلاف وأربعمائة وخمسة وعشرون ريالاً سعودياً وخمسة وسبعون هللة".
+ * Converts a money amount into Arabic words for the given currency (SAR by default, unchanged
+ * wording), e.g. `tafqit(3425.75)` → "ثلاثة آلاف وأربعمائة وخمسة وعشرون ريالاً سعودياً وخمسة وسبعون
+ * هللة"، or `tafqit(3425.75, { currency: 'EGP' })` → "...جنيهاً مصرياً وخمسة وسبعون قرشاً".
  * Caps at 999,999,999.99 (returns a clamped result past that rather than throwing —
  * no invoice realistically needs more, and a printed document should never crash on this).
  */
 export function tafqit(amount: number, options: TafqitOptions = {}): string {
-  const { prefix = 'فقط لا غير:' } = options;
+  const { prefix = 'فقط لا غير:', currency } = options;
+  const words: TafqitCurrencyWords = currency ? profileByCurrency(currency).currency.words : SAR_WORDS;
+
   const safe = Math.max(0, Math.min(999_999_999.99, Math.round((amount + Number.EPSILON) * 100) / 100));
-  const riyals = Math.floor(safe);
-  const halalas = Math.round((safe - riyals) * 100);
+  const major = Math.floor(safe);
+  const minor = Math.round((safe - major) * 100);
 
-  const riyalWords = riyals === 0 ? 'صفر ريال' : `${integerToWords(riyals)} ${riyalUnit(riyals)} سعودياً`;
+  const majorUnitWord = scaleForm(major, words.major);
+  const majorWords = major === 0 ? `صفر ${words.majorNoun}` : `${integerToWords(major, words.majorFeminine)} ${majorUnitWord} ${words.nationality}`;
 
-  let out = riyalWords;
-  if (halalas > 0) {
-    const halalaWords = `${integerToWords(halalas, true)} ${halalaUnit(halalas)}`;
-    out += ` و${halalaWords}`;
+  let out = majorWords;
+  if (minor > 0) {
+    const minorUnitWord = scaleForm(minor, words.minor);
+    out += ` و${integerToWords(minor, words.minorFeminine)} ${minorUnitWord}`;
   } else {
     out += ' لا غير';
   }
