@@ -138,6 +138,10 @@ pub struct Model {
     pub sync_status: String,
     #[sea_orm(column_name = "sku_live")]
     pub sku_live: Option<String>,
+    /// Generated (`m0016` G-28b): `barcode` while live, `NULL` once soft-deleted — backs
+    /// `uq_products_barcode_live` so two live products can no longer share a barcode. Read-only.
+    #[sea_orm(column_name = "barcode_live")]
+    pub barcode_live: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

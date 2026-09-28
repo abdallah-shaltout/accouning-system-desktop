@@ -17,6 +17,11 @@ import { isTauri, invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { ApiError } from '@/mocks/utils';
 import { emit as emitMockEvent, type MockEvent } from '@/mocks/events';
+
+/** Re-exported so pages/components can catch a failed `backendCall` without importing
+ * `@/mocks` directly (seam rule, CLAUDE.md) — this service is the one designated seam boundary
+ * that may still reach into `src/mocks` until D5 retires it. */
+export { ApiError };
 import { wrap } from '@/modules/diagnostics/services/defineService';
 import type { ApiErrorPayload, BackendChangedPayload, BackendStatus, ChangeCategory } from '@/modules/core/types/backend';
 import type { IpcCommands } from '@/modules/core/types/gen/ipc.gen';

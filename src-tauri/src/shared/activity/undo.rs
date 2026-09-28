@@ -51,7 +51,15 @@ pub trait Compensator: Send + Sync {
     /// Runs the existing reversal operation against `original`'s recorded payload. Must pass
     /// `allow_closed_period = actor is admin` (D7) into whatever posting/period check it performs.
     /// Returns the compensation's own audit row id.
-    async fn compensate(&self, tx: &DatabaseTransaction, cx: &TxCtx, original: &audit::Model, req: &UndoRequest) -> AppResult<Id>;
+    ///
+    /// G-19: receives the same `&UndoRegistry` `undo()` itself was given — a compensator's own
+    /// reversal operation writes its OWN audit row via `record`/`log_undoable`
+    /// (`activity::record`), and both of those calls require a `&UndoRegistry` to validate any
+    /// `UndoSpec::action_type` they pass (so the compensation itself can later be undone, or so
+    /// `record` can fail fast on a typo'd/unregistered action type instead of silently accepting
+    /// it). Without this parameter a compensator had no legal way to call `record`/`log_undoable`
+    /// at all.
+    async fn compensate(&self, tx: &DatabaseTransaction, cx: &TxCtx, registry: &UndoRegistry, original: &audit::Model, req: &UndoRequest) -> AppResult<Id>;
 }
 
 /// A map of `action_type` -> `Compensator`, `Send + Sync` so it can live in `AppState` behind an
@@ -129,7 +137,7 @@ pub async fn undo(
     cx.require(conn, compensator.area(), crate::core::auth::Access::Write).await?;
 
     let req = UndoRequest { reason: reason.to_string(), date: req.date };
-    let comp_id = compensator.compensate(conn, cx, &original, &req).await?;
+    let comp_id = compensator.compensate(conn, cx, registry, &original, &req).await?;
 
     let mut original_active: AuditActiveModel = original.clone().into();
     original_active.undone_by = sea_orm::Set(Some(comp_id));
@@ -159,7 +167,14 @@ mod tests {
         fn area(&self) -> Area {
             Area::Accounting
         }
-        async fn compensate(&self, _tx: &DatabaseTransaction, _cx: &TxCtx, _original: &audit::Model, _req: &UndoRequest) -> Result<Id, AppError> {
+        async fn compensate(
+            &self,
+            _tx: &DatabaseTransaction,
+            _cx: &TxCtx,
+            _registry: &UndoRegistry,
+            _original: &audit::Model,
+            _req: &UndoRequest,
+        ) -> Result<Id, AppError> {
             Ok(Id::new())
         }
     }

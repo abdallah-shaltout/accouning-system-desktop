@@ -22,7 +22,7 @@ export const useBackupStore = defineStore('backup', () => {
 
   async function load(force = false) {
     if (loaded.value && !force) return;
-    settings.value = backupService.backupSettings();
+    settings.value = await backupService.backupSettings();
     loaded.value = true;
   }
 

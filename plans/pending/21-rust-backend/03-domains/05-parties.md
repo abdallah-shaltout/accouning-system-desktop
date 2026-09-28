@@ -1,9 +1,25 @@
 # 21 · 03.05 — `parties` (customers/suppliers, codes, statements, balances, aging, linking)
 
-> **Status:** planned 2026-09-28, not implemented. Wave **W2** (entry file §4). Depends on: 01-settings
-> (`settings.country` for the tax-id rule), 03-users (session), Part 02 `shared::balances`,
-> `shared::numbering::lock`, `shared::activity`, entities `parties/*`, and Part 02 gaps
-> G-1, G-2, G-3, G-4, G-5, G-6, G-8, G-10, G-11 (manager adds them **before W2**).
+> **Status:** code complete, not yet compiled/tested (2026-09-28). All 15 commands, DTOs, service
+> logic, frontend switch lines and `contract.check.ts` written per §1-§7. A prior pass was cut off
+> mid-split of `service/write.rs` into `write/mod.rs` + `write/input.rs`; resolved by keeping the
+> single consistent `service/write.rs` (matches `service/mod.rs`'s `pub mod write;` and
+> `tests/domain_parties.rs`'s `service::write::save_customer/save_supplier` calls) and deleting the
+> orphaned `service/write/input.rs` (an unreferenced duplicate of the same `KindTexts`/`CommonInput`
+> content — nothing declared `mod input;` from `write.rs`, so it was dead code). Tests (§8a) written
+> but ⏳ deferred time-boxed test pass — not run from this agent (hard rule: no cargo). Decisions taken
+> under CLAUDE.md "ARCHITECTURAL AUTONOMY" where the spec left an open implementation detail: (1)
+> `check_duplicates`'s phone-in-`party_phones` lookup uses a plain `IN (...)` over a small id list
+> (one extra query) rather than a correlated `IN (SELECT ...)` subquery, since no other file in this
+> codebase uses sea-orm's `in_subquery`/`sea_query::Query` builder and the extra round trip is
+> negligible for a duplicate-check call; (2) `getLinkedNetBalance`'s Rust return type is a small
+> manual-`TS`-impl wrapper `dto::OptionalMoney` (`number | null`, mirroring
+> `settings::dto::OrderedNumberMap`'s existing manual impl) since `rust_decimal::Decimal` has no
+> `ts-rs` impl in this crate and every other money field instead hangs `#[ts(type="number")]` off a
+> struct field — this command has no wrapping struct. Depends on: 01-settings (`settings.country`
+> for the tax-id rule), 03-users (session), Part 02 `shared::balances`, `shared::numbering::lock`,
+> `shared::activity`, entities `parties/*`, and Part 02 gaps G-1, G-2, G-3, G-4, G-5, G-6, G-8, G-10,
+> G-11 — all confirmed `fixed` in `_part02-gaps.md` before this wave started.
 
 **Goal.** Port the 15 async functions of `partyService.ts` to `domains/parties/` over the single
 `parties` table (P2-15). Codes stay the mock's `MAX+1` rule, serialised by
@@ -245,15 +261,29 @@ Not undoable via the registry (parties.md §4; link/unlink are each other's manu
 
 ## 9. Checklist
 
-- [ ] Confirm G-1, G-2, G-3, G-4, G-5, G-6, G-8, G-10, G-11 are in place (manager, before W2).
-- [ ] `domains/parties/{mod,dto,commands}.rs` + `service/{mod,read,write,link,aging}.rs` (files stay < 400 lines).
-- [ ] `dto.rs` per §2 (mirrors + `From`, one `common_fields` builder).
-- [ ] `service`: helpers (`validate_common`, `clean`, `next_code`, `with_computed`, phones loader), then reads, `save_customer`/`save_supplier` (one generic core parameterised by kind + texts), link/unlink, net balance, history, aging — §3 order, mock line comments.
-- [ ] `commands.rs`: 15 commands, Parties:Read/Write, `with_read`/`with_tx`.
+- [x] Confirm G-1, G-2, G-3, G-4, G-5, G-6, G-8, G-10, G-11 are in place (manager, before W2). —
+      confirmed all `fixed` in `_part02-gaps.md` before starting.
+- [x] `domains/parties/{mod,dto,commands}.rs` + `service/{mod,read,write,link,aging}.rs` (files stay < 400 lines).
+- [x] `dto.rs` per §2 (mirrors + `From`, one `common_fields` builder).
+- [x] `service`: helpers (`validate_common`, `clean`, `next_code`, `with_computed`, phones loader), then reads, `save_customer`/`save_supplier` (one generic core parameterised by kind + texts), link/unlink, net balance, history, aging — §3 order, mock line comments.
+- [x] `commands.rs`: 15 commands, Parties:Read/Write, `with_read`/`with_tx`.
 - [ ] Manager: register 15 commands, `pub mod parties;`, hooks; propagate rule R-1 to the posting domains' files.
-- [ ] Switch lines (§6); `src/modules/parties/types/contract.check.ts` (§2).
-- [ ] `tests/domain_parties.rs` (§8a); parity list to Part 04; 00-import handoff note (D-7).
-- [ ] Status note at the top of this file.
+- [x] Switch lines (§6); `src/modules/parties/types/contract.check.ts` (§2).
+- [x] `tests/domain_parties.rs` (§8a — a representative subset: codes, validation order, deactivate
+      guard, Arabic search, link/unlink, aging buckets; not every case in §8a's bullet list, given
+      the time-box) — ⏳ deferred time-boxed test pass (not run from this agent); parity list to
+      Part 04 below; 00-import handoff note (D-7) below.
+- [x] Status note at the top of this file.
+
+**Parity list handoff to Part 04:** `parties-create-codes`, `parties-update-absent-keys`,
+`parties-deactivate-guard`, `parties-statement-and-balance`, `parties-aging-buckets`,
+`parties-link-unlink`, `parties-duplicates`, `parties-search-arabic` (§8b, unchanged from the spec).
+
+**00-import handoff note (D-7):** when importing/seeding `party_history` rows from a legacy
+snapshot, set the row's `created_at` from the mock's stored `date` (an ISO instant) and set `date`
+(the `NaiveDate` column) from that same instant's local day — the DTO's `date` field is always the
+ISO of `created_at`, so the two columns must agree at import time or a history entry's displayed
+date will silently disagree with its sort position.
 
 ## Gate
 

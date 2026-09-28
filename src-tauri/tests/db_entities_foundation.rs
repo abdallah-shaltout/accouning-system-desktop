@@ -145,6 +145,7 @@ async fn category_name_does_not_conflict_case_sensitively() {
 
 async fn insert_minimal_product<C: ConnectionTrait>(conn: &C, sku: &str) -> Result<products::Model, DbErr> {
     let am = products::ActiveModel {
+        barcode_live: sea_orm::ActiveValue::NotSet,
         id: Set(Id::new()),
         name: Set("منتج تجريبي".to_string()),
         name_en: Set(None),

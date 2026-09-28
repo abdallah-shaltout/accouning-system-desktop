@@ -1,8 +1,43 @@
 # 21 · 03.16 — `diagnostics` (audit-log reads, support-bundle data, debug-build accounting debugger)
 
-> **Status:** planned 2026-09-28, not implemented. Wave **W1** for part A (entry file §4), with two
-> later slices: A2 (DB snapshot) after **17-backup** (W2), B (debug-build debugger reads) after
-> **12-accounting** (W5). Depends on: 01-settings (the settings DTO), 03-users (session), Part 02
+> **Status (2026-09-28, updated):** **Slices A, A2 and B all code-complete, not yet compiled/tested
+> by this implementer** (hard rule: implementers write code, never run cargo — one throttled
+> manager build+test at the end). Slice A (W1) unchanged from the note below. Slice A2 (this pass,
+> after 17-backup landed): `service/support.rs`'s `support_snapshot` now calls
+> `infrastructure::backup::dataset::dump_snapshot` (H-3), drops the `credentials` table
+> (`SUPPORT_BUNDLE_EXCLUDED_TABLES`, D-3), and `redact`s the result — the old `VALIDATION` refusal is
+> gone. Slice B (this pass, after 12-accounting landed): `service/debugger.rs` (7 functions),
+> `dto.rs`'s `AccountingDocSummary`/`BalanceAround`/`DriftRow(Kind)`/`ExplainLine` plus the
+> `InvariantResultDto`/`PostingTraceDto` mirror DTOs (`From<&shared::invariants::InvariantResult>` /
+> `From<&shared::ledger::trace::PostingTrace>`), and 7 new `#[tauri::command]`s in `commands.rs`,
+> each opening with a runtime `debug_only()` gate (D-4: `if !cfg!(debug_assertions) { return
+> Err(FORBIDDEN) }`) before `ctx.require(Accounting, Read)` inside its `with_read_ctx` snapshot —
+> **not** `#[cfg(debug_assertions)]` on the function, since `ipc_manifest_matches_handler`
+> (`core/ipc.rs`) parses `lib.rs`'s `generate_handler!` list as plain text against `all_signatures()`
+> with no build-profile awareness, so a `#[cfg]`-hidden command in a release build would break that
+> check. All 10 commands (3 + 7) are therefore always registered; only their bodies branch by build
+> profile. Frontend switch lines added to `accountingDebugService.ts` (6 reads +
+> `startReproRecording`'s D-5 refusal); `contract.check.ts` gained the slice-B drift-check entries.
+> **Not done by this implementer** (manager-owned files, out of edit scope — see "Needs from
+> manager" in the handoff note): registering the 7 new commands in `lib.rs`'s `generate_handler!`,
+> and adding 11 new `export_all` lines to `domains/mod.rs`'s `export_bindings` (that file already
+> inlines this domain's slice-A DTO exports rather than calling a per-domain hook, so slice B follows
+> the same inline convention — see `domains/diagnostics/mod.rs`'s own NOTE comment for the exact
+> list). DB tests for A2/B added to `tests/domain_diagnostics.rs` (fixture copied from
+> `domain_accounting.rs`'s `seed_role_account`/`seed_fixture`, per lessons.md) — not run.
+>
+> **Previous note (W1, slice A only):** `domains/diagnostics/{mod,dto,commands}.rs` +
+> `service/{mod,audit,support}.rs` and `tests/domain_diagnostics.rs` written for slice A's 3 commands
+> (`diagnostics_get_audit_entries`, `diagnostics_get_audit_entities`,
+> `diagnostics_export_support_bundle`); frontend switch lines in
+> `auditService.ts`/`supportBundleService.ts`, `SupportSnapshot`/`ServerDiagnostics` added to
+> `types/index.ts`, and `contract.check.ts` entries added for `AuditFilter`/`ServerDiagnostics`/
+> `SupportSnapshot`. The two support-bundle tests noted as deferred there
+> (`any_signed_in_user_gets_a_support_snapshot_without_db` and its DB-snapshot sibling) are now
+> written (this pass) using a `seed_branch_and_settings` fixture copied from `domain_settings.rs`.
+>
+> Depends on: 01-settings (the settings DTO), 03-users (session), 17-backup (`infrastructure::backup::dataset`),
+> 12-accounting (`domains::accounting::{dto,service::rows}`), Part 02
 > `core/dto.rs` (`AuditEntry`), `infrastructure::database::errors::diagnostics_snapshot`,
 > `shared::invariants::run_all`, `AppState.traces` (`shared::ledger::trace::TraceRing`), gaps G-6/G-8/G-9.
 
@@ -191,22 +226,29 @@ keys lose milliseconds and same-second ordering) as defined in [`04-approvals.md
 ## 9. Checklist
 
 **Slice A (W1)**
-- [ ] Confirm G-6, G-8 (incl. G-8c `link` path fix) and G-9 are in place.
-- [ ] `domains/diagnostics/{mod,dto,commands}.rs` + `service/{mod,audit,support}.rs`; `ipc_signatures()` + `export_bindings(cfg)`.
-- [ ] `audit_to_dto`, `get_audit_entries`, `get_audit_entities`, `redact` + `REDACTED_KEYS` drift test, `support_snapshot` (settings + server; DB refusal until A2).
-- [ ] Add `SupportSnapshot` and `ServerDiagnostics` to `src/modules/diagnostics/types/index.ts`; contract checks (§2).
-- [ ] Switch lines in `auditService.ts` and `supportBundleService.ts` (§6).
+- [x] Confirm G-6, G-8 (incl. G-8c `link` path fix) and G-9 are in place. (Confirmed fixed per `_part02-gaps.md`.)
+- [x] `domains/diagnostics/{mod,dto,commands}.rs` + `service/{mod,audit,support}.rs`; `ipc_signatures()` + `export_bindings(cfg)`. (`export_bindings(cfg)` hook itself is `domains/mod.rs`, manager-owned — this implementer's DTOs need one `export_all` line added there; see "Needs from manager" in the final report.)
+- [x] `audit_to_dto`, `get_audit_entries`, `get_audit_entities`, `redact` + `REDACTED_KEYS` drift test, `support_snapshot` (settings + server; DB refusal until A2).
+- [x] Add `SupportSnapshot` and `ServerDiagnostics` to `src/modules/diagnostics/types/index.ts`; contract checks (§2).
+- [x] Switch lines in `auditService.ts` and `supportBundleService.ts` (§6).
 - [ ] Manager: register the 3 commands + `pub mod diagnostics;`.
 
 **Slice A2 (after 17-backup, W2)**
-- [ ] Call 17-backup's exporter excluding `credentials`, `redact` it; remove the refusal; add the A2 tests.
+- [x] Call 17-backup's exporter excluding `credentials`, `redact` it; remove the refusal; add the A2 tests. (`service/support.rs`'s `support_db_snapshot` calls `infrastructure::backup::dataset::dump_snapshot`, drops `credentials` via `SUPPORT_BUNDLE_EXCLUDED_TABLES`, then `redact`s. Not yet compiled — see status note.)
 
 **Slice B (after 12-accounting, W5)**
-- [ ] `service/debugger.rs`: the 7 reads (§3), debug gate + Accounting:Read in each command; `PostingTraceDto`/`InvariantResultDto` mirrors with `serde_number`.
-- [ ] Switch lines in `accountingDebugService.ts` (incl. the `startReproRecording` refusal); contract checks; slice B tests.
-- [ ] Manager: register the 7 commands.
+- [x] `service/debugger.rs`: the 7 reads (§3), debug gate + Accounting:Read in each command; `PostingTraceDto`/`InvariantResultDto` mirrors with `serde_number`. (Written; not yet compiled — see status note.)
+- [x] Switch lines in `accountingDebugService.ts` (incl. the `startReproRecording` refusal); contract checks; slice B tests.
+- [ ] Manager: register the 7 commands in `lib.rs`'s `generate_handler!` and add the 11 `export_all` lines to `domains/mod.rs` (exact lines in this implementer's final report / `domains/diagnostics/mod.rs`'s NOTE comment).
 
-- [ ] `tests/domain_diagnostics.rs` (§8a); parity list to Part 04; status note at the top of this file.
+- [x] `tests/domain_diagnostics.rs` (§8a — slice A, A2 and B all written, not run, incl. the two
+  support-bundle tests slice A's note deferred: `any_signed_in_user_gets_a_support_snapshot_without_db`
+  and `admin_include_db_snapshot_has_no_credentials_table_and_no_password_hash_anywhere`). ⏳ deferred
+  time-boxed test pass for the actual DB run (needs the manager's `cargo check` first — these tests
+  were written blind against code this implementer could not compile).
+- [x] Parity list to Part 04: `diagnostics-audit-filter`, `diagnostics-audit-entities`,
+  `diagnostics-invariants`, `diagnostics-balances-around`, `diagnostics-drift-clean-db` (all 5 of
+  §8b's cases; the last 3 are now in scope since slice B is written).
 
 ## Gate
 

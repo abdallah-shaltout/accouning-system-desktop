@@ -23,6 +23,7 @@ mod m0012_journal;
 mod m0013_platform;
 mod m0014_templates;
 mod m0015_foreign_keys;
+mod m0016_part03_schema;
 
 pub struct Migrator;
 
@@ -45,6 +46,7 @@ impl MigratorTrait for Migrator {
             Box::new(m0013_platform::Migration),
             Box::new(m0014_templates::Migration),
             Box::new(m0015_foreign_keys::Migration),
+            Box::new(m0016_part03_schema::Migration),
         ]
     }
 }

@@ -123,6 +123,17 @@ impl TxCtx {
     ) -> AppResult<()> {
         crate::core::settings::require(conn, self.actor.as_ref(), area, required).await
     }
+
+    /// G-6: `core::settings::require_any` bound to this transaction's actor — for a command
+    /// reachable from several areas (`cx.require_any(conn, &[(Area::Users, Access::Read),
+    /// (Area::Sales, Access::Read)]).await?`).
+    pub async fn require_any<C: sea_orm::ConnectionTrait>(
+        &self,
+        conn: &C,
+        areas: &[(crate::core::auth::Area, crate::core::auth::Access)],
+    ) -> AppResult<()> {
+        crate::core::settings::require_any(conn, self.actor.as_ref(), areas).await
+    }
 }
 
 pub struct TxOpts {
@@ -267,6 +278,94 @@ where
 {
     let connection = current_connection(state)?;
     let txn = connection
+        .begin_with_config(Some(IsolationLevel::RepeatableRead), Some(sea_orm::AccessMode::ReadOnly))
+        .await
+        .map_err(AppError::from)?;
+    let result = f(&txn).await;
+    let _ = txn.rollback().await; // read-only: always roll back, never commit.
+    result.map_err(TxError::into_app_error)
+}
+
+/// G-4/G-32: the actor/clock/terminal a read-only closure needs but `with_read`'s bare
+/// `&DatabaseTransaction` doesn't carry — reports and other multi-domain readers need "today"
+/// (`clock`, for aging/cash-flow/business-health `localDateKey(new Date())`-shaped reads) and an
+/// actor to authorize against (`require`), the same two things `TxCtx` gives a writer. No `touch`/
+/// `push_trace`/undo effects here — a read-only transaction never commits, so there is nothing to
+/// bump or queue.
+pub struct ReadCtx {
+    pub actor: Option<AuthenticatedUser>,
+    pub terminal_id: Id,
+    pub clock: BusinessClock,
+}
+
+impl ReadCtx {
+    /// `core::settings::require` against this snapshot's actor — a read command writes
+    /// `ctx.require(conn, Area::Reports, Access::Read).await?` instead of re-deriving the overrides
+    /// lookup itself (mirrors `TxCtx::require`).
+    pub async fn require<C: sea_orm::ConnectionTrait>(
+        &self,
+        conn: &C,
+        area: crate::core::auth::Area,
+        required: crate::core::auth::Access,
+    ) -> AppResult<()> {
+        crate::core::settings::require(conn, self.actor.as_ref(), area, required).await
+    }
+
+    /// G-6 symmetry: `require_any` for a read-only snapshot (mirrors `TxCtx::require_any`).
+    pub async fn require_any<C: sea_orm::ConnectionTrait>(
+        &self,
+        conn: &C,
+        areas: &[(crate::core::auth::Area, crate::core::auth::Access)],
+    ) -> AppResult<()> {
+        crate::core::settings::require_any(conn, self.actor.as_ref(), areas).await
+    }
+}
+
+/// G-32: like `with_read` (REPEATABLE READ, READ ONLY, always rolled back), but the closure gets a
+/// `ReadCtx` instead of a bare transaction, and refuses with `UNAUTHORIZED "سجّل الدخول أولاً"` when
+/// there is no session — the same "must be logged in at all" gate `with_tx`'s `require_user` applies
+/// to writers, which `with_read` never had.
+pub async fn with_read_ctx<T, F>(state: &AppState, f: F) -> AppResult<T>
+where
+    T: Send,
+    F: for<'c> FnOnce(&'c DatabaseTransaction, &'c ReadCtx) -> BoxFuture<'c, TxResult<T>>,
+{
+    let actor = state.session.read().unwrap().clone();
+    if actor.is_none() {
+        return Err(AppError::unauthorized("سجّل الدخول أولاً"));
+    }
+
+    let connection = current_connection(state)?;
+    let txn = connection
+        .begin_with_config(Some(IsolationLevel::RepeatableRead), Some(sea_orm::AccessMode::ReadOnly))
+        .await
+        .map_err(AppError::from)?;
+
+    let clock = match read_business_clock(&txn).await {
+        Ok(c) => c,
+        Err(e) => {
+            let _ = txn.rollback().await;
+            return Err(AppError::from(e));
+        }
+    };
+    let ctx = ReadCtx { actor, terminal_id: state.terminal.terminal_id, clock };
+
+    let result = f(&txn, &ctx).await;
+    let _ = txn.rollback().await; // read-only: always roll back, never commit.
+    result.map_err(TxError::into_app_error)
+}
+
+/// G-44: `with_read` without an `AppState` — for a caller that already holds a bare
+/// `DatabaseConnection` outside the normal command path (the importer restoring into a freshly
+/// opened connection, the pre-migration backup dump running before `AppState.db` is even
+/// published). Same isolation level and always-rollback discipline as `with_read`; no actor/clock
+/// (nothing in `AppState` to read them from), so callers that need those pass their own.
+pub async fn with_read_on<T, F>(conn: &sea_orm::DatabaseConnection, f: F) -> AppResult<T>
+where
+    T: Send,
+    F: for<'c> FnOnce(&'c DatabaseTransaction) -> BoxFuture<'c, TxResult<T>>,
+{
+    let txn = conn
         .begin_with_config(Some(IsolationLevel::RepeatableRead), Some(sea_orm::AccessMode::ReadOnly))
         .await
         .map_err(AppError::from)?;

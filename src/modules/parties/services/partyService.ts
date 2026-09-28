@@ -9,6 +9,7 @@ import type { AgingBucket, Customer, CustomerInput, PartyGroup, PartyHistoryEntr
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
 import { round2 } from '@/modules/core/helpers/numbers';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 
 /** Re-exported so pages/helpers in this module never need to import `@/mocks` directly (seam rule). */
 export { ApiError, uid };
@@ -79,6 +80,7 @@ export const findDuplicates = wrap('parties.findDuplicates', function findDuplic
 });
 
 export const checkDuplicates = wrap('parties.checkDuplicates', async function checkDuplicates(input: { phone?: string; vatNumber?: string }, excludeId?: string): Promise<DuplicateWarning[]> {
+  if (usesRust('parties')) return backendCall('parties_check_duplicates', { input, excludeId });
   await delay(150);
   return findDuplicates(input, excludeId);
 });
@@ -86,6 +88,7 @@ export const checkDuplicates = wrap('parties.checkDuplicates', async function ch
 // --- Groups ------------------------------------------------------------------------------------
 
 export const getPartyGroups = wrap('parties.getPartyGroups', async function getPartyGroups(kind: 'customer' | 'supplier'): Promise<PartyGroup[]> {
+  if (usesRust('parties')) return backendCall('parties_get_party_groups', { kind });
   await delay(100);
   return clone(db.partyGroups.filter((g) => g.kind === kind));
 });
@@ -97,6 +100,7 @@ function withComputed(c: Customer): Customer {
 }
 
 export const getCustomers = wrap('parties.getCustomers', async function getCustomers(filter: PartyFilter = {}): Promise<Customer[]> {
+  if (usesRust('parties')) return backendCall('parties_get_customers', { filter });
   await delay();
   return db.customers
     .map(withComputed)
@@ -111,6 +115,7 @@ export const getCustomers = wrap('parties.getCustomers', async function getCusto
 });
 
 export const getCustomer = wrap('parties.getCustomer', async function getCustomer(id: string): Promise<Customer> {
+  if (usesRust('parties')) return backendCall('parties_get_customer', { id });
   await delay();
   const c = db.customers.find((x) => x.id === id);
   if (!c) throw new ApiError('العميل غير موجود', 'NOT_FOUND');
@@ -118,6 +123,7 @@ export const getCustomer = wrap('parties.getCustomer', async function getCustome
 });
 
 export const saveCustomer = wrap('parties.saveCustomer', async function saveCustomer(input: CustomerInput, id?: string): Promise<Customer> {
+  if (usesRust('parties')) return backendCall('parties_save_customer', { input, id });
   await delay();
   validateCommon(input);
   const data = clean(input);
@@ -145,6 +151,7 @@ export const saveCustomer = wrap('parties.saveCustomer', async function saveCust
 });
 
 export const getCustomerStatement = wrap('parties.getCustomerStatement', async function getCustomerStatement(id: string): Promise<PartyStatementRow[]> {
+  if (usesRust('parties')) return backendCall('parties_get_customer_statement', { id });
   await delay();
   return customerStatement(id);
 });
@@ -156,6 +163,7 @@ function withComputedSupplier(s: Supplier): Supplier {
 }
 
 export const getSuppliers = wrap('parties.getSuppliers', async function getSuppliers(filter: PartyFilter = {}): Promise<Supplier[]> {
+  if (usesRust('parties')) return backendCall('parties_get_suppliers', { filter });
   await delay();
   return db.suppliers
     .map(withComputedSupplier)
@@ -169,6 +177,7 @@ export const getSuppliers = wrap('parties.getSuppliers', async function getSuppl
 });
 
 export const getSupplier = wrap('parties.getSupplier', async function getSupplier(id: string): Promise<Supplier> {
+  if (usesRust('parties')) return backendCall('parties_get_supplier', { id });
   await delay();
   const s = db.suppliers.find((x) => x.id === id);
   if (!s) throw new ApiError('المورد غير موجود', 'NOT_FOUND');
@@ -176,6 +185,7 @@ export const getSupplier = wrap('parties.getSupplier', async function getSupplie
 });
 
 export const saveSupplier = wrap('parties.saveSupplier', async function saveSupplier(input: SupplierInput, id?: string): Promise<Supplier> {
+  if (usesRust('parties')) return backendCall('parties_save_supplier', { input, id });
   await delay();
   validateCommon(input);
   const data = { ...clean(input), contactPerson: input.contactPerson?.trim() || undefined };
@@ -203,6 +213,7 @@ export const saveSupplier = wrap('parties.saveSupplier', async function saveSupp
 });
 
 export const getSupplierStatement = wrap('parties.getSupplierStatement', async function getSupplierStatement(id: string): Promise<PartyStatementRow[]> {
+  if (usesRust('parties')) return backendCall('parties_get_supplier_statement', { id });
   await delay();
   return supplierStatement(id);
 });
@@ -211,6 +222,10 @@ export const getSupplierStatement = wrap('parties.getSupplierStatement', async f
 
 /** Links a customer record and a supplier record as the same real-world party (net balance shown on each). */
 export const linkPartyRecords = wrap('parties.linkPartyRecords', async function linkPartyRecords(customerId: string, supplierId: string): Promise<void> {
+  if (usesRust('parties')) {
+    await backendCall('parties_link_party_records', { customerId, supplierId });
+    return;
+  }
   await delay();
   const customer = db.customers.find((c) => c.id === customerId);
   const supplier = db.suppliers.find((s) => s.id === supplierId);
@@ -224,6 +239,10 @@ export const linkPartyRecords = wrap('parties.linkPartyRecords', async function 
 });
 
 export const unlinkPartyRecord = wrap('parties.unlinkPartyRecord', async function unlinkPartyRecord(partyId: string, kind: 'customer' | 'supplier'): Promise<void> {
+  if (usesRust('parties')) {
+    await backendCall('parties_unlink_party_record', { partyId, kind });
+    return;
+  }
   await delay();
   const list = kind === 'customer' ? db.customers : db.suppliers;
   const other = kind === 'customer' ? db.suppliers : db.customers;
@@ -246,6 +265,7 @@ export const unlinkPartyRecord = wrap('parties.unlinkPartyRecord', async functio
 
 /** Net balance across a linked customer+supplier pair (docs/v2/08 §1 "a net balance is shown on each"). */
 export const getLinkedNetBalance = wrap('parties.getLinkedNetBalance', async function getLinkedNetBalance(customerId?: string, supplierId?: string): Promise<number | undefined> {
+  if (usesRust('parties')) return (await backendCall('parties_get_linked_net_balance', { customerId, supplierId })) ?? undefined; // contract-ok: null→undefined at the switch line
   await delay(80);
   if (!customerId || !supplierId) return undefined;
   return customerBalance(customerId) - supplierBalance(supplierId);
@@ -254,6 +274,7 @@ export const getLinkedNetBalance = wrap('parties.getLinkedNetBalance', async fun
 // --- History (docs/v2/08 §3 "السجل") ------------------------------------------------------------
 
 export const getPartyHistory = wrap('parties.getPartyHistory', async function getPartyHistory(partyId: string): Promise<PartyHistoryEntry[]> {
+  if (usesRust('parties')) return backendCall('parties_get_party_history', { partyId });
   await delay(100);
   return clone(db.partyHistory.filter((h) => h.partyId === partyId)).sort((a, b) => b.date.localeCompare(a.date));
 });
@@ -274,6 +295,7 @@ const AGING_BUCKETS: { key: AgingBucket['key']; label: string }[] = [
  * compare against "today").
  */
 export const getPartyAging = wrap('parties.getPartyAging', async function getPartyAging(kind: 'customer' | 'supplier', partyId: string): Promise<AgingBucket[]> {
+  if (usesRust('parties')) return backendCall('parties_get_party_aging', { kind, partyId });
   await delay(120);
   const today = localDateKey(new Date());
   const docs = getOpenDocumentsFor(kind === 'customer' ? 'customer' : 'supplier', partyId);

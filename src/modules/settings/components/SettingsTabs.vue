@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import ScrollFade from '@/modules/core/components/ui/ScrollFade.vue';
+import { usesRust } from '@/modules/core/services/backend';
 import { useSettingsStore } from '../controllers/useSettingsStore';
 
 const route = useRoute();
@@ -26,6 +27,7 @@ const tabs = computed(() =>
     // 18.B4: business audit trail, admin-only (same gate as the roles tab).
     { to: { name: 'settings-audit-log' } as const, label: 'سجل التدقيق', show: auth.can('users') },
     { to: { name: 'settings-printing' } as const, label: 'الطباعة والأجهزة', show: auth.can('settings') },
+    { to: { name: 'settings-network' } as const, label: 'الشبكة', show: auth.can('settings') && usesRust('settings') },
     { to: { name: 'settings-appearance' } as const, label: 'المظهر', show: true },
     { to: { name: 'settings-keyboard-shortcuts' } as const, label: 'اختصارات لوحة المفاتيح', show: true },
     { to: { name: 'settings-backup' } as const, label: 'النسخ الاحتياطي', show: auth.can('settings') },

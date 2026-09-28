@@ -15,6 +15,7 @@
 
 use std::collections::BTreeMap;
 
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_with::skip_serializing_none;
 use ts_rs::TS;
@@ -192,8 +193,12 @@ pub struct PagedQuery<F> {
     pub filters: Option<F>,
 }
 
-/// `total: u32` and `totals: Record<string, number>` per core.md §2 — `totals` values are plain
-/// `f64` (never `Decimal`) since they are display-only rounded aggregates, not accounting inputs.
+/// `total: u32` and `totals: Record<string, number>` per core.md §2. G-14: `totals` values are
+/// `Decimal` (rule 5, the one rounding rule) serialized as JSON numbers via `utils::money::
+/// serde_number` — the original `f64` shape silently reintroduced binary-float rounding into a
+/// value that a paged list often sums straight from posted money columns (page-total footers,
+/// running balances), even though the field is "display-only": it is still a monetary aggregate
+/// the accounting invariants can be checked against, not a UI-only rounding.
 #[skip_serializing_none]
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -201,8 +206,49 @@ pub struct PagedQuery<F> {
 pub struct PagedResult<R> {
     pub rows: Vec<R>,
     pub total: u32,
-    #[ts(optional)]
-    pub totals: Option<BTreeMap<String, f64>>,
+    #[ts(optional, type = "Record<string, number>")]
+    #[serde(default, skip_serializing_if = "Option::is_none", with = "totals_map")]
+    pub totals: Option<BTreeMap<String, Decimal>>,
+}
+
+/// G-14: `BTreeMap<String, Decimal>` serialized as `Record<string, number>` — each value goes
+/// through the same `utils::money::serde_number` JSON-number rule the rest of the app's money
+/// fields use (rule 5), rather than serde's default `Decimal` string representation.
+mod totals_map {
+    use super::*;
+
+    pub fn serialize<S: serde::Serializer>(value: &Option<BTreeMap<String, Decimal>>, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        match value {
+            None => serializer.serialize_none(),
+            Some(map) => {
+                let mut ser_map = serializer.serialize_map(Some(map.len()))?;
+                for (k, v) in map {
+                    let f: f64 = v
+                        .to_string()
+                        .parse()
+                        .map_err(|_| serde::ser::Error::custom("decimal did not fit in f64"))?;
+                    ser_map.serialize_entry(k, &f)?;
+                }
+                ser_map.end()
+            }
+        }
+    }
+
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<Option<BTreeMap<String, Decimal>>, D::Error> {
+        let raw = Option::<BTreeMap<String, serde_json::Value>>::deserialize(deserializer)?;
+        match raw {
+            None => Ok(None),
+            Some(map) => {
+                let mut out = BTreeMap::new();
+                for (k, v) in map {
+                    let d = crate::utils::money::decimal_from_json_value(&v).map_err(serde::de::Error::custom)?;
+                    out.insert(k, d);
+                }
+                Ok(Some(out))
+            }
+        }
+    }
 }
 
 // --- Activity feed (mirrors core/types/index.ts exactly) -----------------------------------------
@@ -243,7 +289,11 @@ pub struct ActivityEntry {
     pub user_id: Id,
     pub kind: ActivityKind,
     pub message: String,
-    #[ts(optional, type = "import('../../core/types/route').AppRoute")]
+    // G-8c: `@/...` (the project's `baseUrl`/`paths` alias to `src/`) resolves correctly from
+    // every generated file's location, unlike a relative `../../` path which only happened to work
+    // from this type's own `core/types/gen/` output directory and breaks for any other exported
+    // type at a different depth (e.g. `AuditEntry` below, exported to `diagnostics/types/gen/`).
+    #[ts(optional, type = "import('@/modules/core/types/route').AppRoute")]
     pub link: Option<crate::utils::route::RouteRef>,
 }
 
@@ -303,13 +353,38 @@ pub struct AuditEntry {
     #[ts(optional)]
     pub reason: Option<String>,
     pub message: String,
-    #[ts(optional, type = "import('../../core/types/route').AppRoute")]
+    #[ts(optional, type = "import('@/modules/core/types/route').AppRoute")]
     pub link: Option<crate::utils::route::RouteRef>,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn paged_result_totals_round_trip_as_json_numbers_not_strings() {
+        use rust_decimal_macros::dec;
+        let mut totals = BTreeMap::new();
+        totals.insert("subtotal".to_string(), dec!(1234.57));
+        totals.insert("vat".to_string(), dec!(0.3));
+        let result = PagedResult::<i32> { rows: vec![], total: 2, totals: Some(totals.clone()) };
+
+        let json = serde_json::to_value(&result).unwrap();
+        let totals_json = json.get("totals").unwrap();
+        assert_eq!(totals_json.get("subtotal").unwrap(), &serde_json::json!(1234.57));
+        assert_eq!(totals_json.get("vat").unwrap(), &serde_json::json!(0.3));
+        assert!(totals_json.get("subtotal").unwrap().is_number(), "totals values must be JSON numbers, not strings");
+
+        let back: PagedResult<i32> = serde_json::from_value(json).unwrap();
+        assert_eq!(back.totals, Some(totals));
+    }
+
+    #[test]
+    fn paged_result_totals_omitted_when_none() {
+        let result = PagedResult::<i32> { rows: vec![1], total: 1, totals: None };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(!json.contains("totals"), "totals must be absent on the wire when None, not null");
+    }
 
     #[test]
     fn api_error_payload_from_app_error_maps_every_variant() {

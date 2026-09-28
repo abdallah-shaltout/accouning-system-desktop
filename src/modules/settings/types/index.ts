@@ -2,6 +2,30 @@
 export * from './dimensions';
 
 /**
+ * Currency revaluation (docs/v2/10-branches-currencies-cost-centers.md §2 "Unrealized FX"; moved
+ * here from `revaluation.ts` per 21 · 03.01 D-10 — a service-returned type must live in `types/`,
+ * CLAUDE.md architecture; `revaluation.ts` re-imports it instead of redeclaring it).
+ */
+export interface FcBalanceRow {
+  kind: 'customer' | 'supplier' | 'account';
+  id: string;
+  name: string;
+  currency: string;
+  fcBalance: number;
+  /** Current base-currency carrying value (Σ amountFc-tagged lines' debit−credit in base). */
+  baseBalance: number;
+  revaluedBase: number;
+  gainLoss: number;
+}
+
+/** `postRevaluation`'s return shape (21 · 03.01 §2 `RevaluationResult`). */
+export interface RevaluationResult {
+  entryId: string;
+  reversalEntryId: string;
+  rows: FcBalanceRow[];
+}
+
+/**
  * Tax v2 (docs/v2/06-sales-and-pos.md §3, docs/v2/02-accounting-review.md D1/D2). The ZATCA tax
  * categories replace a single store rate:
  * - `S` standard (15% SA) — normal VAT.
@@ -119,7 +143,6 @@ export interface StoreSettings {
     a4Template?: import('@/modules/invoices/helpers/invoiceTemplates').A4TemplateId;
     imageTemplate?: import('@/modules/invoices/helpers/invoiceTemplates').ImageTemplateId;
   };
-  theme: 'light' | 'dark';
   /**
    * v2 (docs/v2/06-sales-and-pos.md §3, README decision 4): whether entered prices and discounts
    * already include VAT. Default true (Saudi B2C shelf-pricing rule). Every document stores its

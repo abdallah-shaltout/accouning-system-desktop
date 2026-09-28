@@ -103,10 +103,11 @@ pub struct Model {
     #[sea_orm(column_type = "Text", nullable)]
     pub notes: Option<String>,
     pub linked_party_id: Option<Id>,
-    #[sea_orm(column_type = "Decimal(Some((19, 2)))")]
-    pub balance: Decimal,
-    #[sea_orm(column_type = "Decimal(Some((19, 2)))", nullable)]
-    pub unallocated_credit: Option<Decimal>,
+    // `balance`/`unallocated_credit` columns dropped in `m0016` (G-11): nothing ever read or wrote
+    // them — every caller derives the figure live from the ledger via
+    // `shared::balances::{customer_balance, supplier_balance, unallocated_credit_for}`, exactly like
+    // the mock's own computed getters. Keeping two always-stale, never-written columns around was a
+    // foot-gun for a future direct read.
     /// Customer-only.
     #[sea_orm(column_type = "Decimal(Some((19, 2)))", nullable)]
     pub credit_limit: Option<Decimal>,

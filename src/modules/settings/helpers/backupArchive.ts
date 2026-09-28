@@ -40,6 +40,24 @@ function bytesToBlob(bytes: Uint8Array, type: string): Blob {
 }
 
 /**
+ * Standard base64 encode/decode (21.03 17-backup.md §6) — the one shared pair `backupService.ts`
+ * uses to cross the Rust IPC boundary (`archiveBase64`), mirroring the `pdf_base64` precedent in
+ * `core/services/pdfService.ts`. Never duplicated locally — import these instead.
+ */
+export function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+export function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/**
  * Snapshot everything the backup needs to restore: a (caller-supplied, already-cloned) DB snapshot
  * + every attachment blob (caller-supplied — the service reads these from `@/mocks`, keeping this
  * helper free of direct mock imports per the seam rule).

@@ -6,15 +6,15 @@
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
-| [`createUser`](../../../src/modules/users/services/userService.ts#L26) | `input: UserInput` | `Promise<User>` | **port** — reads and writes backend data | activity, audit, credentials, users |  | activity | User, UserInput |
-| [`getDemoAccounts`](../../../src/modules/users/services/authService.ts#L53) |  | `Promise<{ id: string; username: string; password: string; name: string; role: User["role"…` | **dev-only** — override: 01.B users review — returns plaintext passwords f… |  | credentials, users |  | User |
-| [`getUser`](../../../src/modules/users/services/userService.ts#L13) | `id: string` | `Promise<User>` | **port** — reads backend data |  | users |  | User |
-| [`getUsers`](../../../src/modules/users/services/userService.ts#L8) |  | `Promise<User[]>` | **port** — reads backend data |  | users |  | User |
-| [`login`](../../../src/modules/users/services/authService.ts#L8) | `username: string, password: string` | `Promise<User>` | **port** — reads and writes backend data | activity, audit | credentials, users | activity | User |
-| [`logout`](../../../src/modules/users/services/authService.ts#L29) |  | `Promise<void>` | **port** — reads backend data |  |  |  |  |
-| [`restoreSession`](../../../src/modules/users/services/authService.ts#L21) | `userId: string` | `Promise<User \| null>` | **port** — reads backend data |  | users |  | User |
-| [`updateUser`](../../../src/modules/users/services/userService.ts#L40) | `id: string, input: UserInput` | `Promise<User>` | **port** — reads and writes backend data | activity, audit, credentials, users |  | activity | User, UserInput |
-| [`verifyManagerPin`](../../../src/modules/users/services/authService.ts#L41) | `username: string, password: string` | `Promise<User>` | **port** — reads backend data |  | credentials, users |  | User |
+| [`createUser`](../../../src/modules/users/services/userService.ts#L29) | `input: UserInput` | `Promise<User>` | **port** — reads and writes backend data | activity, audit, credentials, users |  | activity | User, UserInput |
+| [`getDemoAccounts`](../../../src/modules/users/services/authService.ts#L62) |  | `Promise<{ id: string; username: string; password: string; name: string; role: User["role"…` | **dev-only** — override: 01.B users review — returns plaintext passwords f… |  | credentials, users |  | User |
+| [`getUser`](../../../src/modules/users/services/userService.ts#L15) | `id: string` | `Promise<User>` | **port** — reads backend data |  | users |  | User |
+| [`getUsers`](../../../src/modules/users/services/userService.ts#L9) |  | `Promise<User[]>` | **port** — reads backend data |  | users |  | User |
+| [`login`](../../../src/modules/users/services/authService.ts#L10) | `username: string, password: string` | `Promise<User>` | **port** — reads and writes backend data | activity, audit | credentials, users | activity | User |
+| [`logout`](../../../src/modules/users/services/authService.ts#L33) |  | `Promise<void>` | **port** — reads backend data |  |  |  |  |
+| [`restoreSession`](../../../src/modules/users/services/authService.ts#L24) | `userId: string` | `Promise<User \| null>` | **port** — reads backend data |  | users |  | User |
+| [`updateUser`](../../../src/modules/users/services/userService.ts#L44) | `id: string, input: UserInput` | `Promise<User>` | **port** — reads and writes backend data | activity, audit, credentials, users |  | activity | User, UserInput |
+| [`verifyManagerPin`](../../../src/modules/users/services/authService.ts#L49) | `username: string, password: string` | `Promise<User>` | **port** — reads backend data |  | credentials, users |  | User |
 
 ## Types (`src/modules/users/types`)
 

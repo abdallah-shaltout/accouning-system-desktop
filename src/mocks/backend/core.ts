@@ -1,4 +1,4 @@
-import type { Account, FiscalYear, JournalEntry, JournalEntryType, JournalLine, JournalSourceKind } from '@/modules/accounting/types';
+import type { Account, CloseYearPreCheck, FiscalYear, JournalEntry, JournalEntryType, JournalLine, JournalSourceKind } from '@/modules/accounting/types';
 import type { ActivityKind } from '@/modules/core/types';
 import type { AppRoute } from '@/modules/core/types/route';
 import type { AuditAction, AuditEntry, AuditFieldDiff } from '@/modules/diagnostics/types';
@@ -481,12 +481,7 @@ export type { Account };
 // Fiscal-year closing wizard (docs/v2/02-accounting-review.md B2)
 // ---------------------------------------------------------------------------------------------
 
-export interface CloseYearPreCheck {
-  key: 'drafts' | 'trialBalance' | 'openingEquity';
-  label: string;
-  passed: boolean;
-  detail: string;
-}
+export type { CloseYearPreCheck };
 
 /** Trial balance per the account's normal side, over all POSTED entries dated inside the year. */
 function trialBalanceFor(fy: { startDate: string; endDate: string }): { debit: number; credit: number } {

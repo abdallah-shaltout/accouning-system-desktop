@@ -16,6 +16,7 @@ import { round2 } from '@/modules/core/helpers/numbers';
 import { roleCanOverrideCreditLimit } from '@/modules/users/helpers/permissions';
 import { invoiceOutstanding } from '../helpers/totals';
 import { wrap } from '@/modules/diagnostics/services/defineService';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 
 import type {
   CloseShiftInput,
@@ -76,6 +77,7 @@ function matchesFilter(i: Invoice, filter: InvoiceFilter & { openOnly?: boolean 
 }
 
 export const getInvoices = wrap('invoices.getInvoices', async function getInvoices(filter: InvoiceFilter & { openOnly?: boolean } = {}): Promise<InvoiceRow[]> {
+  if (usesRust('invoices')) return backendCall('invoices_get_invoices', { filter });
   await delay();
   return db.invoices
     .filter((i) => matchesFilter(i, filter))
@@ -86,6 +88,7 @@ export const getInvoices = wrap('invoices.getInvoices', async function getInvoic
 
 /** Server-mode variant of `getInvoices` for `DataTable`: paged, sorted and totalled server-side. */
 export const getInvoicesPaged = wrap('invoices.getInvoicesPaged', async function getInvoicesPaged(query: PagedQuery<InvoiceFilter & { openOnly?: boolean }>): Promise<PagedResult<InvoiceRow>> {
+  if (usesRust('invoices')) return backendCall('invoices_get_invoices_paged', { query });
   await delay();
   const filter = query.filters ?? {};
   let rows = db.invoices
@@ -116,6 +119,7 @@ export const getInvoicesPaged = wrap('invoices.getInvoicesPaged', async function
 });
 
 export const getInvoice = wrap('invoices.getInvoice', async function getInvoice(id: string): Promise<InvoiceDetail> {
+  if (usesRust('invoices')) return backendCall('invoices_get_invoice', { id });
   await delay();
   const inv = db.invoices.find((i) => i.id === id);
   if (!inv) throw new ApiError('الفاتورة غير موجودة', 'NOT_FOUND');
@@ -136,6 +140,7 @@ export const getInvoice = wrap('invoices.getInvoice', async function getInvoice(
 
 /** The double-entry the sale *would* post — nothing is saved. */
 export const previewSale = wrap('invoices.previewSale', async function previewSale(input: SaleInput): Promise<JournalPreviewLine[]> {
+  if (usesRust('invoices')) return backendCall('invoices_preview_sale', { input });
   await delay(120);
   return previewSaleJournal(input, session.userId);
 });
@@ -149,6 +154,7 @@ export const previewSale = wrap('invoices.previewSale', async function previewSa
  * `recordSale`.
  */
 export const createSale = wrap('invoices.createSale', async function createSale(input: SaleInput): Promise<Invoice> {
+  if (usesRust('invoices')) return backendCall('invoices_create_sale', { input });
   await delay(350);
   if (input.customerId) {
     const customer = db.customers.find((c) => c.id === input.customerId);
@@ -176,6 +182,7 @@ export const createSale = wrap('invoices.createSale', async function createSale(
 });
 
 export const createRefund = wrap('invoices.createRefund', async function createRefund(input: RefundInput): Promise<Refund> {
+  if (usesRust('invoices')) return backendCall('invoices_create_refund', { input });
   await delay();
   return clone(recordRefund(input, session.userId));
 });
@@ -184,6 +191,7 @@ export const createRefund = wrap('invoices.createRefund', async function createR
  * id for `pdfService`'s credit-note payload — refunds don't have their own detail route/page
  * (shown inline on the invoice they belong to), so this is the first standalone getter. */
 export const getRefund = wrap('invoices.getRefund', async function getRefund(id: string): Promise<Refund> {
+  if (usesRust('invoices')) return backendCall('invoices_get_refund', { id });
   await delay();
   const refund = db.refunds.find((r) => r.id === id);
   if (!refund) throw new ApiError('إشعار الدائن غير موجود', 'NOT_FOUND');
@@ -201,6 +209,7 @@ export interface PrintData {
 
 /** Everything a printed invoice needs. `id = 'sample'` returns a demo invoice (not saved) for test prints. */
 export const getInvoicePrintData = wrap('invoices.getInvoicePrintData', async function getInvoicePrintData(id: string): Promise<PrintData> {
+  if (usesRust('invoices')) return backendCall('invoices_get_invoice_print_data', { id });
   await delay(150);
   if (id === 'sample') {
     const now = new Date().toISOString();
@@ -263,12 +272,14 @@ function toShiftRow(s: Shift): ShiftRow {
 
 /** The currently-open shift for a terminal, or undefined. Used by the POS shift bar to decide whether to show "open shift" or the running totals. */
 export const getCurrentShift = wrap('invoices.getCurrentShift', async function getCurrentShift(terminalId: string): Promise<ShiftRow | undefined> {
+  if (usesRust('invoices')) return (await backendCall('invoices_get_current_shift')) ?? undefined;
   await delay(80);
   const shift = currentOpenShift(terminalId);
   return shift ? toShiftRow(shift) : undefined;
 });
 
 export const getShifts = wrap('invoices.getShifts', async function getShifts(filter: { status?: 'OPEN' | 'CLOSED' } = {}): Promise<ShiftRow[]> {
+  if (usesRust('invoices')) return backendCall('invoices_get_shifts', { filter });
   await delay();
   return db.shifts
     .filter((s) => !filter.status || s.status === filter.status)
@@ -277,6 +288,7 @@ export const getShifts = wrap('invoices.getShifts', async function getShifts(fil
 });
 
 export const getShift = wrap('invoices.getShift', async function getShift(id: string): Promise<ShiftRow> {
+  if (usesRust('invoices')) return backendCall('invoices_get_shift', { id });
   await delay();
   const shift = db.shifts.find((s) => s.id === id);
   if (!shift) throw new ApiError('الوردية غير موجودة', 'NOT_FOUND');
@@ -284,23 +296,27 @@ export const getShift = wrap('invoices.getShift', async function getShift(id: st
 });
 
 export const openPosShift = wrap('invoices.openPosShift', async function openPosShift(input: OpenShiftInput): Promise<Shift> {
+  if (usesRust('invoices')) return backendCall('invoices_open_pos_shift', { input });
   await delay(200);
   return clone(openShift(input, session.userId));
 });
 
 /** Mid-shift snapshot (§5 "X-report"): same shape as the close screen, just without closing anything. */
 export const getXReport = wrap('invoices.getXReport', async function getXReport(shiftId: string): Promise<ShiftRow> {
+  if (usesRust('invoices')) return backendCall('invoices_get_x_report', { shiftId });
   await delay(120);
   return getShift(shiftId);
 });
 
 export const closePosShift = wrap('invoices.closePosShift', async function closePosShift(shiftId: string, input: CloseShiftInput): Promise<Shift> {
+  if (usesRust('invoices')) return backendCall('invoices_close_pos_shift', { shiftId, input });
   await delay(250);
   return clone(closeShift(shiftId, input, session.userId));
 });
 
 /** Manager screen (§5 "/pos/shifts"): force-close an open shift left behind by a cashier. */
 export const forceClosePosShift = wrap('invoices.forceClosePosShift', async function forceClosePosShift(shiftId: string, countedCash?: number): Promise<Shift> {
+  if (usesRust('invoices')) return backendCall('invoices_force_close_pos_shift', { shiftId, countedCash });
   await delay(250);
   return clone(forceCloseShift(shiftId, session.userId, countedCash));
 });
@@ -317,6 +333,10 @@ export const forceClosePosShift = wrap('invoices.forceClosePosShift', async func
  * expense) is the still-missing piece, not the drawer accounting itself.
  */
 export const recordCashInOut = wrap('invoices.recordCashInOut', async function recordCashInOut(terminalId: string, kind: 'PAY_IN' | 'PAY_OUT' | 'BANK_DROP', amount: number, note?: string): Promise<void> {
+  if (usesRust('invoices')) {
+    await backendCall('invoices_record_cash_in_out', { kind, amount, note });
+    return;
+  }
   await delay(150);
   const shift = currentOpenShift(terminalId);
   if (!shift) throw new ApiError('لا توجد وردية مفتوحة', 'CONFLICT');
@@ -330,11 +350,13 @@ export const recordCashInOut = wrap('invoices.recordCashInOut', async function r
 // =================================================================================================
 
 export const getHeldSales = wrap('invoices.getHeldSales', async function getHeldSales(terminalId: string): Promise<HeldSale[]> {
+  if (usesRust('invoices')) return backendCall('invoices_get_held_sales');
   await delay(80);
   return clone(db.heldSales.filter((h) => h.terminalId === terminalId)).sort((a, b) => b.heldAt.localeCompare(a.heldAt));
 });
 
 export const holdSale = wrap('invoices.holdSale', async function holdSale(input: Omit<HeldSale, 'id' | 'heldAt' | 'heldBy'>): Promise<HeldSale> {
+  if (usesRust('invoices')) return backendCall('invoices_hold_sale', { input });
   await delay(120);
   const held: HeldSale = { ...input, id: uid('hold'), heldAt: new Date().toISOString(), heldBy: session.userId };
   mutate(() => db.heldSales.push(held));
@@ -342,6 +364,7 @@ export const holdSale = wrap('invoices.holdSale', async function holdSale(input:
 });
 
 export const resumeHeldSale = wrap('invoices.resumeHeldSale', async function resumeHeldSale(id: string): Promise<HeldSale> {
+  if (usesRust('invoices')) return backendCall('invoices_resume_held_sale', { id });
   await delay(80);
   const held = db.heldSales.find((h) => h.id === id);
   if (!held) throw new ApiError('لا يوجد بيع معلّق بهذا المعرف', 'NOT_FOUND');
@@ -350,6 +373,10 @@ export const resumeHeldSale = wrap('invoices.resumeHeldSale', async function res
 });
 
 export const discardHeldSale = wrap('invoices.discardHeldSale', async function discardHeldSale(id: string): Promise<void> {
+  if (usesRust('invoices')) {
+    await backendCall('invoices_discard_held_sale', { id });
+    return;
+  }
   await delay(80);
   mutate(() => (db.heldSales = db.heldSales.filter((h) => h.id !== id)));
 });
@@ -365,6 +392,7 @@ function toQuotationRow(q: Quotation): QuotationRow {
 }
 
 export const getQuotations = wrap('invoices.getQuotations', async function getQuotations(filter: { status?: QuotationStatus; search?: string } = {}): Promise<QuotationRow[]> {
+  if (usesRust('invoices')) return backendCall('invoices_get_quotations', { filter });
   await delay();
   return db.quotations
     .filter((q) => !filter.status || q.status === filter.status)
@@ -374,6 +402,7 @@ export const getQuotations = wrap('invoices.getQuotations', async function getQu
 });
 
 export const getQuotation = wrap('invoices.getQuotation', async function getQuotation(id: string): Promise<QuotationRow> {
+  if (usesRust('invoices')) return backendCall('invoices_get_quotation', { id });
   await delay();
   const q = db.quotations.find((x) => x.id === id);
   if (!q) throw new ApiError('عرض السعر غير موجود', 'NOT_FOUND');
@@ -390,6 +419,7 @@ export const saveQuotation = wrap('invoices.saveQuotation', async function saveQ
   terms?: string;
   poReference?: string;
 }): Promise<Quotation> {
+  if (usesRust('invoices')) return backendCall('invoices_save_quotation', { input });
   await delay(250);
   if (!input.lines.length) throw new ApiError('أضف صنفاً واحداً على الأقل');
   const pricesIncludeTax = db.settings.pricesIncludeTax !== false;
@@ -444,6 +474,7 @@ export const saveQuotation = wrap('invoices.saveQuotation', async function saveQ
 });
 
 export const setQuotationStatus = wrap('invoices.setQuotationStatus', async function setQuotationStatus(id: string, status: QuotationStatus): Promise<Quotation> {
+  if (usesRust('invoices')) return backendCall('invoices_set_quotation_status', { id, status });
   await delay(150);
   const q = db.quotations.find((x) => x.id === id);
   if (!q) throw new ApiError('عرض السعر غير موجود', 'NOT_FOUND');
@@ -453,6 +484,7 @@ export const setQuotationStatus = wrap('invoices.setQuotationStatus', async func
 
 /** "Convert → invoice" (§2): copies every line as-is into a real sale; the quotation is marked ACCEPTED and linked. */
 export const convertQuotationToInvoice = wrap('invoices.convertQuotationToInvoice', async function convertQuotationToInvoice(id: string, payment: { paymentMethod: SaleInput['paymentMethod']; paidAmount: number; tenderedAmount?: number }): Promise<Invoice> {
+  if (usesRust('invoices')) return backendCall('invoices_convert_quotation_to_invoice', { id, payment });
   await delay(300);
   const q = db.quotations.find((x) => x.id === id);
   if (!q) throw new ApiError('عرض السعر غير موجود', 'NOT_FOUND');

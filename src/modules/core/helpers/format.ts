@@ -77,6 +77,17 @@ export function formatNumber(value: number | undefined | null, maxFractionDigits
   return clean(numberFormat({ maximumFractionDigits: maxFractionDigits }).format(value ?? 0));
 }
 
+/**
+ * The two per-device display settings a Rust command needs as explicit args instead of reading a
+ * global (21.03 14-analytics.md decision A-2 — analytics/insight commands embed a formatted date/
+ * number into an Arabic sentence the server builds, so the device's numeral system and date style
+ * travel with the request). `analyticsService.ts`/`insightEngine.ts`'s Rust branches spread this
+ * into their `backendCall` args.
+ */
+export function displayPrefs(): { dateStyle: 'dmy' | 'ymd'; numerals: Numerals } {
+  return { dateStyle: dateFormatStyle.value, numerals: numeralSystem.value };
+}
+
 export function formatPercent(value: number | undefined | null): string {
   return `${formatNumber(value ?? 0, 2)}%`;
 }

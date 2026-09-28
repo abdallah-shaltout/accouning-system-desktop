@@ -100,7 +100,10 @@ pub mod serde_number {
     }
 }
 
-fn decimal_from_json_value(value: &serde_json::Value) -> Result<Decimal, String> {
+/// G-14: exposed at crate visibility so `core::dto`'s `PagedResult.totals` map serde helper can
+/// reuse the exact same JSON-number parsing rule as every scalar `Decimal` field, instead of a
+/// second copy (rule 5, "one rounding/parsing path").
+pub(crate) fn decimal_from_json_value(value: &serde_json::Value) -> Result<Decimal, String> {
     match value {
         serde_json::Value::Number(n) => {
             if let Some(f) = n.as_f64() {

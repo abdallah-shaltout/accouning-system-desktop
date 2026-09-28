@@ -114,7 +114,6 @@ export function seedEmptyCompany(country: CountryCode = 'EG'): void {
     defaultTaxId: 'tax-vat-out',
     invoiceNumberPrefix: 'INV-',
     printer: { mode: 'a4', thermalWidthMm: 80 },
-    theme: 'light',
     pricesIncludeTax: profile.vat.pricesIncludeTaxDefault,
   };
   db.users = [{ id: 'usr-1', username: 'admin', name: 'المدير', role: 'admin', maxDiscount: 100, active: true }];

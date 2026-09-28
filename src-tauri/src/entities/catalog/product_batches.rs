@@ -5,6 +5,8 @@ use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use sea_orm::entity::prelude::*;
 
+use crate::entities::doc_date;
+use crate::utils::dates::DocDate;
 use crate::utils::id::Id;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
@@ -20,7 +22,10 @@ pub struct Model {
     #[sea_orm(column_type = "Decimal(Some((19, 4)))")]
     pub unit_cost: Decimal,
     pub supplier_id: Option<Id>,
-    pub received_date: NaiveDate,
+    /// `DocDate` triple (`m0016` G-28c): the mock writes an ISO instant here
+    /// (`confirmPurchaseOrder`/opening or completion dates), which a plain `DATE` truncated.
+    pub received_date_day: NaiveDate,
+    pub received_date_instant: Option<DateTime<Utc>>,
     /// Polymorphic ref (purchase/stock-in doc this batch came from) — no FK (B-1).
     pub source_ref_id: Option<Id>,
     pub source_ref_number: Option<String>,
@@ -41,3 +46,11 @@ impl Related<super::products::Entity> for Entity {
 }
 
 impl ActiveModelBehavior for ActiveModel {}
+
+impl Model {
+    /// The `DocDate` bridge (B-4): reads `received_date_day`/`received_date_instant` back into the
+    /// shared value type (`m0016` G-28c).
+    pub fn received_date(&self) -> DocDate {
+        doc_date::read(self.received_date_day, self.received_date_instant)
+    }
+}

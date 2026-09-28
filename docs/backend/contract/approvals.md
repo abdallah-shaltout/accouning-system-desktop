@@ -6,11 +6,11 @@
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
-| [`approveRequest`](../../../src/modules/approvals/services/approvalService.ts#L28) | `id: string, input?: ApprovalDecisionInput` | `Promise<ApprovalRequest>` | **port** — reads and writes backend data | activity, audit | approvalRequests | activity | ApprovalDecisionInput, ApprovalRequest |
-| [`getApprovalRequests`](../../../src/modules/approvals/services/approvalService.ts#L18) | `filter?: { status?: "pending" \| "approved" \| "rejected"; }` | `Promise<ApprovalRequest[]>` | **port** — reads backend data |  | approvalRequests |  | ApprovalRequest |
-| [`getPendingApprovalCount`](../../../src/modules/approvals/services/approvalService.ts#L23) |  | `Promise<number>` | **port** — reads backend data |  | approvalRequests |  |  |
-| [`rejectRequest`](../../../src/modules/approvals/services/approvalService.ts#L33) | `id: string, input: ApprovalDecisionInput` | `Promise<ApprovalRequest>` | **port** — reads and writes backend data | activity, audit | approvalRequests | activity | ApprovalDecisionInput, ApprovalRequest |
-| [`submitApprovalRequest`](../../../src/modules/approvals/services/approvalService.ts#L13) | `input: ApprovalRequestInput` | `Promise<ApprovalRequest>` | **port** — reads and writes backend data | activity, approvalRequests, audit |  | activity | ApprovalRequest, ApprovalRequestInput |
+| [`approveRequest`](../../../src/modules/approvals/services/approvalService.ts#L32) | `id: string, input?: ApprovalDecisionInput` | `Promise<ApprovalRequest>` | **port** — reads and writes backend data | activity, audit | approvalRequests | activity | ApprovalDecisionInput, ApprovalRequest |
+| [`getApprovalRequests`](../../../src/modules/approvals/services/approvalService.ts#L20) | `filter?: { status?: "pending" \| "approved" \| "rejected"; }` | `Promise<ApprovalRequest[]>` | **port** — reads backend data |  | approvalRequests |  | ApprovalRequest |
+| [`getPendingApprovalCount`](../../../src/modules/approvals/services/approvalService.ts#L26) |  | `Promise<number>` | **port** — reads backend data |  | approvalRequests |  |  |
+| [`rejectRequest`](../../../src/modules/approvals/services/approvalService.ts#L38) | `id: string, input: ApprovalDecisionInput` | `Promise<ApprovalRequest>` | **port** — reads and writes backend data | activity, audit | approvalRequests | activity | ApprovalDecisionInput, ApprovalRequest |
+| [`submitApprovalRequest`](../../../src/modules/approvals/services/approvalService.ts#L14) | `input: ApprovalRequestInput` | `Promise<ApprovalRequest>` | **port** — reads and writes backend data | activity, approvalRequests, audit |  | activity | ApprovalRequest, ApprovalRequestInput |
 
 ## Types (`src/modules/approvals/types`)
 

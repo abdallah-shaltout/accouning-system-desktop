@@ -9,7 +9,7 @@ use sea_orm::entity::prelude::*;
 use crate::entities::soft_delete::SoftDelete;
 use crate::utils::id::Id;
 
-#[derive(Debug, Clone, PartialEq, Eq, DeriveActiveEnum, EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, DeriveActiveEnum, EnumIter)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "kind")]
 pub enum DocumentKind {
     #[sea_orm(string_value = "invoice")]

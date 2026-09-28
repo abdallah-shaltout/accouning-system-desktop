@@ -21,21 +21,46 @@ where
     E::Column::iter().map(|c| c.to_string()).collect()
 }
 
+/// Live (non-generated) columns of a table, in ordinal order. A handful of `_live` uniqueness
+/// helpers (`sku_live`, `name_live`, …) are declared as regular entity fields because a controller
+/// reads them directly — those stay `GENERATED` in MariaDB but are still expected to match. The
+/// columns this excludes are the ones nothing in `entities/` ever declares because nothing ever
+/// reads them through the entity: the `DocDate` bridge's `<field>_key` generated columns
+/// (`date_key`/`at_key`, added by each domain migration's `add_doc_date_key` helper — B2's own doc
+/// comment on that helper explains why the string form is not modeled on the entity, only `DocDate`
+/// is) and the standalone partial-uniqueness generated columns `open_key` (`shifts`) and
+/// `default_key` (`print_templates`). Filtering by name (rather than blanket-excluding every
+/// `GENERATED` column via `information_schema.COLUMNS.EXTRA`) keeps the `_live` columns — which
+/// *are* `GENERATED ALWAYS ... STORED` too — covered by the schema-parity check.
+const UNMODELED_GENERATED_COLUMNS: &[&str] = &["date_key", "at_key", "open_key", "default_key"];
+
 async fn schema_columns(conn: &sea_orm::DatabaseConnection, table: &str) -> Vec<String> {
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
-        "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION",
+        "SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION",
         [table.into()],
     );
     let rows = conn.query_all(stmt).await.expect("information_schema query failed");
-    rows.iter().map(|r| r.try_get::<String>("", "COLUMN_NAME").unwrap()).collect()
+    rows.iter()
+        .map(|r| (r.try_get::<String>("", "COLUMN_NAME").unwrap(), r.try_get::<String>("", "EXTRA").unwrap_or_default()))
+        .filter(|(name, extra)| {
+            // Exclude only the specific `<field>_key`/`open_key`/`default_key` generated columns no
+            // entity models (see `UNMODELED_GENERATED_COLUMNS`); every other column — including
+            // other `GENERATED` ones like `sku_live`/`name_live`/`barcode_live` — must still match.
+            !(extra.to_uppercase().contains("GENERATED") && UNMODELED_GENERATED_COLUMNS.contains(&name.as_str()))
+        })
+        .map(|(name, _)| name)
+        .collect()
 }
 
-/// Asserts an entity's declared column set equals the real table's column set (order-independent —
-/// generated/computed columns like `open_key`/`default_key`/`name_live` are declared as regular
-/// fields on the entity, so they're expected to appear on both sides), and that
-/// `SELECT <all columns> ... LIMIT 0` succeeds (proves every declared column really exists and
-/// every real column is accounted for by the entity, not just a subset).
+/// Asserts an entity's declared column set equals the real table's **modeled** column set
+/// (order-independent — generated/computed columns like `open_key`/`default_key`/`name_live` are
+/// declared as regular fields on the entity when something reads them, so they're expected to
+/// appear on both sides; the `DocDate` bridge's own `<field>_key`/`open_key`/`default_key` columns
+/// that nothing in `entities/` declares are excluded by `schema_columns`, see
+/// `UNMODELED_GENERATED_COLUMNS`), and that `SELECT <all columns> ... LIMIT 0` succeeds (proves
+/// every declared column really exists and every real, modeled column is accounted for by the
+/// entity, not just a subset).
 macro_rules! assert_entity_matches_schema {
     ($conn:expr, $table:literal, $entity:ty) => {{
         let mut declared = declared_columns::<$entity>();

@@ -72,7 +72,10 @@ pub struct Model {
     pub vat_not_recoverable: Option<bool>,
     pub sent_at: Option<chrono::DateTime<chrono::Utc>>,
     pub backorder_of_id: Option<Id>,
-    pub received_date: Option<chrono::NaiveDate>,
+    /// `DocDate` triple (`m0016` G-28c): `confirmPurchaseOrder` writes an ISO instant here, which a
+    /// plain `DATE` truncated.
+    pub received_date_day: Option<chrono::NaiveDate>,
+    pub received_date_instant: Option<chrono::DateTime<chrono::Utc>>,
     #[sea_orm(column_type = "Json", nullable)]
     pub attachment_ids: Option<StringList>,
     pub cost_center_id: Option<Id>,
@@ -102,5 +105,11 @@ impl ActiveModelBehavior for ActiveModel {}
 impl Model {
     pub fn date(&self) -> DocDate {
         doc_date::read(self.date_day, self.date_instant)
+    }
+
+    /// `None` when the order hasn't been received; `Some` reads `received_date_day`/
+    /// `received_date_instant` back into the shared value type (`m0016` G-28c).
+    pub fn received_date(&self) -> Option<DocDate> {
+        self.received_date_day.map(|day| doc_date::read(day, self.received_date_instant))
     }
 }

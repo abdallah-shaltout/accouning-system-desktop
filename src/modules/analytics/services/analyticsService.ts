@@ -1,5 +1,6 @@
 import { db, delay, localDateKey, round2, sum } from '@/mocks';
-import { formatDate } from '@/modules/core/helpers/format';
+import { formatDate, displayPrefs } from '@/modules/core/helpers/format';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
@@ -40,6 +41,7 @@ export interface SalesAnalytics {
 }
 
 export const getSalesAnalytics = wrap('analytics.getSalesAnalytics', async function getSalesAnalytics(days = 30): Promise<SalesAnalytics> {
+  if (usesRust('analytics')) return backendCall('analytics_get_sales_analytics', { days, ...displayPrefs() });
   await delay();
   const today = new Date();
   const trend: SalesTrendPoint[] = [];
@@ -127,6 +129,7 @@ export interface ProductAnalytics {
 }
 
 export const getProductAnalytics = wrap('analytics.getProductAnalytics', async function getProductAnalytics(days = 30, limit = 8): Promise<ProductAnalytics> {
+  if (usesRust('analytics')) return backendCall('analytics_get_product_analytics', { days, limit });
   await delay();
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
@@ -178,6 +181,7 @@ export interface CustomerAnalytics {
 }
 
 export const getCustomerAnalytics = wrap('analytics.getCustomerAnalytics', async function getCustomerAnalytics(days = 30, limit = 8): Promise<CustomerAnalytics> {
+  if (usesRust('analytics')) return backendCall('analytics_get_customer_analytics', { days, limit });
   await delay();
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);

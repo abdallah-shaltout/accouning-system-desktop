@@ -46,6 +46,29 @@ pub enum ActivityKind {
     Approval,
 }
 
+impl From<ActivityKind> for crate::core::dto::ActivityKind {
+    fn from(value: ActivityKind) -> Self {
+        match value {
+            ActivityKind::Sale => Self::Sale,
+            ActivityKind::Refund => Self::Refund,
+            ActivityKind::Purchase => Self::Purchase,
+            ActivityKind::PurchaseReturn => Self::PurchaseReturn,
+            ActivityKind::Payment => Self::Payment,
+            ActivityKind::Stock => Self::Stock,
+            ActivityKind::Journal => Self::Journal,
+            ActivityKind::Product => Self::Product,
+            ActivityKind::Party => Self::Party,
+            ActivityKind::User => Self::User,
+            ActivityKind::Settings => Self::Settings,
+            ActivityKind::Auth => Self::Auth,
+            ActivityKind::Shift => Self::Shift,
+            ActivityKind::Expense => Self::Expense,
+            ActivityKind::Voucher => Self::Voucher,
+            ActivityKind::Approval => Self::Approval,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "activity")]
 pub struct Model {

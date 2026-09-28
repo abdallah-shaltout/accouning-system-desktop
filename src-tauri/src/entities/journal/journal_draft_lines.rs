@@ -30,6 +30,9 @@ pub struct Model {
     pub party_id: Option<Id>,
     pub branch_id: Option<Id>,
     pub cost_center_id: Option<Id>,
+    pub currency: Option<String>,
+    pub amount_fc: Option<Decimal>,
+    pub rate: Option<Decimal>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

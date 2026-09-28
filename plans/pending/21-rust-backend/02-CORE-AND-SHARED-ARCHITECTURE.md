@@ -5,7 +5,7 @@
 > test/run), `bun run db:dev`, or any test/gate command — agents only write code.** After every
 > phase is written, the manager runs ONE sequential build at below-normal priority, then ONE test
 > run (`bun run db:dev` + full `cargo test` + the fast `bun run` gates), then ONE review/fix pass.
-> Permanent limits are in the repo: `src-tauri/.cargo/config.toml` `[build] jobs = 4`;
+> Permanent limits are in the repo: `.cargo/config.toml` (repo root) `[build] jobs = 4`;
 > `Cargo.toml` `[profile.dev] debug = "line-tables-only"`, deps `debug = false`.
 >
 > **⏸ CODE COMPLETE — FINAL TEST PASS PAUSED (2026-09-28, user request: "testing takes too long —

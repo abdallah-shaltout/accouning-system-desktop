@@ -12,3 +12,7 @@
 
 # Bundled MariaDB server payload shipped in the installer — downloaded by scripts/fetch-mariadb.js
 /mariadb-*-winx64/
+
+# D10 importer's demo-data test fixture — regenerated locally by `bun run verify:export-snapshot`
+# (03-domains/00-import.md §8a); large and deterministic-from-seed, so it isn't checked in.
+/tests/fixtures/mock-snapshot-demo.json

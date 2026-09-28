@@ -50,7 +50,7 @@ async function save() {
   try {
     const patch: Record<string, number> = {};
     for (const f of FIELDS) patch[f.key as string] = toNum(form[f.key] as number) ?? (form[f.key] as number);
-    setThresholds(patch);
+    await setThresholds(patch);
     toast.success('تم حفظ إعدادات التوصيات');
   } catch (err) {
     toast.error(err);

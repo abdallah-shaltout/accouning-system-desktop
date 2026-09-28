@@ -95,7 +95,11 @@ pub struct Model {
     pub paid_amount: Decimal,
     pub refunded_amount: Decimal,
     pub tendered_amount: Option<Decimal>,
-    pub due_date: Option<chrono::NaiveDate>,
+    /// `DocDate` triple (`m0016` G-22): `computeDueDate`/the desk form both store an ISO **instant**,
+    /// which a plain `DATE` truncated (and changed `isOverdue`'s string compare). `None` day = no due
+    /// date, matching every other optional `DocDate` triple in this schema.
+    pub due_date_day: Option<chrono::NaiveDate>,
+    pub due_date_instant: Option<chrono::DateTime<chrono::Utc>>,
     #[sea_orm(column_type = "Text", nullable)]
     pub note: Option<String>,
     pub source: Option<InvoiceSource>,
@@ -144,5 +148,11 @@ impl Model {
     /// The `DocDate` bridge (B-4): reads `date_day`/`date_instant` back into the shared value type.
     pub fn date(&self) -> DocDate {
         doc_date::read(self.date_day, self.date_instant)
+    }
+
+    /// `None` when there is no due date; `Some` reads `due_date_day`/`due_date_instant` back into
+    /// the shared value type (`m0016` G-22).
+    pub fn due_date(&self) -> Option<DocDate> {
+        self.due_date_day.map(|day| doc_date::read(day, self.due_date_instant))
     }
 }

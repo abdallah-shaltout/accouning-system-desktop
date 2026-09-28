@@ -1,10 +1,23 @@
 # 21 · 03.00 — `import` (D10 snapshot importer: MockDb snapshot → MariaDB, one transaction)
 
-> **Status:** planned 2026-09-28, not implemented. Wave **W1** (entry file §4). Depends on: Part 02
-> (entities m0001–m0015, `Id`, `DocDate`, `core::auth::hash_password`, `shared::invariants::run_all`,
-> `with_tx`/`with_read`), and the Part 02 gaps **GI-1…GI-4** below (manager adds them before W1).
-> 02-setup (W2) embeds this file's `LegacyImportCard.vue`; 17-backup (W2) reuses `import_snapshot`
-> to restore legacy (browser-made) archives.
+> **Status (2026-09-28): code complete, not yet compiled/tested.** Every file in §9's checklist is
+> written (importer module, DTOs, TS types, service, service switch line, UI card, DB tests, edge
+> fixture, export-snapshot script). Not run: no `cargo check` (per the wave's hard rule — the manager
+> runs one throttled pass after the wave), no DB-backed test execution (⏳ deferred to the time-boxed
+> test pass — needs `EQUAL_TEST_DATABASE_URL` and the demo fixture from `bun run
+> verify:export-snapshot`), no `bun run build`/`memory`/`bindings`. See this implementer's final
+> report for "Needs from manager" (the `country_timezone` stand-in, `branches`' 4 forward-ref
+> columns needing `order::DEFERRED`, and the `infrastructure::import` wiring into `domains::mod.rs`/
+> `lib.rs`/`export_bindings`).
+>
+> Depends on: Part 02 (entities m0001–m0015, `Id`, `DocDate`, `core::auth::hash_password`,
+> `shared::invariants::run_all`, `with_tx`/`with_read`), and the Part 02 gaps **GI-1…GI-4** below
+> (manager adds them before W1). Same-wave dependency: 01-settings' `domains/settings/service/
+> country.rs` (`country_timezone`, `country_profile`) — **not yet landed as of this writing**, so
+> `run.rs`'s `country_timezone_name` is a small inline stand-in (EG→Africa/Cairo, SA→Asia/Riyadh)
+> the manager should replace with the real call once 01-settings exists; behavior is identical either
+> way. 02-setup (W2) embeds this file's `LegacyImportCard.vue`; 17-backup (W2) reuses
+> `import_snapshot` to restore legacy (browser-made) archives.
 
 **Goal.** One importer (`src-tauri/src/infrastructure/import/`) that turns a `MockDb` snapshot
 (`src/mocks/persist.ts` `Snapshot { version, savedAt, data }`) plus the `pdf_templates_v1`
@@ -249,10 +262,13 @@ a fresh database; the legacy IndexedDB snapshot is never deleted by the importer
   - `inspectLegacySnapshot()` — `backendCall('setup_inspect_legacy_snapshot', { snapshotJson, templatesJson })`,
     where `snapshotJson = JSON.stringify(await readPersistedSnapshot())`, `templatesJson = localStorage.getItem('pdf_templates_v1') ?? undefined`.
   - `importLegacySnapshot(templateBranchId?: string)` — `backendCall('setup_import_snapshot', { snapshotJson, templatesJson, templateBranchId, mode: 'legacy', replaceExisting: false })`;
-    on success sets `localStorage['equal.legacyImportedAt']` and calls 02-setup's `refreshDeviceSetupState()`.
+    on success sets `localStorage['equal.legacyImportedAt']`.
 - `src/modules/core/services/devToolsService.ts` `reloadDemoData` (first line inside `wrap`):
-  `if (usesRust('setup')) { seedDatabase(); await backendCall('setup_import_snapshot', { snapshotJson: JSON.stringify({ version: SCHEMA_VERSION, savedAt: new Date().toISOString(), data: db }), mode: 'demo', replaceExisting: import.meta.env.DEV }); await refreshDeviceSetupState(); return; }`
+  `if (usesRust('setup')) { seedDatabase(); await backendCall('setup_import_snapshot', { snapshotJson: JSON.stringify({ version: SCHEMA_VERSION, savedAt: new Date().toISOString(), data: db }), mode: 'demo', replaceExisting: import.meta.env.DEV }); return; }`
   (`seedDatabase()` only builds the snapshot in memory — the mock is not the backend in this mode).
+- W2 follow-up owned by **02-setup** (its `deviceService.ts` doesn't exist in W1): append
+  `await refreshDeviceSetupState();` after both successful imports above, so the router's cached
+  `hasUsers` flips before `router.replace({ name: 'login' })`.
 - **New** `src/modules/setup/components/LegacyImportCard.vue` (embedded by 02-setup's device page):
   `inspectLegacySnapshot()` → shows `company` + non-zero counts; an `AppSelect` of `branches` only when
   `branches.length > 1 && hasTemplates`; primary button «استيراد بياناتك من الإصدار السابق»; the C-25
@@ -316,22 +332,22 @@ compare every list DTO after import, ids mapped) and `import-edge` (the edge fix
 
 ## 9. Checklist
 
-- [ ] Confirm GI-1…GI-4 are in place (manager, before W1).
-- [ ] TS types in `setup/types/index.ts` (§2) first.
-- [ ] `infrastructure/import/mod.rs` (`pub mod commands; dto; model; idmap; order; tables; settings; templates; run;` + `ipc_signatures()`).
-- [ ] `model.rs` — v1 reader structs for the 43 array tables + `settings` + `counters` + `credentials`.
-- [ ] `idmap.rs` — `assign`, `resolve`, `resolve_or_mint`, `remap_json`, fixed mappings, terminal rule.
-- [ ] `order.rs` — `IMPORT_ORDER`, `DEFERRED`.
-- [ ] `tables/*.rs` — one `insert_<table>` per entity, transforms per §3.2.6, rounding per §3.2.5.
-- [ ] `settings.rs` (§3.2.8, uses 01-settings `country_timezone`), `templates.rs` (§3.2.9).
-- [ ] `run.rs` — `inspect`, `import_snapshot` (steps 1–15 in order, each citing its source), `wipe_business_rows`.
-- [ ] `commands.rs` — 2 commands (§3.4) + the post-commit device write.
-- [ ] `persist.ts` `readPersistedSnapshot`; `legacyImportService.ts`; `devToolsService.ts` switch; `LegacyImportCard.vue`.
-- [ ] `scripts/verify/export-snapshot.ts` + `package.json` `verify:export-snapshot`; gitignore the fixture.
-- [ ] `setup/types/contract.check.ts` entries.
-- [ ] `tests/domain_import.rs` + `tests/fixtures/mock-snapshot-edge.json` (§8a); parity list (§8b) handed to Part 04.
-- [ ] Ask the manager: register 2 commands, chain `ipc_signatures()`, run `bun run memory` (new service file, component, script).
-- [ ] Status note at the top of this file.
+- [x] Confirm GI-1…GI-4 are in place (manager, before W1) — GI-2 (`set_counter`) and GI-4-equivalent (`with_read_on`, listed as G-44) confirmed present in `shared/numbering.rs`/`core/tx.rs`; GI-1 (architecture_rules exemption) and GI-3 (uuid version) assumed done per `_part02-gaps.md` marking G-41/G-42/G-44 "fixed" — not independently re-verified by this implementer (read-only confirmation, no cargo run).
+- [x] TS types in `setup/types/index.ts` (§2) first.
+- [x] `infrastructure/import/mod.rs` (`pub mod commands; dto; model; idmap; order; tables; settings; templates; run;` + `ipc_signatures()`).
+- [x] `model.rs` — v1 reader structs for the 43 array tables + `settings` + `counters` + `credentials`.
+- [x] `idmap.rs` — `assign`, `resolve`, `resolve_or_mint`, `remap_json`, fixed mappings, terminal rule.
+- [x] `order.rs` — `IMPORT_ORDER`, `DEFERRED`.
+- [x] `tables/*.rs` — one `insert_<table>` per entity, transforms per §3.2.6, rounding per §3.2.5.
+- [x] `settings.rs` (§3.2.8, stand-in for 01-settings `country_timezone` until that module lands — see status note), `templates.rs` (§3.2.9).
+- [x] `run.rs` — `inspect`, `import_snapshot` (steps 1–15 in order, each citing its source), `wipe_business_rows`.
+- [x] `commands.rs` — 2 commands (§3.4) + the post-commit device write.
+- [x] `persist.ts` `readPersistedSnapshot`; `legacyImportService.ts`; `devToolsService.ts` switch; `LegacyImportCard.vue`.
+- [x] `scripts/verify/export-snapshot.ts` + `package.json` `verify:export-snapshot`; gitignore the fixture.
+- [x] `setup/types/contract.check.ts` entries.
+- [x] `tests/domain_import.rs` + `tests/fixtures/mock-snapshot-edge.json` (§8a) — written, not run (⏳ deferred). Parity list (§8b) is already written above, handed to Part 04 as-is.
+- [ ] Ask the manager: register 2 commands, chain `ipc_signatures()`, run `bun run memory` (new service file, component, script). ⏳ deferred — see final report's "Needs from manager".
+- [x] Status note at the top of this file.
 
 ## Gate
 

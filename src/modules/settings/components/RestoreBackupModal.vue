@@ -32,7 +32,7 @@ async function startRestore() {
   const bytes = await backupService.pickRestoreFile();
   if (!bytes) return;
   try {
-    const preview = backupService.previewRestore(bytes);
+    const preview = await backupService.previewRestore(bytes);
     restoreBytes.value = bytes;
     restorePreview.value = preview;
     restoreStep.value = preview.manifest.encrypted ? 'password' : 'preview';

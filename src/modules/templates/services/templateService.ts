@@ -10,6 +10,7 @@
 import { ApiError } from '@/mocks';
 import { defaultTemplateOptions, type DocumentKind, type PdfTemplate, type TemplateExport } from '../types';
 
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
 const STORAGE_KEY = 'pdf_templates_v1';
@@ -66,21 +67,25 @@ function seedDefaults(): PdfTemplate[] {
   return seeded;
 }
 
-export const listTemplates = wrap('templates.listTemplates', function listTemplates(kind?: DocumentKind): PdfTemplate[] {
+export const listTemplates = wrap('templates.listTemplates', async function listTemplates(kind?: DocumentKind): Promise<PdfTemplate[]> {
+  if (usesRust('templates')) return backendCall('templates_list_templates', { kind });
   const all = load();
   return kind ? all.filter((t) => t.kind === kind) : all;
 });
 
-export const getTemplate = wrap('templates.getTemplate', function getTemplate(id: string): PdfTemplate | undefined {
+export const getTemplate = wrap('templates.getTemplate', async function getTemplate(id: string): Promise<PdfTemplate | undefined> {
+  if (usesRust('templates')) return (await backendCall('templates_get_template', { id })) ?? undefined;
   return load().find((t) => t.id === id);
 });
 
-export const getDefaultTemplate = wrap('templates.getDefaultTemplate', function getDefaultTemplate(kind: DocumentKind): PdfTemplate | undefined {
+export const getDefaultTemplate = wrap('templates.getDefaultTemplate', async function getDefaultTemplate(kind: DocumentKind): Promise<PdfTemplate | undefined> {
+  if (usesRust('templates')) return (await backendCall('templates_get_default_template', { kind })) ?? undefined;
   const all = load().filter((t) => t.kind === kind);
   return all.find((t) => t.isDefault) ?? all[0];
 });
 
-export const saveTemplate = wrap('templates.saveTemplate', function saveTemplate(template: PdfTemplate): PdfTemplate {
+export const saveTemplate = wrap('templates.saveTemplate', async function saveTemplate(template: PdfTemplate): Promise<PdfTemplate> {
+  if (usesRust('templates')) return backendCall('templates_save_template', { template });
   const all = load();
   const idx = all.findIndex((t) => t.id === template.id);
   const updated: PdfTemplate = { ...template, updatedAt: new Date().toISOString() };
@@ -90,7 +95,11 @@ export const saveTemplate = wrap('templates.saveTemplate', function saveTemplate
   return updated;
 });
 
-export const setAsDefault = wrap('templates.setAsDefault', function setAsDefault(id: string): void {
+export const setAsDefault = wrap('templates.setAsDefault', async function setAsDefault(id: string): Promise<void> {
+  if (usesRust('templates')) {
+    await backendCall('templates_set_as_default', { id });
+    return;
+  }
   const all = load();
   const target = all.find((t) => t.id === id);
   if (!target) return;
@@ -100,7 +109,8 @@ export const setAsDefault = wrap('templates.setAsDefault', function setAsDefault
   save(all);
 });
 
-export const duplicateTemplate = wrap('templates.duplicateTemplate', function duplicateTemplate(id: string): PdfTemplate | undefined {
+export const duplicateTemplate = wrap('templates.duplicateTemplate', async function duplicateTemplate(id: string): Promise<PdfTemplate | undefined> {
+  if (usesRust('templates')) return (await backendCall('templates_duplicate_template', { id })) ?? undefined;
   const all = load();
   const source = all.find((t) => t.id === id);
   if (!source) return undefined;
@@ -119,12 +129,17 @@ export const duplicateTemplate = wrap('templates.duplicateTemplate', function du
   return copy;
 });
 
-export const deleteTemplate = wrap('templates.deleteTemplate', function deleteTemplate(id: string): void {
+export const deleteTemplate = wrap('templates.deleteTemplate', async function deleteTemplate(id: string): Promise<void> {
+  if (usesRust('templates')) {
+    await backendCall('templates_delete_template', { id });
+    return;
+  }
   const all = load().filter((t) => t.id !== id);
   save(all);
 });
 
-export const resetTemplateToDefaults = wrap('templates.resetTemplateToDefaults', function resetTemplateToDefaults(id: string): PdfTemplate | undefined {
+export const resetTemplateToDefaults = wrap('templates.resetTemplateToDefaults', async function resetTemplateToDefaults(id: string): Promise<PdfTemplate | undefined> {
+  if (usesRust('templates')) return (await backendCall('templates_reset_template_to_defaults', { id })) ?? undefined;
   const all = load();
   const target = all.find((t) => t.id === id);
   if (!target) return undefined;
@@ -135,12 +150,14 @@ export const resetTemplateToDefaults = wrap('templates.resetTemplateToDefaults',
   return target;
 });
 
+/** Pure transform of an object the page already holds — no backend round trip (T-6). */
 export const exportTemplate = wrap('templates.exportTemplate', function exportTemplate(template: PdfTemplate): TemplateExport {
   const { id: _id, isDefault: _isDefault, createdAt: _createdAt, updatedAt: _updatedAt, ...rest } = template;
   return { schema: 'pdf-template-v1', template: rest };
 });
 
-export const importTemplate = wrap('templates.importTemplate', function importTemplate(json: TemplateExport): PdfTemplate {
+export const importTemplate = wrap('templates.importTemplate', async function importTemplate(json: TemplateExport): Promise<PdfTemplate> {
+  if (usesRust('templates')) return backendCall('templates_import_template', { json });
   if (json.schema !== 'pdf-template-v1' || !json.template) {
     throw new ApiError('ملف القالب غير صالح', 'VALIDATION');
   }
@@ -159,7 +176,8 @@ export const importTemplate = wrap('templates.importTemplate', function importTe
 });
 
 /** A brand-new blank template for "duplicate"/"new" flows the designer's top bar offers. */
-export const createTemplate = wrap('templates.createTemplate', function createTemplate(kind: DocumentKind, baseTemplateId: PdfTemplate['baseTemplateId'], name: string): PdfTemplate {
+export const createTemplate = wrap('templates.createTemplate', async function createTemplate(kind: DocumentKind, baseTemplateId: PdfTemplate['baseTemplateId'], name: string): Promise<PdfTemplate> {
+  if (usesRust('templates')) return backendCall('templates_create_template', { kind, baseTemplateId, name });
   const now = new Date().toISOString();
   const template: PdfTemplate = {
     id: uid(),

@@ -8,6 +8,7 @@
 import { zipSync } from 'fflate';
 import { isTauri } from '@tauri-apps/api/core';
 import { clone, db } from '@/mocks';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 import { saveFile } from '@/modules/core/services/saveFile';
 import { REDACTED_KEYS } from '../config';
 import { exportAll } from './diagnosticsService';
@@ -53,6 +54,12 @@ export interface SupportBundleOptions {
 /** Builds and saves the support bundle zip. Returns the saved path (desktop) or `true` (browser),
  * `null` if the user cancelled the save dialog. */
 export const exportSupportBundle = wrap('diagnostics.exportSupportBundle', async function exportSupportBundle(options: SupportBundleOptions = {}): Promise<string | true | null> {
+  // D-1: the Rust command supplies only the settings/server/DB-snapshot data — log-file
+  // collection, zipping and the save dialog stay in the frontend exactly as today.
+  const rust = usesRust('diagnostics')
+    ? await backendCall('diagnostics_export_support_bundle', { includeDbSnapshot: options.includeDbSnapshot })
+    : null;
+
   const [logs, version] = await Promise.all([exportAll(), appVersion()]);
 
   const meta = {
@@ -62,15 +69,21 @@ export const exportSupportBundle = wrap('diagnostics.exportSupportBundle', async
     schemaVersion: 1,
   };
 
+  const settingsRedacted = rust ? rust.settingsRedacted : redact(clone(db.settings));
+
   const files: Record<string, Uint8Array> = {
     'meta.json': new TextEncoder().encode(JSON.stringify(meta, null, 2)),
-    'settings.redacted.json': new TextEncoder().encode(JSON.stringify(redact(clone(db.settings)), null, 2)),
+    'settings.redacted.json': new TextEncoder().encode(JSON.stringify(settingsRedacted, null, 2)),
   };
   for (const [channel, entries] of Object.entries(logs)) {
     files[`logs/${channel}.jsonl`] = new TextEncoder().encode(entries.map((e) => JSON.stringify(e)).join('\n'));
   }
+  if (rust?.server) {
+    files['server-diagnostics.json'] = new TextEncoder().encode(JSON.stringify(rust.server, null, 2));
+  }
   if (options.includeDbSnapshot) {
-    files['db-snapshot.json'] = new TextEncoder().encode(JSON.stringify(clone(db)));
+    const dbSnapshot = rust ? rust.dbSnapshot : clone(db);
+    files['db-snapshot.json'] = new TextEncoder().encode(JSON.stringify(dbSnapshot));
   }
 
   const bytes = zipSync(files, { level: 6 });

@@ -6,20 +6,20 @@
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
-| [`explainAccountBalance`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L215) | `accountId: string, partyId?: string \| undefined` | `Promise<ExplainLine[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | journalEntries |  |  |
-| [`exportReproBundle`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L264) |  | `Promise<boolean>` | **frontend** — pure computation, no data access |  |  |  |  |
-| [`exportSupportBundle`](../../../src/modules/diagnostics/services/supportBundleService.ts#L55) | `options?: SupportBundleOptions` | `Promise<string \| true \| null>` | **port** — reads backend data |  | settings |  |  |
-| [`getAuditEntities`](../../../src/modules/diagnostics/services/auditService.ts#L42) |  | `Promise<string[]>` | **port** — reads backend data |  | audit |  |  |
-| [`getAuditEntries`](../../../src/modules/diagnostics/services/auditService.ts#L34) | `filter?: AuditFilter` | `Promise<AuditEntry[]>` | **port** — reads backend data |  | audit |  | AuditEntry |
-| [`getBalancesAround`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L76) | `entryId: string` | `Promise<{ accountId: string; accountName: string; accountCode: string \| undefined; befor…` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | accounts, journalEntries |  |  |
-| [`getDriftReport`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L124) |  | `Promise<DriftRow[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | accounts, customers, invoices, journalEntries, payments, products, purchaseOrders, purchaseReturns, refunds, suppliers |  |  |
-| [`getInvariantResults`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L101) |  | `Promise<InvariantResult[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | accounts, journalEntries, payments |  |  |
-| [`getJournalEntryRaw`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L66) | `id: string` | `Promise<import("../../accounting/types").JournalEntry \| undefined>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | journalDrafts, journalEntries |  | JournalEntry |
-| [`getPostingTrace`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L61) | `entryId: string` | `Promise<PostingTrace \| undefined>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  |  |  |  |
-| [`isReproRecording`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L256) |  | `Promise<boolean>` | **frontend** — pure computation, no data access |  |  |  |  |
-| [`listRecentDocuments`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L38) | `limit?: any` | `Promise<AccountingDocSummary[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | journalEntries |  |  |
-| [`startReproRecording`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L246) |  | `Promise<void>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  |  |  |  |
-| [`stopReproRecording`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L251) |  | `Promise<void>` | **frontend** — pure computation, no data access |  |  |  |  |
+| [`explainAccountBalance`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L225) | `accountId: string, partyId?: string \| undefined` | `Promise<ExplainLine[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | journalEntries |  |  |
+| [`exportReproBundle`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L280) |  | `Promise<boolean>` | **frontend** — pure computation, no data access |  |  |  |  |
+| [`exportSupportBundle`](../../../src/modules/diagnostics/services/supportBundleService.ts#L56) | `options?: SupportBundleOptions` | `Promise<string \| true \| null>` | **port** — reads backend data |  | settings |  |  |
+| [`getAuditEntities`](../../../src/modules/diagnostics/services/auditService.ts#L44) |  | `Promise<string[]>` | **port** — reads backend data |  | audit |  |  |
+| [`getAuditEntries`](../../../src/modules/diagnostics/services/auditService.ts#L35) | `filter?: AuditFilter` | `Promise<AuditEntry[]>` | **port** — reads backend data |  | audit |  | AuditEntry |
+| [`getBalancesAround`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L83) | `entryId: string` | `Promise<BalanceAround[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | accounts, journalEntries |  |  |
+| [`getDriftReport`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L133) |  | `Promise<DriftRow[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | accounts, customers, invoices, journalEntries, payments, products, purchaseOrders, purchaseReturns, refunds, suppliers |  |  |
+| [`getInvariantResults`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L109) |  | `Promise<InvariantResult[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | accounts, journalEntries, payments |  |  |
+| [`getJournalEntryRaw`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L71) | `id: string` | `Promise<any>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | journalDrafts, journalEntries |  |  |
+| [`getPostingTrace`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L64) | `entryId: string` | `Promise<PostingTrace \| undefined>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  |  |  |  |
+| [`isReproRecording`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L272) |  | `Promise<boolean>` | **frontend** — pure computation, no data access |  |  |  |  |
+| [`listRecentDocuments`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L40) | `limit?: any` | `Promise<AccountingDocSummary[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | journalEntries |  |  |
+| [`startReproRecording`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L259) |  | `Promise<void>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  |  |  |  |
+| [`stopReproRecording`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L267) |  | `Promise<void>` | **frontend** — pure computation, no data access |  |  |  |  |
 
 ## Types (`src/modules/diagnostics/types`)
 
@@ -108,3 +108,18 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `max: number`
 - `budgetMs?: number` — _decimal_
 - `breaches: number`
+
+### `ServerDiagnostics` (interface, `src/modules/diagnostics/types/index.ts:101`)
+
+- `state: string`
+- `version?: string`
+- `port?: number`
+- `lanSharing: boolean`
+- `lastFailure?: string`
+- `errorLogTail?: string`
+
+### `SupportSnapshot` (interface, `src/modules/diagnostics/types/index.ts:116`)
+
+- `settingsRedacted: unknown`
+- `dbSnapshot?: unknown`
+- `server?: ServerDiagnostics`

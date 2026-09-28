@@ -2,56 +2,78 @@
 
 # Contract — `settings`
 
-42 service functions. Full signatures: `contract.gen.json`. Plan: plans/pending/21-rust-backend/01-frontend-analysis/settings.md.
+47 service functions. Full signatures: `contract.gen.json`. Plan: plans/pending/21-rust-backend/01-frontend-analysis/settings.md.
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
-| [`backupNow`](../../../src/modules/settings/services/backupService.ts#L162) | `kind: "manual" \| "auto" \| "pre-restore", password?: string \| undefined, opts?: { sugge…` | `Promise<BackupNowResult>` | **port** — reads and writes backend data | activity, audit, settings |  | activity |  |
-| [`backupSettings`](../../../src/modules/settings/services/backupService.ts#L36) |  | `BackupSettings` | **port** — reads backend data |  | settings |  | BackupSettings |
-| [`createBranch`](../../../src/modules/settings/services/branchesService.ts#L21) | `input: BranchInput` | `Promise<Branch>` | **port** — reads and writes backend data | accounts, activity, audit, branches, costCenters |  | activity | Branch, BranchInput |
-| [`createCostCenter`](../../../src/modules/settings/services/branchesService.ts#L48) | `input: CostCenterInput` | `Promise<CostCenter>` | **port** — reads and writes backend data | activity, audit, costCenters |  | activity | CostCenter, CostCenterInput |
-| [`createCurrency`](../../../src/modules/settings/services/branchesService.ts#L75) | `input: Currency` | `Promise<Currency>` | **port** — reads and writes backend data | currencies | settings |  | Currency |
-| [`deactivateBranch`](../../../src/modules/settings/services/branchesService.ts#L31) | `id: string` | `Promise<Branch>` | **port** — reads and writes backend data | accounts, activity, audit, branches | products, shifts | activity | Branch |
-| [`deleteCostCenter`](../../../src/modules/settings/services/branchesService.ts#L58) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, costCenters | journalEntries | activity |  |
-| [`deleteHistoryEntry`](../../../src/modules/settings/services/backupService.ts#L233) | `entry: BackupHistoryEntry` | `Promise<void>` | **frontend** — webview/plugin only (@tauri-apps/plugin-fs, indexedDB) |  |  |  | BackupHistoryEntry |
-| [`deletePaymentMethod`](../../../src/modules/settings/services/settingsService.ts#L110) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, paymentMethods | expenses, invoices, vouchers | activity |  |
-| [`deleteTax`](../../../src/modules/settings/services/settingsService.ts#L62) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, taxes | invoices, purchaseOrders | activity |  |
-| [`getBranches`](../../../src/modules/settings/services/branchesService.ts#L16) |  | `Promise<Branch[]>` | **port** — reads backend data |  | branches |  | Branch |
-| [`getCostCenters`](../../../src/modules/settings/services/branchesService.ts#L43) |  | `Promise<CostCenter[]>` | **port** — reads backend data |  | costCenters |  | CostCenter |
-| [`getCurrencies`](../../../src/modules/settings/services/branchesService.ts#L65) |  | `Promise<Currency[]>` | **port** — reads backend data |  | currencies |  | Currency |
-| [`getDefaultRevaluationRates`](../../../src/modules/settings/services/branchesService.ts#L107) |  | `Promise<Record<string, number>>` | **port** — reads backend data |  | currencies, exchangeRates |  |  |
-| [`getExchangeRates`](../../../src/modules/settings/services/branchesService.ts#L70) | `currency?: string \| undefined` | `Promise<ExchangeRate[]>` | **port** — reads backend data |  | exchangeRates |  | ExchangeRate |
-| [`getPaymentMethods`](../../../src/modules/settings/services/settingsService.ts#L77) |  | `Promise<PaymentMethod[]>` | **port** — reads backend data |  | paymentMethods |  | PaymentMethod |
-| [`getRevaluationPreview`](../../../src/modules/settings/services/branchesService.ts#L102) | `rates: Record<string, number>` | `Promise<revalBackend.FcBalanceRow[]>` | **port** — reads backend data |  | accounts, customers, journalEntries, suppliers |  |  |
-| [`getSettings`](../../../src/modules/settings/services/settingsService.ts#L9) |  | `Promise<StoreSettings>` | **port** — reads backend data |  | settings |  | StoreSettings |
-| [`getTaxes`](../../../src/modules/settings/services/settingsService.ts#L28) |  | `Promise<Tax[]>` | **port** — reads backend data |  | taxes |  | Tax |
-| [`initAutoBackup`](../../../src/modules/settings/services/backupService.ts#L432) |  | `Promise<void>` | **port** — reads and writes backend data | activity, audit, settings |  | activity |  |
-| [`isBaseCurrencyLocked`](../../../src/modules/settings/services/branchesService.ts#L90) |  | `Promise<boolean>` | **port** — reads backend data |  | journalEntries |  |  |
-| [`isTauriMode`](../../../src/modules/settings/services/backupService.ts#L48) |  | `boolean` | **frontend** — webview/plugin only (@tauri-apps/api) |  |  |  |  |
-| [`listHistory`](../../../src/modules/settings/services/backupService.ts#L202) |  | `Promise<BackupHistoryEntry[]>` | **frontend** — override: 01.B settings review — lists local .zip files via… |  | settings |  | BackupHistoryEntry |
-| [`pickBackupFolder`](../../../src/modules/settings/services/backupService.ts#L484) |  | `Promise<string \| undefined>` | **frontend** — webview/plugin only (@tauri-apps/plugin-dialog) |  |  |  |  |
-| [`pickRestoreFile`](../../../src/modules/settings/services/backupService.ts#L283) |  | `Promise<Uint8Array<ArrayBufferLike> \| undefined>` | **frontend** — webview/plugin only (@tauri-apps/api, @tauri-apps/plugin-di… |  |  |  |  |
-| [`postRevaluation`](../../../src/modules/settings/services/branchesService.ts#L112) | `date: string, rates: Record<string, number>` | `Promise<{ entryId: string; reversalEntryId: string; rows: revalBackend.FcBalanceRow[]; }>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries | accounts, branches, customers, fiscalYears, settings, suppliers | activity, ledger, numbering, period |  |
-| [`previewBackupCounts`](../../../src/modules/settings/services/backupService.ts#L149) |  | `Promise<Record<string, number>>` | **port** — reads backend data |  |  |  |  |
-| [`previewRestore`](../../../src/modules/settings/services/backupService.ts#L304) | `bytes: Uint8Array<ArrayBufferLike>` | `RestorePreview` | **port** — uses mock state (SCHEMA_VERSION) |  |  |  | RestorePreview |
-| [`reactivateBranch`](../../../src/modules/settings/services/branchesService.ts#L36) | `id: string` | `Promise<Branch>` | **port** — reads and writes backend data | accounts, activity, audit, branches |  | activity | Branch |
-| [`reorderPaymentMethods`](../../../src/modules/settings/services/settingsService.ts#L102) | `orderedIds: string[]` | `Promise<void>` | **port** — reads and writes backend data | paymentMethods |  |  |  |
-| [`restoreFromArchive`](../../../src/modules/settings/services/backupService.ts#L331) | `bytes: Uint8Array<ArrayBufferLike>, password?: string \| undefined` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, settings |  | activity |  |
-| [`saveBackupSettings`](../../../src/modules/settings/services/backupService.ts#L40) | `patch: Partial<BackupSettings>` | `Promise<BackupSettings>` | **port** — reads and writes backend data | activity, audit, settings |  | activity | BackupSettings |
-| [`saveExchangeRate`](../../../src/modules/settings/services/branchesService.ts#L85) | `input: ExchangeRateInput` | `Promise<ExchangeRate>` | **port** — reads and writes backend data | exchangeRates | currencies |  | ExchangeRate, ExchangeRateInput |
-| [`savePaymentMethod`](../../../src/modules/settings/services/settingsService.ts#L82) | `input: PaymentMethodInput, id?: string \| undefined` | `Promise<PaymentMethod>` | **port** — reads and writes backend data | activity, audit, paymentMethods |  | activity | PaymentMethod, PaymentMethodInput |
-| [`saveTax`](../../../src/modules/settings/services/settingsService.ts#L33) | `input: Omit<Tax, "id">, id?: string \| undefined` | `Promise<Tax>` | **port** — reads and writes backend data | activity, audit, taxes |  | activity | Tax |
-| [`setBaseCurrency`](../../../src/modules/settings/services/branchesService.ts#L95) | `code: string` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, settings | journalEntries | activity |  |
-| [`stopAutoBackup`](../../../src/modules/settings/services/backupService.ts#L467) |  | `void` | **frontend** — webview/plugin only (window) |  |  |  |  |
-| [`updateBranch`](../../../src/modules/settings/services/branchesService.ts#L26) | `id: string, input: Partial<BranchInput>` | `Promise<Branch>` | **port** — reads and writes backend data | accounts, activity, audit, branches |  | activity | Branch, BranchInput |
-| [`updateCostCenter`](../../../src/modules/settings/services/branchesService.ts#L53) | `id: string, input: Partial<CostCenterInput>` | `Promise<CostCenter>` | **port** — reads and writes backend data | activity, audit, costCenters |  | activity | CostCenter, CostCenterInput |
-| [`updateCurrency`](../../../src/modules/settings/services/branchesService.ts#L80) | `code: string, patch: Partial<Currency>` | `Promise<Currency>` | **port** — reads backend data |  | currencies |  | Currency |
-| [`updateSettings`](../../../src/modules/settings/services/settingsService.ts#L14) | `patch: Partial<StoreSettings>` | `Promise<StoreSettings>` | **port** — reads and writes backend data | activity, audit, settings |  | activity | StoreSettings |
-| [`verifyHistoryEntry`](../../../src/modules/settings/services/backupService.ts#L243) | `entry: BackupHistoryEntry` | `Promise<{ ok: boolean; detail: string; }>` | **frontend** — webview/plugin only (@tauri-apps/plugin-fs, indexedDB) |  |  |  | BackupHistoryEntry |
+| [`backupNow`](../../../src/modules/settings/services/backupService.ts#L168) | `kind: "manual" \| "auto" \| "pre-restore", password?: string \| undefined, opts?: { sugge…` | `Promise<BackupNowResult>` | **port** — reads and writes backend data | activity, audit, settings |  | activity |  |
+| [`backupSettings`](../../../src/modules/settings/services/backupService.ts#L39) |  | `Promise<BackupSettings>` | **port** — reads backend data |  | settings |  | BackupSettings |
+| [`createBranch`](../../../src/modules/settings/services/branchesService.ts#L23) | `input: BranchInput` | `Promise<Branch>` | **port** — reads and writes backend data | accounts, activity, audit, branches, costCenters |  | activity | Branch, BranchInput |
+| [`createCostCenter`](../../../src/modules/settings/services/branchesService.ts#L55) | `input: CostCenterInput` | `Promise<CostCenter>` | **port** — reads and writes backend data | activity, audit, costCenters |  | activity | CostCenter, CostCenterInput |
+| [`createCurrency`](../../../src/modules/settings/services/branchesService.ts#L90) | `input: Currency` | `Promise<Currency>` | **port** — reads and writes backend data | currencies | settings |  | Currency |
+| [`deactivateBranch`](../../../src/modules/settings/services/branchesService.ts#L35) | `id: string` | `Promise<Branch>` | **port** — reads and writes backend data | accounts, activity, audit, branches | products, shifts | activity | Branch |
+| [`deleteCostCenter`](../../../src/modules/settings/services/branchesService.ts#L67) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, costCenters | journalEntries | activity |  |
+| [`deleteHistoryEntry`](../../../src/modules/settings/services/backupService.ts#L257) | `entry: BackupHistoryEntry` | `Promise<void>` | **frontend** — webview/plugin only (@tauri-apps/plugin-fs, indexedDB) |  |  |  | BackupHistoryEntry |
+| [`deletePaymentMethod`](../../../src/modules/settings/services/settingsService.ts#L125) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, paymentMethods | expenses, invoices, vouchers | activity |  |
+| [`deleteTax`](../../../src/modules/settings/services/settingsService.ts#L67) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, taxes | invoices, purchaseOrders | activity |  |
+| [`disableLanSharing`](../../../src/modules/settings/services/networkService.ts#L26) | `confirmDisconnect: boolean` | `Promise<LanSharingStatus>` | **frontend** — webview/plugin only (@tauri-apps/api, localStorage) |  |  |  | LanSharingStatus |
+| [`enableLanSharing`](../../../src/modules/settings/services/networkService.ts#L21) |  | `Promise<PairingInfo>` | **frontend** — webview/plugin only (@tauri-apps/api, localStorage) |  |  |  | PairingInfo |
+| [`getBranches`](../../../src/modules/settings/services/branchesService.ts#L17) |  | `Promise<Branch[]>` | **port** — reads backend data |  | branches |  | Branch |
+| [`getCostCenters`](../../../src/modules/settings/services/branchesService.ts#L49) |  | `Promise<CostCenter[]>` | **port** — reads backend data |  | costCenters |  | CostCenter |
+| [`getCurrencies`](../../../src/modules/settings/services/branchesService.ts#L78) |  | `Promise<Currency[]>` | **port** — reads backend data |  | currencies |  | Currency |
+| [`getDefaultRevaluationRates`](../../../src/modules/settings/services/branchesService.ts#L131) |  | `Promise<Record<string, number>>` | **port** — reads backend data |  | currencies, exchangeRates |  |  |
+| [`getExchangeRates`](../../../src/modules/settings/services/branchesService.ts#L84) | `currency?: string \| undefined` | `Promise<ExchangeRate[]>` | **port** — reads backend data |  | exchangeRates |  | ExchangeRate |
+| [`getLanSharingStatus`](../../../src/modules/settings/services/networkService.ts#L16) |  | `Promise<LanSharingStatus>` | **frontend** — webview/plugin only (@tauri-apps/api, localStorage) |  |  |  | LanSharingStatus |
+| [`getPaymentMethods`](../../../src/modules/settings/services/settingsService.ts#L86) |  | `Promise<PaymentMethod[]>` | **port** — reads backend data |  | paymentMethods |  | PaymentMethod |
+| [`getRevaluationPreview`](../../../src/modules/settings/services/branchesService.ts#L125) | `rates: Record<string, number>` | `Promise<FcBalanceRow[]>` | **port** — reads backend data |  | accounts, customers, journalEntries, suppliers |  | FcBalanceRow |
+| [`getSettings`](../../../src/modules/settings/services/settingsService.ts#L10) |  | `Promise<StoreSettings>` | **port** — reads backend data |  | settings |  | StoreSettings |
+| [`getTaxes`](../../../src/modules/settings/services/settingsService.ts#L31) |  | `Promise<Tax[]>` | **port** — reads backend data |  | taxes |  | Tax |
+| [`initAutoBackup`](../../../src/modules/settings/services/backupService.ts#L506) |  | `Promise<void>` | **port** — reads and writes backend data | activity, audit, settings |  | activity |  |
+| [`isBaseCurrencyLocked`](../../../src/modules/settings/services/branchesService.ts#L108) |  | `Promise<boolean>` | **port** — reads backend data |  | journalEntries |  |  |
+| [`isTauriMode`](../../../src/modules/settings/services/backupService.ts#L53) |  | `boolean` | **frontend** — webview/plugin only (@tauri-apps/api) |  |  |  |  |
+| [`listHistory`](../../../src/modules/settings/services/backupService.ts#L226) |  | `Promise<BackupHistoryEntry[]>` | **frontend** — override: 01.B settings review — lists local .zip files via… |  | settings |  | BackupHistoryEntry |
+| [`pickBackupFolder`](../../../src/modules/settings/services/backupService.ts#L558) |  | `Promise<string \| undefined>` | **frontend** — webview/plugin only (@tauri-apps/plugin-dialog) |  |  |  |  |
+| [`pickRestoreFile`](../../../src/modules/settings/services/backupService.ts#L307) |  | `Promise<Uint8Array<ArrayBufferLike> \| undefined>` | **frontend** — webview/plugin only (@tauri-apps/api, @tauri-apps/plugin-di… |  |  |  |  |
+| [`postRevaluation`](../../../src/modules/settings/services/branchesService.ts#L137) | `date: string, rates: Record<string, number>` | `Promise<any>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries | accounts, branches, customers, fiscalYears, settings, suppliers | activity, ledger, numbering, period |  |
+| [`previewBackupCounts`](../../../src/modules/settings/services/backupService.ts#L154) |  | `Promise<Record<string, number>>` | **port** — reads backend data |  |  |  |  |
+| [`previewRestore`](../../../src/modules/settings/services/backupService.ts#L328) | `bytes: Uint8Array<ArrayBufferLike>` | `Promise<RestorePreview>` | **port** — uses mock state (SCHEMA_VERSION) |  |  |  | RestorePreview |
+| [`reactivateBranch`](../../../src/modules/settings/services/branchesService.ts#L41) | `id: string` | `Promise<Branch>` | **port** — reads and writes backend data | accounts, activity, audit, branches |  | activity | Branch |
+| [`reconnectBackend`](../../../src/modules/settings/services/networkService.ts#L36) |  | `Promise<void>` | **frontend** — webview/plugin only (@tauri-apps/api, localStorage) |  |  |  |  |
+| [`reorderPaymentMethods`](../../../src/modules/settings/services/settingsService.ts#L113) | `orderedIds: string[]` | `Promise<void>` | **port** — reads and writes backend data | paymentMethods |  |  |  |
+| [`restoreFromArchive`](../../../src/modules/settings/services/backupService.ts#L356) | `bytes: Uint8Array<ArrayBufferLike>, password?: string \| undefined` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, settings |  | activity |  |
+| [`rotatePairingCode`](../../../src/modules/settings/services/networkService.ts#L31) |  | `Promise<PairingInfo>` | **frontend** — webview/plugin only (@tauri-apps/api, localStorage) |  |  |  | PairingInfo |
+| [`saveBackupSettings`](../../../src/modules/settings/services/backupService.ts#L44) | `patch: Partial<BackupSettings>` | `Promise<BackupSettings>` | **port** — reads and writes backend data | activity, audit, settings |  | activity | BackupSettings |
+| [`saveExchangeRate`](../../../src/modules/settings/services/branchesService.ts#L102) | `input: ExchangeRateInput` | `Promise<ExchangeRate>` | **port** — reads and writes backend data | exchangeRates | currencies |  | ExchangeRate, ExchangeRateInput |
+| [`savePaymentMethod`](../../../src/modules/settings/services/settingsService.ts#L92) | `input: PaymentMethodInput, id?: string \| undefined` | `Promise<PaymentMethod>` | **port** — reads and writes backend data | activity, audit, paymentMethods |  | activity | PaymentMethod, PaymentMethodInput |
+| [`saveTax`](../../../src/modules/settings/services/settingsService.ts#L37) | `input: Omit<Tax, "id">, id?: string \| undefined` | `Promise<Tax>` | **port** — reads and writes backend data | activity, audit, taxes |  | activity | Tax |
+| [`setBaseCurrency`](../../../src/modules/settings/services/branchesService.ts#L114) | `code: string` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, settings | journalEntries | activity |  |
+| [`stopAutoBackup`](../../../src/modules/settings/services/backupService.ts#L541) |  | `void` | **frontend** — webview/plugin only (window) |  |  |  |  |
+| [`updateBranch`](../../../src/modules/settings/services/branchesService.ts#L29) | `id: string, input: Partial<BranchInput>` | `Promise<Branch>` | **port** — reads and writes backend data | accounts, activity, audit, branches |  | activity | Branch, BranchInput |
+| [`updateCostCenter`](../../../src/modules/settings/services/branchesService.ts#L61) | `id: string, input: Partial<CostCenterInput>` | `Promise<CostCenter>` | **port** — reads and writes backend data | activity, audit, costCenters |  | activity | CostCenter, CostCenterInput |
+| [`updateCurrency`](../../../src/modules/settings/services/branchesService.ts#L96) | `code: string, patch: Partial<Currency>` | `Promise<Currency>` | **port** — reads backend data |  | currencies |  | Currency |
+| [`updateSettings`](../../../src/modules/settings/services/settingsService.ts#L16) | `patch: Partial<StoreSettings>` | `Promise<StoreSettings>` | **port** — reads and writes backend data | activity, audit, settings |  | activity | StoreSettings |
+| [`verifyHistoryEntry`](../../../src/modules/settings/services/backupService.ts#L267) | `entry: BackupHistoryEntry` | `Promise<{ ok: boolean; detail: string; }>` | **frontend** — webview/plugin only (@tauri-apps/plugin-fs, indexedDB) |  |  |  | BackupHistoryEntry |
 
 ## Types (`src/modules/settings/types`)
 
 Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _date_ → local date/datetime, _route_ → `RouteRef { name, params }`, _enum_ → Rust enum.
+
+### `AutoBackupOutcome` (interface, `src/modules/settings/types/backup.ts:91`)
+
+- `ran: boolean`
+- `path?: string`
+- `skipped?: 'not-main' \| 'disabled' \| 'not-due' \| 'no-folder'` — _enum_
+- `error?: string`
+
+### `AutoBackupTrigger` (type, `src/modules/settings/types/backup.ts:88`)
+
+`'schedule' \| 'close'`
+
+### `BackupArchive` (interface, `src/modules/settings/types/backup.ts:81`)
+
+- `manifest: BackupManifest`
+- `fileName: string`
+- `archiveBase64: string`
 
 ### `BackupCrypto` (interface, `src/modules/settings/types/backup.ts:21`)
 
@@ -170,7 +192,34 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `rate?: number` — _decimal_
 - `inverseRate?: number` — _decimal_
 
-### `PaymentMethod` (interface, `src/modules/settings/types/index.ts:48`)
+### `FcBalanceRow` (interface, `src/modules/settings/types/index.ts:9`)
+
+- `kind: 'customer' \| 'supplier' \| 'account'` — _enum_
+- `id: string` — _uuid_
+- `name: string`
+- `currency: string`
+- `fcBalance: number` — _decimal_
+- `baseBalance: number` — _decimal_
+- `revaluedBase: number` — _decimal_
+- `gainLoss: number`
+
+### `LanSharingStatus` (interface, `src/modules/settings/types/network.ts:14`)
+
+- `role: 'main' \| 'terminal'` — _enum_
+- `provisioned: boolean`
+- `lanSharing: boolean`
+- `connectedTerminals: number`
+- `pairing?: PairingInfo`
+- `mainHost?: string`
+
+### `PairingInfo` (interface, `src/modules/settings/types/network.ts:7`)
+
+- `hostName: string`
+- `addresses: string[]`
+- `port: number`
+- `code: string`
+
+### `PaymentMethod` (interface, `src/modules/settings/types/index.ts:72`)
 
 - `id: string` — _uuid_
 - `name: string`
@@ -186,19 +235,19 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `active: boolean`
 - `canDelete: boolean`
 
-### `PaymentMethodInput` (type, `src/modules/settings/types/index.ts:70`)
+### `PaymentMethodInput` (type, `src/modules/settings/types/index.ts:94`)
 
 `Omit<PaymentMethod, 'id' \| 'canDelete'>`
 
-### `PaymentMethodType` (type, `src/modules/settings/types/index.ts:46`)
+### `PaymentMethodType` (type, `src/modules/settings/types/index.ts:70`)
 
 `'cash' \| 'card' \| 'bank_transfer' \| 'wallet' \| 'credit' \| 'store_credit'`
 
-### `PrinterConnectionType` (type, `src/modules/settings/types/index.ts:83`)
+### `PrinterConnectionType` (type, `src/modules/settings/types/index.ts:107`)
 
 `'windows' \| 'network'`
 
-### `PrinterMode` (type, `src/modules/settings/types/index.ts:72`)
+### `PrinterMode` (type, `src/modules/settings/types/index.ts:96`)
 
 `'a4' \| 'thermal'`
 
@@ -208,7 +257,13 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `compatible: boolean`
 - `compatibilityNote?: string`
 
-### `StoreSettings` (interface, `src/modules/settings/types/index.ts:97`)
+### `RevaluationResult` (interface, `src/modules/settings/types/index.ts:22`)
+
+- `entryId: string` — _uuid_
+- `reversalEntryId: string` — _uuid_
+- `rows: FcBalanceRow[]`
+
+### `StoreSettings` (interface, `src/modules/settings/types/index.ts:121`)
 
 - `storeName: string`
 - `logo?: string`
@@ -220,7 +275,6 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `defaultTaxId?: string` — _uuid_
 - `invoiceNumberPrefix: string`
 - `printer: { mode: PrinterMode; thermalWidthMm: ThermalWidth; /** Phase 14: native transport settings for the receipt printer. Optional — absent until the printer setting…`
-- `theme: 'light' \| 'dark'` — _enum_
 - `pricesIncludeTax?: boolean`
 - `address?: string`
 - `nationalAddress?: import('@/modules/core/types/address').Address`
@@ -237,7 +291,7 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `features?: { branches?: boolean; currencies?: boolean; costCenters?: boolean; }`
 - `onboarding?: { businessType?: string; goLiveDate?: string; completedStep?: number; /** Step keys the owner skipped (required steps can never appear here). */ skipped?: stri…`
 
-### `Tax` (interface, `src/modules/settings/types/index.ts:21`)
+### `Tax` (interface, `src/modules/settings/types/index.ts:45`)
 
 - `id: string` — _uuid_
 - `name: string`
@@ -250,15 +304,15 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `exemptionReason?: string`
 - `accountRole?: 'vatOutput' \| 'vatInput'` — _enum_
 
-### `TaxCategory` (type, `src/modules/settings/types/index.ts:18`)
+### `TaxCategory` (type, `src/modules/settings/types/index.ts:42`)
 
 `'S' \| 'Z' \| 'E' \| 'O'`
 
-### `TaxDirection` (type, `src/modules/settings/types/index.ts:19`)
+### `TaxDirection` (type, `src/modules/settings/types/index.ts:43`)
 
 `'sales' \| 'purchase'`
 
-### `ThermalPrinterSettings` (interface, `src/modules/settings/types/index.ts:85`)
+### `ThermalPrinterSettings` (interface, `src/modules/settings/types/index.ts:109`)
 
 - `printerName?: string`
 - `connection: PrinterConnectionType`
@@ -268,6 +322,6 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `openDrawer: boolean`
 - `copies: number`
 
-### `ThermalWidth` (type, `src/modules/settings/types/index.ts:73`)
+### `ThermalWidth` (type, `src/modules/settings/types/index.ts:97`)
 
 `58 \| 80`

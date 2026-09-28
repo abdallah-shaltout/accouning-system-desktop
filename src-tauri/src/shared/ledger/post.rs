@@ -4,12 +4,12 @@
 //! the ONLY code allowed to build an `ActiveModel` for or insert into `journal_entries`,
 //! `journal_lines`, `journal_drafts`, `journal_draft_lines` (master rule 3, C-8).
 
-use chrono::NaiveDate;
 use rust_decimal::Decimal;
 use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, Set};
 
 use crate::core::error::AppError;
 use crate::core::events::ChangeCategory;
+use crate::core::lock;
 use crate::core::tx::{TxCtx, TxError, TxResult};
 use crate::entities::journal::journal_draft_lines::{
     ActiveModel as DraftLineActiveModel, Column as DraftLineColumn, Entity as DraftLineEntity, PartyKind as DraftPartyKind,
@@ -219,6 +219,21 @@ pub async fn resolve_posting<C: ConnectionTrait>(conn: &C, lines: Vec<PostingLin
 
     let kept: Vec<ResolvedLine> = resolved.into_iter().filter(|l| l.debit > Decimal::ZERO || l.credit > Decimal::ZERO).collect();
 
+    // G-16: share-lock every resolved account row before the entry/lines that reference them are
+    // inserted, so a concurrent deactivate/soft-delete of one of these accounts can't commit
+    // between "we decided this account is valid and active" and "we wrote a journal_lines row
+    // pointing at it" — the classic resolve-then-write race. A shared lock (not exclusive) is
+    // enough: this transaction only needs the row to not change under it, not to keep other
+    // readers/posters out; `for_update_many_sorted`'s ordering discipline (sorted ids) is followed
+    // here too, even though this uses `LOCK IN SHARE MODE` instead of `FOR UPDATE`, so two posts
+    // touching an overlapping account set can never deadlock against each other.
+    let mut account_ids: Vec<String> = kept.iter().map(|l| l.account_id.to_string()).collect();
+    account_ids.sort();
+    account_ids.dedup();
+    for account_id in &account_ids {
+        lock::share_lock_by_id(conn, "accounts", account_id).await.map_err(TxError::from)?;
+    }
+
     let total_debit = round2(kept.iter().fold(Decimal::ZERO, |a, l| a + l.debit));
     let total_credit = round2(kept.iter().fold(Decimal::ZERO, |a, l| a + l.credit));
 
@@ -351,10 +366,16 @@ fn non_empty_string_list(ids: &[Id]) -> Option<crate::entities::values::StringLi
 /// `draftJournal` (`core.ts:178-205`): saves a manual entry without posting it (no period check,
 /// no GL effect yet) into `journal_drafts`/`journal_draft_lines` — never `journal_entries`, so
 /// every ledger/balance/report reader stays unaware of it (P2-14).
+///
+/// G-15: takes the full `DocDate` (day + optional instant), not a bare `NaiveDate` — the mock
+/// sometimes drafts with an ISO instant (same `opts.date: string` shape `postJournal` accepts,
+/// `core.ts:178`), and `journal_drafts.date_instant` already has a column for it
+/// (`entities/journal/journal_drafts.rs`); the earlier port silently zeroed it with
+/// `date_instant: Set(None)`.
 pub async fn save_draft<C: ConnectionTrait>(
     conn: &C,
     cx: &TxCtx,
-    date: NaiveDate,
+    date: DocDate,
     description: String,
     lines: Vec<PostingLine>,
     attachment_ids: Vec<Id>,
@@ -370,8 +391,8 @@ pub async fn save_draft<C: ConnectionTrait>(
     let model = DraftActiveModel {
         id: Set(id),
         number: Set(Some(number)),
-        date_day: Set(date),
-        date_instant: Set(None),
+        date_day: Set(date.day),
+        date_instant: Set(date.instant),
         description: Set(description),
         r#type: Set(DraftEntryType::Manual),
         source_kind: Set(None),
@@ -408,6 +429,9 @@ async fn insert_draft_lines<C: ConnectionTrait>(conn: &C, journal_draft_id: Id, 
             party_id: Set(line.party.map(|p| p.id)),
             branch_id: Set(Some(line.branch_id)),
             cost_center_id: Set(line.cost_center_id),
+            currency: Set(Some(line.currency.clone())),
+            amount_fc: Set(line.amount_fc),
+            rate: Set(line.rate),
         };
         model.insert(conn).await.map_err(TxError::from)?;
     }
@@ -416,11 +440,12 @@ async fn insert_draft_lines<C: ConnectionTrait>(conn: &C, journal_draft_id: Id, 
 
 /// `updateDraftJournal` (`core.ts:207-222`): re-resolves the lines and updates the draft's
 /// date/description/totals in place — replaces its child lines wholesale (delete + re-insert,
-/// simplest correct port of "replace the array").
+/// simplest correct port of "replace the array"). G-15: takes the full `DocDate`, same reasoning
+/// as `save_draft`.
 pub async fn update_draft<C: ConnectionTrait>(
     conn: &C,
     id: Id,
-    date: NaiveDate,
+    date: DocDate,
     description: String,
     lines: Vec<PostingLine>,
     attachment_ids: Option<Vec<Id>>,
@@ -432,8 +457,8 @@ pub async fn update_draft<C: ConnectionTrait>(
     insert_draft_lines(conn, id, &resolved.lines).await?;
 
     let mut model: DraftActiveModel = existing.into();
-    model.date_day = Set(date);
-    model.date_instant = Set(None);
+    model.date_day = Set(date.day);
+    model.date_instant = Set(date.instant);
     model.description = Set(description);
     model.total_debit = Set(resolved.total_debit);
     model.total_credit = Set(resolved.total_credit);
@@ -455,11 +480,31 @@ pub async fn delete_draft<C: ConnectionTrait>(conn: &C, id: Id) -> TxResult<()> 
 
 /// `postDraftJournal` (`core.ts:229-245`): moves a saved draft into the real ledger with the
 /// **same id and number**, deletes the draft row (its lines cascade), and touches `Ledger`.
+/// `postDraftJournal` (`core.ts:233-245`). G-15 fixes three behaviour bugs the earlier port had:
+///
+/// 1. `posted_by` must be the **actor performing this post** (mock: `postedBy: userId`, the
+///    caller's own id), not the draft's original `created_by` — a different user can post someone
+///    else's saved draft.
+/// 2. `cx.touch(ChangeCategory::Parties)` fires when any line carries a party, exactly like
+///    `post()` (P2-12) — a posted draft with a customer/supplier line must invalidate party
+///    balance caches the same way a direct `post()` call would.
+/// 3. Currency/amount_fc/rate are threaded through **when the schema underneath has a place to put
+///    them**. `journal_draft_lines` (`entities/journal/journal_draft_lines.rs`) has no
+///    `currency`/`amount_fc`/`rate` columns at all — unlike the mock, whose `journalDrafts` array
+///    stores the exact same `JournalLine` object a posted entry would (so currency/FC survive the
+///    draft stage for free), this schema drops that info the moment a line is saved as a draft.
+///    This function cannot recover data the draft row was never given a column to hold; the
+///    manager needs a schema gap (columns + a `m0016` migration) before this can be truly
+///    behaviour-exact for an FC line saved as a draft. Tracked as a new gap since it wasn't in the
+///    G-15 text handed to this wave — see this wave's final report.
 pub async fn post_draft<C: ConnectionTrait>(conn: &C, cx: &TxCtx, id: Id, allow_closed_period: bool) -> TxResult<JournalEntry> {
+    let posted_by = cx.actor.as_ref().ok_or_else(|| AppError::unauthorized("سجّل الدخول أولاً"))?.id;
+
     let draft = DraftEntity::find_by_id(id).one(conn).await.map_err(TxError::from)?.ok_or_else(|| AppError::not_found("المسودة غير موجودة"))?;
     assert_open_period(conn, &draft.date_day, allow_closed_period).await?;
 
     let draft_lines = DraftLineEntity::find().filter(DraftLineColumn::JournalDraftId.eq(id)).all(conn).await.map_err(TxError::from)?;
+    let has_party = draft_lines.iter().any(|l| l.party_id.is_some());
 
     let now = cx.clock.now;
     let today = cx.clock.today();
@@ -482,7 +527,7 @@ pub async fn post_draft<C: ConnectionTrait>(conn: &C, cx: &TxCtx, id: Id, allow_
         reversal_of_id: Set(None),
         reversal_reason: Set(None),
         created_by: Set(draft.created_by),
-        posted_by: Set(Some(draft.created_by)),
+        posted_by: Set(Some(posted_by)),
         posted_at_day: Set(Some(today)),
         posted_at_instant: Set(Some(now)),
         attachment_ids: Set(draft.attachment_ids.clone()),
@@ -508,9 +553,10 @@ pub async fn post_draft<C: ConnectionTrait>(conn: &C, cx: &TxCtx, id: Id, allow_
             party_id: Set(line.party_id),
             branch_id: Set(line.branch_id),
             cost_center_id: Set(line.cost_center_id),
-            currency: Set(None),
-            amount_fc: Set(None),
-            rate: Set(None),
+            // G-49 (m0016): the draft line carries its FC fields through unchanged.
+            currency: Set(line.currency),
+            amount_fc: Set(line.amount_fc),
+            rate: Set(line.rate),
         };
         model.insert(conn).await.map_err(TxError::from)?;
     }
@@ -518,6 +564,9 @@ pub async fn post_draft<C: ConnectionTrait>(conn: &C, cx: &TxCtx, id: Id, allow_
     DraftEntity::delete_by_id(id).exec(conn).await.map_err(TxError::from)?;
 
     cx.touch(ChangeCategory::Ledger);
+    if has_party {
+        cx.touch(ChangeCategory::Parties);
+    }
 
     Ok(entry)
 }

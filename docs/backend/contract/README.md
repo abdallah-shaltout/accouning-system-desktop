@@ -6,7 +6,7 @@ Every service function the pages call (the seam), what it touches in the mock ba
 Rust backend should do with it. Source of truth for plans/pending/21-rust-backend Part 01. Dispositions
 are **heuristic suggestions** until a reviewer confirms them in `scripts/contract/config.ts` → `overrides`.
 
-**342** wrapped service functions · **46** MockDb tables · **254** exported module types · **240** mock-engine functions · **1** path-string links to convert.
+**354** wrapped service functions · **46** MockDb tables · **297** exported module types · **240** mock-engine functions · **1** path-string links to convert.
 
 ## Modules
 
@@ -15,18 +15,18 @@ are **heuristic suggestions** until a reviewer confirms them in `scripts/contrac
 | **accounting** | 33 | 30 |  | 3 |  |  | 10 | activity, ledger, numbering, period | [accounting.md](accounting.md) |
 | **analytics** | 3 | 3 |  |  |  |  | 0 |  | [analytics.md](analytics.md) |
 | **approvals** | 5 | 5 |  |  |  |  | 3 | activity | [approvals.md](approvals.md) |
-| **core** | 36 | 18 | 9 | 7 | 2 |  | 1 | activity, currency, ledger, numbering, period, stock | [core.md](core.md) |
+| **core** | 37 | 18 | 9 | 8 | 2 |  | 1 | activity, currency, ledger, numbering, period, stock | [core.md](core.md) |
 | **diagnostics** | 14 | 3 |  | 3 | 8 |  | 0 |  | [diagnostics.md](diagnostics.md) |
 | **expenses** | 11 | 11 |  |  |  |  | 7 | activity, ledger, numbering, period | [expenses.md](expenses.md) |
 | **invoices** | 28 | 25 |  | 3 |  |  | 12 | activity, currency, ledger, numbering, period, stock | [invoices.md](invoices.md) |
 | **parties** | 16 | 16 |  |  |  |  | 5 | activity | [parties.md](parties.md) |
 | **payments** | 7 | 7 |  |  |  |  | 7 | activity, ledger, numbering, period | [payments.md](payments.md) |
-| **products** | 51 | 49 |  | 2 |  |  | 15 | activity, ledger, numbering, period, stock | [products.md](products.md) |
+| **products** | 51 | 47 |  | 4 |  |  | 15 | activity, ledger, numbering, period, stock | [products.md](products.md) |
 | **purchases** | 12 | 12 |  |  |  |  | 9 | activity, ledger, numbering, period, stock | [purchases.md](purchases.md) |
 | **reports** | 32 | 32 |  |  |  |  | 0 |  | [reports.md](reports.md) |
-| **settings** | 42 | 35 |  | 7 |  |  | 12 | activity, ledger, numbering, period | [settings.md](settings.md) |
-| **setup** | 21 | 20 |  |  |  | 1 | 15 | activity, ledger, numbering, period, stock | [setup.md](setup.md) |
-| **templates** | 11 | 11 |  |  |  |  | 0 |  | [templates.md](templates.md) |
+| **settings** | 47 | 35 |  | 12 |  |  | 12 | activity, ledger, numbering, period | [settings.md](settings.md) |
+| **setup** | 27 | 23 |  | 3 |  | 1 | 15 | activity, ledger, numbering, period, stock | [setup.md](setup.md) |
+| **templates** | 11 | 10 |  | 1 |  |  | 0 |  | [templates.md](templates.md) |
 | **users** | 9 | 8 |  |  | 1 |  | 4 | activity | [users.md](users.md) |
 | **vouchers** | 11 | 11 |  |  |  |  | 6 | activity, ledger, numbering, period | [vouchers.md](vouchers.md) |
 
@@ -104,4 +104,4 @@ Which service functions reach each capability — every one of them must go thro
 
 ## Unwrapped service exports (not endpoints — helpers, constants, re-exports)
 
-`core.fetchAttachment` · `core.fetchAttachments` · `core.removeAttachment` · `core.saveAttachment` · `core.getInTransitTransfers` · `core.getJournalDraftCount` · `core.getLastBackupFailedAt` · `core.getPendingApprovalRequests` · `core.getStockValueSnapshot` · `core.hasAnyProducts` · `core.onLedgerChanged` · `core.getCities` · `core.getDistricts` · `core.getLabels` · `core.getRegions` · `core.searchPlaces` · `core.INSIGHT_RULES` · `core.DEFAULT_THRESHOLDS` · `diagnostics.buildReproBundle` · `diagnostics.currentJournal` · `diagnostics.debugRecordingAvailable` · `diagnostics.isRecording` · `diagnostics.recordServiceCall` · `diagnostics.startRecording` · `diagnostics.stopRecording` · `diagnostics.getAuditEntityKinds` · `diagnostics.serviceRegistry` · `diagnostics.wrap` · `diagnostics.computePerfStats` · `diagnostics.groupByFingerprint` · `diagnostics.loadChannel` · `diagnostics.slowestLongTasks` · `diagnostics.clearLogs` · `diagnostics.exportAll` · `diagnostics.initDiagnostics` · `diagnostics.openLogFolder` · `diagnostics.readLogs` · `diagnostics.rotateLogs` · `diagnostics.debugEnabled` · `diagnostics.fingerprintOf` · `diagnostics.log` · `diagnostics.newCorrelationId` · `diagnostics.registerSink` · `diagnostics.setLogContext` · `diagnostics.withCorrelation` · `products.onCatalogChanged` · `settings.isClosingWithBackup` · `setup.ensureEmptyCompanyShell` · `users.isFreshInstall`
+`core.fetchAttachment` · `core.fetchAttachments` · `core.removeAttachment` · `core.saveAttachment` · `core.backendCall` · `core.initBackendBridge` · `core.usesRust` · `core.clearMirrors` · `core.mirrored` · `core.getInTransitTransfers` · `core.getJournalDraftCount` · `core.getLastBackupFailedAt` · `core.getPendingApprovalRequests` · `core.getStockValueSnapshot` · `core.hasAnyProducts` · `core.onLedgerChanged` · `core.getCities` · `core.getDistricts` · `core.getLabels` · `core.getRegions` · `core.searchPlaces` · `core.INSIGHT_ICONS` · `core.INSIGHT_RULES` · `core.DEFAULT_THRESHOLDS` · `diagnostics.buildReproBundle` · `diagnostics.currentJournal` · `diagnostics.debugRecordingAvailable` · `diagnostics.isRecording` · `diagnostics.recordServiceCall` · `diagnostics.startRecording` · `diagnostics.stopRecording` · `diagnostics.getAuditEntityKinds` · `diagnostics.serviceRegistry` · `diagnostics.wrap` · `diagnostics.computePerfStats` · `diagnostics.groupByFingerprint` · `diagnostics.loadChannel` · `diagnostics.slowestLongTasks` · `diagnostics.clearLogs` · `diagnostics.exportAll` · `diagnostics.initDiagnostics` · `diagnostics.openLogFolder` · `diagnostics.readLogs` · `diagnostics.rotateLogs` · `diagnostics.debugEnabled` · `diagnostics.fingerprintOf` · `diagnostics.log` · `diagnostics.newCorrelationId` · `diagnostics.registerSink` · `diagnostics.setLogContext` · `diagnostics.withCorrelation` · `products.onCatalogChanged` · `products.branchStockFromCache` · `products.rememberBranchStock` · `settings.isClosingWithBackup` · `setup.ensureDeviceSetupState` · `setup.isFreshInstallCached` · `setup.refreshDeviceSetupState` · `setup.ensureEmptyCompanyShell` · `users.isFreshInstall`

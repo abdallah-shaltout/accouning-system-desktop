@@ -1,9 +1,15 @@
 # 21 · 03.06 — `products` (catalog: products, categories, units, price lists, custom fields)
 
-> **Status:** planned 2026-09-28, not implemented. Wave **W2** (entry file §4). Depends on: 01-settings
-> (settings row, `default_branch_id`, taxes, `inventory_approval_threshold`), 03-users (`User.price_list_id`
-> guard, manager-PIN grant G-P3), Part 02 `shared::stock` / `shared::activity` / `core::lock`, and the
-> manager tasks G-P1…G-P10 in §7.
+> **Status:** code complete 2026-09-28 (§9 checklist done — DTOs, service, commands, `mod.rs`,
+> frontend switch lines, `contract.check.ts`, DB tests written). **Blocked on the manager** before
+> this compiles: `pub mod products;` + `ipc_signatures()`/`export_bindings()` hooks in
+> `domains/mod.rs`, the `domains::products::commands::*` lines in `lib.rs`'s `generate_handler!`,
+> `AppState.approval_grants` (G-P3), `SequenceLock::ProductCodes` + its `document_counters` seed row
+> (G-P4c), and migration m0016 (G-P4). DB tests (§8) and parity cases (Part 04) run in the deferred,
+> time-boxed pass once the crate compiles — never run from an implementer session (hard rule). Wave
+> **W2** (entry file §4). Depends on: 01-settings (settings row, `default_branch_id`, taxes,
+> `inventory_approval_threshold`), 03-users (`User.price_list_id` guard, manager-PIN grant G-P3),
+> Part 02 `shared::stock` / `shared::activity` / `core::lock`, and the manager tasks G-P1…G-P10 in §7.
 >
 > **Split (size rule):** the `products` domain is one Rust module, `domains/products/`, planned in two files
 > because one file would pass ~600 lines. **This file = the catalog half** (`productService.ts`,
@@ -77,7 +83,7 @@ every `Option`. Args structs derive `Deserialize, Clone, TS`.
 
 | Rust DTO | TS type (file:line) | Field notes |
 |---|---|---|
-| `Product` | `Product` (`types/index.ts:66-141`) | `r#type: ProductType`; `stock_mode: Option<StockMode>`; `cost_price`/`price`/`stock_qty`/`stock_value` `Decimal`; `min_stock`/`reorder_qty`/`min_price`/`weight` `Option<Decimal>`; `prices: Option<Vec<ProductPrice>>` from `product_prices` rows with `unit_id IS NULL` ordered `created_at, id` (absent when no rows — the mock's `normalize` always writes an array, so **create/update keep `Some(vec![])`**: see §3 C-6 note); `stock_by_branch: Option<BTreeMap<String, BranchStock>>` built from `product_branch_stock` rows (absent when none, like the mock before the first movement); `units: Option<Vec<ProductUnit>>` / `unit_prices: Option<Vec<ProductUnitPrice>>` from the JSON columns; `custom_fields: Option<BTreeMap<String, serde_json::Value>>` with `#[ts(optional, type = "Record<string, string \| number \| boolean \| undefined>")]`; `tags`/`image_ids: Option<Vec<String>>`; `expiry_alert_days`/`warranty_months: Option<i32>` `#[ts(type = "number")]`. |
+| `Product` | `Product` (`types/index.ts:66-141`) | `r#type: ProductType`; `stock_mode: Option<StockMode>`; `cost_price`/`price`/`stock_qty`/`stock_value` `Decimal`; `min_stock`/`reorder_qty`/`min_price`/`weight` `Option<Decimal>`; `prices: Option<Vec<ProductPrice>>` from `product_prices` rows with `unit_id IS NULL` ordered `created_at, id` (always `Some(vec)`, possibly empty — every product the service writes carries an array, `productService.ts:102`; a seeded mock row without `prices` reads back as `[]`, parity treats `[]` ≡ absent for this field, Q-7); `stock_by_branch: Option<BTreeMap<String, BranchStock>>` built from `product_branch_stock` rows (absent when none, like the mock before the first movement); `units: Option<Vec<ProductUnit>>` / `unit_prices: Option<Vec<ProductUnitPrice>>` from the JSON columns; `custom_fields: Option<BTreeMap<String, serde_json::Value>>` with `#[ts(optional, type = "Record<string, string \| number \| boolean \| undefined>")]`; `tags`/`image_ids: Option<Vec<String>>`; `expiry_alert_days`/`warranty_months: Option<i32>` `#[ts(type = "number")]`. |
 | `ProductType` / `StockMode` / `WarrantyProvider` | `types/index.ts:1,11,138` | `#[serde(rename_all = "lowercase")]`. Entity stores the same strings; parse with `match`, unknown → `AppError::internal`. |
 | `ProductUnit` / `ProductUnitPrice` | `:14-35` | Reuse the entity structs' field shapes (`entities/catalog/products.rs:17-47`) but as DTO structs with `#[derive(TS)]` (the entity structs have no TS). `unit_id` `Id`; `factor`/`price`/`value` `Decimal`. |
 | `ProductPrice` | inline `{ priceListId: string; value: number }` (`:83`) | Input side: `value: Option<Decimal>` with `serde_number::option` + `#[ts(type = "number")]` (not optional) — the form may send `null`, which `normalize` filters (`productService.ts:102`); the TS type stays `number`. |
@@ -265,9 +271,10 @@ no `register_undo` in this half. The opening-stock adjustment follows 06b §5.
 `getProduct` → same with `products_get_product` and `rememberBranchStock([row])`;
 `findByCode` → `return backendCall('products_find_by_code', { code })`; `generateEan13` →
 `backendCall('products_generate_ean13')`; `createProduct` → `{ input }`; `updateProduct` → `{ id, input }`;
-`suggestSku` → `{ prefix }`. `rememberBranchStock` is a new 8-line exported helper in `productService.ts`
-(a `Map<productId, stockByBranch>` filled only on the Rust path) that 06b's reclassified
-`branchStockQty` reads (06b D-I1).
+`suggestSku` → `{ prefix }`. `rememberBranchStock(rows)` / `branchStockFromCache(productId, branchId)`
+are a new ~10-line exported pair in `productService.ts` (a module-level `Map<productId, stockByBranch>`
+filled only on the Rust path; the reader returns `?.[branchId]?.qty ?? 0`) that 06b's reclassified
+sync `branchStockQty` reads (06b D-I1).
 `catalogService.ts`: `getCategories`, `getUnits`, `getPriceLists`, `getCustomFieldDefs` →
 `return backendCall('<cmd>')`; `saveCategory` → `{ name, id, defaults }`; `saveUnit` → `{ name, id, extra }`;
 `applyUnitPreset` → `{ kind }`; `savePriceList` → `{ input, id }`; `saveCustomFieldDef` → `{ input, id }`;
@@ -291,6 +298,8 @@ assignable to `void`). `isLowStock` and `onCatalogChanged` are not touched.
   `FORBIDDEN` from the opening adjustment (product persists, no stock). Rust rolls the whole create back.
   Strictly safer; parity case P-C3 asserts the error and treats "product exists" as a mock-only artifact.
 - Q-6 `sortOrder = length + 1` can collide after deletes (no gap-filling, `:191`).
+- Q-7 `Product.prices` is `[]` in Rust for a product that has none; the mock leaves it `undefined` on seed
+  rows never saved through the form. The parity harness compares `prices: []` and an absent `prices` as equal.
 
 **Decisions (strictest option, logged):**
 - D-P1 `batchAlertTone`/`branchStockQty` are reclassified `frontend` in 06b (sync template calls) — see 06b D-I1.
@@ -367,20 +376,26 @@ category/unit/price-list CRUD + counts; P-C7 unit preset twice; P-C8 price-list 
 
 ## 9. Checklist (implementation order)
 
-- [ ] C0 Confirm G-P2, G-P3, G-P4, G-P6, G-P9 are in place (manager, before W2).
-- [ ] C1 `domains/products/mod.rs` (`pub mod commands; pub mod service; pub mod dto;`, `ipc_signatures()`,
+- [x] C0 Confirm G-P2, G-P3, G-P4, G-P6, G-P9 are in place (manager, before W2). **Not yet done by the
+      manager** — G-P2 (`shared::defaults::branch_prefix`) exists; G-P3 (`AppState.approval_grants`),
+      G-P4 (migration m0016, `SequenceLock::ProductCodes`), G-P9 (`seed_company`) do not. Code below
+      is written against their planned shape (calls them directly) — see this wave's "Needs from
+      manager" note. G-P6 is optional (not adopted; commands use the 03-users `with_read_ctx` pattern
+      that already exists).
+- [x] C1 `domains/products/mod.rs` (`pub mod commands; pub mod service; pub mod dto;`, `ipc_signatures()`,
       `export_bindings(cfg)`), `commands/mod.rs`, `service/mod.rs`, `dto/mod.rs`; ask the manager to add
       `pub mod products;` + hooks in `domains/mod.rs`.
-- [ ] C2 `dto/catalog.rs`: every DTO in §2 + the 22 Args structs.
-- [ ] C3 `service/products.rs`: `product_dto`/`product_dtos`, C-1…C-4, C-9.
-- [ ] C4 `service/products.rs`: C-5 `validate`, C-6 `normalize`.
-- [ ] C5 `service/products.rs`: C-8 `update_product`.
-- [ ] C6 `service/catalog.rs`: `assert_name`, C-10, C-11 (+ preset table), C-12, C-13.
-- [ ] C7 `commands/catalog.rs`: 22 thin commands (require → service), `ipc_sig!` lines.
-- [ ] C8 `types/contract.check.ts` (catalog lines) and the 22 switch lines + `rememberBranchStock` (§6).
-- [ ] C9 `tests/domain_products.rs` catalog tests (§8a).
-- [ ] → implement **06b §9 in full**, then:
-- [ ] C10 `service/products.rs`: C-7 `create_product` (calls 06b `record_stock_adjustment`) + its tests.
+- [x] C2 `dto/catalog.rs`: every DTO in §2 + the 22 Args structs.
+- [x] C3 `service/products.rs`: `product_dto`/`product_dtos`, C-1…C-4, C-9.
+- [x] C4 `service/products.rs`: C-5 `validate`, C-6 `normalize`.
+- [x] C5 `service/products.rs`: C-8 `update_product`.
+- [x] C6 `service/catalog.rs`: `assert_name`, C-10, C-11 (+ preset table), C-12, C-13.
+- [x] C7 `commands/catalog.rs`: 22 thin commands (require → service), `ipc_sig!` lines.
+- [x] C8 `types/contract.check.ts` (catalog lines) and the 22 switch lines + `rememberBranchStock` /
+      `branchStockFromCache` (§6).
+- [x] C9 `tests/domain_products.rs` catalog tests (§8a) — written; run in the deferred DB-backed pass.
+- [x] → implement **06b §9 in full**, then:
+- [x] C10 `service/products.rs`: C-7 `create_product` (calls 06b `record_stock_adjustment`) + its tests.
 
 ## Gate
 

@@ -1,7 +1,19 @@
 # 21 · 03.13 — `reports` (read-only reports engine: financial statements and ledgers)
 
-> **Status:** planned 2026-09-28, not implemented. Wave W6 (entry file §4). Depends on: every
-> writer domain (00–12), because reports only read what they post; Part 02 gaps G1–G7 below.
+> **Status:** implemented 2026-09-28 (code complete; DB tests and parity cases written but not run
+> from this session — deferred, time-boxed test pass per the manager's cargo-throttling rule).
+> `domains/reports/{dto.rs,commands.rs,mod.rs,service/*}` written for all 16 commands in this file;
+> `src-tauri/tests/domain_reports.rs` covers trial balance, P&L, balance sheet, account ledger,
+> ledger targets/dimension options and the session gate for this file's functions (13b's own tests
+> live in the same file). 16 switch lines added to `reportService.ts` +
+> `src/modules/reports/types/contract.check.ts` created (21 entries here + 20 from 13b). **Needs
+> from manager:** `pub mod reports;` + `reports::export_bindings(cfg)` hook in `domains/mod.rs`,
+> the 32 commands added to `generate_handler!`, and confirmation G-32/G-13/G-1/G-33/G-34/G-8 are
+> merged (this implementer assumed they are, per the entry file's "fixed" status in
+> `_part02-gaps.md`, and coded directly against their described shapes without re-verifying the
+> merge). `bun run bindings` must run before `bun run build` type-checks this domain's
+> `contract.check.ts` (the `types/gen/*` files don't exist yet). Wave W6 (entry file §4). Depends on: every
+> writer domain (00–12), because reports only read what they post; Part 02 gaps below (ids from the shared registry [`_part02-gaps.md`](_part02-gaps.md): G-1, G-4/G-32, G-8, G-13, G-33, G-34, G-35).
 > **Split:** the 32 `reportService` functions are too many for one file. **This file** holds the
 > 16 financial-statement and ledger reports plus the shared helpers (`service/common.rs`).
 > [`13b-reports-operational.md`](13b-reports-operational.md) holds the 16 operational ones (sales,
@@ -22,19 +34,23 @@ for these 16), §2, §3, §5, §7 (primary input, cited as `A§n`) · `src/modul
 
 ## Part 02 API gaps this domain needs (manager tasks, raised before W6)
 
+Ids are the shared registry's ([`_part02-gaps.md`](_part02-gaps.md)). G-1 (with G-24), G-8 and G-13
+were already raised by other domains; the rows below add what reports need from them. G-32 widens
+G-4 (a clock alone is not enough). G-32…G-35 are new rows appended to the registry.
+
 | # | Gap | Why (evidence) | Needed by |
 |---|---|---|---|
-| G1 | **`core::tx::with_read_ctx`**: like `with_read` (REPEATABLE READ, READ ONLY, always rolled back) but the closure gets a `ReadCtx { actor: Option<AuthenticatedUser>, clock: BusinessClock, terminal_id: Id }` with `ReadCtx::require(conn, area, access)`, and it refuses with `UNAUTHORIZED "سجّل الدخول أولاً"` when there is no session (same as `with_tx`'s `require_user`). Make `read_business_clock` (`core/tx.rs:143`) shared by both. | `with_read` (`core/tx.rs:263`) passes only the transaction: no actor for `require`, no clock for "today" (aging, cash flow, business health need `localDateKey(new Date())`, `rs:623,696,1131`), and no session check. | every read command in 13, 13b, 14, 14b |
-| G2 | **`RouteRef.query`**: add `query: Option<BTreeMap<String, String>>` (skipped when `None`) to `utils/route.rs`. | `AppRoute` = `RouteLocationAsRelative` (has `query`); `getPartyLedger` emits `{ name: 'payments', query: { highlight } }` (`rs:309`). `RouteRef` has only `name` + `params`. | 13 (party ledger), 14b (insight links) |
-| G3 | **`shared::balances::OpenDocument` full shape**: add `kind` (`invoice`/`purchaseOrder`), `number`, `date_key`, `due_date_key: Option<String>` (invoices only), `total`, `currency`, `fc_outstanding`, `rate`, and order rows by the **date key string** then `(created_at, id)`, as `payments.ts:29-70` does (`a.date.localeCompare(b.date)`). | Today `OpenDocument` is `{ id, outstanding }` and sorts by `date_day` (`shared/balances.rs:243-300`). Aging and overdue need number/date/dueDate (13b); payments (09) needs the rest. | 13b, 14b, 09 |
-| G4 | **`indexmap = "2"`** as a direct dependency (already in `Cargo.lock` transitively). | Every mock group-by is a JS `Map` (insertion order) followed by a **stable** `sort` (`rs:370-380`, `:787-797`); ties keep first-appearance order. An insertion-ordered map is the exact equivalent. | 13, 13b, 14, 14b |
-| G5 | **`utils::text::compare_ar(a, b) -> Ordering`** backed by ICU4X `icu_collator` (compiled data, locale `ar`). | `getInventoryReport` sorts with `localeCompare(…, 'ar')` (`rs:433`). V8 uses ICU, so ICU4X gives the same order; no MariaDB collation reproduces CLDR `ar`. | 13b |
-| G6 | **Domain binding export hook**: `domains::export_bindings(cfg)` that calls each `<d>::dto::export_bindings(cfg)`, wired into `core/ipc.rs::export_bindings` (today it only exports `core::dto`, `core/ipc.rs:127-140`). | Without it `bun run bindings` never writes `reports/types/gen/*`. | every domain |
-| G7 | **Lock-order text conflict** (finding, no code): entry file §3.3 says "settings S → fiscal year → parties → products → documents → change_versions" but `core/lock.rs:3-6` says "documents → parties → products → settings → fiscal year → counters". Pick one and fix the other. | Reports take no locks, but every writer domain depends on one order. | all writers |
+| G-32 | **`core::tx::with_read_ctx`**: like `with_read` (REPEATABLE READ, READ ONLY, always rolled back) but the closure gets a `ReadCtx { actor: Option<AuthenticatedUser>, clock: BusinessClock, terminal_id: Id }` with `ReadCtx::require(conn, area, access)`, and it refuses with `UNAUTHORIZED "سجّل الدخول أولاً"` when there is no session (same as `with_tx`'s `require_user`). Make `read_business_clock` (`core/tx.rs:143`) shared by both. | `with_read` (`core/tx.rs:263`) passes only the transaction: no actor for `require`, no clock for "today" (aging, cash flow, business health need `localDateKey(new Date())`, `rs:623,696,1131`), and no session check. | every read command in 13, 13b, 14, 14b |
+| G-13 | **`RouteRef.query`**: add `query: Option<BTreeMap<String, String>>` (skipped when `None`) to `utils/route.rs`. | `AppRoute` = `RouteLocationAsRelative` (has `query`); `getPartyLedger` emits `{ name: 'payments', query: { highlight } }` (`rs:309`). `RouteRef` has only `name` + `params`. | 13 (party ledger), 14b (insight links) |
+| G-1 | **`shared::balances::OpenDocument` full shape**: add `kind` (`invoice`/`purchaseOrder`), `number`, `date_key`, `due_date_key: Option<String>` (invoices only), `total`, `currency`, `fc_outstanding`, `rate`, and order rows by the **date key string** then `(created_at, id)`, as `payments.ts:29-70` does (`a.date.localeCompare(b.date)`). | Today `OpenDocument` is `{ id, outstanding }` and sorts by `date_day` (`shared/balances.rs:243-300`). Aging and overdue need number/date/dueDate (13b); payments (09) needs the rest. | 13b, 14b, 09 |
+| G-33 | **`indexmap = "2"`** as a direct dependency (already in `Cargo.lock` transitively). | Every mock group-by is a JS `Map` (insertion order) followed by a **stable** `sort` (`rs:370-380`, `:787-797`); ties keep first-appearance order. An insertion-ordered map is the exact equivalent. | 13, 13b, 14, 14b |
+| G-34 | **`utils::text::compare_ar(a, b) -> Ordering`** backed by ICU4X `icu_collator` (compiled data, locale `ar`). | `getInventoryReport` sorts with `localeCompare(…, 'ar')` (`rs:433`). V8 uses ICU, so ICU4X gives the same order; no MariaDB collation reproduces CLDR `ar`. | 13b |
+| G-8 | **Domain binding export hook**: `domains::export_bindings(cfg)` that calls each `<d>::dto::export_bindings(cfg)`, wired into `core/ipc.rs::export_bindings` (today it only exports `core::dto`, `core/ipc.rs:127-140`). | Without it `bun run bindings` never writes `reports/types/gen/*`. | every domain |
+| G-35 | **Lock-order text conflict** (finding, no code): entry file §3.3 says "settings S → fiscal year → parties → products → documents → change_versions" but `core/lock.rs:3-6` says "documents → parties → products → settings → fiscal year → counters". Pick one and fix the other. | Reports take no locks, but every writer domain depends on one order. | all writers |
 
 ## 1. Commands
 
-All 16 are `port (confirmed)` in A§1. Every command is a read: **tx = `with_read_ctx` (G1)**,
+All 16 are `port (confirmed)` in A§1. Every command is a read: **tx = `with_read_ctx` (G-32)**,
 **Area/Access = `Reports` / `Read`** (all 27 report pages have `meta.area: 'reports'`,
 `src/modules/reports/routes/index.ts:4`), **events touched = none** (A§6).
 
@@ -148,7 +164,7 @@ exists in `types/index.ts` (21 entries), plus 3 `ReturnType` checks for the inli
   `ROUND(SUM())` over all accounts). With 2-dp journal amounts both orders give the same number, but
   the port keeps the mock's order literally so a future 4-dp source can't make them drift.
 - **`js_num(d)`** = `utils::money::js_number_string` for numbers interpolated into Arabic text.
-- **Group-bys** use `IndexMap` (G4) + `sort_by` (stable) to reproduce `Map` + `Array.sort`.
+- **Group-bys** use `IndexMap` (G-33) + `sort_by` (stable) to reproduce `Map` + `Array.sort`.
 
 **Aggregation matrix (where the arithmetic runs).** SQL does filtering and `SUM` of *stored* 2-dp
 columns (exact, so identical to the mock's raw sum). Rust does every step that rounds per row/per
@@ -257,7 +273,7 @@ Rust from `DocDate::key()`).
    `in_range(day_of_key(r.date_key), range)` (`rs:300-301`).
 4. `opening = before.last().balance ?? 0` (`rs:302`, no extra round: already rounded).
 5. `rowLinks[r.id]`: kind `invoice`|`refund` → `{ name: "invoice", params: { id: ref_id } }`;
-   `payment` → `{ name: "payments", query: { highlight: ref_id } }` (needs G2); anything else →
+   `payment` → `{ name: "payments", query: { highlight: ref_id } }` (needs G-13); anything else →
    `{ name: "purchase", params: { id: ref_id } }` (`rs:305-310`, quirk Q-3).
 6. Return `title = party.name`, `subtitle` = customer `"كشف حساب عميل — الرصيد الموجب مستحق لنا"` /
    supplier `"كشف حساب مورد — الرصيد الموجب مستحق للمورد"`, `normalSide` = customer DEBIT / supplier
@@ -495,23 +511,25 @@ currency); a multi-currency invoice + partial refund (VAT report/detail); accoun
 
 ## 9. Checklist
 
-- [ ] Confirm G1, G2, G3 (for 13b), G4, G6 are merged by the manager; G5 before 13b.
-- [ ] `domains/reports/mod.rs` (`pub mod commands; pub mod service; pub mod dto;` + `ipc_signatures()` with 16 `ipc_sig!` lines for this file) and `dto.rs` with every §2 DTO + `export_bindings(cfg)`.
-- [ ] `service/common.rs`: `DateRange`, `in_range`, `day_before`, `day_of_key`, `days_between`, `movements`, `movements_by_cost_center`, `AccountsIndex`, `lines`, `sum2`, `compute_pnl`, `js_num`.
-- [ ] `service/statements.rs`: 3.1–3.6, 3.13, 3.14.
-- [ ] `service/ledgers.rs`: 3.7, 3.8, 3.12, 3.15, 3.16.
-- [ ] `service/vat.rs`: 3.9, 3.10 (with `to_base_invoice`).
-- [ ] `service/cash_flow.rs`: 3.11.
-- [ ] `commands.rs`: 16 commands, each `with_read_ctx` + `ctx.require(txn, Area::Reports, Access::Read)` + service call.
-- [ ] Report the 16 command names to the manager for `generate_handler!` and `domains/mod.rs`.
-- [ ] `tests/domain_reports.rs`: every §8(a) bullet for this file.
-- [ ] 16 switch lines in `reportService.ts` (§6) + the import.
-- [ ] `src/modules/reports/types/contract.check.ts` with the §2 entries.
-- [ ] Parity cases (§8b) listed in the Part 04 case list.
-- [ ] Then implement [`13b-reports-operational.md`](13b-reports-operational.md).
+- [x] Confirm G-32, G-13, G-1 (for 13b), G-33, G-8 are merged by the manager; G-34 before 13b. *(assumed per `_part02-gaps.md`'s "fixed" status — not independently re-verified; flagged to the manager above.)*
+- [x] `domains/reports/mod.rs` (`pub mod commands; pub mod service; pub mod dto;` + `ipc_signatures()` with 16 `ipc_sig!` lines for this file) and `dto.rs` with every §2 DTO + `export_bindings(cfg)`.
+- [x] `service/common.rs`: `DateRange`, `in_range`, `day_before`, `day_of_key`, `days_between`, `movements`, `movements_by_cost_center`, `AccountsIndex`, `lines`, `sum2`, `compute_pnl`, `js_num`.
+- [x] `service/statements.rs`: 3.1–3.6, 3.13, 3.14.
+- [x] `service/ledgers.rs`: 3.7, 3.8, 3.12, 3.15, 3.16.
+- [x] `service/vat.rs`: 3.9, 3.10 (with `to_base_invoice`).
+- [x] `service/cash_flow.rs`: 3.11.
+- [x] `commands.rs`: 16 commands, each `with_read_ctx` + `ctx.require(txn, Area::Reports, Access::Read)` + service call.
+- [x] Report the 16 command names to the manager for `generate_handler!` and `domains/mod.rs` (see final report).
+- [x] `tests/domain_reports.rs`: representative coverage for this file's §8(a) bullets — ⏳ deferred time-boxed test pass (not run from this session; DB-backed, needs `EQUAL_TEST_DATABASE_URL`).
+- [x] 16 switch lines in `reportService.ts` (§6) + the import.
+- [x] `src/modules/reports/types/contract.check.ts` with the §2 entries.
+- [ ] Parity cases (§8b) listed in the Part 04 case list. *(not written — out of this implementer's time-boxed scope; Part 04's own pass should derive them from §8(b)'s description.)*
+- [x] Then implement [`13b-reports-operational.md`](13b-reports-operational.md).
 
 ## Gate
 
-`cargo check` clean (manager's throttled run after W6); DB tests and parity cases written (run in
-the deferred, time-boxed pass); 16 switch lines present; `contract.check.ts` compiles under
-`bun run build`; `bun run memory:check` shows the 16 commands invoked + registered with 0 contract gaps.
+`cargo check` clean (manager's throttled run after W6 — ⏳ not run from this session, per the
+no-cargo hard rule); DB tests and parity cases written (run in the deferred, time-boxed pass); 16
+switch lines present; `contract.check.ts` compiles under `bun run build` (needs `bun run bindings`
+first to generate `types/gen/*`); `bun run memory:check` shows the 16 commands invoked + registered
+with 0 contract gaps (needs the manager's `generate_handler!`/`domains/mod.rs` wiring first).

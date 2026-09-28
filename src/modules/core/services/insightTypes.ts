@@ -10,6 +10,31 @@ import type { Role } from '@/modules/users/types';
 
 export type InsightSeverity = 'critical' | 'warning' | 'info' | 'positive';
 
+/**
+ * 21.03 14b-insights.md §2 — the 18 icon names the Rust `InsightDto.icon` field carries across IPC
+ * (a Vue `Component` can't cross the wire). `INSIGHT_ICONS` (`insightRules.ts`) maps this key to the
+ * actual Lucide component; `toInsight()` (`insightEngine.ts`) does the mapping back into an `Insight`.
+ */
+export type InsightIconKey =
+  | 'AlertTriangle'
+  | 'Banknote'
+  | 'CalendarRange'
+  | 'Clock'
+  | 'CreditCard'
+  | 'DatabaseBackup'
+  | 'FileWarning'
+  | 'Landmark'
+  | 'PackageX'
+  | 'Percent'
+  | 'PiggyBank'
+  | 'Repeat'
+  | 'RotateCcw'
+  | 'ScrollText'
+  | 'Sparkles'
+  | 'TimerOff'
+  | 'TrendingDown'
+  | 'UserX';
+
 export interface Insight {
   /** Stable id: `${ruleKey}:${entityId}` — dismissing/snoozing targets this exact instance. */
   id: string;

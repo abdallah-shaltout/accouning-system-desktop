@@ -1,6 +1,13 @@
 # 21 · 03.04 — `approvals` (async manager-approval queue)
 
-> **Status:** planned 2026-09-28, not implemented. Wave **W2** (entry file §4). Depends on: 03-users
+> **Status (2026-09-28): code complete, not yet compiled/tested.** Wave **W2**. All 5 commands,
+> DTOs, service logic and the DB-backed test file are written per this spec. G-9 was already fixed
+> in `m0013_platform.rs` (both `_instant` columns are `DATETIME(3)`) — no migration change needed.
+> Not yet done: `pub mod approvals;` + `generate_handler!`/`export_bindings` hook lines in
+> `domains/mod.rs` and `lib.rs` (manager-owned, see "Needs from manager" in the final report),
+> `cargo check`, running the tests, and the 4 parity cases (⏳ deferred to the time-boxed test pass).
+>
+> Wave **W2** (entry file §4). Depends on: 03-users
 > (session, the requester/decider name), Part 02 `shared::activity`, `core/lock.rs`, entity
 > `platform/approval_requests.rs`, and Part 02 gaps G-6/G-8/G-9 (§7).
 
@@ -145,14 +152,16 @@ same-second rows sort differently. Fix in place (Part 02's tests have not passed
 
 ## 9. Checklist
 
-- [ ] `domains/approvals/{mod,dto,service,commands}.rs` (mod: `ipc_signatures()` with 5 lines + `export_bindings(cfg)`).
-- [ ] `dto.rs` per §2 with entity-enum conversions.
-- [ ] `service.rs`: `KIND_LABEL`, `actor_name`, `submit`, `list`, `pending_count`, `decide` (§3 order, mock line comments).
-- [ ] `commands.rs`: 5 commands; kind-based `require_any` in submit; Approvals:Read/Write elsewhere.
-- [ ] Manager: register the 5 commands, `pub mod approvals;`, hooks in `domains/mod.rs`.
-- [ ] Switch lines (§6); `src/modules/approvals/types/contract.check.ts` (§2).
-- [ ] `tests/domain_approvals.rs` (§8a); parity list to Part 04.
-- [ ] Status note at the top of this file.
+- [x] `domains/approvals/{mod,dto,service,commands}.rs` (mod: `ipc_signatures()` with 5 lines + `export_bindings(cfg)`).
+- [x] `dto.rs` per §2 with entity-enum conversions.
+- [x] `service.rs`: `KIND_LABEL`, `actor_name`, `submit`, `list`, `pending_count`, `decide` (§3 order, mock line comments).
+- [x] `commands.rs`: 5 commands; kind-based `require_any` in submit; Approvals:Read/Write elsewhere.
+- [ ] Manager: register the 5 commands, `pub mod approvals;`, hooks in `domains/mod.rs` — **needs
+      manager**, see final report.
+- [x] Switch lines (§6); `src/modules/approvals/types/contract.check.ts` (§2).
+- [x] `tests/domain_approvals.rs` (§8a) written; ⏳ running them + the 4 parity cases deferred to the
+      time-boxed test pass.
+- [x] Status note at the top of this file.
 
 ## Gate
 

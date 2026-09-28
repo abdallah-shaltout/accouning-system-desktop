@@ -283,7 +283,7 @@ mod tests {
             m.insert("id".to_string(), id.to_string());
             m
         });
-        RouteRef { name: name.to_string(), params }
+        RouteRef { name: name.to_string(), params, query: None }
     }
 
     #[test]

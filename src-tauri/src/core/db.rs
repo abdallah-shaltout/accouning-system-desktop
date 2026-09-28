@@ -1,5 +1,6 @@
 //! MariaDB pool, version gate and migration boot (phase-a-foundation.md A-6, fixed by A2-10/C-19).
 
+use async_trait::async_trait;
 use sea_orm::sqlx::mysql::MySqlPoolOptions;
 use sea_orm::sqlx::ConnectOptions as SqlxConnectOptions;
 use sea_orm::{DatabaseConnection, DbErr, SqlxMySqlConnector};
@@ -102,16 +103,78 @@ pub fn parse_mariadb_version(version: &str) -> Option<(u32, u32)> {
     Some((parts.next()?, parts.next()?))
 }
 
+/// G-45/GB-1/GB-2 (P2-52 handoff): the pre-migration automatic backup is implemented later by the
+/// `17-backup` domain, which cannot be depended on directly from `core` (a domain never gets called
+/// from `core`, only the other way around — the seam rule, generalized). This trait is the function-
+/// pointer/trait seam `17-backup::pre_migration::backup_before_migrations` fills once it exists:
+/// `core::db::migrate` calls whatever implementation `AppState`/the boot path wires in, and until
+/// then a no-op `NoPendingMigrationBackup` is used, which only ever needs to succeed because it is
+/// only ever consulted when the caller already knows there is nothing to back up yet (see below).
+///
+/// Not stored on `AppState` (no domain type may appear in `core`'s own state — same seam boundary
+/// rule) — instead threaded through as a parameter, so `connect_and_migrate` (which lives in `core`
+/// but is called after `AppState` exists) can pass whichever hook the binary's `lib.rs` wiring
+/// chooses, without `core` ever naming `infrastructure::backup`.
+#[async_trait]
+pub trait PreMigrationBackup: Send + Sync {
+    /// Called for `DeviceRole::Main` only, before `Migrator::up`, whenever there is at least one
+    /// pending migration. Returning `Err` aborts the migration entirely (`migrate` maps it to
+    /// `DbStatus::MigrationBackupFailed`, G-45) — zero data loss over availability (D-14).
+    async fn backup_before_migrations(&self, db: &DatabaseConnection) -> Result<(), String>;
+}
+
+/// The no-op seam filled in until `17-backup` lands: `core::db::migrate` never calls this when there
+/// are zero pending migrations (fresh install, or already up to date), so a real backup is never
+/// skipped by using this placeholder — it only ever runs (returning `Ok` unconditionally) in a
+/// build/test that hasn't wired the real backup domain in yet.
+pub struct NoPendingMigrationBackup;
+
+#[async_trait]
+impl PreMigrationBackup for NoPendingMigrationBackup {
+    async fn backup_before_migrations(&self, _db: &DatabaseConnection) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+/// G-45: `migrate`'s failure modes map to two different `DbStatus` values (`SchemaMismatch` vs.
+/// `MigrationBackupFailed`) — `connect_and_migrate` needs to tell them apart, which a bare `String`
+/// error can't do without fragile text-sniffing.
+pub enum MigrateError {
+    /// The pre-migration backup itself failed — migrations were never attempted.
+    BackupFailed(String),
+    /// Everything else (a terminal with pending/unknown migrations, `Migrator::up` failing, …).
+    Other(String),
+}
+
+impl std::fmt::Display for MigrateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MigrateError::BackupFailed(msg) | MigrateError::Other(msg) => write!(f, "{msg}"),
+        }
+    }
+}
+
 /// Runs migrations per P2-28: the Main PC applies pending migrations; a terminal must find zero
-/// pending migrations and no applied-but-unknown migration, else it refuses the DB.
-pub async fn migrate(db: &DatabaseConnection, role: DeviceRole) -> Result<(), String> {
+/// pending migrations and no applied-but-unknown migration, else it refuses the DB. G-45/GB-2: on
+/// the Main PC, when there is at least one pending migration, `backup.backup_before_migrations` runs
+/// first — its failure aborts the migration (`MigrateError::BackupFailed`; `connect_and_migrate` maps
+/// it to `DbStatus::MigrationBackupFailed`) rather than risking an unbacked-up schema change.
+pub async fn migrate(db: &DatabaseConnection, role: DeviceRole, backup: &dyn PreMigrationBackup) -> Result<(), MigrateError> {
     use migration::MigratorTrait;
     match role {
-        DeviceRole::Main => migration::Migrator::up(db, None).await.map_err(|e| e.to_string()),
-        DeviceRole::Terminal => {
-            let pending = migration::Migrator::get_pending_migrations(db).await.map_err(|e| e.to_string())?;
+        DeviceRole::Main => {
+            let pending = migration::Migrator::get_pending_migrations(db).await.map_err(|e| MigrateError::Other(e.to_string()))?;
             if !pending.is_empty() {
-                return Err("قاعدة البيانات على الجهاز الرئيسي بإصدار مختلف — حدّث البرنامج على الجهازين".to_string());
+                backup.backup_before_migrations(db).await.map_err(MigrateError::BackupFailed)?;
+            }
+            migration::Migrator::up(db, None).await.map_err(|e| MigrateError::Other(e.to_string()))
+        }
+        DeviceRole::Terminal => {
+            let pending = migration::Migrator::get_pending_migrations(db).await.map_err(|e| MigrateError::Other(e.to_string()))?;
+            if !pending.is_empty() {
+                return Err(MigrateError::Other(
+                    "قاعدة البيانات على الجهاز الرئيسي بإصدار مختلف — حدّث البرنامج على الجهازين".to_string(),
+                ));
             }
             Ok(())
         }
@@ -255,9 +318,26 @@ pub async fn connect_and_migrate(app: &AppHandle) {
         return;
     }
 
-    if let Err(e) = migrate(&database, device.role).await {
-        log::error!("migration gate failed: {e}");
-        *state.db_status.write().unwrap() = DbStatus::SchemaMismatch;
+    // P2-52 (17-backup): an automatic backup runs before any pending migration, into the managed
+    // server's `backups\` folder (the same `ServerPaths` the supervisor owns).
+    let out_dir = match device.role {
+        crate::core::device::DeviceRole::Main => state.server.paths.backups(),
+        _ => state.app_data_dir.join("backups"),
+    };
+    let pre_migration_backup = crate::infrastructure::backup::pre_migration::RealPreMigrationBackup { out_dir };
+    if let Err(e) = migrate(&database, device.role, &pre_migration_backup).await {
+        // G-45: a backup failure gets its own status (MigrationBackupFailed) distinct from a schema
+        // mismatch — see core/status.rs's message and GB-3.
+        match e {
+            MigrateError::BackupFailed(msg) => {
+                log::error!("pre-migration backup failed: {msg}");
+                *state.db_status.write().unwrap() = DbStatus::MigrationBackupFailed;
+            }
+            MigrateError::Other(msg) => {
+                log::error!("migration gate failed: {msg}");
+                *state.db_status.write().unwrap() = DbStatus::SchemaMismatch;
+            }
+        }
         return;
     }
 
@@ -275,5 +355,31 @@ mod tests {
         assert_eq!(parse_mariadb_version("10.11.6-MariaDB-1:10.11.6+maria~ubu2204"), Some((10, 11)));
         assert_eq!(parse_mariadb_version("10.6.0-MariaDB"), Some((10, 6)));
         assert_eq!(parse_mariadb_version("8.0.34"), None);
+    }
+
+    /// G-45: `MigrateError`'s two variants must stay distinguishable by `connect_and_migrate`'s
+    /// `match` (a DB-backed test exercising the real `migrate()` + a fake failing backup lives in
+    /// the 17-backup domain's own test suite once it exists; this only pins the error-shape
+    /// contract this file owns).
+    #[test]
+    fn migrate_error_display_preserves_the_message_for_both_variants() {
+        let backup_failed = MigrateError::BackupFailed("تعذر أخذ نسخة احتياطية".to_string());
+        assert_eq!(backup_failed.to_string(), "تعذر أخذ نسخة احتياطية");
+        assert!(matches!(backup_failed, MigrateError::BackupFailed(_)));
+
+        let other = MigrateError::Other("مشكلة أخرى".to_string());
+        assert_eq!(other.to_string(), "مشكلة أخرى");
+        assert!(matches!(other, MigrateError::Other(_)));
+    }
+
+    #[test]
+    fn no_pending_migration_backup_implements_the_seam_trait() {
+        // No live `DatabaseConnection` is fabricated here (this crate keeps unit tests DB-free) —
+        // this only proves `NoPendingMigrationBackup` satisfies `PreMigrationBackup` and is usable
+        // wherever `migrate()` expects a `&dyn PreMigrationBackup`. The "it always returns `Ok`"
+        // behavior itself is exercised by a DB-backed test once a real backup implementation (and a
+        // test harness that already has a `DatabaseConnection`) exists in the 17-backup domain.
+        fn assert_impls_trait<T: PreMigrationBackup>(_: &T) {}
+        assert_impls_trait(&NoPendingMigrationBackup);
     }
 }

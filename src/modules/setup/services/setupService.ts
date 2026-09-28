@@ -15,19 +15,27 @@ import {
   postOpeningStockForBranch,
   postPartyOpeningBalance,
   reversePartyOpeningBalance,
-  type OpeningEntryInput,
-  type OpeningStockLine,
-  type PartyOpeningBalanceInput,
 } from '@/mocks/backend/opening';
 import { createCurrency, isBaseCurrencyLocked as currencyIsBaseCurrencyLocked, setBaseCurrency } from '@/mocks/backend/currency';
 import { mutate } from '@/mocks/persist';
 import type { Account, FiscalYear } from '@/modules/accounting/types';
 import type { AccountTemplate } from '@/mocks/fixtures/accounts';
 import type { Branch } from '@/modules/settings/types';
-import type { WizardBranchInput, WizardPaymentMethodInput } from '@/mocks/backend/setup';
 import { countryProfile, type CountryCode } from '@/modules/core/helpers/countryProfiles';
+import type {
+  CloseTarget,
+  OnboardingProgress,
+  OnboardingProgressPatch,
+  OpeningEntryInput,
+  OpeningStockLine,
+  PartyOpeningBalanceInput,
+  PostOpeningBalancesResult,
+  WizardBranchInput,
+  WizardPaymentMethodInput,
+} from '../types';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 
 // --- Fresh-install shell -------------------------------------------------------------------------
 
@@ -39,6 +47,9 @@ import { wrap } from '@/modules/diagnostics/services/defineService';
  * any step has a chance to await anything.
  */
 export function ensureEmptyCompanyShell(): void {
+  // Rust seeds the shell itself, lazily, inside `setup_get_onboarding_progress` (setup.md §3.3) —
+  // never from a page. Nothing to do here once Rust owns this domain.
+  if (usesRust('setup')) return;
   if (db.users.length === 0) seedEmptyCompany();
 }
 
@@ -49,27 +60,27 @@ export const persistProgress = wrap('setup.persistProgress', async function pers
 
 // --- Progress ----------------------------------------------------------------------------------
 
-export interface OnboardingProgress {
-  businessType?: string;
-  goLiveDate?: string;
-  completedStep?: number;
-  skipped: string[];
-  done: string[];
-  finishedAt?: string;
-}
-
 export const getOnboardingProgress = wrap('setup.getOnboardingProgress', async function getOnboardingProgress(): Promise<OnboardingProgress> {
+  if (usesRust('setup')) return backendCall('setup_get_onboarding_progress');
   await delay(60);
   const o = db.settings.onboarding;
   return clone({ businessType: o?.businessType, goLiveDate: o?.goLiveDate, completedStep: o?.completedStep, skipped: o?.skipped ?? [], done: o?.done ?? [], finishedAt: o?.finishedAt });
 });
 
-export const saveOnboardingProgress = wrap('setup.saveOnboardingProgress', async function saveOnboardingProgress(patch: Partial<OnboardingProgress>): Promise<void> {
+export const saveOnboardingProgress = wrap('setup.saveOnboardingProgress', async function saveOnboardingProgress(patch: OnboardingProgressPatch): Promise<void> {
+  if (usesRust('setup')) {
+    await backendCall('setup_save_onboarding_progress', { patch });
+    return;
+  }
   await delay(40);
   mutate(() => (db.settings.onboarding = { ...db.settings.onboarding, ...clone(patch) }));
 });
 
 export const markStepDone = wrap('setup.markStepDone', async function markStepDone(key: string, stepIndex?: number): Promise<void> {
+  if (usesRust('setup')) {
+    await backendCall('setup_mark_step_done', { key, stepIndex });
+    return;
+  }
   await delay(20);
   mutate(() => {
     const done = new Set(db.settings.onboarding?.done ?? []);
@@ -79,6 +90,10 @@ export const markStepDone = wrap('setup.markStepDone', async function markStepDo
 });
 
 export const markStepSkipped = wrap('setup.markStepSkipped', async function markStepSkipped(key: string): Promise<void> {
+  if (usesRust('setup')) {
+    await backendCall('setup_mark_step_skipped', { key });
+    return;
+  }
   await delay(20);
   mutate(() => {
     const skipped = new Set(db.settings.onboarding?.skipped ?? []);
@@ -90,6 +105,10 @@ export const markStepSkipped = wrap('setup.markStepSkipped', async function mark
 // --- Step: business type -----------------------------------------------------------------------
 
 export const applyBusinessTypeDefaults = wrap('setup.applyBusinessTypeDefaults', async function applyBusinessTypeDefaults(businessType: string): Promise<void> {
+  if (usesRust('setup')) {
+    await backendCall('setup_apply_business_type_defaults', { businessType });
+    return;
+  }
   await delay(40);
   setupBackend.applyBusinessTypeUnitDefaults(businessType);
 });
@@ -97,6 +116,7 @@ export const applyBusinessTypeDefaults = wrap('setup.applyBusinessTypeDefaults',
 // --- Step: country/currency/tax --------------------------------------------------------------
 
 export const isBaseCurrencyLocked = wrap('setup.isBaseCurrencyLocked', async function isBaseCurrencyLocked(): Promise<boolean> {
+  if (usesRust('setup')) return backendCall('setup_is_base_currency_locked');
   await delay(30);
   return currencyIsBaseCurrencyLocked();
 });
@@ -108,6 +128,10 @@ export const applyCountryTax = wrap('setup.applyCountryTax', async function appl
   pricesIncludeTax: boolean;
   extraCurrencies: { code: string; rate: number }[];
 }): Promise<void> {
+  if (usesRust('setup')) {
+    await backendCall('setup_apply_country_tax', { input });
+    return;
+  }
   await delay();
   if (await isBaseCurrencyLocked()) throw new ApiError('لا يمكن تغيير الدولة أو العملة الأساسية بعد أول ترحيل', 'FORBIDDEN');
 
@@ -138,6 +162,7 @@ export const applyCountryTax = wrap('setup.applyCountryTax', async function appl
 // --- Step: fiscal year ---------------------------------------------------------------------
 
 export const applyFiscalYear = wrap('setup.applyFiscalYear', async function applyFiscalYear(startMonth: number, startDay: number, goLiveDate: string): Promise<FiscalYear> {
+  if (usesRust('setup')) return backendCall('setup_apply_fiscal_year', { startMonth, startDay, goLiveDate });
   await delay();
   const fy = setupBackend.setFiscalYear(startMonth, startDay, goLiveDate);
   mutate(() => (db.settings.onboarding = { ...db.settings.onboarding, goLiveDate }));
@@ -147,6 +172,7 @@ export const applyFiscalYear = wrap('setup.applyFiscalYear', async function appl
 // --- Step: branches --------------------------------------------------------------------------
 
 export const applyBranches = wrap('setup.applyBranches', async function applyBranches(branches: WizardBranchInput[]): Promise<Branch[]> {
+  if (usesRust('setup')) return backendCall('setup_apply_branches', { branches });
   await delay();
   setupBackend.applyBranches(branches, session.userId);
   return clone(db.branches);
@@ -155,10 +181,12 @@ export const applyBranches = wrap('setup.applyBranches', async function applyBra
 // --- Step: chart of accounts -----------------------------------------------------------------
 
 export const previewCoaTemplate = wrap('setup.previewCoaTemplate', function previewCoaTemplate(template: AccountTemplate, country: CountryCode = 'EG', businessType?: string): Account[] {
+  // D-6: stays frontend-only even on Rust — pure/synchronous, used in a `computed` (`StepCoa.vue`).
   return setupBackend.previewCoaTemplate(template, country, businessType);
 });
 
 export const applyCoaTemplate = wrap('setup.applyCoaTemplate', async function applyCoaTemplate(template: AccountTemplate, country: CountryCode = 'EG', businessType?: string): Promise<Account[]> {
+  if (usesRust('setup')) return backendCall('setup_apply_coa_template', { template, country, businessType });
   await delay();
   const accounts = setupBackend.applyCoaTemplate(template, country, businessType);
   mutate(() => (db.settings.onboarding = { ...db.settings.onboarding, coaTemplate: template }));
@@ -168,6 +196,10 @@ export const applyCoaTemplate = wrap('setup.applyCoaTemplate', async function ap
 // --- Step: payment methods --------------------------------------------------------------------
 
 export const applyPaymentMethods = wrap('setup.applyPaymentMethods', async function applyPaymentMethods(methods: WizardPaymentMethodInput[]): Promise<void> {
+  if (usesRust('setup')) {
+    await backendCall('setup_apply_payment_methods', { methods });
+    return;
+  }
   await delay();
   setupBackend.applyPaymentMethods(methods);
 });
@@ -175,19 +207,22 @@ export const applyPaymentMethods = wrap('setup.applyPaymentMethods', async funct
 // --- Step 8: opening balances -----------------------------------------------------------------
 
 export const getOpeningBalanceEquityNet = wrap('setup.getOpeningBalanceEquityNet', async function getOpeningBalanceEquityNet(): Promise<number> {
+  if (usesRust('setup')) return backendCall('setup_get_opening_balance_equity_net');
   await delay(30);
   return openingBalanceEquityNet();
 });
 
 export const isFirstUsePosted = wrap('setup.isFirstUsePosted', async function isFirstUsePosted(): Promise<boolean> {
+  if (usesRust('setup')) return backendCall('setup_is_first_use_posted');
   await delay(20);
   return hasFirstUsePosted();
 });
 
 export const postOpeningBalances = wrap('setup.postOpeningBalances', async function postOpeningBalances(
   input: Omit<OpeningEntryInput, 'createdBy'>,
-  closeTarget: 'capital' | 'ownerCurrent',
-): Promise<{ openingEntryId: string; closingEntryId?: string }> {
+  closeTarget: CloseTarget,
+): Promise<PostOpeningBalancesResult> {
+  if (usesRust('setup')) return backendCall('setup_post_opening_balances', { input, closeTarget });
   await delay(200);
   const openingEntry = postOpeningEntry({ ...input, createdBy: session.userId });
   const closingEntry = closeOpeningBalanceEquity(input.date, closeTarget, session.userId);
@@ -203,12 +238,20 @@ export const postOpeningBalances = wrap('setup.postOpeningBalances', async funct
 });
 
 export const postOpeningStock = wrap('setup.postOpeningStock', async function postOpeningStock(branchId: string, date: string, lines: OpeningStockLine[]): Promise<void> {
+  if (usesRust('setup')) {
+    await backendCall('setup_post_opening_stock', { branchId, date, lines });
+    return;
+  }
   await delay(150);
   postOpeningStockForBranch(branchId, date, lines, session.userId);
 });
 
 /** Re-closes 3900 after the opening entry or opening stock changed (idempotent — no-op if already zero). */
-export const recloseOpeningBalanceEquity = wrap('setup.recloseOpeningBalanceEquity', async function recloseOpeningBalanceEquity(date: string, target: 'capital' | 'ownerCurrent' = 'capital'): Promise<void> {
+export const recloseOpeningBalanceEquity = wrap('setup.recloseOpeningBalanceEquity', async function recloseOpeningBalanceEquity(date: string, target: CloseTarget = 'capital'): Promise<void> {
+  if (usesRust('setup')) {
+    await backendCall('setup_reclose_opening_balance_equity', { date, target });
+    return;
+  }
   await delay(80);
   closeOpeningBalanceEquity(date, target, session.userId);
 });
@@ -216,12 +259,17 @@ export const recloseOpeningBalanceEquity = wrap('setup.recloseOpeningBalanceEqui
 // --- Party opening balance (docs/v2/05 §4, party-form stub) -----------------------------------
 
 export const postPartyOpening = wrap('setup.postPartyOpening', async function postPartyOpening(input: Omit<PartyOpeningBalanceInput, 'createdBy'>): Promise<string | undefined> {
+  if (usesRust('setup')) return (await backendCall('setup_post_party_opening', { input })) ?? undefined;
   await delay(120);
   const entry = postPartyOpeningBalance({ ...input, createdBy: session.userId });
   return entry?.id;
 });
 
 export const reversePartyOpening = wrap('setup.reversePartyOpening', async function reversePartyOpening(entryId: string): Promise<void> {
+  if (usesRust('setup')) {
+    await backendCall('setup_reverse_party_opening', { entryId });
+    return;
+  }
   await delay(120);
   reversePartyOpeningBalance(entryId, session.userId);
 });
@@ -229,8 +277,15 @@ export const reversePartyOpening = wrap('setup.reversePartyOpening', async funct
 // --- Finish ------------------------------------------------------------------------------------
 
 export const finishOnboarding = wrap('setup.finishOnboarding', async function finishOnboarding(): Promise<void> {
+  if (usesRust('setup')) {
+    await backendCall('setup_finish_onboarding');
+    return;
+  }
   await delay(60);
   mutate(() => (db.settings.onboarding = { ...db.settings.onboarding, finishedAt: new Date().toISOString() }));
 });
+
+// Device setup (role step + terminal pairing) lives in `./deviceService.ts` (setup.md §6) — a
+// separate file since it's dormant infrastructure, not a wizard step.
 
 export { uid };

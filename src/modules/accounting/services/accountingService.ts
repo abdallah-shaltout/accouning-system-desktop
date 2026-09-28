@@ -20,6 +20,7 @@ import type { AppRoute } from '@/modules/core/types/route';
 import type { Account, AccountInput, FiscalYear, JournalEntry, JournalEntryInput, JournalFilter, JournalTemplate } from '../types';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
+import { usesRust, backendCall } from '@/modules/core/services/backend';
 
 export type { CloseYearPreCheck, VatPeriodTotals };
 
@@ -38,6 +39,7 @@ function canPostToClosedPeriod(): boolean {
 
 /** `range` filters which journal entries count toward the balance column (CoA page period filter). Omitted = all time. */
 export const getAccounts = wrap('accounting.getAccounts', async function getAccounts(range: { from?: string; to?: string } = {}): Promise<AccountWithBalance[]> {
+  if (usesRust('accounting')) return backendCall('accounting_get_accounts', { range });
   await delay();
   const totals = new Map<string, { d: number; c: number }>();
   for (const e of db.journalEntries) {
@@ -94,6 +96,7 @@ function validateAccount(input: AccountInput, exceptId?: string) {
 }
 
 export const saveAccount = wrap('accounting.saveAccount', async function saveAccount(input: AccountInput, id?: string): Promise<Account> {
+  if (usesRust('accounting')) return backendCall('accounting_save_account', { input, id });
   await delay();
   validateAccount(input, id);
   let account: Account;
@@ -119,6 +122,7 @@ export const saveAccount = wrap('accounting.saveAccount', async function saveAcc
 });
 
 export const deleteAccount = wrap('accounting.deleteAccount', async function deleteAccount(id: string): Promise<void> {
+  if (usesRust('accounting')) { await backendCall('accounting_delete_account', { id }); return; }
   await delay();
   const account = db.accounts.find((a) => a.id === id);
   if (!account) throw new ApiError('الحساب غير موجود', 'NOT_FOUND');
@@ -134,6 +138,7 @@ export const deleteAccount = wrap('accounting.deleteAccount', async function del
  * different kind").
  */
 export const reparentAccount = wrap('accounting.reparentAccount', async function reparentAccount(id: string, newParentId: string | null): Promise<Account> {
+  if (usesRust('accounting')) return backendCall('accounting_reparent_account', { id, newParentId });
   await delay();
   const account = db.accounts.find((a) => a.id === id);
   if (!account) throw new ApiError('الحساب غير موجود', 'NOT_FOUND');
@@ -209,6 +214,7 @@ function allEntriesAndDrafts(): JournalEntry[] {
 }
 
 export const getJournalEntries = wrap('accounting.getJournalEntries', async function getJournalEntries(filter: JournalFilter = {}): Promise<JournalRow[]> {
+  if (usesRust('accounting')) return backendCall('accounting_get_journal_entries', { filter });
   await delay();
   return allEntriesAndDrafts()
     .filter((e) => matchesJournalFilter(e, filter))
@@ -224,6 +230,7 @@ export interface LinkedJournalEntry {
 
 /** Journal entries posted from a specific source document (e.g. an expense or a voucher's "قيود مرتبطة" card). */
 export const getJournalEntriesForSource = wrap('accounting.getJournalEntriesForSource', async function getJournalEntriesForSource(sourceKind: string, sourceId: string): Promise<LinkedJournalEntry[]> {
+  if (usesRust('accounting')) return backendCall('accounting_get_journal_entries_for_source', { sourceKind, sourceId });
   await delay(60);
   return db.journalEntries
     .filter((e) => e.sourceRef?.kind === sourceKind && e.sourceRef.id === sourceId)
@@ -232,6 +239,7 @@ export const getJournalEntriesForSource = wrap('accounting.getJournalEntriesForS
 
 /** Server-mode variant of `getJournalEntries` for `DataTable`: paged, sorted and totalled server-side. */
 export const getJournalEntriesPaged = wrap('accounting.getJournalEntriesPaged', async function getJournalEntriesPaged(query: PagedQuery<JournalFilter>): Promise<PagedResult<JournalRow>> {
+  if (usesRust('accounting')) return backendCall('accounting_get_journal_entries_paged', { query });
   await delay();
   const filter = query.filters ?? {};
   let rows: JournalRow[] = allEntriesAndDrafts()
@@ -258,6 +266,7 @@ export const getJournalEntriesPaged = wrap('accounting.getJournalEntriesPaged', 
 });
 
 export const getJournalEntry = wrap('accounting.getJournalEntry', async function getJournalEntry(id: string): Promise<JournalRow & { reversedById?: string; reversedByNumber?: string; related: JournalRow[] }> {
+  if (usesRust('accounting')) return backendCall('accounting_get_journal_entry', { id });
   await delay();
   const entry = allEntriesAndDrafts().find((e) => e.id === id);
   if (!entry) throw new ApiError('القيد غير موجود', 'NOT_FOUND');
@@ -275,28 +284,33 @@ export const getJournalEntry = wrap('accounting.getJournalEntry', async function
 });
 
 export const createJournalEntry = wrap('accounting.createJournalEntry', async function createJournalEntry(input: JournalEntryInput): Promise<JournalEntry> {
+  if (usesRust('accounting')) return backendCall('accounting_create_journal_entry', { input });
   await delay();
   return clone(recordManualJournal(input, session.userId, canPostToClosedPeriod()));
 });
 
 /** Edit a saved draft in place. */
 export const updateJournalDraft = wrap('accounting.updateJournalDraft', async function updateJournalDraft(id: string, input: JournalEntryInput): Promise<JournalEntry> {
+  if (usesRust('accounting')) return backendCall('accounting_update_journal_draft', { id, input });
   await delay();
   return clone(editDraftJournal(id, input));
 });
 
 /** Posts a previously saved draft. */
 export const postJournalDraft = wrap('accounting.postJournalDraft', async function postJournalDraft(id: string): Promise<JournalEntry> {
+  if (usesRust('accounting')) return backendCall('accounting_post_journal_draft', { id });
   await delay();
   return clone(postDraftJournal(id, session.userId, canPostToClosedPeriod()));
 });
 
 export const deleteJournalDraft = wrap('accounting.deleteJournalDraft', async function deleteJournalDraft(id: string): Promise<void> {
+  if (usesRust('accounting')) { await backendCall('accounting_delete_journal_draft', { id }); return; }
   await delay();
   deleteDraftJournal(id);
 });
 
 export const reverseJournalEntry = wrap('accounting.reverseJournalEntry', async function reverseJournalEntry(id: string, date: string, reason: string): Promise<JournalEntry> {
+  if (usesRust('accounting')) return backendCall('accounting_reverse_journal_entry', { id, date, reason });
   await delay();
   return clone(reverseJournal(id, session.userId, date, reason, canPostToClosedPeriod()));
 });
@@ -328,12 +342,14 @@ function sourceLink(entry: Pick<JournalEntry, 'sourceRef'>): AppRoute | undefine
 // --- Fiscal years ----------------------------------------------------------------------------
 
 export const getFiscalYears = wrap('accounting.getFiscalYears', async function getFiscalYears(): Promise<FiscalYear[]> {
+  if (usesRust('accounting')) return backendCall('accounting_get_fiscal_years');
   await delay(120);
   return clone([...db.fiscalYears].sort((a, b) => b.startDate.localeCompare(a.startDate)));
 });
 
 /** The open fiscal year containing today (fallback: the latest one). Reports default to it. */
 export const getCurrentFiscalYear = wrap('accounting.getCurrentFiscalYear', async function getCurrentFiscalYear(): Promise<FiscalYear | undefined> {
+  if (usesRust('accounting')) return (await backendCall('accounting_get_current_fiscal_year')) ?? undefined;
   await delay(60);
   const today = localDateKey(new Date());
   const current = db.fiscalYears.find((f) => f.startDate <= today && f.endDate >= today) ?? [...db.fiscalYears].sort((a, b) => b.startDate.localeCompare(a.startDate))[0];
@@ -341,6 +357,7 @@ export const getCurrentFiscalYear = wrap('accounting.getCurrentFiscalYear', asyn
 });
 
 export const saveFiscalYear = wrap('accounting.saveFiscalYear', async function saveFiscalYear(input: Omit<FiscalYear, 'id'>, id?: string): Promise<FiscalYear> {
+  if (usesRust('accounting')) return backendCall('accounting_save_fiscal_year', { input, id });
   await delay();
   if (!input.name.trim()) throw new ApiError('اسم السنة المالية مطلوب');
   if (!input.startDate || !input.endDate || input.endDate <= input.startDate) throw new ApiError('تاريخ النهاية يجب أن يكون بعد تاريخ البداية');
@@ -363,11 +380,13 @@ export const saveFiscalYear = wrap('accounting.saveFiscalYear', async function s
 // --- Posting settings (lock date) -------------------------------------------------------------
 
 export const getLockDate = wrap('accounting.getLockDate', async function getLockDate(): Promise<string | undefined> {
+  if (usesRust('accounting')) return (await backendCall('accounting_get_lock_date')) ?? undefined;
   await delay(60);
   return db.settings.accounting?.lockDate;
 });
 
 export const saveLockDate = wrap('accounting.saveLockDate', async function saveLockDate(lockDate: string | undefined): Promise<void> {
+  if (usesRust('accounting')) { await backendCall('accounting_save_lock_date', { lockDate }); return; }
   await delay();
   mutate(() => {
     db.settings.accounting = { ...db.settings.accounting, lockDate: lockDate || undefined };
@@ -378,11 +397,13 @@ export const saveLockDate = wrap('accounting.saveLockDate', async function saveL
 // --- Fiscal-year closing wizard ----------------------------------------------------------------
 
 export const getCloseYearPreChecks = wrap('accounting.getCloseYearPreChecks', async function getCloseYearPreChecks(fiscalYearId: string): Promise<CloseYearPreCheck[]> {
+  if (usesRust('accounting')) return backendCall('accounting_get_close_year_pre_checks', { fiscalYearId });
   await delay();
   return closeYearPreChecks(fiscalYearId);
 });
 
 export const closeYear = wrap('accounting.closeYear', async function closeYear(fiscalYearId: string): Promise<{ fiscalYear: FiscalYear; closingEntry: JournalEntry; nextYear?: FiscalYear }> {
+  if (usesRust('accounting')) return backendCall('accounting_close_year', { fiscalYearId });
   await delay(300);
   const result = closeFiscalYear(fiscalYearId, session.userId);
   return clone(result);
@@ -390,6 +411,7 @@ export const closeYear = wrap('accounting.closeYear', async function closeYear(f
 
 /** Admin-only (checked here, same coarse `role === 'admin'` pattern as `canPostToClosedPeriod`). */
 export const reopenYear = wrap('accounting.reopenYear', async function reopenYear(fiscalYearId: string): Promise<FiscalYear> {
+  if (usesRust('accounting')) return backendCall('accounting_reopen_year', { fiscalYearId });
   await delay();
   if (useAuthStore().user?.role !== 'admin') throw new ApiError('إعادة فتح السنة المالية للمدير فقط', 'FORBIDDEN');
   return clone(reopenFiscalYear(fiscalYearId, session.userId));
@@ -398,11 +420,13 @@ export const reopenYear = wrap('accounting.reopenYear', async function reopenYea
 // --- Journal templates & recurring entries (A2/A3) ----------------------------------------------
 
 export const getJournalTemplates = wrap('accounting.getJournalTemplates', async function getJournalTemplates(): Promise<JournalTemplate[]> {
+  if (usesRust('accounting')) return backendCall('accounting_get_journal_templates');
   await delay(120);
   return clone([...db.journalTemplates].sort((a, b) => a.name.localeCompare(b.name, 'ar')));
 });
 
 export const getJournalTemplate = wrap('accounting.getJournalTemplate', async function getJournalTemplate(id: string): Promise<JournalTemplate> {
+  if (usesRust('accounting')) return backendCall('accounting_get_journal_template', { id });
   await delay();
   const template = db.journalTemplates.find((t) => t.id === id);
   if (!template) throw new ApiError('القالب غير موجود', 'NOT_FOUND');
@@ -410,17 +434,20 @@ export const getJournalTemplate = wrap('accounting.getJournalTemplate', async fu
 });
 
 export const createOrUpdateJournalTemplate = wrap('accounting.createOrUpdateJournalTemplate', async function createOrUpdateJournalTemplate(input: JournalTemplateInput, id?: string): Promise<JournalTemplate> {
+  if (usesRust('accounting')) return backendCall('accounting_create_or_update_journal_template', { input, id });
   await delay();
   return clone(saveJournalTemplate(input, session.userId, id));
 });
 
 export const removeJournalTemplate = wrap('accounting.removeJournalTemplate', async function removeJournalTemplate(id: string): Promise<void> {
+  if (usesRust('accounting')) { await backendCall('accounting_remove_journal_template', { id }); return; }
   await delay();
   deleteJournalTemplate(id, session.userId);
 });
 
 /** Used by the entry form's "load a template" action: pre-fills the grid from a saved template. */
 export const loadTemplateIntoEntry = wrap('accounting.loadTemplateIntoEntry', async function loadTemplateIntoEntry(id: string): Promise<JournalTemplate> {
+  if (usesRust('accounting')) return backendCall('accounting_load_template_into_entry', { id });
   await delay(80);
   return getJournalTemplate(id);
 });
@@ -432,6 +459,7 @@ export const loadTemplateIntoEntry = wrap('accounting.loadTemplateIntoEntry', as
  * rule in `modules/core/services/insightRules.ts`, docs/v2/11-journal-dashboard-insights.md D2).
  */
 export const postRecurringTemplate = wrap('accounting.postRecurringTemplate', async function postRecurringTemplate(id: string): Promise<JournalEntry> {
+  if (usesRust('accounting')) return backendCall('accounting_post_recurring_template', { id });
   await delay();
   const template = db.journalTemplates.find((t) => t.id === id);
   if (!template) throw new ApiError('القالب غير موجود', 'NOT_FOUND');
@@ -453,17 +481,20 @@ export const postRecurringTemplate = wrap('accounting.postRecurringTemplate', as
 // --- VAT settlement --------------------------------------------------------------------------
 
 export const getVatPeriodTotals = wrap('accounting.getVatPeriodTotals', async function getVatPeriodTotals(from: string, to: string): Promise<VatPeriodTotals> {
+  if (usesRust('accounting')) return backendCall('accounting_get_vat_period_totals', { from, to });
   await delay();
   return vatTotalsForPeriod(from, to);
 });
 
 export const submitVatSettlement = wrap('accounting.submitVatSettlement', async function submitVatSettlement(from: string, to: string): Promise<JournalEntry> {
+  if (usesRust('accounting')) return backendCall('accounting_submit_vat_settlement', { from, to });
   await delay(300);
   return clone(postVatSettlement(from, to, session.userId, canPostToClosedPeriod()));
 });
 
 /** Payment-to-the-authority posting, routed through a real payment method (see `payVatSettlement`'s doc comment). */
 export const payVatSettlementNow = wrap('accounting.payVatSettlementNow', async function payVatSettlementNow(amount: number, paymentMethodId: string): Promise<JournalEntry> {
+  if (usesRust('accounting')) return backendCall('accounting_pay_vat_settlement_now', { amount, paymentMethodId });
   await delay(300);
   return clone(payVatSettlement(amount, paymentMethodId, session.userId));
 });

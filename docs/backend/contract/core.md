@@ -2,30 +2,31 @@
 
 # Contract — `core`
 
-36 service functions. Full signatures: `contract.gen.json`. Plan: plans/pending/21-rust-backend/01-frontend-analysis/core.md.
+37 service functions. Full signatures: `contract.gen.json`. Plan: plans/pending/21-rust-backend/01-frontend-analysis/core.md.
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
 | [`buildLabelItems`](../../../src/modules/core/services/pdfService.ts#L661) | `picks: LabelPick[], opts: { includeQr: boolean; }` | `Promise<LabelDataItem[]>` | **frontend** — pure computation, no data access |  |  |  |  |
-| [`clearDismissal`](../../../src/modules/core/services/insightEngine.ts#L81) | `userId: string \| undefined, insightId: string` | `void` | **frontend** — webview/plugin only (localStorage) |  |  |  |  |
-| [`dismissInsight`](../../../src/modules/core/services/insightEngine.ts#L63) | `userId: string \| undefined, insightId: string` | `void` | **frontend** — webview/plugin only (localStorage) |  |  |  |  |
-| [`forceRefresh`](../../../src/modules/core/services/insightEngine.ts#L227) |  | `void` | **frontend** — pure computation, no data access |  |  |  |  |
-| [`getDashboardSummary`](../../../src/modules/core/services/dashboardService.ts#L22) |  | `Promise<DashboardSummary>` | **port** — reads backend data |  | accounts, invoices, journalEntries, products, refunds |  | DashboardSummary |
-| [`getHomeKpis`](../../../src/modules/core/services/dashboardService.ts#L184) | `period?: HomePeriod` | `Promise<HomeKpis>` | **port** — reads backend data |  | accounts, invoices, journalEntries, refunds |  |  |
-| [`getInsights`](../../../src/modules/core/services/insightEngine.ts#L129) | `opts: GetInsightsOptions` | `Insight[]` | **port** — reads backend data |  | settings |  |  |
-| [`getInsightsFor`](../../../src/modules/core/services/insightEngine.ts#L148) | `role: Role \| undefined, predicate: (i: Insight) => boolean` | `Insight[]` | **port** — reads backend data |  | settings |  | Role |
-| [`getInsightsForEntity`](../../../src/modules/core/services/insightEngine.ts#L153) | `role: Role \| undefined, ruleKeys: string[], entityId: string` | `Insight[]` | **port** — reads backend data |  | settings |  | Role |
-| [`getLowStockProducts`](../../../src/modules/core/services/dashboardService.ts#L59) | `limit?: any` | `Promise<Product[]>` | **port** — reads backend data |  | products |  | Product |
-| [`getProductInlineHints`](../../../src/modules/core/services/insightEngine.ts#L164) | `role: Role \| undefined, productId: string` | `Insight[]` | **port** — reads backend data |  | invoices, products, settings |  | Role |
-| [`getRecentActivity`](../../../src/modules/core/services/dashboardService.ts#L72) | `limit?: any` | `Promise<(ActivityEntry & { userName?: string; })[]>` | **port** — reads backend data |  | activity, users |  | ActivityEntry |
-| [`getRecentInvoices`](../../../src/modules/core/services/dashboardService.ts#L64) | `limit?: any` | `Promise<(Invoice & { customerName?: string; })[]>` | **port** — reads backend data |  | customers, invoices |  | Invoice |
-| [`getThresholds`](../../../src/modules/core/services/insightEngine.ts#L24) |  | `InsightThresholds` | **port** — reads backend data |  | settings |  |  |
-| [`getTopCustomers`](../../../src/modules/core/services/dashboardService.ts#L284) | `period?: HomePeriod, limit?: any` | `Promise<TopCustomerRow[]>` | **port** — reads backend data |  | customers, invoices |  |  |
-| [`getTopProducts`](../../../src/modules/core/services/dashboardService.ts#L261) | `period?: HomePeriod, limit?: any` | `Promise<TopProductRow[]>` | **port** — reads backend data |  | invoices, products |  |  |
+| [`clearDismissal`](../../../src/modules/core/services/insightEngine.ts#L108) | `userId: string \| undefined, insightId: string` | `void` | **frontend** — webview/plugin only (localStorage) |  |  |  |  |
+| [`dismissInsight`](../../../src/modules/core/services/insightEngine.ts#L90) | `userId: string \| undefined, insightId: string` | `void` | **frontend** — webview/plugin only (localStorage) |  |  |  |  |
+| [`forceRefresh`](../../../src/modules/core/services/insightEngine.ts#L279) |  | `void` | **frontend** — pure computation, no data access |  |  |  |  |
+| [`getBackendStatus`](../../../src/modules/core/services/backend.ts#L131) |  | `Promise<BackendStatus>` | **frontend** — webview/plugin only (@tauri-apps/api) |  |  |  | BackendStatus |
+| [`getDashboardSummary`](../../../src/modules/core/services/dashboardService.ts#L24) |  | `Promise<DashboardSummary>` | **port** — reads backend data |  | accounts, invoices, journalEntries, products, refunds |  | DashboardSummary |
+| [`getHomeKpis`](../../../src/modules/core/services/dashboardService.ts#L190) | `period?: HomePeriod` | `Promise<HomeKpis>` | **port** — reads backend data |  | accounts, invoices, journalEntries, refunds |  |  |
+| [`getInsights`](../../../src/modules/core/services/insightEngine.ts#L174) | `opts: GetInsightsOptions` | `Insight[]` | **port** — reads backend data |  | settings |  |  |
+| [`getInsightsFor`](../../../src/modules/core/services/insightEngine.ts#L193) | `role: Role \| undefined, predicate: (i: Insight) => boolean` | `Insight[]` | **port** — reads backend data |  | settings |  | Role |
+| [`getInsightsForEntity`](../../../src/modules/core/services/insightEngine.ts#L198) | `role: Role \| undefined, ruleKeys: string[], entityId: string` | `Insight[]` | **port** — reads backend data |  | settings |  | Role |
+| [`getLowStockProducts`](../../../src/modules/core/services/dashboardService.ts#L62) | `limit?: any` | `Promise<Product[]>` | **port** — reads backend data |  | products |  | Product |
+| [`getProductInlineHints`](../../../src/modules/core/services/insightEngine.ts#L209) | `role: Role \| undefined, productId: string` | `Insight[]` | **port** — reads backend data |  | invoices, products, settings |  | Role |
+| [`getRecentActivity`](../../../src/modules/core/services/dashboardService.ts#L77) | `limit?: any` | `Promise<(ActivityEntry & { userName?: string; })[]>` | **port** — reads backend data |  | activity, users |  | ActivityEntry |
+| [`getRecentInvoices`](../../../src/modules/core/services/dashboardService.ts#L68) | `limit?: any` | `Promise<(Invoice & { customerName?: string; })[]>` | **port** — reads backend data |  | customers, invoices |  | Invoice |
+| [`getThresholds`](../../../src/modules/core/services/insightEngine.ts#L35) |  | `InsightThresholds` | **port** — reads backend data |  | settings |  |  |
+| [`getTopCustomers`](../../../src/modules/core/services/dashboardService.ts#L292) | `period?: HomePeriod, limit?: any` | `Promise<TopCustomerRow[]>` | **port** — reads backend data |  | customers, invoices |  |  |
+| [`getTopProducts`](../../../src/modules/core/services/dashboardService.ts#L268) | `period?: HomePeriod, limit?: any` | `Promise<TopProductRow[]>` | **port** — reads backend data |  | invoices, products |  |  |
 | [`initPrintResultListener`](../../../src/modules/core/services/printService.ts#L268) |  | `Promise<void>` | **port** — reads backend data |  | accounts, branches, customers, invoices, journalEntries, paymentMethods, payments, products, purchaseOrders, purchaseRe… |  |  |
 | [`listPrinters`](../../../src/modules/core/services/printService.ts#L63) |  | `Promise<PrinterInfo[]>` | **rust-existing** — already calls Rust (list_printers) |  |  |  |  |
 | [`printReceipt`](../../../src/modules/core/services/printService.ts#L196) | `saleId: string, isCashSale: boolean` | `Promise<PrintReceiptOutcome>` | **port** — reads backend data |  | customers, invoices, products, settings, taxes, users |  |  |
-| [`reloadDemoData`](../../../src/modules/core/services/devToolsService.ts#L19) |  | `Promise<void>` | **dev-only** — override: 01.B core review — reseeds and overwrites nearly … | accounts, activity, audit, branches, cardSettlements, categories, costCenters, counters, credentials, currencies, customers, exchangeRates, expenseCategories, expenses, fiscalYears, invoices, journalDrafts, journalEntries, partyGroups, partyHistory, paymentMethods, payments, priceLists, productBatches, products, purchaseOrders, purchaseReturns, recurringExpenses, refunds, settings, shifts, stockAdjustments, stockMovements, stockTransfers, suppliers, taxes, units, users, vouchers |  | activity, currency, ledger, numbering, period, stock |  |
+| [`reloadDemoData`](../../../src/modules/core/services/devToolsService.ts#L27) |  | `Promise<void>` | **dev-only** — override: 01.B core review — reseeds and overwrites nearly … | accounts, activity, audit, branches, cardSettlements, categories, costCenters, counters, credentials, currencies, customers, exchangeRates, expenseCategories, expenses, fiscalYears, invoices, journalDrafts, journalEntries, partyGroups, partyHistory, paymentMethods, payments, priceLists, productBatches, products, purchaseOrders, purchaseReturns, recurringExpenses, refunds, settings, shifts, stockAdjustments, stockMovements, stockTransfers, suppliers, taxes, units, users, vouchers |  | activity, currency, ledger, numbering, period, stock |  |
 | [`render`](../../../src/modules/core/services/pdfService.ts#L508) | `kind: PdfDocumentKind, id: string, templateId?: string \| undefined` | `Promise<RenderPdfOutcome>` | **port** — reads backend data |  | accounts, branches, customers, invoices, journalEntries, paymentMethods, payments, products, purchaseOrders, purchaseRe… |  |  |
 | [`renderAndSave`](../../../src/modules/core/services/pdfService.ts#L546) | `kind: PdfDocumentKind, id: string, filename: string, templateId?: string \| undefined` | `Promise<boolean>` | **port** — reads backend data |  | accounts, branches, customers, invoices, journalEntries, paymentMethods, payments, products, purchaseOrders, purchaseRe… |  |  |
 | [`renderGenericReport`](../../../src/modules/core/services/pdfService.ts#L769) | `req: GenericReportRequest` | `Promise<RenderPdfOutcome>` | **rust-existing** — already calls Rust (render_pdf) |  |  |  |  |
@@ -35,12 +36,12 @@
 | [`renderLabelsPreview`](../../../src/modules/core/services/pdfService.ts#L829) | `picks: LabelPick[], label: LabelOptions` | `Promise<RenderPreviewOutcome>` | **rust-existing** — already calls Rust (render_preview) |  |  |  | LabelOptions |
 | [`renderPreview`](../../../src/modules/core/services/pdfService.ts#L568) | `payload: DocumentPayload, options: TemplateOptions, templateSource: string \| null, baseT…` | `Promise<RenderPreviewOutcome>` | **rust-existing** — already calls Rust (render_preview) |  |  |  | BaseTemplateId, TemplateOptions |
 | [`renderReportPdf`](../../../src/modules/core/services/pdfService.ts#L799) | `report: ReportDocument` | `Promise<Uint8Array<ArrayBufferLike> \| null>` | **rust-existing** — already calls Rust (render_pdf) |  |  |  |  |
-| [`resetToEmpty`](../../../src/modules/core/services/devToolsService.ts#L14) |  | `Promise<void>` | **dev-only** — override: 01.B core review — wipes all persisted data with … |  |  |  |  |
+| [`resetToEmpty`](../../../src/modules/core/services/devToolsService.ts#L16) |  | `Promise<void>` | **dev-only** — override: 01.B core review — wipes all persisted data with … |  |  |  |  |
 | [`sampleInvoicePayload`](../../../src/modules/core/services/pdfService.ts#L595) |  | `DocumentPayload` | **frontend** — pure computation, no data access |  |  |  |  |
 | [`saveFile`](../../../src/modules/core/services/saveFile.ts#L95) | `data: string \| Uint8Array<ArrayBufferLike> \| Blob, options: SaveFileOptions` | `Promise<string \| true \| null>` | **frontend** — webview/plugin only (@tauri-apps/api, @tauri-apps/plugin-di… |  |  |  |  |
 | [`saveReportPdf`](../../../src/modules/core/services/pdfService.ts#L822) | `report: ReportDocument, filename: string` | `Promise<boolean>` | **rust-existing** — already calls Rust (render_pdf) |  |  |  |  |
-| [`setThresholds`](../../../src/modules/core/services/insightEngine.ts#L28) | `patch: Partial<InsightThresholds>` | `InsightThresholds` | **port** — reads and writes backend data | settings |  |  |  |
-| [`snoozeInsight`](../../../src/modules/core/services/insightEngine.ts#L70) | `userId: string \| undefined, insightId: string, untilIso?: string \| undefined` | `void` | **frontend** — webview/plugin only (localStorage) |  |  |  |  |
+| [`setThresholds`](../../../src/modules/core/services/insightEngine.ts#L48) | `patch: Partial<InsightThresholds>` | `Promise<InsightThresholds>` | **port** — reads and writes backend data | settings |  |  |  |
+| [`snoozeInsight`](../../../src/modules/core/services/insightEngine.ts#L97) | `userId: string \| undefined, insightId: string, untilIso?: string \| undefined` | `void` | **frontend** — webview/plugin only (localStorage) |  |  |  |  |
 | [`testPrint`](../../../src/modules/core/services/printService.ts#L218) | `thermal: ThermalPrinterSettings, width: ThermalWidth` | `Promise<{ ok: boolean; error?: string; }>` | **port** — reads backend data |  | customers, invoices, products, settings, taxes, users |  | ThermalPrinterSettings, ThermalWidth |
 
 ## Types (`src/modules/core/types`)
@@ -84,9 +85,44 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `saUnitNo?: string`
 - `saShortAddress?: string`
 
+### `ApiErrorCode` (type, `src/modules/core/types/backend.ts:12`)
+
+`'NOT_FOUND' \| 'VALIDATION' \| 'CONFLICT' \| 'FORBIDDEN' \| 'UNAUTHORIZED' \| 'INTERNAL'`
+
+### `ApiErrorPayload` (interface, `src/modules/core/types/backend.ts:15`)
+
+- `code: ApiErrorCode`
+- `message: string`
+
 ### `AppRoute` (type, `src/modules/core/types/route.ts:7`)
 
 `{ [K in N]: RouteLocationAsRelative<K> & { name: K } }[N]`
+
+### `BackendChangedPayload` (interface, `src/modules/core/types/backend.ts:27`)
+
+- `categories: ChangeCategory[]`
+
+### `BackendServerStatus` (interface, `src/modules/core/types/backend.ts:35`)
+
+- `state: 'provisioning' \| 'starting' \| 'upgrading' \| 'running' \| 'stopped' \| 'failed'` — _enum_
+- `version: string`
+- `port: number`
+- `lanSharing: boolean`
+- `failure?: { code: string; message: string }`
+
+### `BackendStatus` (interface, `src/modules/core/types/backend.ts:48`)
+
+- `connected: boolean`
+- `role: 'main' \| 'terminal'` — _enum_
+- `terminalId: string` — _uuid_
+- `serverVersion?: string`
+- `schema: 'ok' \| 'behind' \| 'ahead' \| 'unknown'` — _enum_
+- `error?: string`
+- `server?: BackendServerStatus`
+
+### `ChangeCategory` (type, `src/modules/core/types/backend.ts:24`)
+
+`'ledger' \| 'catalog' \| 'parties'`
 
 ### `DashboardSummary` (interface, `src/modules/core/types/index.ts:38`)
 
@@ -104,6 +140,14 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 
 - `from: string`
 - `to: string` — _route_
+
+### `Equals` (type, `src/modules/core/types/contract.ts:11`)
+
+`(<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false`
+
+### `Expect` (type, `src/modules/core/types/contract.ts:14`)
+
+`T`
 
 ### `PagedQuery` (interface, `src/modules/core/types/paging.ts:12`)
 
@@ -162,3 +206,7 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 ### `RouteName` (type, `src/modules/core/types/route.ts:4`)
 
 `keyof RouteNamedMap`
+
+### `Simplify` (type, `src/modules/core/types/contract.ts:25`)
+
+`{ [K in keyof T]: T[K] }`

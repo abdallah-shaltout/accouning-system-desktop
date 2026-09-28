@@ -13,7 +13,9 @@ pub struct Model {
     pub id: Id,
     pub invoice_id: Id,
     pub position: i16,
-    pub product_id: Id,
+    /// `NULL` for a free-text line (`m0016` G-22; was `NOT NULL` before D-I2 was decided — the DTO
+    /// layer re-synthesizes `freetext-{position}` for these rows, `08-invoices.md` §2).
+    pub product_id: Option<Id>,
     pub name: String,
     pub qty: Decimal,
     pub price: Decimal,

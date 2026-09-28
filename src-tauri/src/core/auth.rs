@@ -7,12 +7,18 @@ use std::collections::HashMap;
 use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::core::error::AppError;
 use crate::utils::id::Id;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// G-7: `TS` derives so DTOs that reference these (e.g. `User.role`, permission-matrix screens) get
+/// a real generated type instead of hand-written duplicates. Exported like the other domain DTOs —
+/// no `#[ts(export)]` attribute; `core/ipc.rs`'s single `export_bindings` test (via the G-8 hook)
+/// drives every export.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
+#[ts(export_to = "users/types/gen/")]
 pub enum Role {
     Admin,
     Manager,
@@ -21,8 +27,9 @@ pub enum Role {
     Storekeeper,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
+#[ts(export_to = "users/types/gen/")]
 pub enum Area {
     Dashboard,
     Pos,
@@ -40,8 +47,9 @@ pub enum Area {
     Settings,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
+#[ts(export_to = "users/types/gen/")]
 pub enum Access {
     None,
     Read,

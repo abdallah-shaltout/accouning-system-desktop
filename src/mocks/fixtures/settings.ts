@@ -38,7 +38,6 @@ export const settingsFixture: StoreSettings = {
   defaultTaxId: 'tax-vat-out',
   invoiceNumberPrefix: 'INV-',
   printer: { mode: 'thermal', thermalWidthMm: 80 },
-  theme: 'light',
   pricesIncludeTax: true,
   address: 'الرياض - حي العليا - شارع التحلية',
   phone: '0112345678',

@@ -43,7 +43,10 @@ pub struct Model {
     pub number: String,
     pub date_day: chrono::NaiveDate,
     pub date_instant: Option<chrono::DateTime<chrono::Utc>>,
-    pub expiry_date: Option<chrono::NaiveDate>,
+    /// `DocDate` triple (`m0016` G-22): the desk form stores an ISO instant
+    /// (`InvoiceFormPage.vue:182`), which a plain `DATE` truncated.
+    pub expiry_date_day: Option<chrono::NaiveDate>,
+    pub expiry_date_instant: Option<chrono::DateTime<chrono::Utc>>,
     pub customer_id: Option<Id>,
     pub salesperson_id: Id,
     pub status: QuotationStatus,
@@ -89,5 +92,11 @@ impl ActiveModelBehavior for ActiveModel {}
 impl Model {
     pub fn date(&self) -> DocDate {
         doc_date::read(self.date_day, self.date_instant)
+    }
+
+    /// `None` when there is no expiry date; `Some` reads `expiry_date_day`/`expiry_date_instant`
+    /// back into the shared value type (`m0016` G-22).
+    pub fn expiry_date(&self) -> Option<DocDate> {
+        self.expiry_date_day.map(|day| doc_date::read(day, self.expiry_date_instant))
     }
 }

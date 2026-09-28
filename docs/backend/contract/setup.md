@@ -2,41 +2,192 @@
 
 # Contract — `setup`
 
-21 service functions. Full signatures: `contract.gen.json`. Plan: plans/pending/21-rust-backend/01-frontend-analysis/setup.md.
+27 service functions. Full signatures: `contract.gen.json`. Plan: plans/pending/21-rust-backend/01-frontend-analysis/setup.md.
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
-| [`applyBranches`](../../../src/modules/setup/services/setupService.ts#L149) | `branches: setupBackend.WizardBranchInput[]` | `Promise<Branch[]>` | **port** — reads and writes backend data | accounts, activity, audit, branches, costCenters, settings |  | activity | Branch |
-| [`applyBusinessTypeDefaults`](../../../src/modules/setup/services/setupService.ts#L92) | `businessType: string` | `Promise<void>` | **port** — reads and writes backend data | units |  |  |  |
-| [`applyCoaTemplate`](../../../src/modules/setup/services/setupService.ts#L161) | `template: AccountTemplate, country?: CountryCode, businessType?: string \| undefined` | `Promise<Account[]>` | **port** — reads and writes backend data | accounts, settings | journalEntries |  | Account |
-| [`applyCountryTax`](../../../src/modules/setup/services/setupService.ts#L104) | `input: { country: CountryCode; currency: string; vatRegistered: boolean; pricesIncludeTax…` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, currencies, settings, taxes | journalEntries | activity |  |
-| [`applyFiscalYear`](../../../src/modules/setup/services/setupService.ts#L140) | `startMonth: number, startDay: number, goLiveDate: string` | `Promise<FiscalYear>` | **port** — reads and writes backend data | fiscalYears, settings | journalEntries |  | FiscalYear |
-| [`applyPaymentMethods`](../../../src/modules/setup/services/setupService.ts#L170) | `methods: setupBackend.WizardPaymentMethodInput[]` | `Promise<void>` | **port** — reads and writes backend data | paymentMethods | journalEntries |  |  |
-| [`finishOnboarding`](../../../src/modules/setup/services/setupService.ts#L231) |  | `Promise<void>` | **port** — reads and writes backend data | settings |  |  |  |
-| [`getOnboardingProgress`](../../../src/modules/setup/services/setupService.ts#L61) |  | `Promise<OnboardingProgress>` | **port** — reads backend data |  | settings |  |  |
-| [`getOpeningBalanceEquityNet`](../../../src/modules/setup/services/setupService.ts#L177) |  | `Promise<number>` | **port** — reads backend data |  | accounts, journalEntries |  |  |
-| [`isBaseCurrencyLocked`](../../../src/modules/setup/services/setupService.ts#L99) |  | `Promise<boolean>` | **port** — reads backend data |  | journalEntries |  |  |
-| [`isFirstUsePosted`](../../../src/modules/setup/services/setupService.ts#L182) |  | `Promise<boolean>` | **port** — reads backend data |  | journalEntries |  |  |
-| [`markStepDone`](../../../src/modules/setup/services/setupService.ts#L72) | `key: string, stepIndex?: number \| undefined` | `Promise<void>` | **port** — reads and writes backend data | settings |  |  |  |
-| [`markStepSkipped`](../../../src/modules/setup/services/setupService.ts#L81) | `key: string` | `Promise<void>` | **port** — reads and writes backend data | settings |  |  |  |
-| [`persistProgress`](../../../src/modules/setup/services/setupService.ts#L46) |  | `Promise<void>` | **drop** — override: 01.B setup review — only calls flushSnapshot() (m… |  |  |  |  |
-| [`postOpeningBalances`](../../../src/modules/setup/services/setupService.ts#L187) | `input: Omit<OpeningEntryInput, "createdBy">, closeTarget: "capital" \| "ownerCurrent"` | `Promise<{ openingEntryId: string; closingEntryId?: string; }>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries, settings | accounts, branches, fiscalYears | activity, ledger, numbering, period |  |
-| [`postOpeningStock`](../../../src/modules/setup/services/setupService.ts#L205) | `branchId: string, date: string, lines: OpeningStockLine[]` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries, productBatches, stockMovements | accounts, branches, fiscalYears, products, settings | activity, ledger, numbering, period, stock |  |
-| [`postPartyOpening`](../../../src/modules/setup/services/setupService.ts#L218) | `input: Omit<PartyOpeningBalanceInput, "createdBy">` | `Promise<string \| undefined>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period |  |
-| [`previewCoaTemplate`](../../../src/modules/setup/services/setupService.ts#L157) | `template: AccountTemplate, country?: CountryCode, businessType?: string \| undefined` | `Account[]` | **port** — reads backend data |  |  |  | Account |
-| [`recloseOpeningBalanceEquity`](../../../src/modules/setup/services/setupService.ts#L211) | `date: string, target?: "capital" \| "ownerCurrent"` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period |  |
-| [`reversePartyOpening`](../../../src/modules/setup/services/setupService.ts#L224) | `entryId: string` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries | accounts, branches, fiscalYears, payments, settings | activity, ledger, numbering, period |  |
-| [`saveOnboardingProgress`](../../../src/modules/setup/services/setupService.ts#L67) | `patch: Partial<OnboardingProgress>` | `Promise<void>` | **port** — reads and writes backend data | settings |  |  |  |
+| [`applyBranches`](../../../src/modules/setup/services/setupService.ts#L174) | `branches: WizardBranchInput[]` | `Promise<Branch[]>` | **port** — reads and writes backend data | accounts, activity, audit, branches, costCenters, settings |  | activity | Branch, WizardBranchInput |
+| [`applyBusinessTypeDefaults`](../../../src/modules/setup/services/setupService.ts#L107) | `businessType: string` | `Promise<void>` | **port** — reads and writes backend data | units |  |  |  |
+| [`applyCoaTemplate`](../../../src/modules/setup/services/setupService.ts#L188) | `template: AccountTemplate, country?: CountryCode, businessType?: string \| undefined` | `Promise<Account[]>` | **port** — reads and writes backend data | accounts, settings | journalEntries |  | Account |
+| [`applyCountryTax`](../../../src/modules/setup/services/setupService.ts#L124) | `input: { country: CountryCode; currency: string; vatRegistered: boolean; pricesIncludeTax…` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, currencies, settings, taxes | journalEntries | activity |  |
+| [`applyFiscalYear`](../../../src/modules/setup/services/setupService.ts#L164) | `startMonth: number, startDay: number, goLiveDate: string` | `Promise<FiscalYear>` | **port** — reads and writes backend data | fiscalYears, settings | journalEntries |  | FiscalYear |
+| [`applyPaymentMethods`](../../../src/modules/setup/services/setupService.ts#L198) | `methods: WizardPaymentMethodInput[]` | `Promise<void>` | **port** — reads and writes backend data | paymentMethods | journalEntries |  | WizardPaymentMethodInput |
+| [`finishOnboarding`](../../../src/modules/setup/services/setupService.ts#L279) |  | `Promise<void>` | **port** — reads and writes backend data | settings |  |  |  |
+| [`getDeviceSetupState`](../../../src/modules/setup/services/deviceService.ts#L16) |  | `Promise<DeviceSetupState>` | **frontend** — webview/plugin only (@tauri-apps/api) |  |  |  | DeviceSetupState |
+| [`getOnboardingProgress`](../../../src/modules/setup/services/setupService.ts#L63) |  | `Promise<OnboardingProgress>` | **port** — reads backend data |  | settings |  | OnboardingProgress |
+| [`getOpeningBalanceEquityNet`](../../../src/modules/setup/services/setupService.ts#L209) |  | `Promise<number>` | **port** — reads backend data |  | accounts, journalEntries |  |  |
+| [`hasLegacySnapshot`](../../../src/modules/setup/services/legacyImportService.ts#L37) |  | `Promise<boolean>` | **port** — reads backend data |  |  |  |  |
+| [`importLegacySnapshot`](../../../src/modules/setup/services/legacyImportService.ts#L64) | `templateBranchId?: string \| undefined` | `Promise<void>` | **port** — reads backend data |  |  |  |  |
+| [`inspectLegacySnapshot`](../../../src/modules/setup/services/legacyImportService.ts#L52) |  | `Promise<LegacySnapshotSummary>` | **port** — reads backend data |  |  |  | LegacySnapshotSummary |
+| [`isBaseCurrencyLocked`](../../../src/modules/setup/services/setupService.ts#L118) |  | `Promise<boolean>` | **port** — reads backend data |  | journalEntries |  |  |
+| [`isFirstUsePosted`](../../../src/modules/setup/services/setupService.ts#L215) |  | `Promise<boolean>` | **port** — reads backend data |  | journalEntries |  |  |
+| [`markStepDone`](../../../src/modules/setup/services/setupService.ts#L79) | `key: string, stepIndex?: number \| undefined` | `Promise<void>` | **port** — reads and writes backend data | settings |  |  |  |
+| [`markStepSkipped`](../../../src/modules/setup/services/setupService.ts#L92) | `key: string` | `Promise<void>` | **port** — reads and writes backend data | settings |  |  |  |
+| [`pairTerminalDevice`](../../../src/modules/setup/services/deviceService.ts#L56) | `input: PairTerminalInput` | `Promise<DeviceSetupState>` | **frontend** — webview/plugin only (@tauri-apps/api) |  |  |  | DeviceSetupState, PairTerminalInput |
+| [`persistProgress`](../../../src/modules/setup/services/setupService.ts#L57) |  | `Promise<void>` | **drop** — override: 01.B setup review — only calls flushSnapshot() (m… |  |  |  |  |
+| [`postOpeningBalances`](../../../src/modules/setup/services/setupService.ts#L221) | `input: Omit<OpeningEntryInput, "createdBy">, closeTarget: CloseTarget` | `Promise<PostOpeningBalancesResult>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries, settings | accounts, branches, fiscalYears | activity, ledger, numbering, period | CloseTarget, OpeningEntryInput, PostOpeningBalancesResult |
+| [`postOpeningStock`](../../../src/modules/setup/services/setupService.ts#L240) | `branchId: string, date: string, lines: OpeningStockLine[]` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries, productBatches, stockMovements | accounts, branches, fiscalYears, products, settings | activity, ledger, numbering, period, stock | OpeningStockLine |
+| [`postPartyOpening`](../../../src/modules/setup/services/setupService.ts#L261) | `input: Omit<PartyOpeningBalanceInput, "createdBy">` | `Promise<string \| undefined>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period | PartyOpeningBalanceInput |
+| [`previewCoaTemplate`](../../../src/modules/setup/services/setupService.ts#L183) | `template: AccountTemplate, country?: CountryCode, businessType?: string \| undefined` | `Account[]` | **port** — reads backend data |  |  |  | Account |
+| [`provisionMainDevice`](../../../src/modules/setup/services/deviceService.ts#L50) |  | `Promise<DeviceSetupState>` | **frontend** — webview/plugin only (@tauri-apps/api) |  |  |  | DeviceSetupState |
+| [`recloseOpeningBalanceEquity`](../../../src/modules/setup/services/setupService.ts#L250) | `date: string, target?: CloseTarget` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period | CloseTarget |
+| [`reversePartyOpening`](../../../src/modules/setup/services/setupService.ts#L268) | `entryId: string` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries | accounts, branches, fiscalYears, payments, settings | activity, ledger, numbering, period |  |
+| [`saveOnboardingProgress`](../../../src/modules/setup/services/setupService.ts#L70) | `patch: Partial<OnboardingProgress>` | `Promise<void>` | **port** — reads and writes backend data | settings |  |  | OnboardingProgress |
 
 ## Types (`src/modules/setup/types`)
 
 Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _date_ → local date/datetime, _route_ → `RouteRef { name, params }`, _enum_ → Rust enum.
 
-### `BusinessType` (type, `src/modules/setup/types/index.ts:9`)
+### `BusinessType` (type, `src/modules/setup/types/index.ts:11`)
 
 `\| "clothing" \| "pharmacy" \| "supermarket" \| "electronics" \| "retail" \| "services" \| "wholesale"`
 
-### `WizardState` (interface, `src/modules/setup/types/index.ts:128`)
+### `CloseTarget` (type, `src/modules/setup/types/index.ts:249`)
+
+`'capital' \| 'ownerCurrent'`
+
+### `CountryTaxInput` (interface, `src/modules/setup/types/index.ts:239`)
+
+- `country: CountryCode`
+- `currency: string`
+- `vatRegistered?: boolean`
+- `pricesIncludeTax: boolean`
+- `extraCurrencies: { code: string; rate: number }[]`
+
+### `DeviceRole` (type, `src/modules/setup/types/index.ts:328`)
+
+`'main' \| 'terminal'`
+
+### `DeviceSetupState` (interface, `src/modules/setup/types/index.ts:330`)
+
+- `configured: boolean`
+- `role: DeviceRole`
+- `canHostDatabase: boolean`
+- `hasUsers: boolean`
+
+### `ImportMode` (type, `src/modules/setup/types/index.ts:179`)
+
+`"legacy" \| "demo"`
+
+### `ImportSnapshotResult` (interface, `src/modules/setup/types/index.ts:204`)
+
+- `counts: Record<string, number>`
+- `roundedValues: number` — _decimal_
+- `defaultBranchId: string` — _uuid_
+
+### `LegacySnapshotBranch` (interface, `src/modules/setup/types/index.ts:184`)
+
+- `id: string` — _uuid_
+- `name: string`
+- `code: string`
+
+### `LegacySnapshotSummary` (interface, `src/modules/setup/types/index.ts:192`)
+
+- `schemaVersion: number`
+- `savedAt?: string` — _date_
+- `company: string`
+- `counts: Record<string, number>`
+- `branches: LegacySnapshotBranch[]`
+- `hasTemplates: boolean`
+- `targetEmpty: boolean`
+
+### `OnboardingProgress` (interface, `src/modules/setup/types/index.ts:224`)
+
+- `businessType?: string`
+- `goLiveDate?: string`
+- `completedStep?: number`
+- `skipped: string[]`
+- `done: string[]`
+- `finishedAt?: string` — _date_
+- `openingEntryId?: string` — _uuid_
+- `closingEntryId?: string` — _uuid_
+- `coaTemplate?: AccountTemplate`
+
+### `OnboardingProgressPatch` (type, `src/modules/setup/types/index.ts:237`)
+
+`Partial<OnboardingProgress>`
+
+### `OpeningCashLine` (interface, `src/modules/setup/types/index.ts:270`)
+
+- `accountId: string` — _uuid_
+- `amount: number` — _decimal_
+- `currency?: string`
+- `amountFc?: number` — _decimal_
+- `rate?: number` — _decimal_
+
+### `OpeningEntryInput` (interface, `src/modules/setup/types/index.ts:294`)
+
+- `date: string` — _date_
+- `cash: OpeningCashLine[]`
+- `customers: OpeningPartyLine[]`
+- `suppliers: OpeningPartyLine[]`
+- `other: OpeningOtherLine[]`
+- `createdBy: string`
+
+### `OpeningOtherLine` (interface, `src/modules/setup/types/index.ts:287`)
+
+- `accountId: string` — _uuid_
+- `side: 'debit' \| 'credit'` — _enum_
+- `amount: number` — _decimal_
+- `description?: string`
+
+### `OpeningPartyLine` (interface, `src/modules/setup/types/index.ts:279`)
+
+- `partyKind: 'customer' \| 'supplier'` — _enum_
+- `partyId: string` — _uuid_
+- `amount: number` — _decimal_
+- `side: 'debit' \| 'credit'` — _enum_
+
+### `OpeningStockLine` (interface, `src/modules/setup/types/index.ts:303`)
+
+- `productId: string` — _uuid_
+- `qty: number` — _decimal_
+- `unitCost: number` — _decimal_
+- `batchNo?: string`
+- `expiryDate?: string`
+
+### `PairTerminalInput` (interface, `src/modules/setup/types/index.ts:340`)
+
+- `host: string`
+- `port: number`
+- `code: string`
+
+### `PartyOpeningBalanceInput` (interface, `src/modules/setup/types/index.ts:311`)
+
+- `partyKind: 'customer' \| 'supplier'` — _enum_
+- `partyId: string` — _uuid_
+- `amount: number` — _decimal_
+- `side: 'debit' \| 'credit'` — _enum_
+- `asOfDate: string`
+- `createdBy: string`
+
+### `PartyOpeningInput` (type, `src/modules/setup/types/index.ts:324`)
+
+`Omit<PartyOpeningBalanceInput, 'createdBy'>`
+
+### `PostOpeningBalancesInput` (type, `src/modules/setup/types/index.ts:321`)
+
+`Omit<OpeningEntryInput, 'createdBy'>`
+
+### `PostOpeningBalancesResult` (type, `src/modules/setup/types/index.ts:247`)
+
+- `openingEntryId: string` — _uuid_
+- `closingEntryId?: string` — _uuid_
+
+### `WizardBranchInput` (interface, `src/modules/setup/types/index.ts:257`)
+
+- `name: string`
+- `code: string`
+- `address?: Address`
+
+### `WizardPaymentMethodInput` (interface, `src/modules/setup/types/index.ts:263`)
+
+- `name: string`
+- `type: 'cash' \| 'card' \| 'bank_transfer' \| 'wallet' \| 'credit' \| 'store_credit'` — _enum_
+- `accountRole: 'cash' \| 'bank' \| 'cardClearing' \| 'walletClearing' \| 'receivable'` — _enum_
+- `active: boolean`
+
+### `WizardState` (interface, `src/modules/setup/types/index.ts:130`)
 
 - `businessType: BusinessType`
 - `company: { nameAr: string; nameEn: string; logo?: string; type: "individual" \| "company"; vatNumber: string; crNumber: string; /** doc 18.E: the address picker's outpu…`
@@ -49,7 +200,7 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `users: { name: string; username: string; role: string; pin?: string }[]`
 - `printing: { templateId?: string; printerMode: "a4" \| "thermal"; thermalWidth: 58 \| 80; }`
 
-### `WizardStepMeta` (interface, `src/modules/setup/types/index.ts:52`)
+### `WizardStepMeta` (interface, `src/modules/setup/types/index.ts:54`)
 
 - `key: string`
 - `label: string`

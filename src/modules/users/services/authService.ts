@@ -3,9 +3,12 @@ import { logActivity } from '@/mocks/backend/core';
 import type { User } from '../types';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
+import { isFreshInstallCached } from '@/modules/setup/services/deviceService';
 
 /** Mock auth: checks fixture credentials, no hashing — a real IPC `login` command replaces this. */
 export const login = wrap('users.login', async function login(username: string, password: string): Promise<User> {
+  if (usesRust('users')) return backendCall('users_login', { username, password });
   await delay(450);
   const user = db.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
   if (!user || db.credentials[user.username] !== password) {
@@ -19,6 +22,7 @@ export const login = wrap('users.login', async function login(username: string, 
 
 /** Re-attach a session after reload (the id is kept in localStorage by the auth store). */
 export const restoreSession = wrap('users.restoreSession', async function restoreSession(userId: string): Promise<User | null> {
+  if (usesRust('users')) return backendCall('users_restore_session', { userId });
   await delay(60);
   const user = db.users.find((u) => u.id === userId && u.active);
   if (!user) return null;
@@ -27,6 +31,10 @@ export const restoreSession = wrap('users.restoreSession', async function restor
 });
 
 export const logout = wrap('users.logout', async function logout(): Promise<void> {
+  if (usesRust('users')) {
+    await backendCall('users_logout');
+    return;
+  }
   await delay(80);
   session.userId = '';
 });
@@ -39,6 +47,7 @@ export const logout = wrap('users.logout', async function logout(): Promise<void
  * Returns the approving user on success so the caller can stamp `approvedBy`.
  */
 export const verifyManagerPin = wrap('users.verifyManagerPin', async function verifyManagerPin(username: string, password: string): Promise<User> {
+  if (usesRust('users')) return backendCall('users_verify_manager_pin', { username, password });
   await delay(300);
   const user = db.users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase());
   if (!user || db.credentials[user.username] !== password) {
@@ -51,6 +60,9 @@ export const verifyManagerPin = wrap('users.verifyManagerPin', async function ve
 
 /** Demo accounts listed on the login screen (mock only). */
 export const getDemoAccounts = wrap('users.getDemoAccounts', async function getDemoAccounts(): Promise<{ id: string; username: string; password: string; name: string; role: User['role'] }[]> {
+  // D-2: Rust stores only argon2 hashes and must never send passwords over IPC — no command exists,
+  // the login screen simply shows no demo picker on Rust.
+  if (usesRust('users')) return [];
   await delay(50);
   return db.users
     .filter((u) => u.active)
@@ -67,5 +79,9 @@ export const getDemoAccounts = wrap('users.getDemoAccounts', async function getD
  * can't await a delayed mock call.
  */
 export function isFreshInstall(): boolean {
+  // 21.03 §02-setup H-2: under Rust, "fresh install" means the connected device has no users yet —
+  // `deviceService.ensureDeviceSetupState()` (awaited once at boot, same pattern as `bootMockDb()`)
+  // keeps `isFreshInstallCached()` in sync with the last-known `DeviceSetupState`.
+  if (usesRust('setup')) return isFreshInstallCached();
   return db.users.length === 0;
 }

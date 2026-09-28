@@ -1,4 +1,5 @@
 import { ApiError, clone, db, delay, inDateRange, includesText, session } from '@/mocks';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
 import {
@@ -23,16 +24,19 @@ import type {
 export type ExpenseRow = Expense & { categoryName: string };
 
 export const getExpenseCategories = wrap('expenses.getExpenseCategories', async function getExpenseCategories(): Promise<ExpenseCategory[]> {
+  if (usesRust('expenses')) return backendCall('expenses_get_expense_categories');
   await delay();
   return clone(db.expenseCategories);
 });
 
 export const saveExpenseCategory = wrap('expenses.saveExpenseCategory', async function saveExpenseCategory(input: ExpenseCategoryInput, id?: string): Promise<ExpenseCategory> {
+  if (usesRust('expenses')) return backendCall('expenses_save_expense_category', { input, id });
   await delay();
   return clone(saveExpenseCategoryBackend(input, id));
 });
 
 export const deleteExpenseCategory = wrap('expenses.deleteExpenseCategory', async function deleteExpenseCategory(id: string): Promise<void> {
+  if (usesRust('expenses')) { await backendCall('expenses_delete_expense_category', { id }); return; }
   await delay();
   deleteExpenseCategoryBackend(id);
 });
@@ -42,6 +46,7 @@ function toRow(e: Expense): ExpenseRow {
 }
 
 export const getExpenses = wrap('expenses.getExpenses', async function getExpenses(filter: ExpenseFilter = {}): Promise<ExpenseRow[]> {
+  if (usesRust('expenses')) return backendCall('expenses_get_expenses', { filter });
   await delay();
   return db.expenses
     .filter((e) => (!filter.categoryId || e.categoryId === filter.categoryId) && inDateRange(e.date, filter.from, filter.to))
@@ -51,6 +56,7 @@ export const getExpenses = wrap('expenses.getExpenses', async function getExpens
 });
 
 export const getExpense = wrap('expenses.getExpense', async function getExpense(id: string): Promise<ExpenseRow> {
+  if (usesRust('expenses')) return backendCall('expenses_get_expense', { id });
   await delay();
   const e = db.expenses.find((x) => x.id === id);
   if (!e) throw new ApiError('المصروف غير موجود', 'NOT_FOUND');
@@ -58,32 +64,38 @@ export const getExpense = wrap('expenses.getExpense', async function getExpense(
 });
 
 export const createExpense = wrap('expenses.createExpense', async function createExpense(input: ExpenseInput): Promise<Expense> {
+  if (usesRust('expenses')) return backendCall('expenses_create_expense', { input });
   await delay(300);
   return clone(recordExpense(input, session.userId));
 });
 
 export const getRecurringExpenses = wrap('expenses.getRecurringExpenses', async function getRecurringExpenses(): Promise<RecurringExpense[]> {
+  if (usesRust('expenses')) return backendCall('expenses_get_recurring_expenses');
   await delay();
   return clone(db.recurringExpenses);
 });
 
 export const saveRecurringExpense = wrap('expenses.saveRecurringExpense', async function saveRecurringExpense(input: RecurringExpenseInput, id?: string): Promise<RecurringExpense> {
+  if (usesRust('expenses')) return backendCall('expenses_save_recurring_expense', { input, id });
   await delay();
   return clone(saveRecurringExpenseBackend(input, id));
 });
 
 export const deleteRecurringExpense = wrap('expenses.deleteRecurringExpense', async function deleteRecurringExpense(id: string): Promise<void> {
+  if (usesRust('expenses')) { await backendCall('expenses_delete_recurring_expense', { id }); return; }
   await delay();
   deleteRecurringExpenseBackend(id);
 });
 
 /** "إيجار أكتوبر مستحق — سجّله" due-list. */
 export const getDueRecurringExpenses = wrap('expenses.getDueRecurringExpenses', async function getDueRecurringExpenses(): Promise<RecurringExpense[]> {
+  if (usesRust('expenses')) return backendCall('expenses_get_due_recurring_expenses');
   await delay();
   return clone(dueRecurringExpenses());
 });
 
 export const postDueRecurringExpense = wrap('expenses.postDueRecurringExpense', async function postDueRecurringExpense(id: string): Promise<Expense> {
+  if (usesRust('expenses')) return backendCall('expenses_post_due_recurring_expense', { id });
   await delay(300);
   return clone(postRecurringExpense(id, session.userId));
 });

@@ -1,5 +1,6 @@
 import { ApiError, clone, db, delay, inDateRange, includesText, session } from '@/mocks';
 import { allocatePayment, allocatedTotal, getOpenDocumentsFor, recordPayment, unallocatedAmount, unallocatePayment } from '@/mocks/backend/payments';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
 import { allocationStatusFor, type AllocationStatus, type OpenDocument, type Payment, type PaymentAllocationInput, type PaymentFilter, type PaymentInput } from '../types';
 
@@ -17,6 +18,7 @@ function toRow(p: Payment): PaymentRow {
 }
 
 export const getPayments = wrap('payments.getPayments', async function getPayments(filter: PaymentFilter = {}): Promise<PaymentRow[]> {
+  if (usesRust('payments')) return backendCall('payments_get_payments', { filter });
   await delay();
   return db.payments
     .filter(
@@ -33,6 +35,7 @@ export const getPayments = wrap('payments.getPayments', async function getPaymen
 
 /** Server-mode variant of `getPayments` for `DataTable`: paged, sorted and totalled server-side. */
 export const getPaymentsPaged = wrap('payments.getPaymentsPaged', async function getPaymentsPaged(query: PagedQuery<PaymentFilter>): Promise<PagedResult<PaymentRow>> {
+  if (usesRust('payments')) return backendCall('payments_get_payments_paged', { query });
   await delay();
   const filter = query.filters ?? {};
   let rows: PaymentRow[] = db.payments
@@ -66,6 +69,7 @@ export const getPaymentsPaged = wrap('payments.getPaymentsPaged', async function
 });
 
 export const getPayment = wrap('payments.getPayment', async function getPayment(id: string): Promise<PaymentRow> {
+  if (usesRust('payments')) return backendCall('payments_get_payment', { id });
   await delay(100);
   const p = db.payments.find((x) => x.id === id);
   if (!p) throw new ApiError('السند غير موجود', 'NOT_FOUND');
@@ -73,23 +77,27 @@ export const getPayment = wrap('payments.getPayment', async function getPayment(
 });
 
 export const createPayment = wrap('payments.createPayment', async function createPayment(input: PaymentInput): Promise<Payment> {
+  if (usesRust('payments')) return backendCall('payments_create_payment', { input });
   await delay();
   return clone(recordPayment(input, session.userId));
 });
 
 /** Allocate more of an already-saved payment's unallocated money — "allocate later" (docs/v2/08 §3, 09 §3). */
 export const allocateExistingPayment = wrap('payments.allocateExistingPayment', async function allocateExistingPayment(paymentId: string, allocations: PaymentAllocationInput[]): Promise<Payment> {
+  if (usesRust('payments')) return backendCall('payments_allocate_existing_payment', { paymentId, allocations });
   await delay();
   return clone(allocatePayment(paymentId, allocations, session.userId));
 });
 
 export const removeAllocation = wrap('payments.removeAllocation', async function removeAllocation(paymentId: string, allocationId: string): Promise<Payment> {
+  if (usesRust('payments')) return backendCall('payments_remove_allocation', { paymentId, allocationId });
   await delay();
   return clone(unallocatePayment(paymentId, allocationId, session.userId));
 });
 
 /** Invoices (customer) or confirmed POs (supplier) that still have something outstanding. */
 export const getOpenDocuments = wrap('payments.getOpenDocuments', async function getOpenDocuments(targetType: 'customer' | 'supplier', targetId: string): Promise<OpenDocument[]> {
+  if (usesRust('payments')) return backendCall('payments_get_open_documents', { targetType, targetId });
   await delay(150);
   return getOpenDocumentsFor(targetType, targetId);
 });

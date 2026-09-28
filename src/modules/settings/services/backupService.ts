@@ -11,7 +11,7 @@ import { ref, type Ref } from 'vue';
 import { isTauri } from '@tauri-apps/api/core';
 import { db, session } from '@/mocks/db';
 import { mutate, migrations, SCHEMA_VERSION, flushSnapshot } from '@/mocks/persist';
-import { clone } from '@/mocks/utils';
+import { ApiError, clone } from '@/mocks/utils';
 import { getAllAttachmentRecords, replaceAllAttachments } from '@/mocks/attachments';
 import { logActivity } from '@/mocks/backend/core';
 import {
@@ -23,22 +23,27 @@ import {
   readManifest,
   tableCounts,
   archiveAttachmentToRecord,
+  bytesToBase64,
+  base64ToBytes,
   type BackupData,
 } from '../helpers/backupArchive';
 import { sha256Hex } from '../helpers/backupCrypto';
 import { updateSettings } from './settingsService';
 import { saveFile } from '@/modules/core/services/saveFile';
-import type { BackupHistoryEntry, BackupKind, BackupManifest, BackupSettings, RestorePreview } from '../types/backup';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
+import type { AutoBackupOutcome, AutoBackupTrigger, BackupArchive, BackupHistoryEntry, BackupKind, BackupManifest, BackupSettings, RestorePreview } from '../types/backup';
 import { DEFAULT_BACKUP_SETTINGS } from '../types/backup';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
-export const backupSettings = wrap('settings.backupSettings', function backupSettings(): BackupSettings {
+export const backupSettings = wrap('settings.backupSettings', async function backupSettings(): Promise<BackupSettings> {
+  if (usesRust('settings')) return backendCall('settings_backup_settings');
   return { ...DEFAULT_BACKUP_SETTINGS, ...(db.settings.backup ?? {}) };
 });
 
 export const saveBackupSettings = wrap('settings.saveBackupSettings', async function saveBackupSettings(patch: Partial<BackupSettings>): Promise<BackupSettings> {
-  const next = { ...backupSettings(), ...patch };
+  if (usesRust('settings')) return backendCall('settings_save_backup_settings', { patch });
+  const next = { ...(await backupSettings()), ...patch };
   await updateSettings({ backup: next });
   return next;
 });
@@ -147,6 +152,7 @@ export interface BackupNowResult {
 
 /** Table counts for the current data, shown as a "before" preview in the backup-now modal. */
 export const previewBackupCounts = wrap('settings.previewBackupCounts', async function previewBackupCounts(): Promise<Record<string, number>> {
+  if (usesRust('settings')) return backendCall('settings_preview_backup_counts');
   const attachmentRecords = await getAllAttachmentRecords();
   const data = await collectBackupData(clone(db), attachmentRecords);
   return tableCounts(data);
@@ -160,6 +166,24 @@ export const previewBackupCounts = wrap('settings.previewBackupCounts', async fu
  * see `listHistory()`).
  */
 export const backupNow = wrap('settings.backupNow', async function backupNow(kind: BackupKind, password?: string, opts?: { suggestedPath?: string }): Promise<BackupNowResult> {
+  if (usesRust('settings')) {
+    const archive: BackupArchive = await backendCall('settings_build_backup_archive', { kind, password });
+    const bytes = base64ToBytes(archive.archiveBase64);
+    let targetPath: string | null;
+    if (opts?.suggestedPath) {
+      const { writeFile, mkdir, exists } = await import('@tauri-apps/plugin-fs');
+      targetPath = opts.suggestedPath;
+      const folder = targetPath.slice(0, Math.max(targetPath.lastIndexOf('/'), targetPath.lastIndexOf('\\')));
+      if (folder && !(await exists(folder))) await mkdir(folder, { recursive: true });
+      await writeFile(targetPath, bytes);
+    } else {
+      targetPath = (await saveFile(bytes, { suggestedName: archive.fileName, kind: 'backup', silent: true })) as string | null;
+    }
+    if (!targetPath) return { manifest: archive.manifest, sizeBytes: bytes.length, cancelled: true };
+    await backendCall('settings_record_backup_saved', { manifest: archive.manifest, kind });
+    return { manifest: archive.manifest, sizeBytes: bytes.length, path: targetPath };
+  }
+
   const attachmentRecords = await getAllAttachmentRecords();
   const { bytes, manifest } = await buildBackupArchive(kind, clone(db), attachmentRecords, SCHEMA_VERSION, password);
   const filename = backupFileName(manifest.company);
@@ -201,7 +225,7 @@ async function afterBackupSaved(manifest: BackupManifest, kind: BackupKind): Pro
 
 export const listHistory = wrap('settings.listHistory', async function listHistory(): Promise<BackupHistoryEntry[]> {
   if (isTauriMode()) {
-    const folder = backupSettings().folder;
+    const folder = (await backupSettings()).folder;
     if (!folder) return [];
     const { readDir, stat } = await import('@tauri-apps/plugin-fs');
     try {
@@ -301,7 +325,8 @@ export const pickRestoreFile = wrap('settings.pickRestoreFile', async function p
   });
 });
 
-export const previewRestore = wrap('settings.previewRestore', function previewRestore(bytes: Uint8Array): RestorePreview {
+export const previewRestore = wrap('settings.previewRestore', async function previewRestore(bytes: Uint8Array): Promise<RestorePreview> {
+  if (usesRust('settings')) return backendCall('settings_preview_restore', { archiveBase64: bytesToBase64(bytes) });
   const manifest = readManifest(bytes);
   const compatible = manifest.schemaVersion <= SCHEMA_VERSION;
   const compatibilityNote =
@@ -329,10 +354,16 @@ function migrateDb(data: unknown, fromVersion: number): typeof db {
  * "استعادة" confirmation UI before calling this.
  */
 export const restoreFromArchive = wrap('settings.restoreFromArchive', async function restoreFromArchive(bytes: Uint8Array, password?: string): Promise<void> {
+  if (usesRust('settings')) {
+    await backendCall('settings_restore_from_archive', { archiveBase64: bytesToBase64(bytes), password });
+    await restoreLocalAttachments(bytes, password);
+    return;
+  }
+
   const parsed = parseArchive(bytes);
   let data: BackupData;
   if (parsed.manifest.encrypted) {
-    if (!password) throw new Error('هذه النسخة مشفّرة — أدخل كلمة المرور');
+    if (!password) throw new ApiError('هذه النسخة مشفّرة — أدخل كلمة المرور');
     data = await decryptArchive(parsed, password);
   } else {
     data = parsed.data!;
@@ -350,6 +381,37 @@ export const restoreFromArchive = wrap('settings.restoreFromArchive', async func
   await flushSnapshot();
 });
 
+/**
+ * Rust backend path only (21.03 17-backup.md §6, D-4): a browser-format archive may carry
+ * `attachments/*` entries the Rust restore never touches (it only replaces the SQL rows). Restores
+ * those blobs into this machine's local attachment store when present — a no-op for a Rust-format
+ * archive, which never has an `attachments/` payload to begin with.
+ */
+async function restoreLocalAttachments(bytes: Uint8Array, password?: string): Promise<void> {
+  let parsed: ReturnType<typeof parseArchive>;
+  try {
+    parsed = parseArchive(bytes);
+  } catch {
+    return; // not parseable as the browser zip shape (e.g. a Rust `equal-db` archive) — nothing to do.
+  }
+  if (parsed.manifest.schemaVersion >= 100) return; // Rust-format archive: no local attachments payload.
+
+  let data: BackupData;
+  if (parsed.manifest.encrypted) {
+    if (!password) return;
+    try {
+      data = await decryptArchive(parsed, password);
+    } catch {
+      return;
+    }
+  } else {
+    if (!parsed.data) return;
+    data = parsed.data;
+  }
+  if (!data.attachments.length) return;
+  await replaceAllAttachments(data.attachments.map(archiveAttachmentToRecord));
+}
+
 // --- automatic backup: daily schedule + on-close --------------------------------------------
 
 let dailyTimer: ReturnType<typeof setInterval> | null = null;
@@ -357,7 +419,7 @@ let closeUnlisten: (() => void) | null = null;
 let beforeUnloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
 
 async function pruneFileHistory(): Promise<void> {
-  const settings = backupSettings();
+  const settings = await backupSettings();
   if (!settings.folder) return;
   const history = await listHistory();
   const sorted = history.sort((a, b) => b.manifest.createdAt.localeCompare(a.manifest.createdAt));
@@ -372,7 +434,13 @@ async function pruneFileHistory(): Promise<void> {
 }
 
 async function runAutoBackupIfDue(): Promise<void> {
-  const settings = backupSettings();
+  if (usesRust('settings')) {
+    const outcome: AutoBackupOutcome = await backendCall('settings_run_auto_backup_if_due', { trigger: 'schedule' satisfies AutoBackupTrigger });
+    if (outcome.error) console.error('[backup] scheduled auto backup failed', outcome.error);
+    return;
+  }
+
+  const settings = await backupSettings();
   if (!settings.autoEnabled) return;
   const now = new Date();
   const todayKey = now.toISOString().slice(0, 10);
@@ -394,7 +462,13 @@ async function runAutoBackupIfDue(): Promise<void> {
 
 /** Runs an auto backup once on app close (best-effort — see notes below on Tauri vs browser). */
 async function runCloseBackup(): Promise<void> {
-  const settings = backupSettings();
+  if (usesRust('settings')) {
+    const outcome: AutoBackupOutcome = await backendCall('settings_run_auto_backup_if_due', { trigger: 'close' satisfies AutoBackupTrigger });
+    if (outcome.error) console.error('[backup] close-time auto backup failed', outcome.error);
+    return;
+  }
+
+  const settings = await backupSettings();
   if (!settings.autoEnabled) return;
   if (isTauriMode() && !settings.folder) return;
   try {

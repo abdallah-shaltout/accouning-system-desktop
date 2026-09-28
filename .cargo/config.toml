@@ -1,0 +1,16 @@
+# Cargo reads config from the directory it is *run from* (and its parents) — not from the
+# `--manifest-path` crate — so this file lives at the repo root, where `bun run …` scripts and
+# `cargo … --manifest-path src-tauri/Cargo.toml` run. Commands run inside `src-tauri/` (tauri
+# CLI) still find it, because cargo also walks up the parent directories.
+
+# ts-rs (21.02-F, F-1): base export directory for generated TypeScript bindings.
+# `TS_RS_EXPORT_DIR` is joined with each DTO's `#[ts(export_to = "...")]` path (relative, ending in
+# `/`) — e.g. `export_to = "core/types/gen/"` writes `src/modules/core/types/gen/<Name>.ts`.
+# `relative = true` resolves the value against this `.cargo/` folder's parent (the repo root).
+[env]
+TS_RS_EXPORT_DIR = { value = "src/modules", relative = true }
+
+# Resource limit (user request 2026-09-27: full-core cargo builds froze the whole PC). 4 of 12
+# logical cores; the rest stay free for the desktop. Override for one run with `-j N` if needed.
+[build]
+jobs = 4

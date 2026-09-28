@@ -1,9 +1,20 @@
 # 21 · Part 03 — Domains implementation (every `port` function on Rust)
 
-> **Status (2026-09-28):** plan being written. Starts while Part 02's final test pass is paused
+> **Status (2026-09-28):** **planned** — 23 domain files (~300 commands) written by parallel Opus planning agents; 48 Part 02 gaps collected in `03-domains/_part02-gaps.md` (Wave 0 fixes them); user decisions pending: G-25, G-31 (mock accounting bugs) and the per-file open questions. Starts while Part 02's final test pass is paused
 > (user decision 2026-09-28, recorded in `00-MASTER-PLAN.md` "Next step": development continues,
 > Part 02's tests resume later as their own step). No domain is flipped to Rust here — flipping is
 > Part 04, per domain, after its parity cases pass (master §5).
+>
+> **▶ IN PROGRESS (2026-09-28).** Wave 0 (gaps) ✔ · Wave 1 (00 import, 01 settings, 03 users,
+> 15 templates, 16 diagnostics slice 1 — 56 cmds) ✔ `cargo check` clean · Wave 2 (02 setup, 04
+> approvals, 05 parties, 06/06b products, 11 expenses, 17 backup — ~108 cmds) ✔ `cargo check` clean
+> (manager added `core/grants.rs` G-P3, `SequenceLock::ProductCodes`, the P2-52 pre-migration backup
+> wiring) · **Wave 3 (07 purchases, 09 payments, 10 vouchers) running.** Then W4 = 08/08b invoices,
+> W5 = 12/12b accounting (build on the `domains/accounting` stub setup created), W6 = 13/13b/14/14b,
+> then 16 slices 2–3, then the frontend follow-ups batch (scratchpad `frontend-followups.md`:
+> router device-setup guard, authService `isFreshInstall`, mock type moves, `bun run bindings` +
+> `memory`). If interrupted: every finished domain is registered in `lib.rs`/`domains/mod.rs`;
+> relaunch cut-off implementers with "continue from the partial files on disk". Nothing committed.
 
 ## 1. Goal and scope
 
@@ -126,28 +137,33 @@ pass).
 
 | # | File | Domain / what | Depends on | Status |
 |---|---|---|---|---|
-| 00 | [`03-domains/00-import.md`](03-domains/00-import.md) | D10 snapshot importer (`infrastructure/import/`), demo data in desktop dev | Part 02 | planning |
-| 01 | [`03-domains/01-settings.md`](03-domains/01-settings.md) | settings (store settings, branches, currencies, taxes, payment methods, LAN toggle + server screen) | 00 | planning |
-| 02 | [`03-domains/02-setup.md`](03-domains/02-setup.md) | setup wizard (first-run role step, provisioning, pairing, party openings) | 01 | planning |
-| 03 | [`03-domains/03-users.md`](03-domains/03-users.md) | users, login/session, roles | 01 | planning |
-| 04 | [`03-domains/04-approvals.md`](03-domains/04-approvals.md) | approval requests | 03 | planning |
-| 05 | [`03-domains/05-parties.md`](03-domains/05-parties.md) | customers/suppliers, statements, credit limit | 01 | planning |
-| 06 | [`03-domains/06-products.md`](03-domains/06-products.md) | catalog, prices, inventory, adjustments, counts, transfers | 01 | planning |
-| 07 | [`03-domains/07-purchases.md`](03-domains/07-purchases.md) | purchase orders/invoices/returns | 05, 06 | planning |
-| 08 | [`03-domains/08-invoices.md`](03-domains/08-invoices.md) | sales, POS, shifts, quotations, returns | 05, 06 | planning |
-| 09 | [`03-domains/09-payments.md`](03-domains/09-payments.md) | receipts/payments, allocations | 07, 08 | planning |
-| 10 | [`03-domains/10-vouchers.md`](03-domains/10-vouchers.md) | vouchers, card settlements | 09 | planning |
-| 11 | [`03-domains/11-expenses.md`](03-domains/11-expenses.md) | expenses and categories | 01 | planning |
-| 12 | [`03-domains/12-accounting.md`](03-domains/12-accounting.md) | chart of accounts, journal, drafts, recurring, FY close/reopen, VAT, revaluation | all writers | planning |
-| 13 | [`03-domains/13-reports.md`](03-domains/13-reports.md) | reports engine (read-only) | all writers | planning |
-| 14 | [`03-domains/14-analytics.md`](03-domains/14-analytics.md) | analytics, dashboard, insights (read-only) | 13 | planning |
-| 15 | [`03-domains/15-templates.md`](03-domains/15-templates.md) | print templates (D9) | 01 | planning |
-| 16 | [`03-domains/16-diagnostics.md`](03-domains/16-diagnostics.md) | the 3 production `port` fns + support bundle DB snapshot | 01 | planning |
-| 17 | [`03-domains/17-backup.md`](03-domains/17-backup.md) | backup/restore (`infrastructure/backup/`, P2-52) | 00 | planning |
+| 00 | [`03-domains/00-import.md`](03-domains/00-import.md) | D10 snapshot importer (`infrastructure/import/`), demo data in desktop dev | Part 02 | planned |
+| 01 | [`03-domains/01-settings.md`](03-domains/01-settings.md) | settings (store settings, branches, currencies, taxes, payment methods, LAN toggle + server screen) | 00 | planned |
+| 02 | [`03-domains/02-setup.md`](03-domains/02-setup.md) | setup wizard (first-run role step, provisioning, pairing, party openings) | 01 | planned |
+| 03 | [`03-domains/03-users.md`](03-domains/03-users.md) | users, login/session, roles | 01 | planned |
+| 04 | [`03-domains/04-approvals.md`](03-domains/04-approvals.md) | approval requests | 03 | planned |
+| 05 | [`03-domains/05-parties.md`](03-domains/05-parties.md) | customers/suppliers, statements, credit limit | 01 | planned |
+| 06 | [`03-domains/06-products.md`](03-domains/06-products.md) | catalog, prices, inventory, adjustments, counts, transfers | 01 | planned |
+| 06b | [`03-domains/06b-inventory.md`](03-domains/06b-inventory.md) | inventory half of products: adjustments, movements, batches/expiry, counts, transfers (same domain, same implementer) | 06 | planned |
+| 07 | [`03-domains/07-purchases.md`](03-domains/07-purchases.md) | purchase orders/invoices/returns | 05, 06 | planned |
+| 08 | [`03-domains/08-invoices.md`](03-domains/08-invoices.md) | sales, POS, shifts, quotations, returns | 05, 06 | planned |
+| 08b | [`03-domains/08b-pos-shifts.md`](03-domains/08b-pos-shifts.md) | POS half of invoices: shifts, cash in/out, X/Z report, held sales (same domain, same implementer) | 08 | planned |
+| 09 | [`03-domains/09-payments.md`](03-domains/09-payments.md) | receipts/payments, allocations | 07, 08 | planned |
+| 10 | [`03-domains/10-vouchers.md`](03-domains/10-vouchers.md) | vouchers, card settlements | 09 | planned |
+| 11 | [`03-domains/11-expenses.md`](03-domains/11-expenses.md) | expenses and categories | 01 | planned |
+| 12 | [`03-domains/12-accounting.md`](03-domains/12-accounting.md) | chart of accounts, journal, drafts, recurring, the 4 accounting undo compensators | all writers | planned |
+| 12b | [`03-domains/12b-period-close.md`](03-domains/12b-period-close.md) | FY close/reopen, lock date, VAT settlement (same domain, same implementer; revaluation + openings live in 01-settings/02-setup) | 12 | planned |
+| 13 | [`03-domains/13-reports.md`](03-domains/13-reports.md) | reports engine (read-only) | all writers | planned |
+| 13b | [`03-domains/13b-reports-operational.md`](03-domains/13b-reports-operational.md) | operational reports: sales, purchases, stock, aging, shifts | 13 | planned |
+| 14 | [`03-domains/14-analytics.md`](03-domains/14-analytics.md) | analytics, dashboard, insights (read-only) | 13 | planned |
+| 14b | [`03-domains/14b-insights.md`](03-domains/14b-insights.md) | the 21 insight rules + product hints | 14 | planned |
+| 15 | [`03-domains/15-templates.md`](03-domains/15-templates.md) | print templates (D9) | 01 | planned |
+| 16 | [`03-domains/16-diagnostics.md`](03-domains/16-diagnostics.md) | the 3 production `port` fns + support bundle DB snapshot | 01 | planned |
+| 17 | [`03-domains/17-backup.md`](03-domains/17-backup.md) | backup/restore (`infrastructure/backup/`, P2-52) | 00 | planned |
 
 **Implementation waves** (parallel Sonnet implementers, disjoint files, manager in between):
-W1 = 00 · 01 · 03 · 15 · 16 → W2 = 02 · 04 · 05 · 06 · 11 · 17 → W3 = 07 · 08 → W4 = 09 · 10 →
-W5 = 12 → W6 = 13 · 14. After each wave: manager registers commands/modules, runs one throttled
+W1 = 00 · 01 · 03 · 15 · 16 → W2 = 02 · 04 · 05 · 06 · 11 · 17 → W3 = 07 · 09 · 10 → W4 = 08
+(08 calls into 09/10's services, so they land first) → W5 = 12 (+12b) → W6 = 13 · 14. After each wave: manager registers commands/modules, runs one throttled
 `cargo check`, fixes compile errors, regenerates `AGENT_MEMORY.md`.
 
 ## 5. Definition of done (Part 03)
@@ -164,4 +180,13 @@ W5 = 12 → W6 = 13 · 14. After each wave: manager registers commands/modules, 
 ## 6. Part 02 gaps found while planning (manager tasks before/between waves)
 
 Collected in [`03-domains/_part02-gaps.md`](03-domains/_part02-gaps.md) — each gap names the
-domain(s) that need it and is fi
+domain(s) that need it and is fixed by the manager (new migration `m0016+` or a shared helper)
+before the wave that depends on it.
+
+## 7. Decisions and open questions
+
+- **Carried from Part 02, still open for the user:** C-02 (`INTERNAL` error code), C-16
+  (attachment blob storage under D8 — the domains that store attachments keep the mock's current
+  data-URL-in-row behaviour until it's decided; recorded per domain).
+- New decisions made while writing the domain files are logged in each file's "Decisions"
+  section (architectural autonomy: strictest option, logged, not asked).

@@ -17,7 +17,7 @@ const SNAPSHOT_KEY = 'current';
 /** Bump this whenever `MockDb`'s shape changes in a way old snapshots can't be loaded as-is. */
 export const SCHEMA_VERSION = 1;
 
-interface Snapshot {
+export interface Snapshot {
   version: number;
   savedAt: string;
   data: MockDb;
@@ -198,6 +198,17 @@ function resyncIdCounters(data: MockDb): void {
     for (const key of Object.keys(value)) walk((value as Record<string, unknown>)[key]);
   }
   walk(data);
+}
+
+/**
+ * D10 (21.03 §00-import): reads the persisted IndexedDB snapshot **without** loading it into `db` —
+ * used only by `setup/services/legacyImportService.ts` to hand the raw snapshot to the Rust importer
+ * (`setup_inspect_legacy_snapshot`/`setup_import_snapshot`). The seam rule allows a **service** to
+ * import mocks directly; this export exists so that service never has to reach into `persist.ts`'s
+ * private IndexedDB plumbing (`idbGet`/`SNAPSHOT_KEY`) itself.
+ */
+export async function readPersistedSnapshot(): Promise<Snapshot | undefined> {
+  return idbGet(SNAPSHOT_KEY);
 }
 
 /** Dev-menu "reset data": clears the persisted snapshot. Caller is responsible for reloading the app. */

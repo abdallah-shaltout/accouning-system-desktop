@@ -4,6 +4,7 @@
  * seam-safe like every other service (pages never import `src/mocks/*` directly).
  */
 import { clone, db, delay } from '@/mocks';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 import type { AuditAction, AuditEntry } from '../types';
 import { wrap } from './defineService';
 
@@ -32,6 +33,7 @@ function matches(entry: AuditEntry, filter: AuditFilter): boolean {
 }
 
 export const getAuditEntries = wrap('diagnostics.getAuditEntries', async function getAuditEntries(filter: AuditFilter = {}): Promise<AuditEntry[]> {
+  if (usesRust('diagnostics')) return backendCall('diagnostics_get_audit_entries', { filter });
   await delay(80);
   const all = clone(db.audit ?? []);
   return all.filter((e) => matches(e, filter)).sort((a, b) => b.at.localeCompare(a.at));
@@ -40,6 +42,7 @@ export const getAuditEntries = wrap('diagnostics.getAuditEntries', async functio
 /** Distinct entity kinds seen so far, for the filter dropdown — avoids a hard-coded list that
  * would drift from what the backend actually writes. */
 export const getAuditEntities = wrap('diagnostics.getAuditEntities', async function getAuditEntities(): Promise<string[]> {
+  if (usesRust('diagnostics')) return backendCall('diagnostics_get_audit_entities');
   const all = db.audit ?? [];
   return [...new Set(all.map((e) => e.entity))].sort();
 });

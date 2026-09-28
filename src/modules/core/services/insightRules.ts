@@ -27,7 +27,33 @@ import { formatMoney, formatNumber } from '@/modules/core/helpers/format';
 import { invoiceOutstanding } from '@/modules/invoices/helpers/totals';
 import { isOverdue } from '@/modules/invoices/services/invoiceService';
 import { useBackupStore } from '@/modules/settings/controllers/useBackupStore';
-import type { Insight, InsightRule, InsightSeverity } from './insightTypes';
+import type { Component } from 'vue';
+import type { Insight, InsightIconKey, InsightRule, InsightSeverity } from './insightTypes';
+
+/**
+ * 21.03 14b-insights.md §6 — maps the Rust `InsightDto.icon` key back to the actual Lucide
+ * component; `toInsight()` (`insightEngine.ts`) is the only caller.
+ */
+export const INSIGHT_ICONS: Record<InsightIconKey, Component> = {
+  AlertTriangle,
+  Banknote,
+  CalendarRange,
+  Clock,
+  CreditCard,
+  DatabaseBackup,
+  FileWarning,
+  Landmark,
+  PackageX,
+  Percent,
+  PiggyBank,
+  Repeat,
+  RotateCcw,
+  ScrollText,
+  Sparkles,
+  TimerOff,
+  TrendingDown,
+  UserX,
+};
 
 /**
  * Rule catalogue (docs/v2/11-journal-dashboard-insights.md D2, first set of 20). Each rule is a

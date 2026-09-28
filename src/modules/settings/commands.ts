@@ -1,6 +1,7 @@
 import type { AppRoute } from '@/modules/core/types/route';
 import type { PaletteResult, PaletteSearchProvider } from '@/modules/core/types/commandPalette';
 import { normalizeArabic } from '@/modules/core/helpers/search';
+import { usesRust } from '@/modules/core/services/backend';
 
 /**
  * Command palette registration for settings (docs/v2/14-platform.md §2 "الإعدادات" group). These
@@ -14,6 +15,7 @@ const SETTINGS_PAGES: { title: string; to: AppRoute }[] = [
   { title: 'الضرائب', to: { name: 'settings-taxes' } },
   { title: 'طرق الدفع', to: { name: 'settings-payment-methods' } },
   { title: 'الطباعة', to: { name: 'settings-printing' } },
+  { title: 'الشبكة وقاعدة البيانات', to: { name: 'settings-network' } },
   { title: 'المنتجات', to: { name: 'settings-products' } },
   { title: 'الفروع', to: { name: 'settings-branches' } },
   { title: 'مراكز التكلفة', to: { name: 'settings-cost-centers' } },
@@ -35,7 +37,8 @@ export const searchProviders: PaletteSearchProvider[] = [
     permission: { area: 'settings', access: 'read' },
     async search(query) {
       const q = normalizeArabic(query);
-      const results: PaletteResult[] = SETTINGS_PAGES.filter((s) => normalizeArabic(s.title).includes(q))
+      const results: PaletteResult[] = SETTINGS_PAGES.filter((s) => s.to.name !== 'settings-network' || usesRust('settings'))
+        .filter((s) => normalizeArabic(s.title).includes(q))
         .slice(0, 8)
         .map((s) => ({ id: `settings:${s.to.name}`, group: 'settings' as const, title: s.title, to: s.to }));
       return results;

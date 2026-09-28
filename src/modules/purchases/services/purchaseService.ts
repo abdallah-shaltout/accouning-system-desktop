@@ -18,6 +18,7 @@ import type { ProductBatch } from '@/modules/products/types';
 import type { Supplier } from '@/modules/parties/types';
 import type { Payment } from '@/modules/payments/types';
 import { wrap } from '@/modules/diagnostics/services/defineService';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 
 /** Pure line/VAT totals math (docs/v2/06 §3 engine, applied to purchase-tax direction) — used
  * reactively by `PurchaseFormPage`'s totals preview, so exposed as a plain sync re-export rather
@@ -57,6 +58,7 @@ function toRow(po: PurchaseOrder): PurchaseRow {
 }
 
 export const getPurchaseOrders = wrap('purchases.getPurchaseOrders', async function getPurchaseOrders(filter: PurchaseFilter & { from?: string; to?: string } = {}): Promise<PurchaseRow[]> {
+  if (usesRust('purchases')) return backendCall('purchases_get_purchase_orders', { filter });
   await delay();
   return db.purchaseOrders
     .filter(
@@ -72,6 +74,7 @@ export const getPurchaseOrders = wrap('purchases.getPurchaseOrders', async funct
 });
 
 export const getPurchaseOrder = wrap('purchases.getPurchaseOrder', async function getPurchaseOrder(id: string): Promise<PurchaseDetail> {
+  if (usesRust('purchases')) return backendCall('purchases_get_purchase_order', { id });
   await delay();
   const po = db.purchaseOrders.find((p) => p.id === id);
   if (!po) throw new ApiError('أمر الشراء غير موجود', 'NOT_FOUND');
@@ -100,23 +103,27 @@ export const getPurchaseOrder = wrap('purchases.getPurchaseOrder', async functio
 });
 
 export const savePurchaseOrder = wrap('purchases.savePurchaseOrder', async function savePurchaseOrder(input: PurchaseOrderInput, id?: string): Promise<PurchaseOrder> {
+  if (usesRust('purchases')) return backendCall('purchases_save_purchase_order', { input, id });
   await delay(300);
   return clone(savePurchase(input, session.userId, id));
 });
 
 export const sendPurchaseOrderToSupplier = wrap('purchases.sendPurchaseOrderToSupplier', async function sendPurchaseOrderToSupplier(id: string): Promise<PurchaseOrder> {
+  if (usesRust('purchases')) return backendCall('purchases_send_purchase_order_to_supplier', { id });
   await delay();
   return clone(sendPurchaseToSupplier(id, session.userId));
 });
 
 /** v2 §2 receiving screen: "confirm receipt" posts stock + AP at the ORDER prices. */
 export const receivePurchaseOrder = wrap('purchases.receivePurchaseOrder', async function receivePurchaseOrder(id: string, input: ReceivePurchaseInput): Promise<PurchaseOrder> {
+  if (usesRust('purchases')) return backendCall('purchases_receive_purchase_order', { id, input });
   await delay(300);
   return clone(receivePurchase(id, input, session.userId));
 });
 
 /** Legacy one-step path (save-as-draft, then immediately receive in full at order prices) — still used by the "quick" flow / seed data. */
 export const confirmPurchaseOrder = wrap('purchases.confirmPurchaseOrder', async function confirmPurchaseOrder(id: string): Promise<PurchaseOrder> {
+  if (usesRust('purchases')) return backendCall('purchases_confirm_purchase_order', { id });
   await delay(300);
   const po = db.purchaseOrders.find((p) => p.id === id);
   if (!po) throw new ApiError('أمر الشراء غير موجود', 'NOT_FOUND');
@@ -124,11 +131,13 @@ export const confirmPurchaseOrder = wrap('purchases.confirmPurchaseOrder', async
 });
 
 export const cancelPurchaseOrder = wrap('purchases.cancelPurchaseOrder', async function cancelPurchaseOrder(id: string): Promise<PurchaseOrder> {
+  if (usesRust('purchases')) return backendCall('purchases_cancel_purchase_order', { id });
   await delay();
   return clone(cancelPurchase(id, session.userId));
 });
 
 export const createPurchaseReturn = wrap('purchases.createPurchaseReturn', async function createPurchaseReturn(input: PurchaseReturnInput): Promise<PurchaseReturn> {
+  if (usesRust('purchases')) return backendCall('purchases_create_purchase_return', { input });
   await delay();
   return clone(recordPurchaseReturn(input, session.userId));
 });
@@ -137,6 +146,7 @@ export const createPurchaseReturn = wrap('purchases.createPurchaseReturn', async
  * return by id for `pdfService`'s debit-note payload — returns don't have their own detail
  * route/page (shown inline on the purchase order they belong to). */
 export const getPurchaseReturn = wrap('purchases.getPurchaseReturn', async function getPurchaseReturn(id: string): Promise<PurchaseReturn> {
+  if (usesRust('purchases')) return backendCall('purchases_get_purchase_return', { id });
   await delay();
   const ret = db.purchaseReturns.find((r) => r.id === id);
   if (!ret) throw new ApiError('إشعار المدين غير موجود', 'NOT_FOUND');
@@ -145,17 +155,20 @@ export const getPurchaseReturn = wrap('purchases.getPurchaseReturn', async funct
 
 /** Batches remaining for a tracked product — the debit-note form's batch picker (v2 §4). */
 export const getActiveBatches = wrap('purchases.getActiveBatches', async function getActiveBatches(productId: string): Promise<ProductBatch[]> {
+  if (usesRust('purchases')) return backendCall('purchases_get_active_batches', { productId });
   await delay();
   return clone(activeBatchesFor(productId));
 });
 
 /** v2 §4 "return expiring batch" shortcut — posts Phase 6's stubbed draft into a real debit note. */
 export const getDebitNoteDrafts = wrap('purchases.getDebitNoteDrafts', async function getDebitNoteDrafts() {
+  if (usesRust('purchases')) return backendCall('purchases_get_debit_note_drafts');
   await delay();
   return clone(getDebitNoteDraftsBackend());
 });
 
 export const postDebitNoteDraft = wrap('purchases.postDebitNoteDraft', async function postDebitNoteDraft(draftId: string, refundMethod: PurchaseReturnInput['refundMethod']): Promise<PurchaseReturn> {
+  if (usesRust('purchases')) return backendCall('purchases_post_debit_note_draft', { draftId, refundMethod });
   await delay();
   return clone(postDebitNoteFromDraft(draftId, refundMethod, session.userId));
 });

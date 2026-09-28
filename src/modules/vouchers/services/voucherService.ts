@@ -1,4 +1,5 @@
 import { clone, db, delay, inDateRange, includesText, session } from '@/mocks';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
 import {
@@ -27,26 +28,31 @@ import type {
 } from '../types';
 
 export const createReceiptVoucher = wrap('vouchers.createReceiptVoucher', async function createReceiptVoucher(input: ReceiptVoucherInput): Promise<Voucher> {
+  if (usesRust('vouchers')) return backendCall('vouchers_create_receipt_voucher', { input });
   await delay(300);
   return clone(recordReceiptVoucher(input, session.userId));
 });
 
 export const createPaymentVoucher = wrap('vouchers.createPaymentVoucher', async function createPaymentVoucher(input: PaymentVoucherInput): Promise<Voucher> {
+  if (usesRust('vouchers')) return backendCall('vouchers_create_payment_voucher', { input });
   await delay(300);
   return clone(recordPaymentVoucher(input, session.userId));
 });
 
 export const createTransferVoucher = wrap('vouchers.createTransferVoucher', async function createTransferVoucher(input: TransferVoucherInput): Promise<Voucher> {
+  if (usesRust('vouchers')) return backendCall('vouchers_create_transfer_voucher', { input });
   await delay(300);
   return clone(recordTransferVoucher(input, session.userId));
 });
 
 export const createOwnerVoucher = wrap('vouchers.createOwnerVoucher', async function createOwnerVoucher(input: OwnerVoucherInput): Promise<Voucher> {
+  if (usesRust('vouchers')) return backendCall('vouchers_create_owner_voucher', { input });
   await delay(300);
   return clone(recordOwnerVoucher(input, session.userId));
 });
 
 export const getVouchers = wrap('vouchers.getVouchers', async function getVouchers(filter: VoucherFilter = {}): Promise<Voucher[]> {
+  if (usesRust('vouchers')) return backendCall('vouchers_get_vouchers', { filter });
   await delay();
   return db.vouchers
     .filter((v) => (!filter.kind || v.kind === filter.kind) && inDateRange(v.date, filter.from, filter.to))
@@ -56,6 +62,7 @@ export const getVouchers = wrap('vouchers.getVouchers', async function getVouche
 });
 
 export const getVoucher = wrap('vouchers.getVoucher', async function getVoucher(id: string): Promise<Voucher> {
+  if (usesRust('vouchers')) return backendCall('vouchers_get_voucher', { id });
   await delay();
   return clone(getVoucherById(id));
 });
@@ -63,26 +70,31 @@ export const getVoucher = wrap('vouchers.getVoucher', async function getVoucher(
 // --- Card/wallet settlement (docs/v2/09 §2) -----------------------------------------------------
 
 export const getUnsettledTenderGroups = wrap('vouchers.getUnsettledTenderGroups', async function getUnsettledTenderGroups(): Promise<UnsettledTenderGroup[]> {
+  if (usesRust('vouchers')) return backendCall('vouchers_get_unsettled_tender_groups');
   await delay();
   return clone(unsettledTenderGroups());
 });
 
 export const estimateSettlementFee = wrap('vouchers.estimateSettlementFee', async function estimateSettlementFee(groups: UnsettledTenderGroup[]): Promise<number> {
+  if (usesRust('vouchers')) return backendCall('vouchers_estimate_settlement_fee', { groups });
   await delay(0);
   return estimatedFeeFor(groups);
 });
 
 export const createCardSettlement = wrap('vouchers.createCardSettlement', async function createCardSettlement(input: CardSettlementInput): Promise<CardSettlement> {
+  if (usesRust('vouchers')) return backendCall('vouchers_create_card_settlement', { input });
   await delay(300);
   return clone(recordCardSettlement(input, session.userId));
 });
 
 export const getCardSettlements = wrap('vouchers.getCardSettlements', async function getCardSettlements(): Promise<CardSettlement[]> {
+  if (usesRust('vouchers')) return backendCall('vouchers_get_card_settlements');
   await delay();
   return clone(db.cardSettlements).sort((a, b) => b.date.localeCompare(a.date));
 });
 
 export const getCardSettlement = wrap('vouchers.getCardSettlement', async function getCardSettlement(id: string): Promise<CardSettlement> {
+  if (usesRust('vouchers')) return backendCall('vouchers_get_card_settlement', { id });
   await delay();
   return clone(getCardSettlementById(id));
 });

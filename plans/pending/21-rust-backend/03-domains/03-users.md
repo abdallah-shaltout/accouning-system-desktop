@@ -1,9 +1,14 @@
 # 21 · 03.03 — `users` (user records, login/session with argon2 credentials, manager PIN)
 
-> **Status:** planned 2026-09-28, not implemented. Wave **W1** (entry file §4). Depends on: 01-settings
-> (the `settings` row that `cx.require` and `default_branch_id` read), Part 02 `core/auth.rs`,
-> `core/tx.rs`, `shared::activity`, entities `org/users.rs` + `org/credentials.rs`, and the Part 02
-> gaps G-3, G-6, G-7, G-8 below (manager adds them **before W1 starts**).
+> **Status (2026-09-28): code complete, not yet compiled/tested.** All 8 commands, DTOs, service
+> logic, switch lines and `contract.check.ts` are written per §1-§7 below. G-3/G-6/G-7/G-8 were
+> already fixed in `core/**` before this file was picked up (confirmed by reading `core/auth.rs`,
+> `core/tx.rs`, `core/error.rs`, `core/settings.rs`, `core/dto.rs`, `core/ipc.rs`,
+> `domains/mod.rs` — `require`/`require_any` live on `TxCtx`/`ReadCtx`, `Role`/`Area`/`Access`
+> already derive `TS`, `map_unique_violation` exists, `export_bindings` hook exists). DB tests are
+> written in `tests/domain_users.rs` but **not run** (per-implementer hard rule: no cargo from this
+> agent) — ⏳ deferred to the manager's time-boxed test pass. See "Needs from manager" for the
+> registration/wiring this domain still needs from the manager-owned files.
 
 **Goal.** Port the 8 production functions of `userService.ts` + `authService.ts` to
 `domains/users/`. Passwords become argon2id hashes in `credentials(user_id, password_hash)` (keyed
@@ -201,16 +206,16 @@ Each line sits first inside the `wrap(...)` body, before `await delay()`; the mo
 
 ## 9. Checklist
 
-- [ ] Confirm G-3, G-6, G-7, G-8 are in place (manager, before W1).
-- [ ] `domains/users/mod.rs`: `pub mod commands; pub mod service; pub mod dto;` + `ipc_signatures()` (8 `ipc_sig!` lines) + `export_bindings(cfg)` (G-8).
-- [ ] `dto.rs`: `User`, `UserInput`, 6 args structs (§2).
-- [ ] `service.rs`: helpers (`find_by_login_name`, `verify`, dummy hash, `to_dto`, `to_authenticated`), then `get_users`, `get_user`, `create_user` (pub), `update_user`, `login`, `restore_session`, `verify_manager_pin` in §3 order, each step citing its mock line in a comment.
-- [ ] `commands.rs`: 8 commands; session writes only after `Ok` (login, update self, restore).
-- [ ] Ask the manager to register the 8 commands in `generate_handler!` and `pub mod users;` + hooks in `domains/mod.rs`.
-- [ ] Switch lines (§6) in `userService.ts` and `authService.ts`.
-- [ ] `src/modules/users/types/contract.check.ts` (§2).
-- [ ] `tests/domain_users.rs` (§8a); parity case list handed to Part 04 (§8b).
-- [ ] Status note at the top of this file.
+- [x] Confirm G-3, G-6, G-7, G-8 are in place (manager, before W1). — confirmed already fixed by reading `core/**` (see status note).
+- [x] `domains/users/mod.rs`: `pub mod commands; pub mod service; pub mod dto;` + `ipc_signatures()` (8 `ipc_sig!` lines) + `export_bindings(cfg)` (G-8).
+- [x] `dto.rs`: `User`, `UserInput`, 6 args structs (§2).
+- [x] `service.rs`: helpers (`find_by_login_name`, `verify`, dummy hash, `to_dto`, `to_authenticated`), then `get_users`, `get_user`, `create_user` (pub), `update_user`, `login`, `restore_session`, `verify_manager_pin` in §3 order, each step citing its mock line in a comment.
+- [x] `commands.rs`: 8 commands; session writes only after `Ok` (login, update self, restore).
+- [ ] Ask the manager to register the 8 commands in `generate_handler!` and `pub mod users;` + hooks in `domains/mod.rs`. — **pending, see "Needs from manager" in the final report.**
+- [x] Switch lines (§6) in `userService.ts` and `authService.ts`.
+- [x] `src/modules/users/types/contract.check.ts` (§2).
+- [x] `tests/domain_users.rs` (§8a) — written, **⏳ deferred time-boxed test pass** (not run, per hard rule); parity case list handed to Part 04 (§8b, see §8b below unchanged).
+- [x] Status note at the top of this file.
 
 ## Gate
 

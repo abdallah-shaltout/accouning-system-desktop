@@ -32,6 +32,11 @@ pub enum DbStatus {
     /// A2-10: the bundled server failed to start — see `AppState.server`'s `ServerPhase::Failed`
     /// for the `ServerFailure` reason.
     ServerFailed,
+    /// G-45/GB-3: the automatic pre-migration backup (P2-52) failed on a Main PC with pending
+    /// migrations — migrations are never run in this case (zero data loss over availability, D-14
+    /// in 17-backup.md), so the schema stays exactly as it was. Drives `core/status.rs`'s
+    /// `ServerFailureScreen` message.
+    MigrationBackupFailed,
 }
 
 pub struct Db {
@@ -60,6 +65,8 @@ pub struct AppState {
     /// Part 03 undo/compensation registry (empty in Part 02 — no compensators are registered yet;
     /// Part 03 wires them up against real domain services). Owned by `shared::activity::undo`.
     pub undo: Arc<crate::shared::activity::undo::UndoRegistry>,
+    /// Manager-PIN approval grants (G-P3) — see `core::grants`.
+    pub approval_grants: Arc<crate::core::grants::ApprovalGrants>,
 }
 
 impl AppState {
@@ -81,6 +88,7 @@ impl AppState {
                 crate::domains::register_undo(&mut registry);
                 registry
             }),
+            approval_grants: Arc::new(crate::core::grants::ApprovalGrants::new()),
         }
     }
 
@@ -108,9 +116,22 @@ impl AppState {
 pub fn boot(app: AppHandle) {
     let app_data_dir = app.path().app_data_dir().expect("app_data_dir must be resolvable");
 
+    // G-43/GU-1: resolved independently of whether `server.json` already exists — a fresh install
+    // on a would-be Main PC has no `server.json` yet (first-run provisioning hasn't happened), but
+    // `ServerPaths::machine()` itself still resolves from the OS `%ProgramData%` folder alone. The
+    // machine *paths* (this PC's would-be managed-server root) and the machine *state file* (does a
+    // server already exist there, and in what lifecycle state) are two different questions — kept
+    // as two separate options below so a fresh install still gets a real, supervised `ServerHandle`
+    // (rather than `unmanaged()`) even before the setup wizard's role step ever provisions anything.
     #[cfg(windows)]
-    let machine_state = crate::infrastructure::database::paths::ServerPaths::machine()
-        .and_then(|paths| crate::infrastructure::database::state_file::load(&paths.server_json()).ok().flatten().map(|s| (paths, s)));
+    let machine_paths = crate::infrastructure::database::paths::ServerPaths::machine();
+    #[cfg(not(windows))]
+    let machine_paths: Option<()> = None;
+
+    #[cfg(windows)]
+    let machine_state = machine_paths.as_ref().and_then(|paths| {
+        crate::infrastructure::database::state_file::load(&paths.server_json()).ok().flatten().map(|s| (paths.clone(), s))
+    });
     #[cfg(not(windows))]
     let machine_state: Option<((), ())> = None;
 
@@ -153,10 +174,18 @@ pub fn boot(app: AppHandle) {
 
     let events: Arc<dyn EventSink> = Arc::new(TauriEventSink(app.clone()));
     let mut state = AppState::new(app_data_dir.clone(), terminal, device.clone(), events);
+    // G-43/GU-1: attach a real, supervised `ServerHandle` whenever `ServerPaths::machine()` resolves
+    // at all — not only once `server.json` already exists — so first-run provisioning that happens
+    // mid-session (the setup wizard's role step) is supervised, restartable, LAN-toggleable and shut
+    // down cleanly on exit from the very first boot, instead of running against the `unmanaged()`
+    // placeholder until the next app restart. `build_server_status` already returns `None` for
+    // terminals regardless of this handle's presence (it gates on `device.role == Main` first), so
+    // a terminal or a non-Main PC attaching a technically-real-but-never-used handle here changes no
+    // observable status.
     #[cfg(windows)]
     {
-        if let Some((paths, _)) = &machine_state {
-            state = state.with_server(crate::infrastructure::database::supervisor::ServerHandle::new(paths.clone()));
+        if let Some(paths) = machine_paths {
+            state = state.with_server(crate::infrastructure::database::supervisor::ServerHandle::new(paths));
         }
     }
     app.manage(state);

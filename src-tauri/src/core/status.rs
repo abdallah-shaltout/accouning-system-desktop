@@ -49,6 +49,11 @@ fn db_status_error(db_status: DbStatus) -> Option<String> {
         DbStatus::Unreachable => Some("تعذر الاتصال بقاعدة البيانات على الجهاز الرئيسي".to_string()),
         DbStatus::ServerStarting => None,
         DbStatus::ServerFailed => Some("تعذر تشغيل قاعدة البيانات المدمجة".to_string()),
+        // G-45/GB-3: exact text from 17-backup.md's gap register entry.
+        DbStatus::MigrationBackupFailed => Some(
+            "تعذر أخذ نسخة احتياطية قبل تحديث قاعدة البيانات — لن يتم التحديث. وفّر مساحة على القرص ثم أعد تشغيل البرنامج"
+                .to_string(),
+        ),
     }
 }
 

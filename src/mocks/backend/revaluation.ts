@@ -5,22 +5,13 @@
  * and immediately posts the exact mirror entry dated the first day of the next month so it
  * "auto-reverses" without needing a second manual step.
  */
+import type { FcBalanceRow, RevaluationResult } from '@/modules/settings/types';
 import { db } from '../db';
 import { ApiError, round2, sum } from '../utils';
 import { activeCurrencies } from './currency';
 import { logActivity, postJournal, type PostingLine } from './core';
 
-export interface FcBalanceRow {
-  kind: 'customer' | 'supplier' | 'account';
-  id: string;
-  name: string;
-  currency: string;
-  fcBalance: number;
-  /** Current base-currency carrying value (Σ amountFc-tagged lines' debit−credit in base). */
-  baseBalance: number;
-  revaluedBase: number;
-  gainLoss: number;
-}
+export type { FcBalanceRow, RevaluationResult };
 
 /** Every open FC balance the wizard can revalue, for the currency picked (defaults to every active currency when omitted). */
 export function openFcBalances(rates: Record<string, number>): FcBalanceRow[] {
@@ -93,7 +84,7 @@ function firstOfNextMonth(date: string): string {
  * gain/loss) dated `date`, then immediately posts the exact mirror entry dated the first day of
  * the next month — this is the "auto-reverses on the first day of the next period" behavior.
  */
-export function postRevaluation(date: string, rates: Record<string, number>, userId: string): { entryId: string; reversalEntryId: string; rows: FcBalanceRow[] } {
+export function postRevaluation(date: string, rates: Record<string, number>, userId: string): RevaluationResult {
   const rows = openFcBalances(rates).filter((r) => Math.abs(r.gainLoss) >= 0.01);
   if (!rows.length) throw new ApiError('لا توجد أرصدة عملات أجنبية بحاجة لإعادة تقييم بهذه الأسعار');
 

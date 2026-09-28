@@ -462,9 +462,9 @@ async function buildPayload(kind: PdfDocumentKind, id: string): Promise<Document
   }
 }
 
-function resolveTemplate(kind: PdfDocumentKind, templateId?: string): PdfTemplate {
+async function resolveTemplate(kind: PdfDocumentKind, templateId?: string): Promise<PdfTemplate> {
   const documentKind: DocumentKind = kind;
-  const template = (templateId ? getTemplate(templateId) : undefined) ?? getDefaultTemplate(documentKind);
+  const template = (templateId ? await getTemplate(templateId) : undefined) ?? (await getDefaultTemplate(documentKind));
   if (template) return template;
   return {
     id: 'fallback',
@@ -511,7 +511,7 @@ export const render = wrap('core.render', async function render(kind: PdfDocumen
     return { ok: false };
   }
   const payload = await buildPayload(kind, id);
-  const template = resolveTemplate(kind, templateId);
+  const template = await resolveTemplate(kind, templateId);
   const { invoke } = await import('@tauri-apps/api/core');
   const result = await invoke<{ pdf_base64: string; achieved_standard: string; warnings: unknown[] }>(
     'render_pdf',

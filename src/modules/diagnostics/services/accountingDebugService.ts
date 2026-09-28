@@ -16,9 +16,11 @@ import {
   postingTraceFor,
   supplierBalance,
   unallocatedCreditFor,
+  ApiError,
   type InvariantResult,
   type PostingTrace,
 } from '@/mocks';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 import { wrap } from './defineService';
 
 export interface AccountingDocSummary {
@@ -36,6 +38,7 @@ export interface AccountingDocSummary {
 /** Most recent posted entries (newest first) for the inspector's document picker, joined with
  * whether a posting trace is available for it (debug mode on + traced since it was posted). */
 export const listRecentDocuments = wrap('diagnostics.listRecentDocuments', async function listRecentDocuments(limit = 100): Promise<AccountingDocSummary[]> {
+  if (usesRust('diagnostics')) return backendCall('diagnostics_list_recent_documents', { limit });
   await delay(60);
   const traced = new Set(recentPostingTraces().map((t) => t.docId));
   return [...db.journalEntries]
@@ -59,11 +62,15 @@ export const listRecentDocuments = wrap('diagnostics.listRecentDocuments', async
  * to `undefined` when the entry predates this session (ring is in-memory only, cleared on reload)
  * or debug mode was off the whole time and the ring already rotated past it. */
 export const getPostingTrace = wrap('diagnostics.getPostingTrace', async function getPostingTrace(entryId: string): Promise<PostingTrace | undefined> {
+  // contract-ok: null→undefined at the switch line — the Rust command returns `Option<T>` as `T | null`.
+  if (usesRust('diagnostics')) return (await backendCall('diagnostics_get_posting_trace', { entryId })) ?? undefined;
   await delay(30);
   return postingTraceFor(entryId) ?? recentPostingTraces().find((t) => t.docId === entryId);
 });
 
 export const getJournalEntryRaw = wrap('diagnostics.getJournalEntryRaw', async function getJournalEntryRaw(id: string) {
+  // contract-ok: null→undefined at the switch line.
+  if (usesRust('diagnostics')) return (await backendCall('diagnostics_get_journal_entry_raw', { id })) ?? undefined;
   await delay(30);
   const entry = db.journalEntries.find((e) => e.id === id) ?? db.journalDrafts.find((e) => e.id === id);
   return entry ? clone(entry) : undefined;
@@ -74,6 +81,7 @@ export const getJournalEntryRaw = wrap('diagnostics.getJournalEntryRaw', async f
  * this entry itself; "after" = including it. Same-day entries are ordered by number so the
  * before/after pair is deterministic. */
 export const getBalancesAround = wrap('diagnostics.getBalancesAround', async function getBalancesAround(entryId: string) {
+  if (usesRust('diagnostics')) return backendCall('diagnostics_get_balances_around', { entryId });
   await delay(60);
   const entry = db.journalEntries.find((e) => e.id === entryId);
   if (!entry) return [];
@@ -99,6 +107,7 @@ export const getBalancesAround = wrap('diagnostics.getBalancesAround', async fun
 });
 
 export const getInvariantResults = wrap('diagnostics.getInvariantResults', async function getInvariantResults(): Promise<InvariantResult[]> {
+  if (usesRust('diagnostics')) return backendCall('diagnostics_get_invariant_results');
   await delay(80);
   return runAllInvariants(db);
 });
@@ -122,6 +131,7 @@ export interface DriftRow {
  * purpose so this dev-only report never has to import backend internals beyond what `@/mocks`
  * already re-exports. */
 export const getDriftReport = wrap('diagnostics.getDriftReport', async function getDriftReport(): Promise<DriftRow[]> {
+  if (usesRust('diagnostics')) return backendCall('diagnostics_get_drift_report');
   await delay(120);
   const rows: DriftRow[] = [];
 
@@ -215,6 +225,7 @@ export interface ExplainLine {
 export const explainAccountBalance = wrap(
   'diagnostics.explainAccountBalance',
   async function explainAccountBalance(accountId: string, partyId?: string): Promise<ExplainLine[]> {
+    if (usesRust('diagnostics')) return backendCall('diagnostics_explain_account_balance', { accountId, partyId });
     await delay(80);
     const out: ExplainLine[] = [];
     for (const e of db.journalEntries) {
@@ -242,8 +253,13 @@ export const explainAccountBalance = wrap(
 
 /** Starts recording every service call from this point on, snapshotting the current `db` as the
  * bundle's starting point. UI-only — `scripts/verify/replay.ts` seeds its own `db` headlessly and
- * never calls this. */
+ * never calls this. D-5: not ported to Rust (the mock's "clone the whole DB then record calls" has
+ * no Rust equivalent yet, spec §9 → Part 04) — refuses instead of recording mock data once the
+ * `diagnostics` domain is on the real backend. */
 export const startReproRecording = wrap('diagnostics.startReproRecording', async function startReproRecording(): Promise<void> {
+  if (usesRust('diagnostics')) {
+    throw new ApiError('تسجيل إعادة الإنتاج غير متاح مع قاعدة البيانات الحقيقية بعد', 'FORBIDDEN');
+  }
   const { startRecording } = await import('./actionJournal');
   startRecording(clone(db));
 });

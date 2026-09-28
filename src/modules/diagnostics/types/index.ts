@@ -92,3 +92,29 @@ export interface AuditEntry {
   message: string;
   link?: AppRoute;
 }
+
+/**
+ * The Main PC's bundled-server sub-status (21 Part 03 §16 spec §2) — camelCase mirror of the Rust
+ * `infrastructure::database::errors::ServerDiagnostics`. `None`/absent on a terminal (no local
+ * managed server) and on a Main PC with no server provisioned yet.
+ */
+export interface ServerDiagnostics {
+  state: string;
+  version?: string;
+  port?: number;
+  lanSharing: boolean;
+  lastFailure?: string;
+  errorLogTail?: string;
+}
+
+/**
+ * Result of `exportSupportBundle`'s Rust-backed data part (21 Part 03 §16, D-1) — settings and
+ * server diagnostics only; the DB snapshot ships once slice A2 (after 17-backup) lands. `unknown`
+ * for `settingsRedacted`/`dbSnapshot` since their shape is the redacted settings/whole-DB JSON, not
+ * a typed contract of its own.
+ */
+export interface SupportSnapshot {
+  settingsRedacted: unknown;
+  dbSnapshot?: unknown;
+  server?: ServerDiagnostics;
+}

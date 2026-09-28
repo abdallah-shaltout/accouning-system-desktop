@@ -40,6 +40,10 @@ pub struct Model {
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
     pub sync_status: String,
+    /// Generated (`m0016` G-17): `code` while live, `NULL` once soft-deleted — backs
+    /// `uq_accounts_code_live` so a deleted account's code can be reused. Read-only; nothing ever
+    /// `Set`s it directly.
+    pub code_live: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

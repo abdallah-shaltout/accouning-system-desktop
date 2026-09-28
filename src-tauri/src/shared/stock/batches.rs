@@ -27,7 +27,7 @@ fn qty_epsilon() -> Decimal {
 pub async fn active_batches<C: ConnectionTrait>(conn: &C, product_id: Id) -> TxResult<Vec<product_batches::Model>> {
     let mut rows = product_batches::Entity::find()
         .filter(product_batches::Column::ProductId.eq(product_id))
-        .order_by_asc(product_batches::Column::ReceivedDate)
+        .order_by_asc(product_batches::Column::CreatedAt)
         .order_by_asc(product_batches::Column::Id)
         .all(conn)
         .await?;
@@ -35,7 +35,8 @@ pub async fn active_batches<C: ConnectionTrait>(conn: &C, product_id: Id) -> TxR
     rows.sort_by(|a, b| {
         let ak = a.expiry_date.unwrap_or(far_future());
         let bk = b.expiry_date.unwrap_or(far_future());
-        ak.cmp(&bk).then_with(|| a.received_date.cmp(&b.received_date)).then_with(|| a.id.cmp(&b.id))
+        // Ties keep insertion order (phase-d D-3: `ORDER BY expiry IS NULL, expiry, created_at, id`).
+        ak.cmp(&bk).then_with(|| a.created_at.cmp(&b.created_at)).then_with(|| a.id.cmp(&b.id))
     });
     Ok(rows)
 }
@@ -85,7 +86,8 @@ pub async fn receive_batch<C: ConnectionTrait>(
         qty: Set(qty),
         unit_cost: Set(unit_cost),
         supplier_id: Set(None),
-        received_date: Set(date.day),
+        received_date_day: Set(date.day),
+        received_date_instant: Set(date.instant),
         source_ref_id: Set(Some(ref_.id)),
         source_ref_number: Set(Some(ref_.number.clone())),
         created_at: Set(cx.clock.now),
@@ -172,7 +174,8 @@ mod tests {
             qty: qty.parse().unwrap(),
             unit_cost: Decimal::ZERO,
             supplier_id: None,
-            received_date: NaiveDate::parse_from_str(received, "%Y-%m-%d").unwrap(),
+            received_date_day: NaiveDate::parse_from_str(received, "%Y-%m-%d").unwrap(),
+            received_date_instant: None,
             source_ref_id: None,
             source_ref_number: None,
             created_at: chrono::Utc::now(),

@@ -4,6 +4,8 @@ import { isFreshInstall } from '@/modules/users/services/authService';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
 import { APP_NAME_AR } from '@/modules/core/helpers/brand';
+import { usesRust } from '@/modules/core/services/backend';
+import { ensureDeviceSetupState } from '@/modules/setup/services/deviceService';
 import coreRoutes from '@/modules/core/routes';
 import usersRoutes from '@/modules/users/routes';
 import productsRoutes from '@/modules/products/routes';
@@ -56,6 +58,16 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
+  // 21.03 §02-setup (Part 02 handoff §9, D-1/D-2): under the real Rust backend, the very first
+  // decision is device role, not company data — an unconfigured device (no `device-settings.json`
+  // yet) has no database to hold a company shell at all. `usesRust('setup')` is false in every
+  // browser/e2e run (`isTauri()` gates it), so this branch never fires there and today's
+  // mock-backend behavior below is unchanged.
+  if (usesRust('setup')) {
+    const deviceState = await ensureDeviceSetupState();
+    if (!deviceState.configured) return to.name === 'device-setup' ? true : { name: 'device-setup' };
+  }
+
   if (to.name === 'welcome') return true;
   if (isFreshInstall() && !to.meta.public) return { name: 'welcome' };
   // The login page itself is only reachable once a company exists (fresh or demo).

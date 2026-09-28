@@ -4,13 +4,16 @@ import { mutate } from '@/mocks/persist';
 import type { User, UserInput } from '../types';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 
 export const getUsers = wrap('users.getUsers', async function getUsers(): Promise<User[]> {
+  if (usesRust('users')) return backendCall('users_get_users');
   await delay();
   return clone(db.users);
 });
 
 export const getUser = wrap('users.getUser', async function getUser(id: string): Promise<User> {
+  if (usesRust('users')) return backendCall('users_get_user', { id });
   await delay();
   const user = db.users.find((u) => u.id === id);
   if (!user) throw new ApiError('المستخدم غير موجود', 'NOT_FOUND');
@@ -24,6 +27,7 @@ function assertUnique(username: string, exceptId?: string) {
 }
 
 export const createUser = wrap('users.createUser', async function createUser(input: UserInput): Promise<User> {
+  if (usesRust('users')) return backendCall('users_create_user', { input });
   await delay();
   assertUnique(input.username);
   if (!input.password) throw new ApiError('كلمة المرور مطلوبة للمستخدم الجديد');
@@ -38,6 +42,7 @@ export const createUser = wrap('users.createUser', async function createUser(inp
 });
 
 export const updateUser = wrap('users.updateUser', async function updateUser(id: string, input: UserInput): Promise<User> {
+  if (usesRust('users')) return backendCall('users_update_user', { id, input });
   await delay();
   const user = db.users.find((u) => u.id === id);
   if (!user) throw new ApiError('المستخدم غير موجود', 'NOT_FOUND');

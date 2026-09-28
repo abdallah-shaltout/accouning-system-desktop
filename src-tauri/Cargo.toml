@@ -93,6 +93,30 @@ getrandom = "0.3"
 # `Decimal` field without `#[ts(type = "number")]` must fail to compile (phase-f F-1).
 ts-rs = { version = "12.0.1", features = ["uuid-impl", "chrono-impl"] }
 
+# 21.03 Wave 0 (G-33): insertion-ordered map + stable sort, the exact equivalent of every mock
+# group-by (a JS `Map` followed by `Array.prototype.sort`). Version pinned to what `hayagriva`
+# (a typst dependency, see Cargo.lock) already resolves to, so this stays one copy in the tree.
+indexmap = "2"
+
+# 21.03 Wave 0 (G-34): `utils::text::compare_ar` — Arabic `localeCompare` port for reports/analytics
+# sorts (13-reports rs:433 etc.) via ICU4X's compiled `ar` collation data. `hayagriva` (a typst
+# dependency) already pulls in `icu_collator 2.3.1` transitively (see Cargo.lock); pinning the same
+# version here keeps this a direct dependency without a second copy in the tree. `icu_locale_core`
+# builds the `LanguageIdentifier` the collator preferences need and is already in the tree at 2.3.0
+# (a dependency of `icu_collator`/`icu_locale` themselves).
+icu_collator = "2.3.1"
+icu_locale_core = "2.3.0"
+
+# 21.03 Wave 0 (G-47, backup/restore — `infrastructure/backup/`, P2-52): the backup archive format
+# is a password-protected zip (`zip`), each file inside AEAD-encrypted with AES-256-GCM (`aes-gcm`),
+# the passphrase stretched with PBKDF2-HMAC-SHA256 (`pbkdf2` + `sha2`), and the resulting binary blobs
+# safe to embed in the manifest/report JSON via `base64`.
+zip = "2"
+aes-gcm = "0.10"
+pbkdf2 = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+
 # Windows printer enumeration + raw-mode spooling (OpenPrinter/StartDocPrinter/
 # WritePrinter/EndDocPrinter) for src-tauri/src/print/{printers,transport}.rs.
 [target.'cfg(windows)'.dependencies]

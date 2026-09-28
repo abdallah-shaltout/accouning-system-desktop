@@ -6,17 +6,17 @@
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
-| [`createTemplate`](../../../src/modules/templates/services/templateService.ts#L162) | `kind: DocumentKind, baseTemplateId: import("../types").BaseTemplateId, name: string` | `PdfTemplate` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | BaseTemplateId, DocumentKind, PdfTemplate |
-| [`deleteTemplate`](../../../src/modules/templates/services/templateService.ts#L122) | `id: string` | `void` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  |  |
-| [`duplicateTemplate`](../../../src/modules/templates/services/templateService.ts#L103) | `id: string` | `PdfTemplate \| undefined` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | PdfTemplate |
-| [`exportTemplate`](../../../src/modules/templates/services/templateService.ts#L138) | `template: PdfTemplate` | `TemplateExport` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | PdfTemplate, TemplateExport |
-| [`getDefaultTemplate`](../../../src/modules/templates/services/templateService.ts#L78) | `kind: DocumentKind` | `PdfTemplate \| undefined` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | DocumentKind, PdfTemplate |
-| [`getTemplate`](../../../src/modules/templates/services/templateService.ts#L74) | `id: string` | `PdfTemplate \| undefined` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | PdfTemplate |
-| [`importTemplate`](../../../src/modules/templates/services/templateService.ts#L143) | `json: TemplateExport` | `PdfTemplate` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | PdfTemplate, TemplateExport |
-| [`listTemplates`](../../../src/modules/templates/services/templateService.ts#L69) | `kind?: DocumentKind \| undefined` | `PdfTemplate[]` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | DocumentKind, PdfTemplate |
-| [`resetTemplateToDefaults`](../../../src/modules/templates/services/templateService.ts#L127) | `id: string` | `PdfTemplate \| undefined` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | PdfTemplate |
-| [`saveTemplate`](../../../src/modules/templates/services/templateService.ts#L83) | `template: PdfTemplate` | `PdfTemplate` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | PdfTemplate |
-| [`setAsDefault`](../../../src/modules/templates/services/templateService.ts#L93) | `id: string` | `void` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  |  |
+| [`createTemplate`](../../../src/modules/templates/services/templateService.ts#L179) | `kind: DocumentKind, baseTemplateId: import("../types").BaseTemplateId, name: string` | `Promise<PdfTemplate>` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | BaseTemplateId, DocumentKind, PdfTemplate |
+| [`deleteTemplate`](../../../src/modules/templates/services/templateService.ts#L132) | `id: string` | `Promise<void>` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  |  |
+| [`duplicateTemplate`](../../../src/modules/templates/services/templateService.ts#L112) | `id: string` | `Promise<PdfTemplate \| undefined>` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | PdfTemplate |
+| [`exportTemplate`](../../../src/modules/templates/services/templateService.ts#L154) | `template: PdfTemplate` | `TemplateExport` | **frontend** — override: 21.03 15-templates T-6 (G-40): a pure projection … |  |  |  | PdfTemplate, TemplateExport |
+| [`getDefaultTemplate`](../../../src/modules/templates/services/templateService.ts#L81) | `kind: DocumentKind` | `Promise<PdfTemplate \| undefined>` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | DocumentKind, PdfTemplate |
+| [`getTemplate`](../../../src/modules/templates/services/templateService.ts#L76) | `id: string` | `Promise<PdfTemplate \| undefined>` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | PdfTemplate |
+| [`importTemplate`](../../../src/modules/templates/services/templateService.ts#L159) | `json: TemplateExport` | `Promise<PdfTemplate>` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | PdfTemplate, TemplateExport |
+| [`listTemplates`](../../../src/modules/templates/services/templateService.ts#L70) | `kind?: DocumentKind \| undefined` | `Promise<PdfTemplate[]>` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | DocumentKind, PdfTemplate |
+| [`resetTemplateToDefaults`](../../../src/modules/templates/services/templateService.ts#L141) | `id: string` | `Promise<PdfTemplate \| undefined>` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | PdfTemplate |
+| [`saveTemplate`](../../../src/modules/templates/services/templateService.ts#L87) | `template: PdfTemplate` | `Promise<PdfTemplate>` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  | PdfTemplate |
+| [`setAsDefault`](../../../src/modules/templates/services/templateService.ts#L98) | `id: string` | `Promise<void>` | **port** — override: D9 — templates move from localStorage to the DB, … |  |  |  |  |
 
 ## Types (`src/modules/templates/types`)
 

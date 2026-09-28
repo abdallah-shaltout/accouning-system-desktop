@@ -122,6 +122,7 @@ async fn seed_fixture<C: ConnectionTrait>(conn: &C, roles: &[(&'static str, &str
     for (label, role) in roles {
         let id = Id::new();
         let account = AccountActiveModel {
+            code_live: sea_orm::ActiveValue::NotSet,
             id: Set(id),
             code: Set(format!("ACC-{label}")),
             name: Set(format!("حساب {label}")),
@@ -154,6 +155,7 @@ async fn seed_fixture<C: ConnectionTrait>(conn: &C, roles: &[(&'static str, &str
 async fn seed_group_account<C: ConnectionTrait>(conn: &C) -> Id {
     let id = Id::new();
     let account = AccountActiveModel {
+        code_live: sea_orm::ActiveValue::NotSet,
         id: Set(id),
         code: Set("1000".to_string()),
         name: Set("الأصول".to_string()),
@@ -548,7 +550,7 @@ async fn draft_post_draft_keeps_id_and_number_and_removes_the_draft() {
             let draft = accounting_app_lib::shared::ledger::save_draft(
                 txn,
                 cx,
-                chrono::Utc::now().date_naive(),
+                chrono::Utc::now().date_naive().into(),
                 "مسودة اختبار".to_string(),
                 vec![
                     PostingLine::debit(AccountRef::Role(cash_role()), dec!(15)),
@@ -697,6 +699,7 @@ async fn resolve_account_precedence_and_inactive_soft_deleted_excluded() {
     // A second, branch-specific cash account.
     let branch_specific_id = Id::new();
     let account = AccountActiveModel {
+        code_live: sea_orm::ActiveValue::NotSet,
         id: Set(branch_specific_id),
         code: Set("ACC-branch".to_string()),
         name: Set("صندوق الفرع".to_string()),
@@ -724,6 +727,7 @@ async fn resolve_account_precedence_and_inactive_soft_deleted_excluded() {
     // An inactive third candidate must never be picked.
     let inactive_id = Id::new();
     let inactive = AccountActiveModel {
+        code_live: sea_orm::ActiveValue::NotSet,
         id: Set(inactive_id),
         code: Set("ACC-inactive".to_string()),
         name: Set("صندوق معطل".to_string()),

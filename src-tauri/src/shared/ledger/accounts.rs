@@ -3,6 +3,9 @@
 //! account by system role or hard-coded code.
 
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
+use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+use ts_rs::TS;
 
 use crate::core::error::AppError;
 use crate::entities::org::accounts::{Column, Entity, Model as Account};
@@ -13,7 +16,14 @@ use crate::utils::id::Id;
 /// role in principle — branch cash drawers, per-currency banks — see `Account.systemRole`'s own
 /// doc comment), so this enum exists purely as the typed, exhaustive Rust surface `resolve_account`
 /// and its callers use; `as_str()`/`ROLE_LABEL` are its only bridge to the stored string.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+///
+/// G-12: also the DTO-facing type (`serde`, `TS`) other domains' response shapes reference (an
+/// account's `systemRole` field) — `#[serde(rename_all = "camelCase")]` matches the mock's own
+/// `SystemRole` string union member spelling (`as_str()`), and `FromStr` is the inverse of
+/// `as_str()` for reading the DB's plain `String` column back into this enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "core/types/gen/")]
 pub enum SystemRole {
     Cash,
     Bank,
@@ -139,6 +149,64 @@ impl SystemRole {
             SystemRole::Zakat => "الزكاة",
         }
     }
+
+    /// Every variant, in declaration order — used by `FromStr`'s exhaustive match and by callers
+    /// that need to enumerate all 36 roles (e.g. a picker, or a seed/import validity check).
+    pub const ALL: [SystemRole; 36] = [
+        SystemRole::Cash,
+        SystemRole::Bank,
+        SystemRole::CardClearing,
+        SystemRole::WalletClearing,
+        SystemRole::Receivable,
+        SystemRole::Inventory,
+        SystemRole::InventoryInTransit,
+        SystemRole::VatInput,
+        SystemRole::Payable,
+        SystemRole::VatOutput,
+        SystemRole::VatPayable,
+        SystemRole::CustomerAdvances,
+        SystemRole::Capital,
+        SystemRole::OwnerCurrent,
+        SystemRole::Drawings,
+        SystemRole::RetainedEarnings,
+        SystemRole::CurrentEarnings,
+        SystemRole::OpeningBalanceEquity,
+        SystemRole::Sales,
+        SystemRole::ServiceRevenue,
+        SystemRole::SalesReturns,
+        SystemRole::OtherIncome,
+        SystemRole::FxGain,
+        SystemRole::CashOver,
+        SystemRole::PurchaseDiscounts,
+        SystemRole::Cogs,
+        SystemRole::InventoryVariance,
+        SystemRole::InventoryWriteOff,
+        SystemRole::FreightIn,
+        SystemRole::CardFees,
+        SystemRole::BankFees,
+        SystemRole::FxLoss,
+        SystemRole::CashShort,
+        SystemRole::BadDebt,
+        SystemRole::Depreciation,
+        SystemRole::Zakat,
+    ];
+}
+
+/// G-12: the inverse of `as_str()`, for reading `accounts.system_role` (a plain nullable
+/// `String` column, never a DB enum — see the struct doc comment) back into the typed enum. Used
+/// wherever a DTO assembler needs to surface an account's system role as `SystemRole` rather than
+/// a raw string (e.g. an accounts-list DTO in Part 03). Unknown strings are not a panic — a
+/// future/unrecognized role string in the DB is possible after a partial migration or manual SQL,
+/// so this is a normal `Result`, not an `unwrap`-only path.
+impl FromStr for SystemRole {
+    type Err = AppError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        SystemRole::ALL
+            .into_iter()
+            .find(|role| role.as_str() == s)
+            .ok_or_else(|| AppError::internal("دور حساب غير معروف في شجرة الحسابات", Some(format!("unknown SystemRole string: {s:?}"))))
+    }
 }
 
 /// `AccountCtx` (`accounts.ts`'s `AccountCtx`).
@@ -263,4 +331,32 @@ pub fn sale_tax_id_for(product_tax_id: Option<Id>, category_tax_id: Option<Id>) 
 /// `purchaseTaxIdFor`: same shape as `sale_tax_id_for`.
 pub fn purchase_tax_id_for(product_tax_id: Option<Id>, category_tax_id: Option<Id>) -> Option<Id> {
     product_tax_id.or(category_tax_id)
+}
+
+#[cfg(test)]
+mod system_role_tests {
+    use super::*;
+
+    #[test]
+    fn from_str_is_the_exact_inverse_of_as_str_for_every_role() {
+        for role in SystemRole::ALL {
+            assert_eq!(SystemRole::from_str(role.as_str()).unwrap(), role);
+        }
+    }
+
+    #[test]
+    fn from_str_rejects_unknown_strings() {
+        assert!(SystemRole::from_str("notARealRole").is_err());
+        assert!(SystemRole::from_str("").is_err());
+        // case-sensitive: the DB column stores the exact `as_str()` spelling.
+        assert!(SystemRole::from_str("Cash").is_err());
+    }
+
+    #[test]
+    fn serde_round_trips_as_camel_case() {
+        let json = serde_json::to_string(&SystemRole::VatOutput).unwrap();
+        assert_eq!(json, "\"vatOutput\"");
+        let back: SystemRole = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, SystemRole::VatOutput);
+    }
 }

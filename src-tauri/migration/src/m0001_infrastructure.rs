@@ -22,7 +22,7 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(ChangeVersions::Category).string_len(16).not_null().primary_key())
                     // Signed BIGINT: every reader decodes `i64` (sqlx refuses UNSIGNED → i64); never negative.
                     .col(ColumnDef::new(ChangeVersions::Version).big_integer().not_null().default(0))
-                    .col(ColumnDef::new(ChangeVersions::UpdatedAt).timestamp().not_null().extra("DEFAULT CURRENT_TIMESTAMP(3)".to_string()))
+                    .col(ColumnDef::new(ChangeVersions::UpdatedAt).custom(Alias::new("DATETIME(3)")).not_null().extra("DEFAULT CURRENT_TIMESTAMP(3)".to_string()))
                     .engine("InnoDB")
                     .character_set("utf8mb4")
                     .collate("utf8mb4_unicode_ci")
@@ -37,7 +37,7 @@ impl MigrationTrait for Migration {
                     .if_not_exists()
                     .col(ColumnDef::new(DocumentCounters::Kind).string_len(32).not_null().primary_key())
                     .col(ColumnDef::new(DocumentCounters::Value).big_integer().not_null().default(0))
-                    .col(ColumnDef::new(DocumentCounters::UpdatedAt).timestamp().not_null().extra("DEFAULT CURRENT_TIMESTAMP(3)".to_string()))
+                    .col(ColumnDef::new(DocumentCounters::UpdatedAt).custom(Alias::new("DATETIME(3)")).not_null().extra("DEFAULT CURRENT_TIMESTAMP(3)".to_string()))
                     .engine("InnoDB")
                     .character_set("utf8mb4")
                     .collate("utf8mb4_unicode_ci")

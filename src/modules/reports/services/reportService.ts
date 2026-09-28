@@ -3,6 +3,7 @@ import { accountFor } from '@/mocks/backend/accounts';
 import { customerStatement, supplierStatement } from '@/mocks/backend/balances';
 import { getOpenDocumentsFor } from '@/mocks/backend/payments';
 import type { Account, AccountKind } from '@/modules/accounting/types';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 import { SALE_METHOD_LABEL } from '@/modules/core/helpers/labels';
 import type { AppRoute } from '@/modules/core/types/route';
 import { wrap } from '@/modules/diagnostics/services/defineService';
@@ -86,6 +87,7 @@ function dayBefore(key: string): string {
 // --- Trial balance ---------------------------------------------------------------------------
 
 export const getTrialBalance = wrap('reports.getTrialBalance', async function getTrialBalance(range: ReportRangeFilter): Promise<TrialBalanceRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_trial_balance', { range });
   await delay();
   const dim: DimensionFilter = { branchId: range.branchId, costCenterId: range.costCenterId, currency: range.currency };
   const opening = range.from ? movements({ to: dayBefore(range.from) }, dim) : new Map();
@@ -138,6 +140,7 @@ function computePnl(range: DateRangeInput, dim?: DimensionFilter): ProfitAndLoss
 }
 
 export const getProfitAndLoss = wrap('reports.getProfitAndLoss', async function getProfitAndLoss(range: ReportRangeFilter): Promise<ProfitAndLoss> {
+  if (usesRust('reports')) return backendCall('reports_get_profit_and_loss', { range });
   await delay();
   return computePnl(range, { branchId: range.branchId, costCenterId: range.costCenterId, currency: range.currency });
 });
@@ -148,6 +151,7 @@ export const getProfitAndLoss = wrap('reports.getProfitAndLoss', async function 
  * thin wrapper (not baked into `getProfitAndLoss`) so every existing caller is unaffected.
  */
 export const getProfitAndLossComparison = wrap('reports.getProfitAndLossComparison', async function getProfitAndLossComparison(range: ReportRangeFilter, compareRange: DateRangeInput): Promise<{ current: ProfitAndLoss; previous: ProfitAndLoss }> {
+  if (usesRust('reports')) return backendCall('reports_get_profit_and_loss_comparison', { range, compareRange });
   await delay();
   const dim: DimensionFilter = { branchId: range.branchId, costCenterId: range.costCenterId, currency: range.currency };
   return { current: computePnl(range, dim), previous: computePnl(compareRange, dim) };
@@ -188,6 +192,7 @@ function pnlColumnFor(mv: Map<string, { d: number; c: number }>): Omit<import('.
 }
 
 export const getCostCenterProfitAndLoss = wrap('reports.getCostCenterProfitAndLoss', async function getCostCenterProfitAndLoss(range: DateRangeInput): Promise<import('../types').CostCenterPnl> {
+  if (usesRust('reports')) return backendCall('reports_get_cost_center_profit_and_loss', { range });
   await delay();
   const byCc = movementsByCostCenter(range);
   const centers = db.costCenters
@@ -206,6 +211,7 @@ export const getCostCenterProfitAndLoss = wrap('reports.getCostCenterProfitAndLo
 
 /** Budget vs actual (docs/v2/10 §3): actual = Σ expense-account movement for the cost center within the fiscal year's dates. */
 export const getCostCenterBudgetVsActual = wrap('reports.getCostCenterBudgetVsActual', async function getCostCenterBudgetVsActual(fiscalYearId: string): Promise<import('../types').CostCenterBudgetRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_cost_center_budget_vs_actual', { fiscalYearId });
   await delay();
   const fy = db.fiscalYears.find((f) => f.id === fiscalYearId);
   if (!fy) throw new ApiError('السنة المالية غير موجودة', 'NOT_FOUND');
@@ -228,6 +234,7 @@ export const getCostCenterBudgetVsActual = wrap('reports.getCostCenterBudgetVsAc
 // --- Balance sheet ---------------------------------------------------------------------------
 
 export const getBalanceSheet = wrap('reports.getBalanceSheet', async function getBalanceSheet(asOf: string, dim?: DimensionFilter): Promise<BalanceSheet> {
+  if (usesRust('reports')) return backendCall('reports_get_balance_sheet', { asOf, dim });
   await delay();
   const mv = movements({ to: asOf }, dim);
   const assets = lines('ASSET', mv, 1);
@@ -253,6 +260,7 @@ export const getBalanceSheet = wrap('reports.getBalanceSheet', async function ge
 // --- Ledgers / statements ---------------------------------------------------------------------
 
 export const getAccountLedger = wrap('reports.getAccountLedger', async function getAccountLedger(accountId: string, range: DateRangeInput): Promise<AccountLedger> {
+  if (usesRust('reports')) return backendCall('reports_get_account_ledger', { accountId, range });
   await delay();
   const account = db.accounts.find((a) => a.id === accountId);
   if (!account) throw new ApiError('الحساب غير موجود', 'NOT_FOUND');
@@ -293,6 +301,7 @@ export const getAccountLedger = wrap('reports.getAccountLedger', async function 
 
 /** Customer / supplier statement in the same shape as an account ledger. */
 export const getPartyLedger = wrap('reports.getPartyLedger', async function getPartyLedger(kind: 'customer' | 'supplier', partyId: string, range: DateRangeInput): Promise<AccountLedger> {
+  if (usesRust('reports')) return backendCall('reports_get_party_ledger', { kind, partyId, range });
   await delay();
   const party = (kind === 'customer' ? db.customers : db.suppliers).find((p) => p.id === partyId);
   if (!party) throw new ApiError(kind === 'customer' ? 'العميل غير موجود' : 'المورد غير موجود', 'NOT_FOUND');
@@ -325,6 +334,7 @@ export const getPartyLedger = wrap('reports.getPartyLedger', async function getP
 // --- Sales -----------------------------------------------------------------------------------
 
 export const getSalesReport = wrap('reports.getSalesReport', async function getSalesReport(range: DateRangeInput): Promise<SalesReport> {
+  if (usesRust('reports')) return backendCall('reports_get_sales_report', { range });
   await delay();
   const invoices = db.invoices.filter((i) => i.status !== 'DRAFT' && inDateRange(i.date, range.from, range.to));
   const refunds = db.refunds.filter((r) => inDateRange(r.date, range.from, range.to));
@@ -414,6 +424,7 @@ export const getSalesReport = wrap('reports.getSalesReport', async function getS
 // --- Inventory -------------------------------------------------------------------------------
 
 export const getInventoryReport = wrap('reports.getInventoryReport', async function getInventoryReport(): Promise<InventoryReportRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_inventory_report');
   await delay();
   return db.products
     .filter((p) => p.type === 'product' && p.active)
@@ -508,6 +519,7 @@ function toBaseInvoice(inv: (typeof db.invoices)[number]): (typeof db.invoices)[
 }
 
 export const getVatReport = wrap('reports.getVatReport', async function getVatReport(range: DateRangeInput): Promise<VatReport> {
+  if (usesRust('reports')) return backendCall('reports_get_vat_report', { range });
   await delay();
   const invoices = db.invoices.filter((i) => inDateRange(i.date, range.from, range.to)).map(toBaseInvoice);
   const refunds = db.refunds.filter((r) => inDateRange(r.date, range.from, range.to));
@@ -555,6 +567,7 @@ export const getVatReport = wrap('reports.getVatReport', async function getVatRe
  * — the audit trail behind each box"). Same source rows `salesVatBoxes()` aggregates, kept flat.
  */
 export const getVatDetail = wrap('reports.getVatDetail', async function getVatDetail(range: DateRangeInput): Promise<VatDetailRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_vat_detail', { range });
   await delay();
   const invoices = db.invoices.filter((i) => inDateRange(i.date, range.from, range.to)).map(toBaseInvoice);
   const refunds = db.refunds.filter((r) => inDateRange(r.date, range.from, range.to));
@@ -595,6 +608,7 @@ export const getVatDetail = wrap('reports.getVatDetail', async function getVatDe
 // --- Lookups for report filters ---------------------------------------------------------------
 
 export const getLedgerTargets = wrap('reports.getLedgerTargets', async function getLedgerTargets(): Promise<{ accounts: { id: string; label: string }[]; customers: { id: string; label: string }[]; suppliers: { id: string; label: string }[] }> {
+  if (usesRust('reports')) return backendCall('reports_get_ledger_targets');
   await delay(80);
   return {
     accounts: [...db.accounts].sort((a, b) => a.code.localeCompare(b.code)).map((a) => ({ id: a.id, label: `${a.code} — ${a.name}` })),
@@ -616,6 +630,7 @@ function cashLikeAccountIds(): Set<string> {
 // --- Cash flow statement (indirect method) ------------------------------------------------------
 
 export const getCashFlowStatement = wrap('reports.getCashFlowStatement', async function getCashFlowStatement(range: DateRangeInput): Promise<CashFlowStatement> {
+  if (usesRust('reports')) return backendCall('reports_get_cash_flow_statement', { range });
   await delay();
   const pnl = computePnl(range);
   const cashIds = cashLikeAccountIds();
@@ -672,6 +687,7 @@ export const getCashFlowStatement = wrap('reports.getCashFlowStatement', async f
 // --- Day book (دفتر اليومية) --------------------------------------------------------------------
 
 export const getDayBook = wrap('reports.getDayBook', async function getDayBook(range: DateRangeInput): Promise<DayBookEntry[]> {
+  if (usesRust('reports')) return backendCall('reports_get_day_book', { range });
   await delay();
   return db.journalEntries
     .filter((e) => inDateRange(e.date, range.from, range.to))
@@ -692,6 +708,7 @@ export const getDayBook = wrap('reports.getDayBook', async function getDayBook(r
 
 /** v2 phase 12: the per-party aging (docs/v2/13 §2 "AR aging / AP aging"), across every party with an open balance. Reuses `getOpenDocumentsFor` (Phase 4's per-party aging on the party page) so bucket math stays identical. */
 export const getAgingReport = wrap('reports.getAgingReport', async function getAgingReport(kind: 'customer' | 'supplier'): Promise<AgingReportRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_aging_report', { kind });
   await delay();
   const today = localDateKey(new Date());
   const parties = kind === 'customer' ? db.customers : db.suppliers;
@@ -717,6 +734,7 @@ export const getAgingReport = wrap('reports.getAgingReport', async function getA
 // --- Overdue invoices ------------------------------------------------------------------------
 
 export const getOverdueReport = wrap('reports.getOverdueReport', async function getOverdueReport(kind: 'customer' | 'supplier'): Promise<OverdueRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_overdue_report', { kind });
   await delay();
   const today = localDateKey(new Date());
   const parties = kind === 'customer' ? db.customers : db.suppliers;
@@ -750,6 +768,7 @@ function marginPct(revenue: number, profit: number): number {
 }
 
 export const getGrossProfitReport = wrap('reports.getGrossProfitReport', async function getGrossProfitReport(range: DateRangeInput, groupBy: 'invoice' | 'product' | 'category'): Promise<GrossProfitRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_gross_profit_report', { range, groupBy });
   await delay();
   const invoices = db.invoices.filter((i) => i.status !== 'DRAFT' && inDateRange(i.date, range.from, range.to));
   const map = new Map<string, { label: string; qty: number; revenue: number; cost: number }>();
@@ -780,6 +799,7 @@ export const getGrossProfitReport = wrap('reports.getGrossProfitReport', async f
 // --- Returns analysis ------------------------------------------------------------------------
 
 export const getReturnsReport = wrap('reports.getReturnsReport', async function getReturnsReport(range: DateRangeInput): Promise<ReturnsReport> {
+  if (usesRust('reports')) return backendCall('reports_get_returns_report', { range });
   await delay();
   const invoices = db.invoices.filter((i) => i.status !== 'DRAFT' && inDateRange(i.date, range.from, range.to));
   const refunds = db.refunds.filter((r) => inDateRange(r.date, range.from, range.to));
@@ -839,6 +859,7 @@ export const getReturnsReport = wrap('reports.getReturnsReport', async function 
 // --- Discounts & price overrides --------------------------------------------------------------
 
 export const getDiscountsReport = wrap('reports.getDiscountsReport', async function getDiscountsReport(range: DateRangeInput, groupBy: 'cashier' | 'product'): Promise<DiscountReportRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_discounts_report', { range, groupBy });
   await delay();
   const invoices = db.invoices.filter((i) => i.status !== 'DRAFT' && inDateRange(i.date, range.from, range.to));
   const map = new Map<string, { label: string; invoiceCount: number; listValue: number; chargedValue: number }>();
@@ -883,6 +904,7 @@ export const getDiscountsReport = wrap('reports.getDiscountsReport', async funct
 // --- Shifts / Z-report history -----------------------------------------------------------------
 
 export const getShiftsReport = wrap('reports.getShiftsReport', async function getShiftsReport(range: DateRangeInput): Promise<ShiftReportRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_shifts_report', { range });
   await delay();
   return db.shifts
     .filter((s) => s.status === 'CLOSED' && inDateRange(s.openedAt, range.from, range.to))
@@ -911,6 +933,7 @@ export const getShiftsReport = wrap('reports.getShiftsReport', async function ge
 // --- Low / dead stock ------------------------------------------------------------------------
 
 export const getLowStockReport = wrap('reports.getLowStockReport', async function getLowStockReport(): Promise<LowStockRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_low_stock_report');
   await delay();
   return db.products
     .filter((p) => p.type === 'product' && p.active && p.stockQty <= (p.minStock ?? 0))
@@ -928,6 +951,7 @@ export const getLowStockReport = wrap('reports.getLowStockReport', async functio
 });
 
 export const getDeadStockReport = wrap('reports.getDeadStockReport', async function getDeadStockReport(days = 60): Promise<DeadStockRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_dead_stock_report', { days });
   await delay();
   const today = localDateKey(new Date());
   const lastSaleByProduct = new Map<string, string>();
@@ -961,6 +985,7 @@ export const getDeadStockReport = wrap('reports.getDeadStockReport', async funct
 // --- Stocktake variances ---------------------------------------------------------------------
 
 export const getStocktakeVariances = wrap('reports.getStocktakeVariances', async function getStocktakeVariances(countId?: string): Promise<StocktakeVarianceRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_stocktake_variances', { countId });
   await delay();
   const counts = db.stockCounts.filter((c) => c.status === 'COMPLETED' && (!countId || c.id === countId));
   const rows: StocktakeVarianceRow[] = [];
@@ -991,6 +1016,7 @@ export const getStocktakeVariances = wrap('reports.getStocktakeVariances', async
 // --- Transfers ------------------------------------------------------------------------------
 
 export const getTransfersReport = wrap('reports.getTransfersReport', async function getTransfersReport(range: DateRangeInput): Promise<TransferReportRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_transfers_report', { range });
   await delay();
   return db.stockTransfers
     .filter((t) => inDateRange(t.date, range.from, range.to))
@@ -1016,6 +1042,7 @@ export const getTransfersReport = wrap('reports.getTransfersReport', async funct
 // --- Purchases summary -----------------------------------------------------------------------
 
 export const getPurchasesReport = wrap('reports.getPurchasesReport', async function getPurchasesReport(range: DateRangeInput): Promise<PurchasesReport> {
+  if (usesRust('reports')) return backendCall('reports_get_purchases_report', { range });
   await delay();
   const pos = db.purchaseOrders.filter((p) => p.status === 'RECEIVED' && inDateRange(p.date, range.from, range.to));
   const returns = db.purchaseReturns.filter((r) => inDateRange(r.date, range.from, range.to));
@@ -1060,6 +1087,7 @@ export const getPurchasesReport = wrap('reports.getPurchasesReport', async funct
 // --- Expenses report -------------------------------------------------------------------------
 
 export const getExpensesReport = wrap('reports.getExpensesReport', async function getExpensesReport(range: DateRangeInput): Promise<ExpensesReport> {
+  if (usesRust('reports')) return backendCall('reports_get_expenses_report', { range });
   await delay();
   const expenses = db.expenses.filter((e) => inDateRange(e.date, range.from, range.to));
   const byCategoryMap = new Map<string, number>();
@@ -1082,6 +1110,7 @@ export const getExpensesReport = wrap('reports.getExpensesReport', async functio
 
 /** v2 phase 12 (docs/v2/13 §2 "Period comparison: any two periods, key lines side by side with Δ and Δ%"). */
 export const getPeriodComparison = wrap('reports.getPeriodComparison', async function getPeriodComparison(rangeA: DateRangeInput, rangeB: DateRangeInput): Promise<PeriodComparisonLine[]> {
+  if (usesRust('reports')) return backendCall('reports_get_period_comparison', { rangeA, rangeB });
   await delay();
   const a = computePnl(rangeA);
   const b = computePnl(rangeB);
@@ -1097,6 +1126,7 @@ export const getPeriodComparison = wrap('reports.getPeriodComparison', async fun
 
 /** v2 phase 12 (docs/v2/13 §2 "Branch comparison: KPIs per branch"). */
 export const getBranchComparison = wrap('reports.getBranchComparison', async function getBranchComparison(range: DateRangeInput): Promise<BranchComparisonRow[]> {
+  if (usesRust('reports')) return backendCall('reports_get_branch_comparison', { range });
   await delay();
   const invoices = db.invoices.filter((i) => i.status !== 'DRAFT' && inDateRange(i.date, range.from, range.to));
   return db.branches
@@ -1127,6 +1157,7 @@ export const getBranchComparison = wrap('reports.getBranchComparison', async fun
  * model — matching the rest of this codebase's insight rules.
  */
 export const getBusinessHealthReport = wrap('reports.getBusinessHealthReport', async function getBusinessHealthReport(range: DateRangeInput): Promise<BusinessHealthReport> {
+  if (usesRust('reports')) return backendCall('reports_get_business_health_report', { range });
   await delay();
   const asOf = range.to ?? localDateKey(new Date());
   const bs = await getBalanceSheet(asOf);
@@ -1163,6 +1194,7 @@ export const getBusinessHealthReport = wrap('reports.getBusinessHealthReport', a
 
 /** v2 phase 12 (docs/v2/13 §2 "Profit leakage: discounts + price overrides + returns + shrinkage + write-offs as % of sales"). */
 export const getProfitLeakageReport = wrap('reports.getProfitLeakageReport', async function getProfitLeakageReport(range: DateRangeInput): Promise<ProfitLeakageReport> {
+  if (usesRust('reports')) return backendCall('reports_get_profit_leakage_report', { range });
   await delay();
   const invoices = db.invoices.filter((i) => i.status !== 'DRAFT' && inDateRange(i.date, range.from, range.to));
   const refunds = db.refunds.filter((r) => inDateRange(r.date, range.from, range.to));
@@ -1190,6 +1222,7 @@ export const getDimensionOptions = wrap('reports.getDimensionOptions', async fun
   costCenters: { id: string; label: string }[];
   currencies: { code: string; label: string }[];
 }> {
+  if (usesRust('reports')) return backendCall('reports_get_dimension_options');
   await delay(60);
   return {
     branches: db.branches.filter((b) => b.active).map((b) => ({ id: b.id, label: b.name })),

@@ -225,3 +225,31 @@ export interface JournalSavedView {
   name: string;
   filter: JournalFilter;
 }
+
+/** A2/A3 — input for `createOrUpdateJournalTemplate` (moved from `mocks/backend/journal.ts`, Part
+ *  03 12-accounting.md §2: type-only move, zero behaviour change — `journal.ts` re-exports it from
+ *  here so `accountingService.ts`'s existing import keeps working). */
+export interface JournalTemplateInput {
+  name: string;
+  description: string;
+  lines: JournalTemplate['lines'];
+  recurrence?: JournalTemplate['recurrence'];
+}
+
+/** B2 — one row of the fiscal-year closing wizard's pre-checks (moved from
+ *  `mocks/backend/core.ts`, Part 03 12b-period-close.md §2: type-only move, zero behaviour change —
+ *  `core.ts` re-exports it from here). */
+export interface CloseYearPreCheck {
+  key: 'drafts' | 'trialBalance' | 'openingEquity';
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
+/** A4 — VAT totals for a period (moved from `mocks/backend/journal.ts`, Part 03 12b-period-close.md
+ *  §2: type-only move, zero behaviour change — `journal.ts` re-exports it from here). */
+export interface VatPeriodTotals {
+  outputVat: number;
+  inputVat: number;
+  net: number; // + payable to the authority, − refundable
+}

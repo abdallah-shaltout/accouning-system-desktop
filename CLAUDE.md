@@ -336,7 +336,7 @@ bun run stop                  # free ports 1420/1421 when done
   loudly rather than skip when it's unset; never skipped), `bun run bindings:check` when a DTO or
   command changed, and a real `bun run desktop` check. Fresh clone: run `node scripts/fetch-webview2.js`
   and `node scripts/fetch-mariadb.js` once before a bare `cargo build` (tauri-build checks that
-  bundled resources exist). Cargo is throttled on purpose (`src-tauri/.cargo/config.toml` `jobs = 4`,
+  bundled resources exist). Cargo is throttled on purpose (`.cargo/config.toml` at the repo root, `jobs = 4`,
   light dev debug info) — don't raise it, and never run two cargo commands at once.
 - e2e selectors: prefer `get_by_role` / accessible names over tag or class selectors; use
   `safe_print()` (not `print()`) in flow files — the Windows console can't encode Arabic.

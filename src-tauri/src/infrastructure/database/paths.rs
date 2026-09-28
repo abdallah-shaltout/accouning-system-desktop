@@ -108,6 +108,15 @@ impl ServerPaths {
         self.root.join("pre-upgrade")
     }
 
+    /// G-46/GB-4: the managed server's own backups root — `database\backups\` — for automatic
+    /// backups (pre-migration dumps, the daily/close auto backup on the Main PC, the mandatory
+    /// pre-restore snapshot). Deliberately under this same managed-server tree, never under
+    /// `$INSTDIR`/`$APPDATA` (P2-44: an uninstall or app-data reset must not silently delete backups
+    /// that live right next to the data they protect).
+    pub fn backups(&self) -> PathBuf {
+        self.root.join("backups")
+    }
+
     /// Creates every directory this layout needs (idempotent — `create_dir_all` no-ops when
     /// already present).
     pub fn ensure_dirs(&self) -> std::io::Result<()> {
@@ -116,6 +125,7 @@ impl ServerPaths {
         std::fs::create_dir_all(self.data())?;
         std::fs::create_dir_all(self.logs())?;
         std::fs::create_dir_all(self.tmp())?;
+        std::fs::create_dir_all(self.backups())?;
         Ok(())
     }
 
@@ -145,5 +155,20 @@ mod tests {
         assert_eq!(paths.server_json(), PathBuf::from(r"C:\test-root\server.json"));
         assert_eq!(paths.mariadbd_exe(), PathBuf::from(r"C:\test-root\server-bin\current\bin\mariadbd.exe"));
         assert_eq!(paths.data(), PathBuf::from(r"C:\test-root\data"));
+    }
+
+    #[test]
+    fn backups_dir_is_under_the_managed_server_root() {
+        let paths = ServerPaths::at(r"C:\test-root");
+        assert_eq!(paths.backups(), PathBuf::from(r"C:\test-root\backups"));
+    }
+
+    #[test]
+    fn ensure_dirs_creates_the_backups_dir() {
+        let tmp = std::env::temp_dir().join(format!("equal-server-paths-test-{}", std::process::id()));
+        let paths = ServerPaths::at(&tmp);
+        paths.ensure_dirs().expect("ensure_dirs must succeed");
+        assert!(paths.backups().is_dir());
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

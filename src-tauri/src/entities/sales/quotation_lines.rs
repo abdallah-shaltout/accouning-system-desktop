@@ -12,7 +12,9 @@ pub struct Model {
     pub id: Id,
     pub quotation_id: Id,
     pub position: i16,
-    pub product_id: Id,
+    /// `NULL` for a free-text line (`m0016` G-22; the DTO layer maps this to the `"freetext"` string
+    /// the desk form sends, D-I2).
+    pub product_id: Option<Id>,
     pub name: String,
     pub qty: Decimal,
     pub price: Decimal,

@@ -1,4 +1,4 @@
-import type { JournalEntry, JournalEntryInput, JournalTemplate } from '@/modules/accounting/types';
+import type { JournalEntry, JournalEntryInput, JournalTemplate, JournalTemplateInput, VatPeriodTotals } from '@/modules/accounting/types';
 import { db } from '../db';
 import { mutate } from '../persist';
 import { ApiError, localDateKey, round2, uid } from '../utils';
@@ -165,12 +165,7 @@ export function reverseJournal(id: string, userId: string, date: string, reason:
 // Templates + recurring entries (A2/A3)
 // ---------------------------------------------------------------------------------------------
 
-export interface JournalTemplateInput {
-  name: string;
-  description: string;
-  lines: JournalTemplate['lines'];
-  recurrence?: JournalTemplate['recurrence'];
-}
+export type { JournalTemplateInput };
 
 function validateTemplateLines(lines: JournalTemplate['lines']): void {
   if (!lines.length || lines.length < 2) throw new ApiError('يجب أن يحتوي القالب على سطرين على الأقل');
@@ -224,11 +219,7 @@ export function advanceRecurrence(templateId: string): void {
 // VAT settlement (A4 / docs/v2/02-accounting-review.md §3 "VAT settlement" / "VAT payment")
 // ---------------------------------------------------------------------------------------------
 
-export interface VatPeriodTotals {
-  outputVat: number;
-  inputVat: number;
-  net: number; // + payable to the authority, − refundable
-}
+export type { VatPeriodTotals };
 
 /** Output/input VAT posted for the period, straight from the GL (matches the VAT accounts exactly). */
 export function vatTotalsForPeriod(from: string, to: string): VatPeriodTotals {

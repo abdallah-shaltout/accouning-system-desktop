@@ -126,6 +126,35 @@ pub async fn require<C: ConnectionTrait>(
     crate::core::auth::check_access(actor, area, required, &overrides)
 }
 
+/// G-6: for a command reachable from more than one screen/area (`users_get_users` from both a Users
+/// page and `InvoiceListPage.vue`'s Sales-area cashier, `04-approvals`' kind-based submit, …) —
+/// grants access if the actor has `required` in **any** of `areas`. `UNAUTHORIZED` when there's no
+/// session at all (checked once, like `require`/`check_access`); otherwise returns the *last*
+/// area's `FORBIDDEN` when none granted, so the message still names a concrete area rather than a
+/// generic one. `areas` must be non-empty — a caller with an empty slice gets that same trailing
+/// `FORBIDDEN` behavior vacuously (no iteration happens, but there is no "last" error to return, so
+/// this instead surfaces `UNAUTHORIZED`/`FORBIDDEN` against `Area::Dashboard` as an unambiguous
+/// programmer-error fallback; callers always pass at least one area in practice).
+pub async fn require_any<C: ConnectionTrait>(
+    conn: &C,
+    actor: Option<&crate::core::auth::AuthenticatedUser>,
+    areas: &[(Area, Access)],
+) -> AppResult<()> {
+    if actor.is_none() {
+        return Err(AppError::unauthorized("سجّل الدخول أولاً"));
+    }
+    let model = load(conn).await?;
+    let overrides = parse_role_access_overrides(model.role_access_overrides.as_ref());
+    let mut last_err = AppError::forbidden("ليست لديك صلاحية لهذه العملية");
+    for &(area, required) in areas {
+        match crate::core::auth::check_access(actor, area, required, &overrides) {
+            Ok(()) => return Ok(()),
+            Err(err) => last_err = err,
+        }
+    }
+    Err(last_err)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -150,5 +179,62 @@ mod tests {
     fn parse_role_access_overrides_handles_none() {
         let parsed = parse_role_access_overrides(None);
         assert!(parsed.is_empty());
+    }
+
+    /// `require_any`'s pure decision logic, factored out so it's testable without a DB connection
+    /// (the DB-backed variant — settings row load + overrides — is covered by the domain tests that
+    /// actually call it, e.g. `domain_users.rs`).
+    fn decide(
+        actor: Option<&crate::core::auth::AuthenticatedUser>,
+        areas: &[(Area, Access)],
+        overrides: &AuthRoleAccessOverrides,
+    ) -> Result<(), AppError> {
+        if actor.is_none() {
+            return Err(AppError::unauthorized("سجّل الدخول أولاً"));
+        }
+        let mut last_err = AppError::forbidden("ليست لديك صلاحية لهذه العملية");
+        for &(area, required) in areas {
+            match crate::core::auth::check_access(actor, area, required, overrides) {
+                Ok(()) => return Ok(()),
+                Err(err) => last_err = err,
+            }
+        }
+        Err(last_err)
+    }
+
+    fn test_user(role: Role) -> crate::core::auth::AuthenticatedUser {
+        crate::core::auth::AuthenticatedUser {
+            id: crate::utils::id::Id::new(),
+            username: "u".to_string(),
+            role,
+            home_branch_id: crate::utils::id::Id::new(),
+            allowed_branches: vec![],
+            price_list_id: None,
+            max_discount: None,
+        }
+    }
+
+    #[test]
+    fn require_any_grants_on_first_matching_area() {
+        let overrides = AuthRoleAccessOverrides::new();
+        let cashier = test_user(Role::Cashier);
+        // Cashier has Sales:Write but not Users:Write — Users listed first still succeeds via Sales.
+        let result = decide(Some(&cashier), &[(Area::Users, Access::Write), (Area::Sales, Access::Write)], &overrides);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn require_any_forbidden_when_none_match() {
+        let overrides = AuthRoleAccessOverrides::new();
+        let storekeeper = test_user(Role::Storekeeper);
+        let result = decide(Some(&storekeeper), &[(Area::Users, Access::Read), (Area::Sales, Access::Read)], &overrides);
+        assert!(matches!(result, Err(AppError::Forbidden { .. })));
+    }
+
+    #[test]
+    fn require_any_unauthorized_without_session() {
+        let overrides = AuthRoleAccessOverrides::new();
+        let result = decide(None, &[(Area::Users, Access::Read)], &overrides);
+        assert!(matches!(result, Err(AppError::Unauthorized { .. })));
     }
 }

@@ -12,3 +12,14 @@ export type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T ext
 
 /** Fails to compile (a type error, not a runtime one) unless `T` is exactly `true`. */
 export type Expect<T extends true> = T;
+
+/**
+ * G-38: flattens an intersection type into a single object type with the same members, so `Equals`
+ * (an identity check, not mutual assignability) can compare it against a ts-rs-generated flat
+ * struct. Without this, a hand-written type built as an intersection — `HomeKpi & { marginPct:
+ * number }`, `Invoice & { customerName?: string }` — is never *identical* to the Rust side's single
+ * flat struct even when every member matches exactly, because `Equals` distinguishes an
+ * intersection type from the flattened object type it's assignable to/from. `contract.check.ts`
+ * files compare `Simplify<Gen.X>` against `Simplify<X>` for exactly this reason.
+ */
+export type Simplify<T> = { [K in keyof T]: T[K] };

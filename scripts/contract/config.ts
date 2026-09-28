@@ -67,8 +67,22 @@ export const config = {
     'templates.duplicateTemplate': d9,
     'templates.deleteTemplate': d9,
     'templates.resetTemplateToDefaults': d9,
-    'templates.exportTemplate': d9,
+    'templates.exportTemplate': {
+      disposition: 'frontend',
+      reason:
+        '21.03 15-templates T-6 (G-40): a pure projection of a `PdfTemplate` object the page already holds in memory — it never reads `print_templates`, so an IPC round trip would only force a needless sync→async change on its one caller (`TemplateDesignerPage.vue`) for no gain',
+    },
     'templates.importTemplate': d9,
+    'products.batchAlertTone': {
+      disposition: 'frontend',
+      reason:
+        '21.03 06b (G-P10): a pure display rule over a batch the page already holds; pages call it synchronously, so an IPC round trip would force page edits for no gain',
+    },
+    'products.branchStockQty': {
+      disposition: 'frontend',
+      reason:
+        '21.03 06b (G-P10): reads the per-branch stock the Rust product reads already return (cached by `rememberBranchStock`); pages call it synchronously',
+    },
     'templates.createTemplate': d9,
     'settings.listHistory': {
       disposition: 'frontend',

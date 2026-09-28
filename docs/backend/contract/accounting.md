@@ -6,39 +6,39 @@
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
-| [`accountPath`](../../../src/modules/accounting/services/accountingService.ts#L64) | `account: Pick<Account, "parentId">, all: Account[]` | `string` | **frontend** — pure computation, no data access |  |  |  | Account |
-| [`closeYear`](../../../src/modules/accounting/services/accountingService.ts#L385) | `fiscalYearId: string` | `Promise<{ fiscalYear: FiscalYear; closingEntry: JournalEntry; nextYear?: FiscalYear; }>` | **port** — reads and writes backend data | activity, audit, counters, fiscalYears, journalEntries | accounts, branches, journalDrafts, settings | activity, ledger, numbering, period | FiscalYear, JournalEntry |
-| [`createJournalEntry`](../../../src/modules/accounting/services/accountingService.ts#L277) | `input: JournalEntryInput` | `Promise<JournalEntry>` | **port** — reads and writes backend data | activity, audit, counters, journalDrafts, journalEntries | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period | JournalEntry, JournalEntryInput |
-| [`createOrUpdateJournalTemplate`](../../../src/modules/accounting/services/accountingService.ts#L412) | `input: JournalTemplateInput, id?: string \| undefined` | `Promise<JournalTemplate>` | **port** — reads and writes backend data | activity, audit, journalTemplates | accounts | activity | JournalTemplate |
-| [`deleteAccount`](../../../src/modules/accounting/services/accountingService.ts#L121) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | accounts | journalEntries |  |  |
-| [`deleteJournalDraft`](../../../src/modules/accounting/services/accountingService.ts#L294) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | journalDrafts |  |  |  |
-| [`getAccounts`](../../../src/modules/accounting/services/accountingService.ts#L40) | `range?: { from?: string; to?: string; }` | `Promise<AccountWithBalance[]>` | **port** — reads backend data |  | accounts, journalEntries |  |  |
-| [`getCloseYearPreChecks`](../../../src/modules/accounting/services/accountingService.ts#L380) | `fiscalYearId: string` | `Promise<CloseYearPreCheck[]>` | **port** — reads backend data |  | accounts, fiscalYears, journalDrafts, journalEntries |  |  |
-| [`getCurrentFiscalYear`](../../../src/modules/accounting/services/accountingService.ts#L336) |  | `Promise<FiscalYear \| undefined>` | **port** — reads backend data |  | fiscalYears |  | FiscalYear |
-| [`getFiscalYears`](../../../src/modules/accounting/services/accountingService.ts#L330) |  | `Promise<FiscalYear[]>` | **port** — reads backend data |  | fiscalYears |  | FiscalYear |
-| [`getJournalEntries`](../../../src/modules/accounting/services/accountingService.ts#L211) | `filter?: JournalFilter` | `Promise<JournalRow[]>` | **port** — reads and writes backend data | accounts | journalDrafts, journalEntries |  | JournalFilter |
-| [`getJournalEntriesForSource`](../../../src/modules/accounting/services/accountingService.ts#L226) | `sourceKind: string, sourceId: string` | `Promise<LinkedJournalEntry[]>` | **port** — reads backend data |  | journalEntries |  |  |
-| [`getJournalEntriesPaged`](../../../src/modules/accounting/services/accountingService.ts#L234) | `query: PagedQuery<JournalFilter>` | `Promise<PagedResult<JournalRow>>` | **port** — reads and writes backend data | accounts | journalDrafts, journalEntries |  | JournalFilter, PagedQuery, PagedResult |
-| [`getJournalEntry`](../../../src/modules/accounting/services/accountingService.ts#L260) | `id: string` | `Promise<JournalEntry & { createdByName: string; sourceLink?: AppRoute; sourceLabel?: stri…` | **port** — reads backend data |  | journalDrafts, journalEntries, purchaseReturns, refunds, users |  | AppRoute, JournalEntry |
-| [`getJournalTemplate`](../../../src/modules/accounting/services/accountingService.ts#L405) | `id: string` | `Promise<JournalTemplate>` | **port** — reads backend data |  | journalTemplates |  | JournalTemplate |
-| [`getJournalTemplates`](../../../src/modules/accounting/services/accountingService.ts#L400) |  | `Promise<JournalTemplate[]>` | **port** — reads backend data |  | journalTemplates |  | JournalTemplate |
-| [`getLockDate`](../../../src/modules/accounting/services/accountingService.ts#L365) |  | `Promise<string \| undefined>` | **port** — reads backend data |  | settings |  |  |
-| [`getVatPeriodTotals`](../../../src/modules/accounting/services/accountingService.ts#L455) | `from: string, to: string` | `Promise<VatPeriodTotals>` | **port** — reads backend data |  | accounts, journalEntries |  |  |
-| [`loadTemplateIntoEntry`](../../../src/modules/accounting/services/accountingService.ts#L423) | `id: string` | `Promise<JournalTemplate>` | **port** — reads backend data |  | journalTemplates |  | JournalTemplate |
-| [`payVatSettlementNow`](../../../src/modules/accounting/services/accountingService.ts#L466) | `amount: number, paymentMethodId: string` | `Promise<JournalEntry>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries, vouchers | accounts, branches, fiscalYears, paymentMethods, settings | activity, ledger, numbering, period | JournalEntry |
-| [`postJournalDraft`](../../../src/modules/accounting/services/accountingService.ts#L289) | `id: string` | `Promise<JournalEntry>` | **port** — reads and writes backend data | journalDrafts, journalEntries | fiscalYears, settings | ledger, period | JournalEntry |
-| [`postRecurringTemplate`](../../../src/modules/accounting/services/accountingService.ts#L434) | `id: string` | `Promise<JournalEntry>` | **port** — reads and writes backend data | activity, audit, counters, journalDrafts, journalEntries, journalTemplates | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period | JournalEntry |
-| [`removeJournalTemplate`](../../../src/modules/accounting/services/accountingService.ts#L417) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, journalTemplates |  | activity |  |
-| [`reopenYear`](../../../src/modules/accounting/services/accountingService.ts#L392) | `fiscalYearId: string` | `Promise<FiscalYear>` | **port** — reads and writes backend data | activity, audit, counters, fiscalYears, journalEntries | accounts, branches, settings | activity, ledger, numbering, period | FiscalYear |
-| [`reparentAccount`](../../../src/modules/accounting/services/accountingService.ts#L136) | `id: string, newParentId: string \| null` | `Promise<Account>` | **port** — reads and writes backend data | accounts, activity, audit |  | activity | Account |
-| [`reverseJournalEntry`](../../../src/modules/accounting/services/accountingService.ts#L299) | `id: string, date: string, reason: string` | `Promise<JournalEntry>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period | JournalEntry |
-| [`rolledBalance`](../../../src/modules/accounting/services/accountingService.ts#L75) | `account: AccountWithBalance, all: AccountWithBalance[]` | `number` | **frontend** — pure computation, no data access |  |  |  |  |
-| [`saveAccount`](../../../src/modules/accounting/services/accountingService.ts#L96) | `input: AccountInput, id?: string \| undefined` | `Promise<Account>` | **port** — reads and writes backend data | accounts, activity, audit | journalEntries | activity | Account, AccountInput |
-| [`saveFiscalYear`](../../../src/modules/accounting/services/accountingService.ts#L343) | `input: Omit<FiscalYear, "id">, id?: string \| undefined` | `Promise<FiscalYear>` | **port** — reads and writes backend data | activity, audit, fiscalYears |  | activity | FiscalYear |
-| [`saveLockDate`](../../../src/modules/accounting/services/accountingService.ts#L370) | `lockDate: string \| undefined` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, settings |  | activity |  |
-| [`signedBalance`](../../../src/modules/accounting/services/accountingService.ts#L29) | `account: Pick<Account, "normalSide">, debit: number, credit: number` | `number` | **frontend** — pure computation, no data access |  |  |  | Account |
-| [`submitVatSettlement`](../../../src/modules/accounting/services/accountingService.ts#L460) | `from: string, to: string` | `Promise<JournalEntry>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period | JournalEntry |
-| [`updateJournalDraft`](../../../src/modules/accounting/services/accountingService.ts#L283) | `id: string, input: JournalEntryInput` | `Promise<JournalEntry>` | **port** — reads and writes backend data | journalDrafts | accounts, branches, settings |  | JournalEntry, JournalEntryInput |
+| [`accountPath`](../../../src/modules/accounting/services/accountingService.ts#L66) | `account: Pick<Account, "parentId">, all: Account[]` | `string` | **frontend** — pure computation, no data access |  |  |  | Account |
+| [`closeYear`](../../../src/modules/accounting/services/accountingService.ts#L405) | `fiscalYearId: string` | `Promise<{ fiscalYear: FiscalYear; closingEntry: JournalEntry; nextYear?: FiscalYear; }>` | **port** — reads and writes backend data | activity, audit, counters, fiscalYears, journalEntries | accounts, branches, journalDrafts, settings | activity, ledger, numbering, period | FiscalYear, JournalEntry |
+| [`createJournalEntry`](../../../src/modules/accounting/services/accountingService.ts#L286) | `input: JournalEntryInput` | `Promise<JournalEntry>` | **port** — reads and writes backend data | activity, audit, counters, journalDrafts, journalEntries | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period | JournalEntry, JournalEntryInput |
+| [`createOrUpdateJournalTemplate`](../../../src/modules/accounting/services/accountingService.ts#L436) | `input: JournalTemplateInput, id?: string \| undefined` | `Promise<JournalTemplate>` | **port** — reads and writes backend data | activity, audit, journalTemplates | accounts | activity | JournalTemplate, JournalTemplateInput |
+| [`deleteAccount`](../../../src/modules/accounting/services/accountingService.ts#L124) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | accounts | journalEntries |  |  |
+| [`deleteJournalDraft`](../../../src/modules/accounting/services/accountingService.ts#L306) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | journalDrafts |  |  |  |
+| [`getAccounts`](../../../src/modules/accounting/services/accountingService.ts#L41) | `range?: { from?: string; to?: string; }` | `Promise<AccountWithBalance[]>` | **port** — reads backend data |  | accounts, journalEntries |  |  |
+| [`getCloseYearPreChecks`](../../../src/modules/accounting/services/accountingService.ts#L399) | `fiscalYearId: string` | `Promise<CloseYearPreCheck[]>` | **port** — reads backend data |  | accounts, fiscalYears, journalDrafts, journalEntries |  | CloseYearPreCheck |
+| [`getCurrentFiscalYear`](../../../src/modules/accounting/services/accountingService.ts#L351) |  | `Promise<FiscalYear \| undefined>` | **port** — reads backend data |  | fiscalYears |  | FiscalYear |
+| [`getFiscalYears`](../../../src/modules/accounting/services/accountingService.ts#L344) |  | `Promise<FiscalYear[]>` | **port** — reads backend data |  | fiscalYears |  | FiscalYear |
+| [`getJournalEntries`](../../../src/modules/accounting/services/accountingService.ts#L216) | `filter?: JournalFilter` | `Promise<JournalRow[]>` | **port** — reads and writes backend data | accounts | journalDrafts, journalEntries |  | JournalFilter |
+| [`getJournalEntriesForSource`](../../../src/modules/accounting/services/accountingService.ts#L232) | `sourceKind: string, sourceId: string` | `Promise<LinkedJournalEntry[]>` | **port** — reads backend data |  | journalEntries |  |  |
+| [`getJournalEntriesPaged`](../../../src/modules/accounting/services/accountingService.ts#L241) | `query: PagedQuery<JournalFilter>` | `Promise<PagedResult<JournalRow>>` | **port** — reads and writes backend data | accounts | journalDrafts, journalEntries |  | JournalFilter, PagedQuery, PagedResult |
+| [`getJournalEntry`](../../../src/modules/accounting/services/accountingService.ts#L268) | `id: string` | `Promise<JournalEntry & { createdByName: string; sourceLink?: AppRoute; sourceLabel?: stri…` | **port** — reads backend data |  | journalDrafts, journalEntries, purchaseReturns, refunds, users |  | AppRoute, JournalEntry |
+| [`getJournalTemplate`](../../../src/modules/accounting/services/accountingService.ts#L428) | `id: string` | `Promise<JournalTemplate>` | **port** — reads backend data |  | journalTemplates |  | JournalTemplate |
+| [`getJournalTemplates`](../../../src/modules/accounting/services/accountingService.ts#L422) |  | `Promise<JournalTemplate[]>` | **port** — reads backend data |  | journalTemplates |  | JournalTemplate |
+| [`getLockDate`](../../../src/modules/accounting/services/accountingService.ts#L382) |  | `Promise<string \| undefined>` | **port** — reads backend data |  | settings |  |  |
+| [`getVatPeriodTotals`](../../../src/modules/accounting/services/accountingService.ts#L483) | `from: string, to: string` | `Promise<VatPeriodTotals>` | **port** — reads backend data |  | accounts, journalEntries |  | VatPeriodTotals |
+| [`loadTemplateIntoEntry`](../../../src/modules/accounting/services/accountingService.ts#L449) | `id: string` | `Promise<JournalTemplate>` | **port** — reads backend data |  | journalTemplates |  | JournalTemplate |
+| [`payVatSettlementNow`](../../../src/modules/accounting/services/accountingService.ts#L496) | `amount: number, paymentMethodId: string` | `Promise<JournalEntry>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries, vouchers | accounts, branches, fiscalYears, paymentMethods, settings | activity, ledger, numbering, period | JournalEntry |
+| [`postJournalDraft`](../../../src/modules/accounting/services/accountingService.ts#L300) | `id: string` | `Promise<JournalEntry>` | **port** — reads and writes backend data | journalDrafts, journalEntries | fiscalYears, settings | ledger, period | JournalEntry |
+| [`postRecurringTemplate`](../../../src/modules/accounting/services/accountingService.ts#L461) | `id: string` | `Promise<JournalEntry>` | **port** — reads and writes backend data | activity, audit, counters, journalDrafts, journalEntries, journalTemplates | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period | JournalEntry |
+| [`removeJournalTemplate`](../../../src/modules/accounting/services/accountingService.ts#L442) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, journalTemplates |  | activity |  |
+| [`reopenYear`](../../../src/modules/accounting/services/accountingService.ts#L413) | `fiscalYearId: string` | `Promise<FiscalYear>` | **port** — reads and writes backend data | activity, audit, counters, fiscalYears, journalEntries | accounts, branches, settings | activity, ledger, numbering, period | FiscalYear |
+| [`reparentAccount`](../../../src/modules/accounting/services/accountingService.ts#L140) | `id: string, newParentId: string \| null` | `Promise<Account>` | **port** — reads and writes backend data | accounts, activity, audit |  | activity | Account |
+| [`reverseJournalEntry`](../../../src/modules/accounting/services/accountingService.ts#L312) | `id: string, date: string, reason: string` | `Promise<JournalEntry>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period | JournalEntry |
+| [`rolledBalance`](../../../src/modules/accounting/services/accountingService.ts#L77) | `account: AccountWithBalance, all: AccountWithBalance[]` | `number` | **frontend** — pure computation, no data access |  |  |  |  |
+| [`saveAccount`](../../../src/modules/accounting/services/accountingService.ts#L98) | `input: AccountInput, id?: string \| undefined` | `Promise<Account>` | **port** — reads and writes backend data | accounts, activity, audit | journalEntries | activity | Account, AccountInput |
+| [`saveFiscalYear`](../../../src/modules/accounting/services/accountingService.ts#L359) | `input: Omit<FiscalYear, "id">, id?: string \| undefined` | `Promise<FiscalYear>` | **port** — reads and writes backend data | activity, audit, fiscalYears |  | activity | FiscalYear |
+| [`saveLockDate`](../../../src/modules/accounting/services/accountingService.ts#L388) | `lockDate: string \| undefined` | `Promise<void>` | **port** — reads and writes backend data | activity, audit, settings |  | activity |  |
+| [`signedBalance`](../../../src/modules/accounting/services/accountingService.ts#L30) | `account: Pick<Account, "normalSide">, debit: number, credit: number` | `number` | **frontend** — pure computation, no data access |  |  |  | Account |
+| [`submitVatSettlement`](../../../src/modules/accounting/services/accountingService.ts#L489) | `from: string, to: string` | `Promise<JournalEntry>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period | JournalEntry |
+| [`updateJournalDraft`](../../../src/modules/accounting/services/accountingService.ts#L293) | `id: string, input: JournalEntryInput` | `Promise<JournalEntry>` | **port** — reads and writes backend data | journalDrafts | accounts, branches, settings |  | JournalEntry, JournalEntryInput |
 
 ## Types (`src/modules/accounting/types`)
 
@@ -85,6 +85,13 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 ### `AccountSubtype` (type, `src/modules/accounting/types/index.ts:6`)
 
 `\| 'cash' \| 'bank' \| 'clearing' \| 'receivable' \| 'payable' \| 'inventory' \| 'tax' \| 'prepaid' \| 'otherCurrentAsset' \| 'fixedAsset' \| 'accumulatedDepreciation' \| 'currentLiability' \| 'longTermLiability' \| 'equity' \| 'revenue' \| 'otherIncome' \| 'costOfSales' \| 'operatingExpense' \| 'otherExpense' \| 'zakatTax'`
+
+### `CloseYearPreCheck` (interface, `src/modules/accounting/types/index.ts:242`)
+
+- `key: 'drafts' \| 'trialBalance' \| 'openingEquity'` — _enum_
+- `label: string`
+- `passed: boolean`
+- `detail: string`
 
 ### `FiscalYear` (interface, `src/modules/accounting/types/index.ts:187`)
 
@@ -188,6 +195,13 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `createdAt: string` — _date_
 - `createdBy: string`
 
+### `JournalTemplateInput` (interface, `src/modules/accounting/types/index.ts:232`)
+
+- `name: string`
+- `description: string`
+- `lines: JournalTemplate['lines']`
+- `recurrence?: JournalTemplate['recurrence']`
+
 ### `NormalSide` (type, `src/modules/accounting/types/index.ts:1`)
 
 `'DEBIT' \| 'CREDIT'`
@@ -195,3 +209,9 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 ### `SystemRole` (type, `src/modules/accounting/types/index.ts:23`)
 
 `\| 'cash' \| 'bank' \| 'cardClearing' \| 'walletClearing' \| 'receivable' \| 'inventory' \| 'inventoryInTransit' \| 'vatInput' \| 'payable' \| 'vatOutput' \| 'vatPayable' \| 'customerAdvances' \| 'capital' \| 'ownerCurrent' \| 'drawings' \| 'retainedEarnings' \| 'currentEarnings' \| 'openingBalanceEquity' \| 'sales' \| 'serviceRevenue' \| 'salesReturns' \| 'otherIncome' \| 'fxGain' \| 'cashOver' …`
+
+### `VatPeriodTotals` (interface, `src/modules/accounting/types/index.ts:251`)
+
+- `outputVat: number` — _decimal_
+- `inputVat: number` — _decimal_
+- `net: number` — _decimal_

@@ -6,9 +6,9 @@
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
-| [`getCustomerAnalytics`](../../../src/modules/analytics/services/analyticsService.ts#L180) | `days?: any, limit?: any` | `Promise<CustomerAnalytics>` | **port** — reads backend data |  | customers, invoices |  |  |
-| [`getProductAnalytics`](../../../src/modules/analytics/services/analyticsService.ts#L129) | `days?: any, limit?: any` | `Promise<ProductAnalytics>` | **port** — reads backend data |  | invoices, products |  |  |
-| [`getSalesAnalytics`](../../../src/modules/analytics/services/analyticsService.ts#L42) | `days?: any` | `Promise<SalesAnalytics>` | **port** — reads backend data |  | invoices, paymentMethods, refunds |  |  |
+| [`getCustomerAnalytics`](../../../src/modules/analytics/services/analyticsService.ts#L183) | `days?: any, limit?: any` | `Promise<CustomerAnalytics>` | **port** — reads backend data |  | customers, invoices |  |  |
+| [`getProductAnalytics`](../../../src/modules/analytics/services/analyticsService.ts#L131) | `days?: any, limit?: any` | `Promise<ProductAnalytics>` | **port** — reads backend data |  | invoices, products |  |  |
+| [`getSalesAnalytics`](../../../src/modules/analytics/services/analyticsService.ts#L43) | `days?: any` | `Promise<SalesAnalytics>` | **port** — reads backend data |  | invoices, paymentMethods, refunds |  |  |
 
 ## Types (`src/modules/analytics/types`)
 

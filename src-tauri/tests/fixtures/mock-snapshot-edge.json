@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "savedAt": "2026-06-30T09:00:00.000Z",
+  "data": {
+    "settings": {
+      "storeName": "متجر الاختبار",
+      "currency": "",
+      "theme": "dark",
+      "printer": { "mode": "a4" }
+    },
+    "branches": [
+      { "id": "branch-main", "name": "الفرع الرئيسي", "code": "MAIN" }
+    ],
+    "accounts": [
+      { "id": "acc-cash", "code": "1010", "name": "الصندوق", "kind": "ASSET", "subtype": "cash", "normalSide": "DEBIT", "systemRole": "cash" },
+      { "id": "acc-sales", "code": "4010", "name": "المبيعات", "kind": "REVENUE", "subtype": "sales", "normalSide": "CREDIT" },
+      { "id": "acc-vat-output", "code": "2110", "name": "ضريبة المخرجات", "kind": "LIABILITY", "subtype": "vatOutput", "normalSide": "CREDIT" }
+    ],
+    "users": [
+      { "id": "u-admin", "username": "admin", "name": "المدير", "role": "admin", "maxDiscount": 0 }
+    ],
+    "credentials": {
+      "admin": "admin123"
+    },
+    "products": [
+      { "id": "prod-1", "name": "منتج تجريبي", "sku": "SKU-1", "type": "product", "costPrice": 10, "price": 20, "stockQty": 5, "stockValue": 50 }
+    ],
+    "journalEntries": [
+      {
+        "id": "je-onboarding",
+        "number": "JE-000001",
+        "date": "2026-01-01",
+        "description": "قيد افتتاحي",
+        "type": "OPENING",
+        "status": "POSTED",
+        "sourceRef": { "kind": "opening", "id": "onboarding", "number": "ONB-1" },
+        "totalDebit": 100,
+        "totalCredit": 100,
+        "createdBy": "u-admin",
+        "lines": [
+          { "accountId": "acc-cash", "debit": 100, "credit": 0 },
+          { "accountId": "acc-sales", "debit": 0, "credit": 100 }
+        ]
+      }
+    ],
+    "invoices": [
+      {
+        "id": "inv-1",
+        "number": "INV-000001",
+        "date": "2026-06-01",
+        "cashierId": "u-admin",
+        "status": "COMPLETED",
+        "paymentStatus": "PAID",
+        "subTotal": 100,
+        "discountRate": 0,
+        "discountAmount": 0,
+        "taxRate": 15,
+        "taxAmount": 15,
+        "grandTotal": 115,
+        "paymentMethod": "cash",
+        "paidAmount": 115,
+        "lines": [
+          {
+            "productId": "freetext-1",
+            "name": "سطر نصي حر",
+            "qty": 1,
+            "price": 100,
+            "costPrice": 0,
+            "discount": 0,
+            "isFreeText": true
+          }
+        ]
+      }
+    ],
+    "shifts": [
+      {
+        "id": "shift-1",
+        "number": "SH-000001",
+        "terminalId": "pos-1",
+        "status": "OPEN",
+        "openedBy": "u-admin",
+        "openedAt": "2026-06-30T08:00:00.000Z",
+        "openingFloat": 200
+      }
+    ],
+    "heldSales": [
+      {
+        "id": "held-1",
+        "terminalId": "pos-1",
+        "heldAt": "2026-06-30T08:30:00.000Z",
+        "heldBy": "u-admin",
+        "discountRate": 0,
+        "discountIsPct": true,
+        "cart": {
+          "lines": [
+            { "productId": "prod-1", "qty": 1 }
+          ]
+        }
+      }
+    ],
+    "audit": [
+      {
+        "id": "audit-1",
+        "entity": "invoices",
+        "entityId": "inv-1",
+        "action": "create",
+        "userId": "u-admin",
+        "at": "2026-06-01T10:00:00.000Z",
+        "message": "تم إنشاء فاتورة"
+      }
+    ]
+  }
+}

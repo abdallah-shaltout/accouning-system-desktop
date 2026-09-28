@@ -85,6 +85,8 @@ impl DocumentKind {
 pub enum SequenceLock {
     CustomerCode,
     SupplierCode,
+    /// SKU/barcode uniqueness checks (06-products, G-P4c; seed row added in m0016).
+    ProductCodes,
 }
 
 impl SequenceLock {
@@ -92,6 +94,7 @@ impl SequenceLock {
         match self {
             SequenceLock::CustomerCode => "customerCodeLock",
             SequenceLock::SupplierCode => "supplierCodeLock",
+            SequenceLock::ProductCodes => "productCodesLock",
         }
     }
 }
@@ -151,6 +154,32 @@ pub async fn lock<C: ConnectionTrait>(conn: &C, which: SequenceLock) -> TxResult
         [which.kind_key().into()],
     );
     conn.query_all(stmt).await.map_err(TxError::from)?;
+    Ok(())
+}
+
+/// G-42: sets a document counter to an exact value — the importer/restore path (`00-import`,
+/// `17-backup`) needs to seed `document_counters` from the source data's own highest-seen number
+/// (or from a backup snapshot) rather than starting from 0, so the next `next_number()` call keeps
+/// numbering gapless and monotonic instead of re-issuing numbers already used by imported
+/// documents. Unlike `next_number` (increment-then-read), this is a direct `SET value = ?` — the
+/// caller is responsible for computing the right value (typically `MAX(existing number) `) and for
+/// taking `lock()`/running inside a transaction if concurrent access is possible; a plain import/
+/// restore run (single-writer, pre-go-live) does not need that. Errors if the `kind` row is
+/// missing, exactly like `next_number`'s own missing-row case.
+pub async fn set_counter<C: ConnectionTrait>(conn: &C, kind: DocumentKind, value: i64) -> TxResult<()> {
+    let key = kind.kind_key();
+    let update = Statement::from_sql_and_values(
+        conn.get_database_backend(),
+        "UPDATE document_counters SET value = ? WHERE kind = ?",
+        [value.into(), key.into()],
+    );
+    let result = conn.execute(update).await.map_err(TxError::from)?;
+    if result.rows_affected() == 0 {
+        return Err(TxError::App(AppError::internal(
+            "لم يتم العثور على عداد المستندات — البيانات الأساسية غير مكتملة",
+            Some(format!("document_counters row missing for kind={key}")),
+        )));
+    }
     Ok(())
 }
 

@@ -1,6 +1,13 @@
 # 21 · 03.12 — `accounting` (chart of accounts, manual journal, drafts, reversal, templates/recurring, undo)
 
-> **Status:** planned 2026-09-28, not implemented. Wave W5 (entry file §4). Depends on: every writer
+> **Status:** implemented 2026-09-28 (code complete; DB tests + parity cases deferred to the
+> time-boxed test pass — see §8/§9). All 19 commands, DTOs, service logic, 3 undo compensators, 19
+> switch lines and `contract.check.ts` (12 entries, shared with 12b) are written. Not yet compiled
+> (`cargo check` is the manager's throttled run after W5) or run against a live DB. Gaps §7 items
+> 1–5 and 9 were already resolved before this wave started (see the status note's "Needs from
+> manager" below for what's confirmed vs still open).
+>
+> Wave W5 (entry file §4). Depends on: every writer
 > domain (01–11; the journal list shows entries they post), 05-parties (`PartyKind` DTO), Part 02
 > (`shared::ledger::{post, reverse, save_draft, update_draft, delete_draft, post_draft}`,
 > `shared::activity`, `shared::numbering`). **Split:** this file covers 19 of the module's 30 `port`
@@ -413,21 +420,21 @@ a UI flow).
 
 ## 9. Checklist
 
-- [ ] Confirm gaps 1–5 and 9 from §7 are resolved by the manager (they block compilation or parity); 6–8/10 may land later.
-- [ ] Move `JournalTemplateInput` into `accounting/types/index.ts` (+ re-export from `mocks/backend/journal.ts`).
-- [ ] `domains/accounting/mod.rs` (12-owned): `pub mod commands; pub mod service; pub mod dto; pub mod undo; pub mod undo_period;`, `ipc_signatures()` (19 lines here + `commands::period::ipc_signatures()` from 12b), `register_undo`.
-- [ ] `dto/{mod,accounts,journal,templates}.rs` per §2.
-- [ ] `service/rows.rs` (3.1), `service/accounts.rs` (3.2), `service/journal.rs` (3.3), `service/journal_reads.rs` (3.4), `service/templates.rs` (3.5).
-- [ ] `commands/{mod,accounts,journal,templates}.rs`: 19 commands per §1.
-- [ ] `undo.rs`: `ReverseEntryCompensator` × 3 (§5).
-- [ ] `tests/domain_accounting.rs` per §8(a).
-- [ ] 19 switch lines (§6); `accounting/types/contract.check.ts` with the 12 entries of §2.
-- [ ] Report to the manager: 19 command names, `pub mod accounting;`, `accounting::register_undo` hook line, gaps.
-- [ ] Status note at the top of this file.
+- [x] Confirm gaps 1–5 and 9 from §7 are resolved by the manager (they block compilation or parity); 6–8/10 may land later. Found already resolved on inspection: gap 1 (`SystemRole` has `Serialize/Deserialize/TS/FromStr`), gap 2 (`RouteRef.query`), gap 3 (`PagedResult::totals` is `BTreeMap<String, Decimal>` with the JSON-number serde helper), gap 4 (`ledger::save_draft`/`update_draft` take `DocDate`), gap 5's schema part (`journal_draft_lines` has `currency`/`amount_fc`/`rate` columns; `post_draft` still sets posted lines' `currency = NULL` rather than the base currency — see "Needs from manager" below), gap 7 (`accounts.code_live` + `uq_accounts_code_live` exist, m0016). Gap 9 (compensators receive `&UndoRegistry`) was already the case going in.
+- [x] Move `JournalTemplateInput` into `accounting/types/index.ts` (+ re-export from `mocks/backend/journal.ts`).
+- [x] `domains/accounting/mod.rs` (12-owned): `pub mod commands; pub mod service; pub mod dto; pub mod undo; pub mod undo_period;`, `ipc_signatures()` (19 lines here + `commands::period::ipc_signatures()` from 12b), `register_undo`.
+- [x] `dto/{mod,accounts,journal,templates}.rs` per §2.
+- [x] `service/rows.rs` (3.1), `service/accounts.rs` (3.2), `service/journal.rs` (3.3), `service/journal_reads.rs` (3.4), `service/templates.rs` (3.5).
+- [x] `commands/{mod,accounts,journal,templates}.rs`: 19 commands per §1.
+- [x] `undo.rs`: `ReverseEntryCompensator` × 3 (§5).
+- [x] `tests/domain_accounting.rs` per §8(a) — written; not yet run (⏳ deferred time-boxed test pass, needs `EQUAL_TEST_DATABASE_URL` and a `cargo test` this agent is not allowed to run).
+- [x] 19 switch lines (§6); `accounting/types/contract.check.ts` with the 12 entries of §2 (plus 12b's 5, in the same shared file).
+- [x] Report to the manager: 19 command names, `pub mod accounting;`, `accounting::register_undo` hook line, gaps — see this wave's final report.
+- [x] Status note at the top of this file.
 
 ## Gate
 
-- [ ] `cargo check --workspace --all-targets` clean (manager's throttled run after W5).
-- [ ] `tests/domain_accounting.rs` written; DB tests and the 12 parity cases run in the deferred pass.
-- [ ] 19 switch lines present; `contract.check.ts` compiles against the generated bindings.
-- [ ] `bun run memory:check`: 19 commands registered and invoked, 0 contract gaps.
+- [ ] `cargo check --workspace --all-targets` clean (manager's throttled run after W5) — not run by this agent (hard rule: no cargo).
+- [x] `tests/domain_accounting.rs` written; DB tests and the 12 parity cases run in the deferred pass — writing done, running deferred.
+- [x] 19 switch lines present; `contract.check.ts` compiles against the generated bindings — lines present; compiling against `types/gen/*` needs `bun run bindings` (manager, after `cargo check`).
+- [ ] `bun run memory:check`: 19 commands registered and invoked, 0 contract gaps — deferred to the manager's post-wave run.

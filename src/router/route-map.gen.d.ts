@@ -20,6 +20,7 @@ export interface RouteNamedMap {
   'day-book': RouteRecordInfo<'day-book', '/accounting/day-book', Record<never, never>, Record<never, never>>;
   'dev-diagnostics': RouteRecordInfo<'dev-diagnostics', '/dev/diagnostics', Record<never, never>, Record<never, never>>;
   'dev-ui': RouteRecordInfo<'dev-ui', '/dev/ui', Record<never, never>, Record<never, never>>;
+  'device-setup': RouteRecordInfo<'device-setup', '/device-setup', Record<never, never>, Record<never, never>>;
   'expense-detail': RouteRecordInfo<'expense-detail', '/expenses/:id', { id: string | number }, { id: string }>;
   'expense-new': RouteRecordInfo<'expense-new', '/expenses/new', Record<never, never>, Record<never, never>>;
   'expenses': RouteRecordInfo<'expenses', '/expenses', Record<never, never>, Record<never, never>>;
@@ -101,6 +102,7 @@ export interface RouteNamedMap {
   'settings-expenses': RouteRecordInfo<'settings-expenses', '/settings/expenses', Record<never, never>, Record<never, never>>;
   'settings-general': RouteRecordInfo<'settings-general', '/settings/general', Record<never, never>, Record<never, never>>;
   'settings-keyboard-shortcuts': RouteRecordInfo<'settings-keyboard-shortcuts', '/settings/keyboard-shortcuts', Record<never, never>, Record<never, never>>;
+  'settings-network': RouteRecordInfo<'settings-network', '/settings/network', Record<never, never>, Record<never, never>>;
   'settings-payment-methods': RouteRecordInfo<'settings-payment-methods', '/settings/payment-methods', Record<never, never>, Record<never, never>>;
   'settings-printing': RouteRecordInfo<'settings-printing', '/settings/printing', Record<never, never>, Record<never, never>>;
   'settings-products': RouteRecordInfo<'settings-products', '/settings/products', Record<never, never>, Record<never, never>>;

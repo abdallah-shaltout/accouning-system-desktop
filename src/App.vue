@@ -5,6 +5,8 @@ import CommandPalette from '@/modules/core/components/CommandPalette.vue';
 import ToastContainer from '@/modules/core/components/ToastContainer.vue';
 import ConfirmDialog from '@/modules/core/components/ui/ConfirmDialog.vue';
 import { initPrintResultListener } from '@/modules/core/services/printService';
+import ServerFailureScreen from '@/modules/settings/components/ServerFailureScreen.vue';
+import { useBackendHealth } from '@/modules/settings/controllers/useBackendHealth';
 import { isClosingWithBackup } from '@/modules/settings/services/backupService';
 import DiagOverlay from '@/modules/diagnostics/components/DiagOverlay.vue';
 
@@ -12,6 +14,11 @@ import DiagOverlay from '@/modules/diagnostics/components/DiagOverlay.vue';
 // async native-print result event (toast + reprint + PDF fallback on
 // failure). No-op outside Tauri.
 onMounted(() => void initPrintResultListener());
+
+// 21 · 03.01 §6: starts polling `core_backend_status` once mounted — a no-op outside Tauri or
+// before `settings` is Rust-backed (`useBackendHealth.start()`'s own gate).
+const health = useBackendHealth();
+onMounted(() => health.start());
 
 const isDev = import.meta.env.DEV;
 </script>
@@ -26,6 +33,8 @@ const isDev = import.meta.env.DEV;
     <CommandPalette />
     <!-- 18.B5: Ctrl+Shift+D diagnostics overlay, dev builds only (same gate as /dev/ui). -->
     <DiagOverlay v-if="isDev" />
+    <!-- 21 · 03.01 §6: blocks the whole app before login when the real backend can't be reached. -->
+    <ServerFailureScreen v-if="health.failure" />
     <div v-if="isClosingWithBackup" class="closing-overlay" role="status" aria-live="polite">
       <div class="closing-overlay__box">
         <span class="closing-overlay__spinner" aria-hidden="true" />

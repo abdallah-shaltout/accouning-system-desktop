@@ -6,17 +6,17 @@
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
-| [`createExpense`](../../../src/modules/expenses/services/expenseService.ts#L60) | `input: ExpenseInput` | `Promise<Expense>` | **port** — reads and writes backend data | activity, audit, counters, expenses, journalEntries | accounts, branches, expenseCategories, fiscalYears, paymentMethods, settings, suppliers, taxes | activity, ledger, numbering, period | Expense, ExpenseInput |
-| [`deleteExpenseCategory`](../../../src/modules/expenses/services/expenseService.ts#L35) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | expenseCategories | expenses |  |  |
-| [`deleteRecurringExpense`](../../../src/modules/expenses/services/expenseService.ts#L75) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | recurringExpenses |  |  |  |
-| [`getDueRecurringExpenses`](../../../src/modules/expenses/services/expenseService.ts#L81) |  | `Promise<RecurringExpense[]>` | **port** — reads backend data |  | recurringExpenses |  | RecurringExpense |
-| [`getExpense`](../../../src/modules/expenses/services/expenseService.ts#L53) | `id: string` | `Promise<ExpenseRow>` | **port** — reads backend data |  | expenseCategories, expenses |  |  |
-| [`getExpenseCategories`](../../../src/modules/expenses/services/expenseService.ts#L25) |  | `Promise<ExpenseCategory[]>` | **port** — reads backend data |  | expenseCategories |  | ExpenseCategory |
-| [`getExpenses`](../../../src/modules/expenses/services/expenseService.ts#L44) | `filter?: ExpenseFilter` | `Promise<ExpenseRow[]>` | **port** — reads backend data |  | expenses |  | ExpenseFilter |
-| [`getRecurringExpenses`](../../../src/modules/expenses/services/expenseService.ts#L65) |  | `Promise<RecurringExpense[]>` | **port** — reads backend data |  | recurringExpenses |  | RecurringExpense |
-| [`postDueRecurringExpense`](../../../src/modules/expenses/services/expenseService.ts#L86) | `id: string` | `Promise<Expense>` | **port** — reads and writes backend data | activity, audit, counters, expenses, journalEntries, recurringExpenses | accounts, branches, expenseCategories, fiscalYears, paymentMethods, settings, suppliers, taxes | activity, ledger, numbering, period | Expense |
-| [`saveExpenseCategory`](../../../src/modules/expenses/services/expenseService.ts#L30) | `input: ExpenseCategoryInput, id?: string \| undefined` | `Promise<ExpenseCategory>` | **port** — reads and writes backend data | expenseCategories | accounts |  | ExpenseCategory, ExpenseCategoryInput |
-| [`saveRecurringExpense`](../../../src/modules/expenses/services/expenseService.ts#L70) | `input: RecurringExpenseInput, id?: string \| undefined` | `Promise<RecurringExpense>` | **port** — reads and writes backend data | recurringExpenses | expenseCategories |  | RecurringExpense, RecurringExpenseInput |
+| [`createExpense`](../../../src/modules/expenses/services/expenseService.ts#L66) | `input: ExpenseInput` | `Promise<Expense>` | **port** — reads and writes backend data | activity, audit, counters, expenses, journalEntries | accounts, branches, expenseCategories, fiscalYears, paymentMethods, settings, suppliers, taxes | activity, ledger, numbering, period | Expense, ExpenseInput |
+| [`deleteExpenseCategory`](../../../src/modules/expenses/services/expenseService.ts#L38) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | expenseCategories | expenses |  |  |
+| [`deleteRecurringExpense`](../../../src/modules/expenses/services/expenseService.ts#L84) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | recurringExpenses |  |  |  |
+| [`getDueRecurringExpenses`](../../../src/modules/expenses/services/expenseService.ts#L91) |  | `Promise<RecurringExpense[]>` | **port** — reads backend data |  | recurringExpenses |  | RecurringExpense |
+| [`getExpense`](../../../src/modules/expenses/services/expenseService.ts#L58) | `id: string` | `Promise<ExpenseRow>` | **port** — reads backend data |  | expenseCategories, expenses |  |  |
+| [`getExpenseCategories`](../../../src/modules/expenses/services/expenseService.ts#L26) |  | `Promise<ExpenseCategory[]>` | **port** — reads backend data |  | expenseCategories |  | ExpenseCategory |
+| [`getExpenses`](../../../src/modules/expenses/services/expenseService.ts#L48) | `filter?: ExpenseFilter` | `Promise<ExpenseRow[]>` | **port** — reads backend data |  | expenses |  | ExpenseFilter |
+| [`getRecurringExpenses`](../../../src/modules/expenses/services/expenseService.ts#L72) |  | `Promise<RecurringExpense[]>` | **port** — reads backend data |  | recurringExpenses |  | RecurringExpense |
+| [`postDueRecurringExpense`](../../../src/modules/expenses/services/expenseService.ts#L97) | `id: string` | `Promise<Expense>` | **port** — reads and writes backend data | activity, audit, counters, expenses, journalEntries, recurringExpenses | accounts, branches, expenseCategories, fiscalYears, paymentMethods, settings, suppliers, taxes | activity, ledger, numbering, period | Expense |
+| [`saveExpenseCategory`](../../../src/modules/expenses/services/expenseService.ts#L32) | `input: ExpenseCategoryInput, id?: string \| undefined` | `Promise<ExpenseCategory>` | **port** — reads and writes backend data | expenseCategories | accounts |  | ExpenseCategory, ExpenseCategoryInput |
+| [`saveRecurringExpense`](../../../src/modules/expenses/services/expenseService.ts#L78) | `input: RecurringExpenseInput, id?: string \| undefined` | `Promise<RecurringExpense>` | **port** — reads and writes backend data | recurringExpenses | expenseCategories |  | RecurringExpense, RecurringExpenseInput |
 
 ## Types (`src/modules/expenses/types`)
 

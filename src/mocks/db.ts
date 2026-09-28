@@ -191,7 +191,6 @@ function blankDb(): MockDb {
       currency: 'SAR',
       invoiceNumberPrefix: 'INV-',
       printer: { mode: 'a4', thermalWidthMm: 80 },
-      theme: 'light',
     },
     activity: [],
     audit: [],

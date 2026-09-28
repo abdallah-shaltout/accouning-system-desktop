@@ -61,10 +61,10 @@ const templateId = computed(() => String(route.params.id ?? ''));
 const template = ref<PdfTemplate | null>(null);
 const loadError = ref('');
 
-function load() {
-  const found = templateId.value ? getTemplate(templateId.value) : undefined;
+async function load() {
+  const found = templateId.value ? await getTemplate(templateId.value) : undefined;
   if (!found) {
-    const all = listTemplates('invoice');
+    const all = await listTemplates('invoice');
     if (all[0]) {
       router.replace({ name: 'settings-template-designer', params: { id: all[0].id } });
       return;
@@ -74,7 +74,7 @@ function load() {
   }
   template.value = JSON.parse(JSON.stringify(found));
 }
-load();
+void load();
 watch(templateId, load);
 
 const activeTab = ref<'options' | 'advanced'>('options');
@@ -123,29 +123,29 @@ watch(template, (t) => {
 }, { immediate: true });
 
 // --- Top bar actions -----------------------------------------------------------------------------
-function persist() {
+async function persist() {
   if (!template.value) return;
-  saveTemplate(template.value);
+  await saveTemplate(template.value);
   toast.success('تم حفظ القالب');
 }
 
-function markDefault() {
+async function markDefault() {
   if (!template.value) return;
-  setAsDefault(template.value.id);
+  await setAsDefault(template.value.id);
   template.value.isDefault = true;
   toast.success('تم ضبط القالب كافتراضي');
 }
 
-function duplicate() {
+async function duplicate() {
   if (!template.value) return;
-  persist();
-  const copy = duplicateTemplate(template.value.id);
+  await persist();
+  const copy = await duplicateTemplate(template.value.id);
   if (copy) router.push({ name: 'settings-template-designer', params: { id: copy.id } });
 }
 
-function resetToDefaults() {
+async function resetToDefaults() {
   if (!template.value) return;
-  const reset = resetTemplateToDefaults(template.value.id);
+  const reset = await resetTemplateToDefaults(template.value.id);
   if (reset) template.value = JSON.parse(JSON.stringify(reset));
   toast.info('تمت إعادة القالب إلى الإعدادات الافتراضية');
 }
@@ -166,7 +166,7 @@ async function onImportFile(e: Event) {
   try {
     const text = await file.text();
     const json = JSON.parse(text) as TemplateExport;
-    const imported = importTemplate(json);
+    const imported = await importTemplate(json);
     toast.success('تم استيراد القالب');
     router.push({ name: 'settings-template-designer', params: { id: imported.id } });
   } catch (err) {

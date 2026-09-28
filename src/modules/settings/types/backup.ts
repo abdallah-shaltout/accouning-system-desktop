@@ -73,3 +73,24 @@ export interface RestorePreview {
   compatible: boolean;
   compatibilityNote?: string;
 }
+
+/**
+ * Rust backend only (21.03 17-backup.md §2, D-2): the built archive's bytes, returned so the
+ * frontend can hand them to the native Save dialog before `settings_record_backup_saved` runs.
+ */
+export interface BackupArchive {
+  manifest: BackupManifest;
+  fileName: string;
+  archiveBase64: string;
+}
+
+/** Rust backend only: which trigger asked for an auto-backup attempt. */
+export type AutoBackupTrigger = 'schedule' | 'close';
+
+/** Rust backend only: why `settings_run_auto_backup_if_due` did or didn't run. */
+export interface AutoBackupOutcome {
+  ran: boolean;
+  path?: string;
+  skipped?: 'not-main' | 'disabled' | 'not-due' | 'no-folder';
+  error?: string;
+}

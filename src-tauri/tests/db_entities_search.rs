@@ -44,6 +44,7 @@ async fn products_search_normalized_filled_on_insert_and_refreshed_on_update() {
 
     let id = Id::new();
     let am = products::ActiveModel {
+        barcode_live: sea_orm::ActiveValue::NotSet,
         id: Set(id),
         name: Set("أحمد للمواد الغذائية".to_string()),
         name_en: Set(None),
@@ -146,8 +147,6 @@ async fn parties_search_normalized_covers_the_customer_and_supplier_field_union(
         opening_balance: Set(None),
         notes: Set(None),
         linked_party_id: Set(None),
-        balance: Set(dec!(0)),
-        unallocated_credit: Set(None),
         credit_limit: Set(None),
         contact_person: Set(Some("خالد أحمد".to_string())),
         default_expense_account_id: Set(None),

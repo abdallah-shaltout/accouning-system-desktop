@@ -16,7 +16,17 @@
 //!    `product_branch_stock`, `product_batches.qty`, or insert `stock_movements`/`product_batches`
 //!    (a domain's product-creation `ActiveModel` may only touch those fields through
 //!    `shared::stock::init_product_stock`, so this scans for `Set(` assignments to those fields
-//!    outside `src/shared/stock/`, not for the module path alone).
+//!    outside `src/shared/stock/`, not for the module path alone). The `cost_price: Set(` needle is
+//!    scoped to `products::ActiveModel` only (21.03 G-29): `purchase_order_lines.cost_price` and
+//!    `purchase_return_lines.cost_price` are legitimate, ordinary line fields on documents owned by
+//!    `domains/purchases/**`, not the product catalog's own average-cost column, so a bare text
+//!    match on `cost_price: Set(` was a false positive on those two tables.
+//!
+//! `src/infrastructure/import/**` (the D10 snapshot importer, 21.03 00-import) and
+//! `src/infrastructure/backup/**` (restore, 21.03 17-backup) are exempted from rules 5–7: both write
+//! raw historical rows — including audit/activity/journal/stock columns — to reproduce a snapshot or
+//! a backup exactly, not to post a new business event, so the seam these rules police (every *new*
+//! write goes through the one shared module) does not apply to them (21.03 G-41).
 //! 8. (02.E E-6) Every `RouteRef::list("…")`/`RouteRef::detail("…", …)` string literal anywhere
 //!    under `src/` must name a route present in `../src/router/route-map.gen.d.ts`.
 //!
@@ -80,11 +90,14 @@ const POSTED_DOCUMENT_ENTITIES: &[&str] = &[
 /// C-8: the 4 journal tables only `shared::ledger` may build an `ActiveModel` for or insert into.
 const JOURNAL_TABLES: &[&str] = &["journal_entries", "journal_lines", "journal_drafts", "journal_draft_lines"];
 
-/// D-5: stock-mutating columns/tables only `shared::stock` may write.
+/// D-5: stock-mutating columns/tables only `shared::stock` may write. `cost_price: Set(` alone is
+/// not used (G-29): it false-matched `purchase_order_lines.cost_price`/
+/// `purchase_return_lines.cost_price`, ordinary document-line fields with no relation to the
+/// product catalog's own average-cost column. `products::ActiveModel { .. cost_price: Set(` is the
+/// narrower needle that only matches an assignment on the product entity's own `ActiveModel`.
 const STOCK_WRITE_NEEDLES: &[&str] = &[
     "stock_qty: Set(",
     "stock_value: Set(",
-    "cost_price: Set(",
     "ProductBranchStock::insert(",
     "product_branch_stock::ActiveModel",
     "ProductBatches::insert(",
@@ -92,6 +105,57 @@ const STOCK_WRITE_NEEDLES: &[&str] = &[
     "StockMovements::insert(",
     "stock_movements::ActiveModel",
 ];
+
+/// A `products::ActiveModel`/`Products::ActiveModel` literal that also sets `cost_price` on the
+/// *same* (or a directly following) line is the actual D-5 violation this rule cares about; scanned
+/// separately from `STOCK_WRITE_NEEDLES` because the two tokens (the struct name and the field
+/// assignment) usually sit a few lines apart inside a multi-field struct literal, so this rule
+/// tracks "are we inside a `products`/`Products` ActiveModel literal" per file rather than matching
+/// one line in isolation.
+fn check_product_cost_price_writes(root: &Path) -> Vec<Violation> {
+    let mut violations = Vec::new();
+    let allowed_dir = root.join("shared").join("stock");
+    for file in all_rs_files(root) {
+        if file.starts_with(&allowed_dir) || file.starts_with(&root.join("entities")) {
+            continue;
+        }
+        if is_infrastructure_exempt(root, &file) {
+            continue;
+        }
+        let lines = read_lines(&file);
+        let mut in_products_active_model = false;
+        let mut brace_depth: i32 = 0;
+        for (i, line) in lines.iter().enumerate() {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("//") || trimmed.starts_with("///") || trimmed.starts_with("//!") {
+                continue;
+            }
+            if line.contains("products::ActiveModel") || line.contains("Products::ActiveModel") || line.contains("catalog::ActiveModel") {
+                in_products_active_model = true;
+                brace_depth = 0;
+            }
+            if in_products_active_model {
+                brace_depth += line.matches('{').count() as i32;
+                brace_depth -= line.matches('}').count() as i32;
+                if line.contains("cost_price: Set(") || line.contains("cost_price: sea_orm::ActiveValue::Set(") {
+                    violations.push(Violation { rule: "stock-writes-confined-to-shared-stock", file: file.clone(), line: i + 1, text: line.clone() });
+                }
+                if brace_depth <= 0 && line.contains('}') {
+                    in_products_active_model = false;
+                }
+            }
+        }
+    }
+    violations
+}
+
+/// Directories exempted from the seam-confinement rules (5–7): the D10 snapshot importer and the
+/// backup/restore module both write raw historical rows to reproduce an exact prior state, not to
+/// post a new business event (21.03 G-41). Both live under `src/infrastructure/`, which doesn't
+/// exist before Part 03 — a missing directory just means nothing is exempted yet.
+fn is_infrastructure_exempt(root: &Path, file: &Path) -> bool {
+    file.starts_with(root.join("infrastructure").join("import")) || file.starts_with(root.join("infrastructure").join("backup"))
+}
 
 fn src_root() -> PathBuf {
     // `tests/` runs with CARGO_MANIFEST_DIR = src-tauri/.
@@ -255,6 +319,9 @@ fn check_audit_activity_writes_confined(root: &Path) -> Vec<Violation> {
         if file.starts_with(&root.join("entities")) {
             continue; // entity definitions themselves (column/relation declarations) are not writes.
         }
+        if is_infrastructure_exempt(root, &file) {
+            continue; // G-41: importer/backup restore raw-row writes.
+        }
         for (i, line) in read_lines(&file).iter().enumerate() {
             let trimmed = line.trim_start();
             if trimmed.starts_with("//") || trimmed.starts_with("///") || trimmed.starts_with("//!") {
@@ -288,6 +355,9 @@ fn check_ledger_writes_confined(root: &Path) -> Vec<Violation> {
         }
         if file.starts_with(&root.join("entities")) {
             continue; // entity definitions themselves are not writes.
+        }
+        if is_infrastructure_exempt(root, &file) {
+            continue; // G-41: importer/backup restore raw-row writes.
         }
         for (i, line) in read_lines(&file).iter().enumerate() {
             let trimmed = line.trim_start();
@@ -331,6 +401,9 @@ fn check_stock_writes_confined(root: &Path) -> Vec<Violation> {
         }
         if file.starts_with(&root.join("entities")) {
             continue;
+        }
+        if is_infrastructure_exempt(root, &file) {
+            continue; // G-41: importer/backup restore raw-row writes.
         }
         for (i, line) in read_lines(&file).iter().enumerate() {
             let trimmed = line.trim_start();
@@ -488,6 +561,17 @@ fn stock_writes_are_confined_to_shared_stock() {
     let root = src_root();
     let violations = check_stock_writes_confined(&root);
     assert!(violations.is_empty(), "a stock-mutating write was found outside shared/stock/:\n{}", format_violations(&violations));
+}
+
+#[test]
+fn product_cost_price_writes_are_confined_to_shared_stock() {
+    let root = src_root();
+    let violations = check_product_cost_price_writes(&root);
+    assert!(
+        violations.is_empty(),
+        "a products.cost_price write was found outside shared/stock/ (purchase/purchase-return line cost_price is fine — this only flags products::ActiveModel):\n{}",
+        format_violations(&violations)
+    );
 }
 
 #[test]

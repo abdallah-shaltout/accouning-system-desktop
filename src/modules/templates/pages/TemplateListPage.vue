@@ -6,7 +6,7 @@
  * must be wholly separate from the settings pages the concurrent Phase 13a
  * backup work touches.
  */
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { FilePlus2, Star } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
@@ -14,16 +14,20 @@ import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import PageHeader from '@/modules/core/components/ui/PageHeader.vue';
 import { formatDateTime } from '@/modules/core/helpers/format';
 import { createTemplate, listTemplates } from '../services/templateService';
+import type { PdfTemplate } from '../types';
 
 const router = useRouter();
-const templates = ref(listTemplates('invoice'));
+const templates = ref<PdfTemplate[]>([]);
+onMounted(async () => {
+  templates.value = await listTemplates('invoice');
+});
 
 function openTemplate(id: string) {
   router.push({ name: 'settings-template-designer', params: { id } });
 }
 
-function newTemplate() {
-  const created = createTemplate('invoice', 'invoice_standard', `قالب جديد ${templates.value.length + 1}`);
+async function newTemplate() {
+  const created = await createTemplate('invoice', 'invoice_standard', `قالب جديد ${templates.value.length + 1}`);
   router.push({ name: 'settings-template-designer', params: { id: created.id } });
 }
 </script>

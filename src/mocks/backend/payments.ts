@@ -374,6 +374,15 @@ export function unallocatePayment(paymentId: string, allocationId: string, userI
   if (!payment) throw new ApiError('السند غير موجود', 'NOT_FOUND');
   const alloc = payment.allocations.find((a) => a.id === allocationId);
   if (!alloc) throw new ApiError('التخصيص غير موجود', 'NOT_FOUND');
+  // Parity with the Rust `remove_allocation` (`domains/payments/service/allocate.rs` Q-P1): an
+  // allocation that realized a non-zero `fxGainLoss` (from `allocatePayment`'s conditional
+  // FX-adjustment posting) can never be removed through this path — removing it would leave that
+  // FX-adjustment journal entry orphaned with no inverse, silently misstating the realized-FX
+  // total. Conservative refusal — a manual correcting entry is the way out, same stance as the
+  // shift close / card settlements.
+  if (alloc.fxGainLoss) {
+    throw new ApiError('لا يمكن إلغاء تخصيص حقق فرق عملة — قم بعكسه عبر قيد تسوية يدوي بدلاً من ذلك', 'VALIDATION');
+  }
   mutate(() => {
     applyAllocationToDocument(alloc, -1, payment.date);
     payment.allocations = payment.allocations.filter((a) => a.id !== allocationId);

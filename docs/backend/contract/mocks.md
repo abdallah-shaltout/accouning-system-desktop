@@ -50,8 +50,8 @@ The executable spec the Rust `shared/` and `domains/` port. Rounding counts show
 | [`backend/branches#updateCostCenter`](../../../src/mocks/backend/branches.ts#L245) |  | costCenters | backend/core#logActivity, persist#mutate |  |  |  |
 | [`backend/core#applyStockChange`](../../../src/mocks/backend/core.ts#L268) |  | stockMovements | persist#mutate, utils#uid | 4 | 1 | stock |
 | [`backend/core#assertOpenPeriod`](../../../src/mocks/backend/core.ts#L105) | fiscalYears, settings |  | utils#localDateKey |  |  | period |
-| [`backend/core#closeFiscalYear`](../../../src/mocks/backend/core.ts#L560) | accounts, journalEntries | fiscalYears | backend/accounts#accountFor, backend/core#closeYearPreChecks, backend/core#logActivity, backend/core#postJournal, persist#mutate, utils#loc… | 3 |  |  |
-| [`backend/core#closeYearPreChecks`](../../../src/mocks/backend/core.ts#L517) | fiscalYears, journalDrafts, journalEntries |  | backend/accounts#accountFor, backend/core#trialBalanceFor | 1 |  |  |
+| [`backend/core#closeFiscalYear`](../../../src/mocks/backend/core.ts#L555) | accounts, journalEntries | fiscalYears | backend/accounts#accountFor, backend/core#closeYearPreChecks, backend/core#logActivity, backend/core#postJournal, persist#mutate, utils#loc… | 3 |  |  |
+| [`backend/core#closeYearPreChecks`](../../../src/mocks/backend/core.ts#L512) | fiscalYears, journalDrafts, journalEntries |  | backend/accounts#accountFor, backend/core#trialBalanceFor | 1 |  |  |
 | [`backend/core#deleteDraftJournal`](../../../src/mocks/backend/core.ts#L226) |  | journalDrafts | persist#mutate |  |  |  |
 | [`backend/core#diffFields`](../../../src/mocks/backend/core.ts#L443) |  |  |  |  |  |  |
 | [`backend/core#draftJournal`](../../../src/mocks/backend/core.ts#L178) |  | journalDrafts | backend/core#resolvePosting, db#nextNumber, persist#mutate, utils#uid |  |  | ledger |
@@ -62,10 +62,10 @@ The executable spec the Rust `shared/` and `domains/` port. Rounding counts show
 | [`backend/core#postJournal`](../../../src/mocks/backend/core.ts#L124) |  | journalEntries | backend/core#assertOpenPeriod, backend/core#resolvePosting, backend/posting-trace#recordPostingTrace, db#nextNumber, events#emit, persist#m… |  |  | ledger |
 | [`backend/core#productById`](../../../src/mocks/backend/core.ts#L251) | products |  |  |  |  |  |
 | [`backend/core#purchaseTaxRate`](../../../src/mocks/backend/core.ts#L468) | taxes |  |  |  |  |  |
-| [`backend/core#reopenFiscalYear`](../../../src/mocks/backend/core.ts#L640) |  | fiscalYears, journalEntries | backend/core#logActivity, backend/core#postJournal, persist#mutate |  |  |  |
+| [`backend/core#reopenFiscalYear`](../../../src/mocks/backend/core.ts#L635) |  | fiscalYears, journalEntries | backend/core#logActivity, backend/core#postJournal, persist#mutate |  |  |  |
 | [`backend/core#resolvePosting`](../../../src/mocks/backend/core.ts#L55) | branches |  | backend/accounts#accountById, backend/accounts#accountFor, backend/currency#baseCurrency, utils#sum, utils#uid | 2 |  |  |
 | [`backend/core#salesTaxRate`](../../../src/mocks/backend/core.ts#L461) | settings, taxes |  |  |  |  |  |
-| [`backend/core#trialBalanceFor`](../../../src/mocks/backend/core.ts#L492) | accounts, journalEntries |  |  | 3 |  |  |
+| [`backend/core#trialBalanceFor`](../../../src/mocks/backend/core.ts#L487) | accounts, journalEntries |  |  | 3 |  |  |
 | [`backend/core#updateDraftJournal`](../../../src/mocks/backend/core.ts#L208) |  | journalDrafts | backend/core#resolvePosting, persist#mutate |  |  |  |
 | [`backend/core#userById`](../../../src/mocks/backend/core.ts#L473) | users |  |  |  |  |  |
 | [`backend/currency#activeCurrencies`](../../../src/mocks/backend/currency.ts#L26) | currencies |  |  |  |  |  |
@@ -134,29 +134,29 @@ The executable spec the Rust `shared/` and `domains/` port. Rounding counts show
 | [`backend/inventory#submitStockCountForReview`](../../../src/mocks/backend/inventory.ts#L343) |  | stockCounts | persist#mutate |  |  |  |
 | [`backend/inventory#validateStockIn`](../../../src/mocks/backend/inventory.ts#L135) |  |  | backend/accounts#accountById |  |  |  |
 | [`backend/inventory#writeOffBatches`](../../../src/mocks/backend/inventory.ts#L397) | productBatches |  | backend/inventory#recordStockAdjustment | 1 |  |  |
-| [`backend/journal#advanceRecurrence`](../../../src/mocks/backend/journal.ts#L211) |  | journalTemplates | persist#mutate, utils#localDateKey |  |  |  |
-| [`backend/journal#deleteJournalTemplate`](../../../src/mocks/backend/journal.ts#L203) |  | journalTemplates | backend/core#logActivity, persist#mutate |  |  |  |
+| [`backend/journal#advanceRecurrence`](../../../src/mocks/backend/journal.ts#L206) |  | journalTemplates | persist#mutate, utils#localDateKey |  |  |  |
+| [`backend/journal#deleteJournalTemplate`](../../../src/mocks/backend/journal.ts#L198) |  | journalTemplates | backend/core#logActivity, persist#mutate |  |  |  |
 | [`backend/journal#editDraftJournal`](../../../src/mocks/backend/journal.ts#L116) |  |  | backend/core#updateDraftJournal, backend/journal#toPostingLines, backend/journal#validateManualLines |  |  |  |
-| [`backend/journal#payVatSettlement`](../../../src/mocks/backend/journal.ts#L289) | journalEntries |  | backend/accounts#accountFor, backend/vouchers#recordPaymentVoucher |  |  |  |
-| [`backend/journal#postVatSettlement`](../../../src/mocks/backend/journal.ts#L256) |  |  | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, backend/journal#vatTotalsForPeriod |  |  |  |
+| [`backend/journal#payVatSettlement`](../../../src/mocks/backend/journal.ts#L280) | journalEntries |  | backend/accounts#accountFor, backend/vouchers#recordPaymentVoucher |  |  |  |
+| [`backend/journal#postVatSettlement`](../../../src/mocks/backend/journal.ts#L247) |  |  | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, backend/journal#vatTotalsForPeriod |  |  |  |
 | [`backend/journal#recordManualJournal`](../../../src/mocks/backend/journal.ts#L89) |  |  | backend/core#draftJournal, backend/core#logActivity, backend/core#postJournal, backend/journal#toPostingLines, backend/journal#validateManu… |  |  |  |
 | [`backend/journal#reverseJournal`](../../../src/mocks/backend/journal.ts#L130) |  | journalEntries | backend/core#logActivity, backend/core#postJournal, persist#mutate |  |  |  |
-| [`backend/journal#saveJournalTemplate`](../../../src/mocks/backend/journal.ts#L186) |  | journalTemplates | backend/core#logActivity, backend/journal#validateTemplateLines, persist#mutate, utils#uid |  |  |  |
+| [`backend/journal#saveJournalTemplate`](../../../src/mocks/backend/journal.ts#L181) |  | journalTemplates | backend/core#logActivity, backend/journal#validateTemplateLines, persist#mutate, utils#uid |  |  |  |
 | [`backend/journal#splitLineByCostCenters`](../../../src/mocks/backend/journal.ts#L49) |  |  |  | 3 |  |  |
 | [`backend/journal#toPostingLines`](../../../src/mocks/backend/journal.ts#L76) |  |  |  |  |  |  |
 | [`backend/journal#validateManualLines`](../../../src/mocks/backend/journal.ts#L17) | accounts, settings |  |  |  |  |  |
-| [`backend/journal#validateTemplateLines`](../../../src/mocks/backend/journal.ts#L175) | accounts |  |  |  |  |  |
-| [`backend/journal#vatTotalsForPeriod`](../../../src/mocks/backend/journal.ts#L234) | journalEntries |  | backend/accounts#accountFor, utils#localDateKey | 3 |  |  |
-| [`backend/opening#buildOpeningLines`](../../../src/mocks/backend/opening.ts#L80) |  |  | backend/accounts#accountFor, utils#sum | 1 |  |  |
-| [`backend/opening#closeOpeningBalanceEquity`](../../../src/mocks/backend/opening.ts#L148) |  |  | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, backend/opening#openingBalanceEquityNet |  |  |  |
-| [`backend/opening#hasFirstUsePosted`](../../../src/mocks/backend/opening.ts#L60) | journalEntries |  |  |  |  |  |
-| [`backend/opening#openingBalanceEquityNet`](../../../src/mocks/backend/opening.ts#L65) | journalEntries |  | backend/accounts#accountFor | 1 |  |  |
-| [`backend/opening#postOpeningBalancesAndClose`](../../../src/mocks/backend/opening.ts#L175) |  |  | backend/opening#closeOpeningBalanceEquity, backend/opening#postOpeningEntry |  |  |  |
-| [`backend/opening#postOpeningEntry`](../../../src/mocks/backend/opening.ts#L127) |  |  | backend/core#logActivity, backend/core#postJournal, backend/opening#buildOpeningLines |  |  |  |
-| [`backend/opening#postOpeningStockDefault`](../../../src/mocks/backend/opening.ts#L243) |  |  | backend/opening#postOpeningStockForBranch |  |  |  |
-| [`backend/opening#postOpeningStockForBranch`](../../../src/mocks/backend/opening.ts#L203) | branches |  | backend/accounts#accountFor, backend/core#applyStockChange, backend/core#logActivity, backend/core#postJournal, backend/core#productById, b… | 2 |  |  |
-| [`backend/opening#postPartyOpeningBalance`](../../../src/mocks/backend/opening.ts#L266) | settings |  | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, utils#uid |  |  |  |
-| [`backend/opening#reversePartyOpeningBalance`](../../../src/mocks/backend/opening.ts#L308) | payments | journalEntries | backend/core#logActivity, backend/core#postJournal |  |  |  |
+| [`backend/journal#validateTemplateLines`](../../../src/mocks/backend/journal.ts#L170) | accounts |  |  |  |  |  |
+| [`backend/journal#vatTotalsForPeriod`](../../../src/mocks/backend/journal.ts#L225) | journalEntries |  | backend/accounts#accountFor, utils#localDateKey | 3 |  |  |
+| [`backend/opening#buildOpeningLines`](../../../src/mocks/backend/opening.ts#L57) |  |  | backend/accounts#accountFor, utils#sum | 1 |  |  |
+| [`backend/opening#closeOpeningBalanceEquity`](../../../src/mocks/backend/opening.ts#L125) |  |  | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, backend/opening#openingBalanceEquityNet |  |  |  |
+| [`backend/opening#hasFirstUsePosted`](../../../src/mocks/backend/opening.ts#L37) | journalEntries |  |  |  |  |  |
+| [`backend/opening#openingBalanceEquityNet`](../../../src/mocks/backend/opening.ts#L42) | journalEntries |  | backend/accounts#accountFor | 1 |  |  |
+| [`backend/opening#postOpeningBalancesAndClose`](../../../src/mocks/backend/opening.ts#L152) |  |  | backend/opening#closeOpeningBalanceEquity, backend/opening#postOpeningEntry |  |  |  |
+| [`backend/opening#postOpeningEntry`](../../../src/mocks/backend/opening.ts#L104) |  |  | backend/core#logActivity, backend/core#postJournal, backend/opening#buildOpeningLines |  |  |  |
+| [`backend/opening#postOpeningStockDefault`](../../../src/mocks/backend/opening.ts#L214) |  |  | backend/opening#postOpeningStockForBranch |  |  |  |
+| [`backend/opening#postOpeningStockForBranch`](../../../src/mocks/backend/opening.ts#L174) | branches |  | backend/accounts#accountFor, backend/core#applyStockChange, backend/core#logActivity, backend/core#postJournal, backend/core#productById, b… | 2 |  |  |
+| [`backend/opening#postPartyOpeningBalance`](../../../src/mocks/backend/opening.ts#L230) | settings |  | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, utils#uid |  |  |  |
+| [`backend/opening#reversePartyOpeningBalance`](../../../src/mocks/backend/opening.ts#L272) | payments | journalEntries | backend/core#logActivity, backend/core#postJournal |  |  |  |
 | [`backend/payments#allocatedTotal`](../../../src/mocks/backend/payments.ts#L81) |  |  | utils#sum |  |  |  |
 | [`backend/payments#allocatePayment`](../../../src/mocks/backend/payments.ts#L314) | customers, suppliers | payments | backend/core#logActivity, backend/core#postJournal, backend/payments#applyAllocationToDocument, backend/payments#validateAllocations, event… | 3 |  |  |
 | [`backend/payments#applyAllocationToDocument`](../../../src/mocks/backend/payments.ts#L108) |  | invoices, purchaseOrders |  | 2 |  |  |
@@ -194,11 +194,11 @@ The executable spec the Rust `shared/` and `domains/` port. Rounding counts show
 | [`backend/purchases#supplierOutstandingTotal`](../../../src/mocks/backend/purchases.ts#L523) | purchaseOrders |  | utils#sum |  |  |  |
 | [`backend/purchases#taxRateFor`](../../../src/mocks/backend/purchases.ts#L36) | taxes |  |  |  |  |  |
 | [`backend/purchases#validateLines`](../../../src/mocks/backend/purchases.ts#L92) | suppliers |  | backend/core#productById |  |  |  |
-| [`backend/revaluation#defaultRevaluationRates`](../../../src/mocks/backend/revaluation.ts#L72) | exchangeRates |  | backend/currency#activeCurrencies |  |  |  |
-| [`backend/revaluation#fcLinesFor`](../../../src/mocks/backend/revaluation.ts#L29) | accounts, journalEntries |  |  |  |  |  |
-| [`backend/revaluation#firstOfNextMonth`](../../../src/mocks/backend/revaluation.ts#L83) |  |  |  |  |  |  |
-| [`backend/revaluation#openFcBalances`](../../../src/mocks/backend/revaluation.ts#L26) | accounts, customers, journalEntries, suppliers |  | backend/revaluation#fcLinesFor, utils#sum | 8 |  |  |
-| [`backend/revaluation#postRevaluation`](../../../src/mocks/backend/revaluation.ts#L96) |  |  | backend/core#logActivity, backend/core#postJournal, backend/revaluation#firstOfNextMonth, backend/revaluation#openFcBalances | 1 |  |  |
+| [`backend/revaluation#defaultRevaluationRates`](../../../src/mocks/backend/revaluation.ts#L63) | exchangeRates |  | backend/currency#activeCurrencies |  |  |  |
+| [`backend/revaluation#fcLinesFor`](../../../src/mocks/backend/revaluation.ts#L20) | accounts, journalEntries |  |  |  |  |  |
+| [`backend/revaluation#firstOfNextMonth`](../../../src/mocks/backend/revaluation.ts#L74) |  |  |  |  |  |  |
+| [`backend/revaluation#openFcBalances`](../../../src/mocks/backend/revaluation.ts#L17) | accounts, customers, journalEntries, suppliers |  | backend/revaluation#fcLinesFor, utils#sum | 8 |  |  |
+| [`backend/revaluation#postRevaluation`](../../../src/mocks/backend/revaluation.ts#L87) |  |  | backend/core#logActivity, backend/core#postJournal, backend/revaluation#firstOfNextMonth, backend/revaluation#openFcBalances | 1 |  |  |
 | [`backend/sales#baseQty`](../../../src/mocks/backend/sales.ts#L81) |  |  |  | 1 |  |  |
 | [`backend/sales#fc`](../../../src/mocks/backend/sales.ts#L179) |  |  |  |  |  |  |
 | [`backend/sales#paymentMethodById`](../../../src/mocks/backend/sales.ts#L44) | paymentMethods |  |  |  |  |  |
@@ -215,12 +215,12 @@ The executable spec the Rust `shared/` and `domains/` port. Rounding counts show
 | [`backend/settlements#recordCardSettlement`](../../../src/mocks/backend/settlements.ts#L58) |  | cardSettlements | backend/core#logActivity, backend/core#postJournal, backend/settlements#unsettledTenderGroups, db#nextNumber, events#emit, persist#mutate, … | 4 |  |  |
 | [`backend/settlements#settledKeys`](../../../src/mocks/backend/settlements.ts#L16) | cardSettlements |  |  |  |  |  |
 | [`backend/settlements#unsettledTenderGroups`](../../../src/mocks/backend/settlements.ts#L23) | invoices, paymentMethods |  | backend/settlements#settledKeys, utils#localDateKey | 2 |  |  |
-| [`backend/setup#applyBranches`](../../../src/mocks/backend/setup.ts#L106) |  | branches, settings | backend/branches#createBranch, persist#mutate |  |  |  |
-| [`backend/setup#applyBusinessTypeUnitDefaults`](../../../src/mocks/backend/setup.ts#L22) |  | units | persist#mutate, utils#uid |  |  |  |
-| [`backend/setup#applyCoaTemplate`](../../../src/mocks/backend/setup.ts#L42) | journalEntries | accounts | fixtures/accounts#buildAccounts, persist#mutate |  |  |  |
-| [`backend/setup#applyPaymentMethods`](../../../src/mocks/backend/setup.ts#L168) | journalEntries | paymentMethods | persist#mutate, utils#uid |  |  |  |
-| [`backend/setup#previewCoaTemplate`](../../../src/mocks/backend/setup.ts#L58) |  |  | fixtures/accounts#buildAccounts |  |  |  |
-| [`backend/setup#setFiscalYear`](../../../src/mocks/backend/setup.ts#L67) | journalEntries | fiscalYears | persist#mutate, utils#localDateKey, utils#uid |  |  |  |
+| [`backend/setup#applyBranches`](../../../src/mocks/backend/setup.ts#L101) |  | branches, settings | backend/branches#createBranch, persist#mutate |  |  |  |
+| [`backend/setup#applyBusinessTypeUnitDefaults`](../../../src/mocks/backend/setup.ts#L23) |  | units | persist#mutate, utils#uid |  |  |  |
+| [`backend/setup#applyCoaTemplate`](../../../src/mocks/backend/setup.ts#L43) | journalEntries | accounts | fixtures/accounts#buildAccounts, persist#mutate |  |  |  |
+| [`backend/setup#applyPaymentMethods`](../../../src/mocks/backend/setup.ts#L149) | journalEntries | paymentMethods | persist#mutate, utils#uid |  |  |  |
+| [`backend/setup#previewCoaTemplate`](../../../src/mocks/backend/setup.ts#L59) |  |  | fixtures/accounts#buildAccounts |  |  |  |
+| [`backend/setup#setFiscalYear`](../../../src/mocks/backend/setup.ts#L68) | journalEntries | fiscalYears | persist#mutate, utils#localDateKey, utils#uid |  |  |  |
 | [`backend/shifts#cashAccountName`](../../../src/mocks/backend/shifts.ts#L169) |  |  | backend/accounts#accountFor |  |  |  |
 | [`backend/shifts#closeShift`](../../../src/mocks/backend/shifts.ts#L93) |  | shifts | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, backend/shifts#shiftSummary, backend/vouchers#recordTransf… | 2 |  |  |
 | [`backend/shifts#currentOpenShift`](../../../src/mocks/backend/shifts.ts#L20) | shifts |  |  |  |  |  |
@@ -244,5 +244,5 @@ The executable spec the Rust `shared/` and `domains/` port. Rounding counts show
 | [`backend/vouchers#recordReceiptVoucher`](../../../src/mocks/backend/vouchers.ts#L32) |  | vouchers | backend/accounts#accountById, backend/core#logActivity, backend/core#postJournal, backend/vouchers#KIND_LABEL, backend/vouchers#methodAccou… |  |  |  |
 | [`backend/vouchers#recordTransferVoucher`](../../../src/mocks/backend/vouchers.ts#L88) |  | vouchers | backend/accounts#accountById, backend/core#logActivity, backend/core#postJournal, backend/vouchers#KIND_LABEL, db#nextNumber, events#emit, … | 2 |  |  |
 | [`db#blankDb`](../../../src/mocks/db.ts#L145) |  |  |  |  |  |  |
-| [`db#nextNumber`](../../../src/mocks/db.ts#L250) | settings | counters |  |  |  | numbering |
-| [`db#resetDb`](../../../src/mocks/db.ts#L228) |  |  | db#blankDb |  |  |  |
+| [`db#nextNumber`](../../../src/mocks/db.ts#L249) | settings | counters |  |  |  | numbering |
+| [`db#resetDb`](../../../src/mocks/db.ts#L227) |  |  | db#blankDb |  |  |  |

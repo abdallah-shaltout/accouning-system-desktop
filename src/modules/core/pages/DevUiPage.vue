@@ -57,6 +57,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '../components/shad
 import { NativeSelect, NativeSelectOption } from '../components/shadcn/native-select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '../components/shadcn/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../components/shadcn/dialog';
+import ServerFailureScreen from '@/modules/settings/components/ServerFailureScreen.vue';
 
 const inputValue = ref('');
 const textareaValue = ref('');
@@ -302,6 +303,17 @@ const rtlPageCount = 8;
           <p class="mb-2 text-xs text-text-secondary">تعذّر التحميل</p>
           <ErrorState compact message="حدث خطأ ما." @retry="() => {}" />
         </div>
+      </div>
+    </AppCard>
+
+    <AppCard title="شاشة تعذّر الاتصال بالخادم (ServerFailureScreen — 21 · 03.01)">
+      <p class="mb-3 text-xs text-text-secondary">
+        شاشة كاملة الشاشة تُعرض قبل تسجيل الدخول عند تعذّر تشغيل قاعدة البيانات المدمجة (الجهاز
+        الرئيسي) أو الاتصال بها (جهاز كاشير) — معاينة بحدود ثابتة هنا (`preview`)، تُعرض فعلياً
+        بملء الشاشة في `App.vue`.
+      </p>
+      <div class="relative h-72 overflow-hidden rounded-md border border-border">
+        <ServerFailureScreen preview />
       </div>
     </AppCard>
 

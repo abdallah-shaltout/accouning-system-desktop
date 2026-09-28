@@ -10,6 +10,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/settings/taxes', name: 'settings-taxes', component: () => import('../pages/TaxesSettingsPage.vue'), meta: { title: 'الضرائب', section, area: 'settings' } },
   { path: '/settings/payment-methods', name: 'settings-payment-methods', component: () => import('../pages/PaymentMethodsSettingsPage.vue'), meta: { title: 'طرق الدفع', section, area: 'settings' } },
   { path: '/settings/printing', name: 'settings-printing', component: () => import('../pages/PrintingSettingsPage.vue'), meta: { title: 'الطباعة', section, area: 'settings' } },
+  // 21 · 03.01 (Part 02 handoff §9): LAN sharing toggle + pairing code, desktop-only.
+  { path: '/settings/network', name: 'settings-network', component: () => import('../pages/NetworkSettingsPage.vue'), meta: { title: 'الشبكة وقاعدة البيانات', section, area: 'settings' } },
   // v2 phase 6 §7: custom product fields + unit presets.
   { path: '/settings/products', name: 'settings-products', component: () => import('../pages/ProductsSettingsPage.vue'), meta: { title: 'المنتجات', section, area: 'inventory', access: 'write' } },
   // v2 phase 9 (docs/v2/10-branches-currencies-cost-centers.md): branches, cost centers, currencies.

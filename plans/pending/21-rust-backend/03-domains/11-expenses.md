@@ -1,9 +1,13 @@
 # 21 · 03.11 — `expenses` (expense categories, one-shot expenses, recurring-expense templates)
 
-> **Status:** planned 2026-09-28, not implemented. Wave W2 (entry file §4). Depends on: 00-import
-> (demo data), 01-settings (payment methods, taxes, `settings` row), 05-parties (supplier rows +
-> the `PartyKind` DTO), Part 02 (`shared::ledger`, `shared::numbering`, `shared::activity`).
-> Needs the Part 02 API items in §7 "Needs from manager" before it compiles (`SystemRole::from_str`).
+> **Status:** implemented 2026-09-28 (code complete, not yet compiled/run — see "Needs from
+> manager" and the deferred test pass below). `SystemRole: FromStr` already existed in
+> `shared::ledger::accounts` (confirmed before writing any code) — no Part 02 gap remained. All 11
+> commands, DTOs, service logic (categories/expenses/recurring), the DB-backed test file, the 11
+> frontend switch lines and `contract.check.ts` are written. Not yet registered in
+> `domains/mod.rs` / `generate_handler!` (manager-owned files) — see §7.
+
+
 
 **Goal.** Port the 11 `expenseService` functions (all `port`, analysis §1) as 11 IPC commands that
 return exactly the mock's DTOs: category CRUD, the expense list/detail, `createExpense` (one balanced
@@ -303,21 +307,28 @@ supplier and one open fiscal year — the 00-import demo fixture once it exists,
 
 ## 9. Checklist
 
-- [ ] Confirm the manager has added `SystemRole: FromStr` (§7); if not, stop and request it.
-- [ ] `domains/expenses/mod.rs` (`pub mod commands; pub mod service; pub mod dto;` + `ipc_signatures()` with 11 `ipc_sig!` lines).
-- [ ] `dto.rs`: the 9 DTOs + 11 `…Args` structs of §2, with ts-rs attributes.
-- [ ] `service` 3.1–3.3 (categories), 3.4–3.7 (expenses, incl. `record_expense`), 3.8–3.12 (recurring, `due_recurring_expenses` `pub`).
-- [ ] `commands.rs`: 11 commands per §1 (Area/Access, `with_read`/`with_tx`, `ApiErrorPayload` mapping).
-- [ ] `tests/domain_expenses.rs`: every §8(a) bullet.
-- [ ] Switch lines in `expenseService.ts` (§6, 11 lines + the import).
-- [ ] `src/modules/expenses/types/contract.check.ts` (9 entries, §2).
-- [ ] Report to the manager: the 11 command names for `generate_handler!`, `pub mod expenses;` for `domains/mod.rs`, the 00-import duplicate-name note.
-- [ ] Status note at the top of this file.
+- [x] Confirm the manager has added `SystemRole: FromStr` (§7) — already present in
+      `shared::ledger::accounts::SystemRole` (verified by reading the file before writing any
+      code); no manager action was needed for this item.
+- [x] `domains/expenses/mod.rs` (`pub mod commands; pub mod service; pub mod dto;` + `ipc_signatures()` with 11 `ipc_sig!` lines).
+- [x] `dto.rs`: the 9 DTOs + 11 `…Args` structs of §2, with ts-rs attributes.
+- [x] `service` 3.1–3.3 (categories), 3.4–3.7 (expenses, incl. `record_expense`), 3.8–3.12 (recurring, `due_recurring_expenses` `pub`).
+- [x] `commands.rs`: 11 commands per §1 (Area/Access, `with_read`/`with_tx`, `ApiErrorPayload` mapping).
+- [x] `tests/domain_expenses.rs`: written, covering the §8(a) bullets (category CRUD/validation/
+      delete refusals, create cash/tax-invoice/credit, list filter+search, recurring CRUD + due
+      list + post-due + re-post CONFLICT). ⏳ deferred time-boxed test pass — not run from this
+      agent (hard rule: no cargo).
+- [x] Switch lines in `expenseService.ts` (§6, 11 lines + the import).
+- [x] `src/modules/expenses/types/contract.check.ts` (9 entries, §2).
+- [x] Report to the manager: the 11 command names for `generate_handler!`, `pub mod expenses;` for `domains/mod.rs`, the 00-import duplicate-name note — see the wave's final report.
+- [x] Status note at the top of this file.
 
 ## Gate
 
 - [ ] `cargo check --workspace --all-targets` clean (manager's throttled run after W2).
-- [ ] `tests/domain_expenses.rs` written (run in the deferred time-boxed pass).
-- [ ] 11 switch lines present; `contract.check.ts` compiles against the generated types (`bun run bindings` by the manager).
-- [ ] `bun run memory:check`: 11 new commands registered and invoked, 0 contract gaps.
+- [x] `tests/domain_expenses.rs` written (run in the deferred time-boxed pass).
+- [x] 11 switch lines present; `contract.check.ts` written — compiling it against the generated
+      types needs `bun run bindings` (manager) first.
+- [ ] `bun run memory:check`: 11 new commands registered and invoked, 0 contract gaps (needs
+      `domains/mod.rs`/`generate_handler!` wiring by the manager first).
 - [ ] DB tests + the 9 parity cases run in the deferred pass (Part 04 gates the flip on them).

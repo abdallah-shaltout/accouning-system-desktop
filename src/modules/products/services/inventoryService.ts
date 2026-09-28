@@ -19,6 +19,7 @@ import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
 import type { AppRoute } from '@/modules/core/types/route';
 import { wrap } from '@/modules/diagnostics/services/defineService';
 import { round2 } from '@/modules/core/helpers/numbers';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
 
 import type {
   DebitNoteDraft,
@@ -45,6 +46,7 @@ export const adjustmentValue = wrap('products.adjustmentValue', function adjustm
 });
 
 export const getStockAdjustments = wrap('products.getStockAdjustments', async function getStockAdjustments(filter: AdjustmentFilter = {}): Promise<StockAdjustment[]> {
+  if (usesRust('products')) return backendCall('products_get_stock_adjustments', { filter });
   await delay();
   return clone(
     db.stockAdjustments
@@ -59,6 +61,7 @@ export const getStockAdjustments = wrap('products.getStockAdjustments', async fu
 });
 
 export const getStockAdjustment = wrap('products.getStockAdjustment', async function getStockAdjustment(id: string): Promise<StockAdjustment & { journalEntryId?: string }> {
+  if (usesRust('products')) return backendCall('products_get_stock_adjustment', { id });
   await delay();
   const adj = db.stockAdjustments.find((a) => a.id === id);
   if (!adj) throw new ApiError('التسوية غير موجودة', 'NOT_FOUND');
@@ -67,16 +70,22 @@ export const getStockAdjustment = wrap('products.getStockAdjustment', async func
 });
 
 export const createStockAdjustment = wrap('products.createStockAdjustment', async function createStockAdjustment(input: StockAdjustmentInput, asDraft = false): Promise<StockAdjustment> {
+  if (usesRust('products')) return backendCall('products_create_stock_adjustment', { input, asDraft });
   await delay();
   return clone(recordStockAdjustment(input, session.userId, asDraft));
 });
 
 export const completeAdjustment = wrap('products.completeAdjustment', async function completeAdjustment(id: string): Promise<StockAdjustment> {
+  if (usesRust('products')) return backendCall('products_complete_adjustment', { id });
   await delay();
   return clone(completeStockAdjustment(id, session.userId));
 });
 
 export const deleteDraftAdjustment = wrap('products.deleteDraftAdjustment', async function deleteDraftAdjustment(id: string): Promise<void> {
+  if (usesRust('products')) {
+    await backendCall('products_delete_draft_adjustment', { id });
+    return;
+  }
   await delay();
   const adj = db.stockAdjustments.find((a) => a.id === id);
   if (!adj) throw new ApiError('التسوية غير موجودة', 'NOT_FOUND');
@@ -94,6 +103,7 @@ export interface MovementFilter {
 
 /** Stock ledger, newest first. `refLink` points at the source document screen. */
 export const getStockMovements = wrap('products.getStockMovements', async function getStockMovements(filter: MovementFilter = {}): Promise<(StockMovement & { productName: string; refLink?: AppRoute })[]> {
+  if (usesRust('products')) return backendCall('products_get_stock_movements', { filter });
   await delay();
   return db.stockMovements
     .filter(
@@ -110,6 +120,7 @@ export type StockMovementRow = StockMovement & { productName: string; refLink?: 
 
 /** Server-mode variant of `getStockMovements` for `DataTable`: paged and sorted server-side. */
 export const getStockMovementsPaged = wrap('products.getStockMovementsPaged', async function getStockMovementsPaged(query: PagedQuery<MovementFilter>): Promise<PagedResult<StockMovementRow>> {
+  if (usesRust('products')) return backendCall('products_get_stock_movements_paged', { query });
   await delay();
   const filter = query.filters ?? {};
   let rows: StockMovementRow[] = db.stockMovements
@@ -162,6 +173,7 @@ function refLink(m: StockMovement): AppRoute | undefined {
 // ---------------------------------------------------------------------------------------------
 
 export const getBatches = wrap('products.getBatches', async function getBatches(productId: string): Promise<ProductBatch[]> {
+  if (usesRust('products')) return backendCall('products_get_batches', { productId });
   await delay();
   return clone(activeBatchesFor(productId));
 });
@@ -188,6 +200,7 @@ function expiryBucket(batch: ProductBatch, today: string): { bucket: ExpiryBucke
 
 /** §4 expiry report: expired / ≤30 / ≤60 / ≤90, grouped by supplier (grouping done client-side by the page). */
 export const getExpiryReport = wrap('products.getExpiryReport', async function getExpiryReport(): Promise<ExpiryRow[]> {
+  if (usesRust('products')) return backendCall('products_get_expiry_report');
   await delay();
   const today = new Date().toISOString().slice(0, 10);
   return db.productBatches
@@ -209,6 +222,7 @@ export const batchAlertTone = wrap('products.batchAlertTone', function batchAler
 });
 
 export const writeOffExpiredBatches = wrap('products.writeOffExpiredBatches', async function writeOffExpiredBatches(batchIds: string[], note?: string): Promise<StockAdjustment> {
+  if (usesRust('products')) return backendCall('products_write_off_expired_batches', { batchIds, note });
   await delay();
   return clone(writeOffBatches(batchIds, session.userId, note));
 });
@@ -219,11 +233,13 @@ export const returnBatchesToSupplier = wrap('products.returnBatchesToSupplier', 
   lines: { productId: string; batchId: string; qty: number; unitCost: number }[],
   note?: string,
 ): Promise<DebitNoteDraft> {
+  if (usesRust('products')) return backendCall('products_return_batches_to_supplier', { supplierId, lines, note });
   await delay();
   return clone(draftReturnToSupplier(supplierId, lines, session.userId, note));
 });
 
 export const getDebitNoteDrafts = wrap('products.getDebitNoteDrafts', async function getDebitNoteDrafts(): Promise<DebitNoteDraft[]> {
+  if (usesRust('products')) return backendCall('products_get_debit_note_drafts');
   await delay();
   return clone(db.debitNoteDrafts);
 });
@@ -233,11 +249,13 @@ export const getDebitNoteDrafts = wrap('products.getDebitNoteDrafts', async func
 // ---------------------------------------------------------------------------------------------
 
 export const getStockCounts = wrap('products.getStockCounts', async function getStockCounts(): Promise<StockCount[]> {
+  if (usesRust('products')) return backendCall('products_get_stock_counts');
   await delay();
   return clone([...db.stockCounts].sort((a, b) => b.startedAt.localeCompare(a.startedAt)));
 });
 
 export const getStockCount = wrap('products.getStockCount', async function getStockCount(id: string): Promise<StockCount> {
+  if (usesRust('products')) return backendCall('products_get_stock_count', { id });
   await delay();
   const count = db.stockCounts.find((c) => c.id === id);
   if (!count) throw new ApiError('الجرد غير موجود', 'NOT_FOUND');
@@ -245,26 +263,31 @@ export const getStockCount = wrap('products.getStockCount', async function getSt
 });
 
 export const createStockCount = wrap('products.createStockCount', async function createStockCount(input: StockCountInput): Promise<StockCount> {
+  if (usesRust('products')) return backendCall('products_create_stock_count', { input });
   await delay();
   return clone(startStockCount(input, session.userId));
 });
 
 export const updateStockCountLine = wrap('products.updateStockCountLine', async function updateStockCountLine(countId: string, productId: string, qty: number, delta = false): Promise<StockCount> {
+  if (usesRust('products')) return backendCall('products_update_stock_count_line', { countId, productId, qty, delta });
   await delay(30);
   return clone(setStockCountLine(countId, productId, qty, delta));
 });
 
 export const submitCountForReview = wrap('products.submitCountForReview', async function submitCountForReview(countId: string): Promise<StockCount> {
+  if (usesRust('products')) return backendCall('products_submit_count_for_review', { countId });
   await delay();
   return clone(submitStockCountForReview(countId));
 });
 
 export const resumeCounting = wrap('products.resumeCounting', async function resumeCounting(countId: string): Promise<StockCount> {
+  if (usesRust('products')) return backendCall('products_resume_counting', { countId });
   await delay();
   return clone(backToCounting(countId));
 });
 
 export const completeStockCount = wrap('products.completeStockCount', async function completeStockCount(countId: string): Promise<StockAdjustment> {
+  if (usesRust('products')) return backendCall('products_complete_stock_count', { countId });
   await delay();
   return clone(applyStockCount(countId, session.userId));
 });

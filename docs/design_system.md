@@ -125,6 +125,20 @@ of the same fingerprint `docs/diagnostics/ISSUES.md` groups errors by (`fingerpr
 phone to support, who then finds the matching ledger entry or log lines by that fingerprint. Every
 error toast gets one; never a raw stack trace or English exception message in the visible text.
 
+### Server-failure screen (ServerFailureScreen — 21 · 03.01)
+`modules/settings/components/ServerFailureScreen.vue` — a full-screen, chrome-free blocking state
+(mounted once, unconditionally, in `App.vue`; `no-print`) shown before anyone can even log in when
+the real (Rust) backend can't reach or start its MariaDB: "تعذر تشغيل قاعدة البيانات" on the Main
+PC, "تعذر الاتصال بالجهاز الرئيسي" on a cashier terminal, the failure's Arabic message, a short
+error code (`رمز الخطأ: <4 hex chars>`, the diagnostics convention above), a primary "إعادة
+المحاولة" (calls the settings domain's `reconnectBackend()`) and a secondary "تصدير ملف التشخيص"
+(the one shared support-bundle export, never a second path). Driven purely by
+`useBackendHealth().failure` (`modules/settings/controllers/useBackendHealth.ts`), which polls
+`core_backend_status` every 5s only inside Tauri once `usesRust('settings')` — a no-op in mock/e2e
+mode, so this never shows outside the desktop build. A `preview` prop switches it from
+`position: fixed` (real use) to `position: absolute` with a static sample message, for showing it
+bounded inside `/dev/ui`'s gallery card instead of covering the whole page.
+
 ### Date picker
 `AppDatePicker` (`modules/core/components/ui/AppDatePicker.vue`) — a typeable text field (`dir="ltr"`,
 `YYYY-MM-DD`) with a trailing calendar icon button that opens a themed shadcn Popover + Calendar.

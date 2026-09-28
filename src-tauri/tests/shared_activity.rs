@@ -63,6 +63,7 @@ impl Compensator for ManualEntryCompensator {
         &self,
         tx: &DatabaseTransaction,
         cx: &TxCtx,
+        registry: &UndoRegistry,
         original: &audit::Model,
         req: &UndoRequest,
     ) -> Result<Id, AppError> {
@@ -91,11 +92,13 @@ impl Compensator for ManualEntryCompensator {
         .await
         .map_err(TxError::into_app_error)?;
 
-        let registry = UndoRegistry::new();
+        // G-19: uses the REAL registry `undo()` was called with (previously a fresh, disconnected
+        // `UndoRegistry::new()` — harmless only because this call passes `undo: None`; a
+        // compensator that itself needs to record an undoable action couldn't have worked before).
         let comp_id = record(
             tx,
             cx,
-            &registry,
+            registry,
             AuditInput {
                 entity: "journal".to_string(),
                 entity_id: reversed.id,
@@ -132,7 +135,14 @@ impl Compensator for FailingCompensator {
     fn area(&self) -> Area {
         Area::Accounting
     }
-    async fn compensate(&self, _tx: &DatabaseTransaction, _cx: &TxCtx, _original: &audit::Model, _req: &UndoRequest) -> Result<Id, AppError> {
+    async fn compensate(
+        &self,
+        _tx: &DatabaseTransaction,
+        _cx: &TxCtx,
+        _registry: &UndoRegistry,
+        _original: &audit::Model,
+        _req: &UndoRequest,
+    ) -> Result<Id, AppError> {
         Err(AppError::validation("فشل متعمد للاختبار"))
     }
 }
@@ -155,6 +165,7 @@ async fn seed_accounts(tx: &DatabaseTransaction) {
         [(SystemRole::Cash, "1000", "الصندوق", "ASSET", "DEBIT"), (SystemRole::Sales, "4000", "مبيعات البضائع", "REVENUE", "CREDIT")]
     {
         let model = AccountActiveModel {
+            code_live: sea_orm::ActiveValue::NotSet,
             id: Set(Id::new()),
             code: Set(code.to_string()),
             name: Set(name.to_string()),

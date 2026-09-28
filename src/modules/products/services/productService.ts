@@ -5,13 +5,44 @@ import { emit } from '@/mocks/events';
 import { mutate } from '@/mocks/persist';
 import type { Product, ProductFilter, ProductInput, ProductUnit } from '../types';
 
+/** `Product.stockByBranch`'s value type (defined inline on the field, not exported — `types/index.ts:103`). */
+type BranchStock = { qty: number; value: number };
+
 import { wrap } from '@/modules/diagnostics/services/defineService';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
+
+/**
+ * 06 §6 / 06b D-I1: the Rust path's `getProducts`/`getProduct` return `stockByBranch` inline on
+ * each `Product`, but `branchStockQty` (reclassified `frontend`, 06b D-I1) is called synchronously
+ * from templates and can't await a fresh backend round-trip. This module-level cache — filled only
+ * on the Rust path, right after a products read resolves — lets `branchStockQty` answer
+ * synchronously from the last-seen data, the same way the mock reads `db.products` synchronously.
+ */
+const branchStockCache = new Map<string, Record<string, BranchStock>>();
+
+/** Fills the cache from a batch of products just read from the Rust backend (no-op on the mock path). */
+export function rememberBranchStock(products: Product[]): void {
+  for (const p of products) {
+    if (p.stockByBranch) branchStockCache.set(p.id, p.stockByBranch);
+  }
+}
+
+/** Synchronous branch-stock read for the Rust path — `?.[branchId]?.qty ?? 0`, mirroring the mock's
+ *  `branchStockQty` default (06b `transferService.ts:36`). */
+export function branchStockFromCache(productId: string, branchId: string): number {
+  return branchStockCache.get(productId)?.[branchId]?.qty ?? 0;
+}
 
 export const isLowStock = wrap('products.isLowStock', function isLowStock(p: Product): boolean {
   return p.type === 'product' && p.stockMode !== 'none' && p.stockQty <= (p.minStock ?? 0);
 });
 
 export const getProducts = wrap('products.getProducts', async function getProducts(filter: ProductFilter = {}): Promise<Product[]> {
+  if (usesRust('products')) {
+    const rows = await backendCall('products_get_products', { filter });
+    rememberBranchStock(rows);
+    return rows;
+  }
   await delay();
   return clone(
     db.products.filter(
@@ -26,6 +57,11 @@ export const getProducts = wrap('products.getProducts', async function getProduc
 });
 
 export const getProduct = wrap('products.getProduct', async function getProduct(id: string): Promise<Product> {
+  if (usesRust('products')) {
+    const row = await backendCall('products_get_product', { id });
+    rememberBranchStock([row]);
+    return row;
+  }
   await delay();
   const product = db.products.find((p) => p.id === id);
   if (!product) throw new ApiError('المنتج غير موجود', 'NOT_FOUND');
@@ -34,6 +70,7 @@ export const getProduct = wrap('products.getProduct', async function getProduct(
 
 /** Exact SKU/barcode lookup (barcode scanners in POS and adjustment screens). */
 export const findByCode = wrap('products.findByCode', async function findByCode(code: string): Promise<Product | null> {
+  if (usesRust('products')) return backendCall('products_find_by_code', { code });
   await delay(60);
   const c = code.trim();
   const product = db.products.find((p) => p.active && (p.barcode === c || p.sku.toLowerCase() === c.toLowerCase()));
@@ -107,6 +144,7 @@ function normalize(input: ProductInput) {
 
 /** §2 "Generate EAN-13" — internal prefix 628 (Saudi GS1) + a random body + a valid check digit. */
 export const generateEan13 = wrap('products.generateEan13', async function generateEan13(): Promise<string> {
+  if (usesRust('products')) return backendCall('products_generate_ean13');
   await delay(30);
   for (let attempt = 0; attempt < 20; attempt++) {
     const body = `628${String(Math.floor(Math.random() * 1e9)).padStart(9, '0')}`;
@@ -121,6 +159,7 @@ export const generateEan13 = wrap('products.generateEan13', async function gener
 });
 
 export const createProduct = wrap('products.createProduct', async function createProduct(input: ProductInput): Promise<Product> {
+  if (usesRust('products')) return backendCall('products_create_product', { input });
   await delay();
   validate(input);
   const product: Product = { id: uid('prd'), ...normalize(input), stockQty: 0, stockValue: 0 };
@@ -139,6 +178,7 @@ export const createProduct = wrap('products.createProduct', async function creat
 });
 
 export const updateProduct = wrap('products.updateProduct', async function updateProduct(id: string, input: ProductInput): Promise<Product> {
+  if (usesRust('products')) return backendCall('products_update_product', { id, input });
   await delay();
   const product = db.products.find((p) => p.id === id);
   if (!product) throw new ApiError('المنتج غير موجود', 'NOT_FOUND');
@@ -161,6 +201,7 @@ export const updateProduct = wrap('products.updateProduct', async function updat
 
 /** Suggest the next free SKU for a category prefix, e.g. MEN-008. */
 export const suggestSku = wrap('products.suggestSku', async function suggestSku(prefix: string): Promise<string> {
+  if (usesRust('products')) return backendCall('products_suggest_sku', { prefix });
   await delay(40);
   const used = db.products
     .map((p) => p.sku)

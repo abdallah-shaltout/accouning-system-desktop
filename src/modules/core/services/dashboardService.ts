@@ -8,6 +8,8 @@ import type { SystemRole } from '@/modules/accounting/types';
 import type { StockTransfer } from '@/modules/products/types';
 import type { ApprovalRequest } from '@/modules/approvals/types';
 import type { ActivityEntry, DashboardSummary } from '../types';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
+import { mirrored } from '@/modules/core/services/backendMirror';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
@@ -20,6 +22,7 @@ function accountBalance(role: SystemRole): number {
 
 /** KPI numbers for the home screen, computed from the same mock data every other screen uses. */
 export const getDashboardSummary = wrap('core.getDashboardSummary', async function getDashboardSummary(): Promise<DashboardSummary> {
+  if (usesRust('dashboard')) return backendCall('dashboard_get_dashboard_summary');
   await delay();
   const today = localDateKey(new Date());
   const sold = db.invoices.filter((i) => i.status !== 'DRAFT');
@@ -57,11 +60,13 @@ function lowStock(): Product[] {
 }
 
 export const getLowStockProducts = wrap('core.getLowStockProducts', async function getLowStockProducts(limit = 6): Promise<Product[]> {
+  if (usesRust('dashboard')) return backendCall('dashboard_get_low_stock_products', { limit });
   await delay();
   return clone(lowStock().sort((a, b) => a.stockQty / (a.minStock || 1) - b.stockQty / (b.minStock || 1)).slice(0, limit));
 });
 
 export const getRecentInvoices = wrap('core.getRecentInvoices', async function getRecentInvoices(limit = 8): Promise<(Invoice & { customerName?: string })[]> {
+  if (usesRust('dashboard')) return backendCall('dashboard_get_recent_invoices', { limit });
   await delay();
   return [...db.invoices]
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -70,6 +75,7 @@ export const getRecentInvoices = wrap('core.getRecentInvoices', async function g
 });
 
 export const getRecentActivity = wrap('core.getRecentActivity', async function getRecentActivity(limit = 12): Promise<(ActivityEntry & { userName?: string })[]> {
+  if (usesRust('dashboard')) return backendCall('dashboard_get_recent_activity', { limit });
   await delay();
   return db.activity
     .filter((a) => a.kind !== 'auth')
@@ -182,6 +188,7 @@ function dailySeries(days: number, to: Date): number[] {
 
 /** Home KPIs (docs/v2/11 Part B.3): 4 KPIs with period-over-period comparison + sparkline. */
 export const getHomeKpis = wrap('core.getHomeKpis', async function getHomeKpis(period: HomePeriod = 'today'): Promise<HomeKpis> {
+  if (usesRust('dashboard')) return backendCall('dashboard_get_home_kpis', { period });
   await delay();
   const { from, to, prevFrom, prevTo } = periodRange(period);
   const netSales = netSalesFor(from, to);
@@ -259,6 +266,7 @@ export interface TopCustomerRow {
 
 /** Top 5 products by gross profit (not revenue — docs/v2/11 Part B.5) for the given period. */
 export const getTopProducts = wrap('core.getTopProducts', async function getTopProducts(period: HomePeriod = 'month', limit = 5): Promise<TopProductRow[]> {
+  if (usesRust('dashboard')) return backendCall('dashboard_get_top_products', { period, limit });
   await delay();
   const { from, to } = periodRange(period);
   const byProduct = new Map<string, { qty: number; profit: number }>();
@@ -282,6 +290,7 @@ export const getTopProducts = wrap('core.getTopProducts', async function getTopP
 
 /** Top 5 customers by net sales for the given period. */
 export const getTopCustomers = wrap('core.getTopCustomers', async function getTopCustomers(period: HomePeriod = 'month', limit = 5): Promise<TopCustomerRow[]> {
+  if (usesRust('dashboard')) return backendCall('dashboard_get_top_customers', { period, limit });
   await delay();
   const { from, to } = periodRange(period);
   const byCustomer = new Map<string, number>();
@@ -302,31 +311,49 @@ export const getTopCustomers = wrap('core.getTopCustomers', async function getTo
 
 /** Stock transfers `SENT` (in transit) toward the given branch (or all branches when omitted). */
 export function getInTransitTransfers(homeBranch: string | undefined): StockTransfer[] {
+  if (usesRust('dashboard')) {
+    return mirrored(`dashboard:inTransit:${homeBranch ?? ''}`, () => backendCall('dashboard_get_in_transit_transfers', { homeBranch }), [], { ttlMs: 30_000 });
+  }
   return clone(db.stockTransfers.filter((t) => t.status === 'SENT' && (!homeBranch || t.toBranchId === homeBranch)));
 }
 
 /** Pending async approval requests. */
 export function getPendingApprovalRequests(): ApprovalRequest[] {
+  if (usesRust('dashboard')) {
+    return mirrored('dashboard:pendingApprovals', () => backendCall('dashboard_get_pending_approval_requests'), [], { ttlMs: 30_000 });
+  }
   return clone(db.approvalRequests.filter((r) => r.status === 'pending'));
 }
 
 /** ISO timestamp of the last automatic-backup failure, if any. */
 export function getLastBackupFailedAt(): string | undefined {
+  if (usesRust('dashboard')) {
+    return mirrored('dashboard:lastBackupFailedAt', async () => (await backendCall('dashboard_get_last_backup_failed_at')) ?? undefined, undefined, { ttlMs: 30_000 });
+  }
   return db.settings.backup?.lastBackupFailedAt;
 }
 
 /** Draft journal entries awaiting posting — used by the accountant home KPI. */
 export function getJournalDraftCount(): number {
+  if (usesRust('dashboard')) {
+    return mirrored('dashboard:journalDraftCount', () => backendCall('dashboard_get_journal_draft_count'), 0, { ttlMs: 30_000 });
+  }
   return db.journalDrafts.length;
 }
 
 /** Current stock value (sum of active products' `stockValue`) — used by the storekeeper home KPI. */
 export function getStockValueSnapshot(): number {
+  if (usesRust('dashboard')) {
+    return mirrored('dashboard:stockValue', () => backendCall('dashboard_get_stock_value_snapshot'), 0, { ttlMs: 30_000 });
+  }
   return round2(db.products.filter((p) => p.active && p.type === 'product').reduce((a, p) => a + (p.stockValue ?? 0), 0));
 }
 
 /** True once at least one product exists — used to gate the storekeeper home's stock-value KPI loading state. */
 export function hasAnyProducts(): boolean {
+  if (usesRust('dashboard')) {
+    return mirrored('dashboard:hasAnyProducts', () => backendCall('dashboard_has_any_products'), false, { ttlMs: 30_000 });
+  }
   return db.products.length > 0;
 }
 

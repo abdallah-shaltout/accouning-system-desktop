@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **961 files / 144,743 lines** (json 4, md 112, rust 164, ts 230, vue 451).
+Indexed: **1227 files / 212,857 lines** (json 4, md 137, rust 377, ts 252, vue 457).
 
 **Lookup order:** Where-to-find → Open diagnostics → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -77,9 +77,9 @@ Known failures not yet fixed — check before starting work in an affected area.
 ## Architecture (layers & data flow)
 
 ```text
-pages (112) / components (376) / controllers (25)   src/modules/<domain>/…
+pages (114) / components (380) / controllers (26)   src/modules/<domain>/…
         │  may call ONLY ▼                  (seam rule — see Boundary report)
-services (41)   src/modules/<domain>/services/*   ← swap point for a real backend
+services (45)   src/modules/<domain>/services/*   ← swap point for a real backend
    │                                   │
    ▼                                   ▼
 mock backend  src/mocks/     Tauri IPC invoke('<cmd>') → src-tauri/src/lib.rs
@@ -93,23 +93,23 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 
 | Module | Files / lines | Layers (file count) | Routes | Palette |
 |---|---|---|---|---|
-| **accounting** | 12 / 3370 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
-| **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
-| **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
-| **core** | 352 / 19849 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 11, types 8 | 5 |  |
-| **diagnostics** | 21 / 2080 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 2 | 0 | yes |
-| **expenses** | 8 / 945 | pages 5, routes 1, services 1, types 1 | 5 |  |
-| **invoices** | 57 / 7587 | commands 1, components 36, controllers 3, helpers 3, pages 10, routes 1, services 2, types 1 | 11 | yes |
-| **parties** | 11 / 1861 | components 1, helpers 3, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
-| **payments** | 6 / 877 | pages 3, routes 1, services 1, types 1 | 3 |  |
-| **products** | 32 / 5097 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
-| **purchases** | 11 / 1712 | commands 1, components 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
-| **reports** | 44 / 6206 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
-| **settings** | 33 / 4980 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
-| **setup** | 17 / 1698 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
-| **templates** | 4 / 920 | pages 2, services 1, types 1 | 0 |  |
-| **users** | 11 / 966 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
-| **vouchers** | 9 / 810 | commands 1, pages 5, routes 1, services 1, types 1 | 5 | yes |
+| **accounting** | 13 / 3488 | commands 1, components 1, pages 7, routes 1, services 1, types 2 | 8 | yes |
+| **analytics** | 9 / 499 | components 5, pages 1, routes 1, services 1, types 1 | 1 |  |
+| **approvals** | 6 / 286 | commands 1, pages 1, routes 1, services 1, types 2 | 1 | yes |
+| **core** | 353 / 20186 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 12, types 8 | 5 |  |
+| **diagnostics** | 21 / 2174 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 2 | 0 | yes |
+| **expenses** | 9 / 990 | pages 5, routes 1, services 1, types 2 | 5 |  |
+| **invoices** | 58 / 7714 | commands 1, components 36, controllers 3, helpers 3, pages 10, routes 1, services 2, types 2 | 11 | yes |
+| **parties** | 12 / 1921 | components 1, helpers 3, pages 3, routes 1, services 1, types 2, validators 1 | 8 |  |
+| **payments** | 7 / 921 | pages 3, routes 1, services 1, types 2 | 3 |  |
+| **products** | 33 / 5352 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 2, validators 1 | 16 |  |
+| **purchases** | 12 / 1803 | commands 1, components 1, pages 6, routes 1, services 1, types 2 | 7 | yes |
+| **reports** | 45 / 6391 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 2 | 28 | yes |
+| **settings** | 39 / 5668 | commands 1, components 6, controllers 4, helpers 2, pages 16, routes 1, services 4, types 5 | 19 | yes |
+| **setup** | 25 / 2551 | components 15, pages 3, routes 1, services 3, types 2, validators 1 | 3 |  |
+| **templates** | 5 / 969 | pages 2, services 1, types 2 | 0 |  |
+| **users** | 12 / 1013 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 2, validators 1 | 4 |  |
+| **vouchers** | 10 / 877 | commands 1, pages 5, routes 1, services 1, types 2 | 5 | yes |
 
 ## Service API (the seam — pages call only these)
 
@@ -120,11 +120,12 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | approvals | `approvalService` | `submitApprovalRequest`, `getApprovalRequests`, `getPendingApprovalCount`, `approveRequest`, `rejectRequest` |
 | core | `attachmentService` | `fetchAttachments`, `fetchAttachment`, `saveAttachment`, `removeAttachment`, `uid` |
 | core | `backend` | `usesRust`, `backendCall`, `initBackendBridge`, `getBackendStatus` |
+| core | `backendMirror` | `mirrored`, `clearMirrors` |
 | core | `dashboardService` | `getInTransitTransfers`, `getPendingApprovalRequests`, `getLastBackupFailedAt`, `getJournalDraftCount`, `getStockValueSnapshot`, `hasAnyProducts`, `onLedgerChanged`, `getDashboardSummary`, `getLowStockProducts`, `getRecentInvoices`, `getRecentActivity`, `getHomeKpis`, `getTopProducts`, `getTopCustomers` |
 | core | `devToolsService` | `resetToEmpty`, `reloadDemoData` |
 | core | `geoService` | `getRegions`, `getCities`, `getDistricts`, `getLabels`, `searchPlaces` |
 | core | `insightEngine` | `getThresholds`, `setThresholds`, `dismissInsight`, `snoozeInsight`, `clearDismissal`, `getInsights`, `getInsightsFor`, `getInsightsForEntity`, `getProductInlineHints`, `forceRefresh` |
-| core | `insightRules` | `INSIGHT_RULES` |
+| core | `insightRules` | `INSIGHT_ICONS`, `INSIGHT_RULES` |
 | core | `insightTypes` | `DEFAULT_THRESHOLDS` |
 | core | `pdfService` | `render`, `renderAndSave`, `renderPreview`, `sampleInvoicePayload`, `buildLabelItems`, `renderLabels`, `renderLabelsAndSave`, `renderGenericReport`, `renderGenericReportAndSave`, `renderReportPdf`, `saveReportPdf`, `renderLabelsPreview` |
 | core | `printService` | `listPrinters`, `printReceipt`, `testPrint`, `initPrintResultListener` |
@@ -144,13 +145,16 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | payments | `paymentService` | `getPayments`, `getPaymentsPaged`, `getPayment`, `createPayment`, `allocateExistingPayment`, `removeAllocation`, `getOpenDocuments` |
 | products | `catalogService` | `onCatalogChanged`, `getCategories`, `saveCategory`, `deleteCategory`, `getUnits`, `saveUnit`, `applyUnitPreset`, `deleteUnit`, `getPriceLists`, `savePriceList`, `deletePriceList`, `setPriceListValues`, `getCustomFieldDefs`, `saveCustomFieldDef`, `deleteCustomFieldDef`, `reorderCustomFieldDefs` |
 | products | `inventoryService` | `adjustmentValue`, `getStockAdjustments`, `getStockAdjustment`, `createStockAdjustment`, `completeAdjustment`, `deleteDraftAdjustment`, `getStockMovements`, `getStockMovementsPaged`, `getBatches`, `getExpiryReport`, `batchAlertTone`, `writeOffExpiredBatches`, `returnBatchesToSupplier`, `getDebitNoteDrafts`, `getStockCounts`, `getStockCount`, `createStockCount`, `updateStockCountLine`, `submitCountForReview`, `resumeCounting`, `completeStockCount` |
-| products | `productService` | `isLowStock`, `getProducts`, `getProduct`, `findByCode`, `generateEan13`, `createProduct`, `updateProduct`, `suggestSku` |
+| products | `productService` | `rememberBranchStock`, `branchStockFromCache`, `isLowStock`, `getProducts`, `getProduct`, `findByCode`, `generateEan13`, `createProduct`, `updateProduct`, `suggestSku` |
 | products | `transferService` | `getTransfers`, `getTransfer`, `createTransfer`, `sendTransfer`, `receiveTransfer`, `rejectTransfer`, `branchStockQty` |
 | purchases | `purchaseService` | `getPurchaseOrders`, `getPurchaseOrder`, `savePurchaseOrder`, `sendPurchaseOrderToSupplier`, `receivePurchaseOrder`, `confirmPurchaseOrder`, `cancelPurchaseOrder`, `createPurchaseReturn`, `getPurchaseReturn`, `getActiveBatches`, `getDebitNoteDrafts`, `postDebitNoteDraft`, `computePurchaseTotals` |
 | reports | `reportService` | `getTrialBalance`, `getProfitAndLoss`, `getProfitAndLossComparison`, `getCostCenterProfitAndLoss`, `getCostCenterBudgetVsActual`, `getBalanceSheet`, `getAccountLedger`, `getPartyLedger`, `getSalesReport`, `getInventoryReport`, `getVatReport`, `getVatDetail`, `getLedgerTargets`, `getCashFlowStatement`, `getDayBook`, `getAgingReport`, `getOverdueReport`, `getGrossProfitReport`, `getReturnsReport`, `getDiscountsReport`, `getShiftsReport`, `getLowStockReport`, `getDeadStockReport`, `getStocktakeVariances`, `getTransfersReport`, `getPurchasesReport`, `getExpensesReport`, `getPeriodComparison`, `getBranchComparison`, `getBusinessHealthReport`, `getProfitLeakageReport`, `getDimensionOptions` |
 | settings | `backupService` | `backupSettings`, `saveBackupSettings`, `isTauriMode`, `previewBackupCounts`, `backupNow`, `listHistory`, `deleteHistoryEntry`, `verifyHistoryEntry`, `pickRestoreFile`, `previewRestore`, `restoreFromArchive`, `isClosingWithBackup`, `initAutoBackup`, `stopAutoBackup`, `pickBackupFolder` |
 | settings | `branchesService` | `getBranches`, `createBranch`, `updateBranch`, `deactivateBranch`, `reactivateBranch`, `getCostCenters`, `createCostCenter`, `updateCostCenter`, `deleteCostCenter`, `getCurrencies`, `getExchangeRates`, `createCurrency`, `updateCurrency`, `saveExchangeRate`, `isBaseCurrencyLocked`, `setBaseCurrency`, `getRevaluationPreview`, `getDefaultRevaluationRates`, `postRevaluation` |
+| settings | `networkService` | `getLanSharingStatus`, `enableLanSharing`, `disableLanSharing`, `rotatePairingCode`, `reconnectBackend` |
 | settings | `settingsService` | `getSettings`, `updateSettings`, `getTaxes`, `saveTax`, `deleteTax`, `getPaymentMethods`, `savePaymentMethod`, `reorderPaymentMethods`, `deletePaymentMethod` |
+| setup | `deviceService` | `refreshDeviceSetupState`, `ensureDeviceSetupState`, `isFreshInstallCached`, `getDeviceSetupState`, `provisionMainDevice`, `pairTerminalDevice` |
+| setup | `legacyImportService` | `hasLegacySnapshot`, `inspectLegacySnapshot`, `importLegacySnapshot` |
 | setup | `setupService` | `ensureEmptyCompanyShell`, `persistProgress`, `getOnboardingProgress`, `saveOnboardingProgress`, `markStepDone`, `markStepSkipped`, `applyBusinessTypeDefaults`, `isBaseCurrencyLocked`, `applyCountryTax`, `applyFiscalYear`, `applyBranches`, `previewCoaTemplate`, `applyCoaTemplate`, `applyPaymentMethods`, `getOpeningBalanceEquityNet`, `isFirstUsePosted`, `postOpeningBalances`, `postOpeningStock`, `recloseOpeningBalanceEquity`, `postPartyOpening`, `reversePartyOpening`, `finishOnboarding`, `uid` |
 | templates | `templateService` | `listTemplates`, `getTemplate`, `getDefaultTemplate`, `saveTemplate`, `setAsDefault`, `duplicateTemplate`, `deleteTemplate`, `resetTemplateToDefaults`, `exportTemplate`, `importTemplate`, `createTemplate` |
 | users | `authService` | `isFreshInstall`, `login`, `restoreSession`, `logout`, `verifyManagerPin`, `getDemoAccounts` |
@@ -259,6 +263,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | settings | `/settings/taxes` | settings-taxes | الضرائب | settings | TaxesSettingsPage.vue |
 | settings | `/settings/payment-methods` | settings-payment-methods | طرق الدفع | settings | PaymentMethodsSettingsPage.vue |
 | settings | `/settings/printing` | settings-printing | الطباعة | settings | PrintingSettingsPage.vue |
+| settings | `/settings/network` | settings-network | الشبكة وقاعدة البيانات | settings | NetworkSettingsPage.vue |
 | settings | `/settings/products` | settings-products | المنتجات | inventory | ProductsSettingsPage.vue |
 | settings | `/settings/branches` | settings-branches | الفروع | settings | BranchesSettingsPage.vue |
 | settings | `/settings/cost-centers` | settings-cost-centers | مراكز التكلفة | settings | CostCentersSettingsPage.vue |
@@ -272,6 +277,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | settings | `/settings/templates` | settings-templates | قوالب الطباعة | settings | TemplateListPage.vue |
 | settings | `/settings/templates/:id` | settings-template-designer | قالب الطباعة | settings | TemplateDesignerPage.vue |
 | settings | `/settings/about` | settings-about | حول / الدعم |  | AboutSettingsPage.vue |
+| setup | `/device-setup` | device-setup | إعداد الجهاز |  | DeviceSetupPage.vue |
 | setup | `/setup` | setup-wizard | إعداد الشركة |  | SetupWizardPage.vue |
 | setup | `/setup/opening` | setup-opening | الأرصدة الافتتاحية | accounting | OpeningBalancesPage.vue |
 | users | `/welcome` | welcome | مرحباً بك |  | WelcomePage.vue |
@@ -290,27 +296,27 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 
 | From | Imports from | Imported by (# modules) |
 |---|---|---|
-| **accounting** | core (106), users (6), mocks (4), parties (4), reports (3), settings (2), diagnostics (1), invoices (1) | 9 |
-| **analytics** | core (16), diagnostics (1), mocks (1) | 1 |
-| **app** | core (15), settings (5), diagnostics (4), users (4), accounting (2), approvals (2), invoices (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), mocks (1), parties (1), payments (1), products (1), setup (1) | 1 |
-| **approvals** | core (12), mocks (2), diagnostics (1), users (1) | 5 |
-| **core** | users (19), mocks (18), products (14), invoices (13), settings (10), diagnostics (9), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), approvals (1), payments (1), reports (1), setup (1) | 18 |
-| **diagnostics** | core (28), mocks (5) | 18 |
-| **expenses** | core (59), accounting (3), users (3), mocks (2), parties (2), settings (2), diagnostics (1) | 2 |
-| **invoices** | core (220), products (11), settings (11), mocks (9), users (9), parties (8), reports (6), approvals (2), diagnostics (2), accounting (1), payments (1) | 10 |
-| **mocks** | core (15), invoices (9), accounting (8), products (8), settings (5), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 18 |
-| **parties** | core (61), mocks (6), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
-| **payments** | core (42), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
-| **products** | core (206), mocks (14), users (13), settings (8), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
-| **purchases** | core (79), products (5), users (4), invoices (3), mocks (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
-| **reports** | core (163), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
-| **settings** | core (176), users (18), mocks (14), diagnostics (7), invoices (6), products (3), templates (2) | 12 |
-| **setup** | core (57), mocks (8), settings (4), accounting (2), products (2), diagnostics (1), parties (1), users (1) | 3 |
-| **templates** | core (16), diagnostics (1), mocks (1) | 3 |
-| **users** | core (37), mocks (5), products (3), diagnostics (2) | 15 |
-| **vouchers** | core (48), mocks (3), accounting (2), settings (2), users (2), diagnostics (1), invoices (1) | 3 |
+| **accounting** | core (108), users (6), mocks (4), parties (4), reports (3), settings (2), diagnostics (1), invoices (1) | 9 |
+| **analytics** | core (18), diagnostics (1), mocks (1) | 1 |
+| **app** | core (16), settings (7), diagnostics (4), users (4), accounting (2), approvals (2), invoices (2), purchases (2), reports (2), setup (2), vouchers (2), analytics (1), expenses (1), mocks (1), parties (1), payments (1), products (1) | 1 |
+| **approvals** | core (14), mocks (2), diagnostics (1), users (1) | 5 |
+| **core** | mocks (20), users (20), products (14), invoices (13), settings (12), diagnostics (10), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), approvals (1), payments (1), reports (1), setup (1) | 18 |
+| **diagnostics** | core (31), mocks (5) | 18 |
+| **expenses** | core (61), accounting (3), users (3), mocks (2), parties (2), settings (2), diagnostics (1) | 2 |
+| **invoices** | core (222), products (11), settings (11), mocks (9), users (9), parties (8), reports (6), approvals (2), diagnostics (2), accounting (1), payments (1) | 10 |
+| **mocks** | core (14), invoices (9), accounting (8), products (8), settings (6), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), setup (2), users (1) | 18 |
+| **parties** | core (63), mocks (6), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
+| **payments** | core (44), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
+| **products** | core (211), mocks (14), users (13), settings (8), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
+| **purchases** | core (81), products (5), users (4), invoices (3), mocks (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
+| **reports** | core (165), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
+| **settings** | core (196), users (19), mocks (16), diagnostics (9), invoices (6), products (3), templates (2) | 12 |
+| **setup** | core (74), mocks (9), settings (4), diagnostics (3), accounting (2), products (2), parties (1), users (1) | 5 |
+| **templates** | core (18), diagnostics (1), mocks (1) | 3 |
+| **users** | core (40), mocks (5), products (3), diagnostics (2), setup (1) | 15 |
+| **vouchers** | core (50), mocks (3), accounting (2), settings (2), users (2), diagnostics (1), invoices (1) | 3 |
 
-**Most-used npm packages** (files importing): `vue (417)`, `@lucide/vue (171)`, `reka-ui (118)`, `vue-router (98)`, `@vueuse/core (79)`, `@tauri-apps/api (17)`, `class-variance-authority (9)`, `pinia (9)`, `zod (5)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `modern-screenshot (1)`, `tailwind-merge (1)` … +1 more
+**Most-used npm packages** (files importing): `vue (425)`, `@lucide/vue (174)`, `reka-ui (118)`, `vue-router (100)`, `@vueuse/core (79)`, `@tauri-apps/api (18)`, `pinia (10)`, `class-variance-authority (9)`, `zod (6)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `modern-screenshot (1)`, `tailwind-merge (1)` … +1 more
 
 ## Rust ↔ Vue IPC contract
 
@@ -322,17 +328,323 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | `diag_open_folder` | `core::diag::diag_open_folder` | `src-tauri/src/core/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
 | `diag_rotate` | `core::diag::diag_rotate` | `src-tauri/src/core/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
 | `core_backend_status` | `core::status::core_backend_status` | `src-tauri/src/core/status.rs` | yes | `src/modules/core/services/backend.ts` |
+| `accounting_get_accounts` | `domains::accounting::commands::accounts::accounting_get_accounts` | `src-tauri/src/domains/accounting/commands/accounts.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_save_account` | `domains::accounting::commands::accounts::accounting_save_account` | `src-tauri/src/domains/accounting/commands/accounts.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_delete_account` | `domains::accounting::commands::accounts::accounting_delete_account` | `src-tauri/src/domains/accounting/commands/accounts.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_reparent_account` | `domains::accounting::commands::accounts::accounting_reparent_account` | `src-tauri/src/domains/accounting/commands/accounts.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_get_journal_entries` | `domains::accounting::commands::journal::accounting_get_journal_entries` | `src-tauri/src/domains/accounting/commands/journal.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_get_journal_entries_for_source` | `domains::accounting::commands::journal::accounting_get_journal_entries_for_source` | `src-tauri/src/domains/accounting/commands/journal.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_get_journal_entries_paged` | `domains::accounting::commands::journal::accounting_get_journal_entries_paged` | `src-tauri/src/domains/accounting/commands/journal.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_get_journal_entry` | `domains::accounting::commands::journal::accounting_get_journal_entry` | `src-tauri/src/domains/accounting/commands/journal.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_create_journal_entry` | `domains::accounting::commands::journal::accounting_create_journal_entry` | `src-tauri/src/domains/accounting/commands/journal.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_update_journal_draft` | `domains::accounting::commands::journal::accounting_update_journal_draft` | `src-tauri/src/domains/accounting/commands/journal.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_post_journal_draft` | `domains::accounting::commands::journal::accounting_post_journal_draft` | `src-tauri/src/domains/accounting/commands/journal.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_delete_journal_draft` | `domains::accounting::commands::journal::accounting_delete_journal_draft` | `src-tauri/src/domains/accounting/commands/journal.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_reverse_journal_entry` | `domains::accounting::commands::journal::accounting_reverse_journal_entry` | `src-tauri/src/domains/accounting/commands/journal.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_get_fiscal_years` | `domains::accounting::commands::period::accounting_get_fiscal_years` | `src-tauri/src/domains/accounting/commands/period.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_get_current_fiscal_year` | `domains::accounting::commands::period::accounting_get_current_fiscal_year` | `src-tauri/src/domains/accounting/commands/period.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_save_fiscal_year` | `domains::accounting::commands::period::accounting_save_fiscal_year` | `src-tauri/src/domains/accounting/commands/period.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_get_lock_date` | `domains::accounting::commands::period::accounting_get_lock_date` | `src-tauri/src/domains/accounting/commands/period.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_save_lock_date` | `domains::accounting::commands::period::accounting_save_lock_date` | `src-tauri/src/domains/accounting/commands/period.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_get_close_year_pre_checks` | `domains::accounting::commands::period::accounting_get_close_year_pre_checks` | `src-tauri/src/domains/accounting/commands/period.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_close_year` | `domains::accounting::commands::period::accounting_close_year` | `src-tauri/src/domains/accounting/commands/period.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_reopen_year` | `domains::accounting::commands::period::accounting_reopen_year` | `src-tauri/src/domains/accounting/commands/period.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_get_vat_period_totals` | `domains::accounting::commands::period::accounting_get_vat_period_totals` | `src-tauri/src/domains/accounting/commands/period.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_submit_vat_settlement` | `domains::accounting::commands::period::accounting_submit_vat_settlement` | `src-tauri/src/domains/accounting/commands/period.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_pay_vat_settlement_now` | `domains::accounting::commands::period::accounting_pay_vat_settlement_now` | `src-tauri/src/domains/accounting/commands/period.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_get_journal_templates` | `domains::accounting::commands::templates::accounting_get_journal_templates` | `src-tauri/src/domains/accounting/commands/templates.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_get_journal_template` | `domains::accounting::commands::templates::accounting_get_journal_template` | `src-tauri/src/domains/accounting/commands/templates.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_create_or_update_journal_template` | `domains::accounting::commands::templates::accounting_create_or_update_journal_template` | `src-tauri/src/domains/accounting/commands/templates.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_remove_journal_template` | `domains::accounting::commands::templates::accounting_remove_journal_template` | `src-tauri/src/domains/accounting/commands/templates.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_load_template_into_entry` | `domains::accounting::commands::templates::accounting_load_template_into_entry` | `src-tauri/src/domains/accounting/commands/templates.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `accounting_post_recurring_template` | `domains::accounting::commands::templates::accounting_post_recurring_template` | `src-tauri/src/domains/accounting/commands/templates.rs` | yes | `src/modules/accounting/services/accountingService.ts` |
+| `analytics_get_sales_analytics` | `domains::analytics::commands::analytics_get_sales_analytics` | `src-tauri/src/domains/analytics/commands.rs` | yes | `src/modules/analytics/services/analyticsService.ts` |
+| `analytics_get_product_analytics` | `domains::analytics::commands::analytics_get_product_analytics` | `src-tauri/src/domains/analytics/commands.rs` | yes | `src/modules/analytics/services/analyticsService.ts` |
+| `analytics_get_customer_analytics` | `domains::analytics::commands::analytics_get_customer_analytics` | `src-tauri/src/domains/analytics/commands.rs` | yes | `src/modules/analytics/services/analyticsService.ts` |
+| `approvals_submit_approval_request` | `domains::approvals::commands::approvals_submit_approval_request` | `src-tauri/src/domains/approvals/commands.rs` | yes | `src/modules/approvals/services/approvalService.ts` |
+| `approvals_get_approval_requests` | `domains::approvals::commands::approvals_get_approval_requests` | `src-tauri/src/domains/approvals/commands.rs` | yes | `src/modules/approvals/services/approvalService.ts` |
+| `approvals_get_pending_approval_count` | `domains::approvals::commands::approvals_get_pending_approval_count` | `src-tauri/src/domains/approvals/commands.rs` | yes | `src/modules/approvals/services/approvalService.ts` |
+| `approvals_approve_request` | `domains::approvals::commands::approvals_approve_request` | `src-tauri/src/domains/approvals/commands.rs` | yes | `src/modules/approvals/services/approvalService.ts` |
+| `approvals_reject_request` | `domains::approvals::commands::approvals_reject_request` | `src-tauri/src/domains/approvals/commands.rs` | yes | `src/modules/approvals/services/approvalService.ts` |
+| `dashboard_get_dashboard_summary` | `domains::dashboard::commands::dashboard_get_dashboard_summary` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_get_home_kpis` | `domains::dashboard::commands::dashboard_get_home_kpis` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_get_low_stock_products` | `domains::dashboard::commands::dashboard_get_low_stock_products` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_get_recent_invoices` | `domains::dashboard::commands::dashboard_get_recent_invoices` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_get_recent_activity` | `domains::dashboard::commands::dashboard_get_recent_activity` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_get_top_products` | `domains::dashboard::commands::dashboard_get_top_products` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_get_top_customers` | `domains::dashboard::commands::dashboard_get_top_customers` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_get_in_transit_transfers` | `domains::dashboard::commands::dashboard_get_in_transit_transfers` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_get_pending_approval_requests` | `domains::dashboard::commands::dashboard_get_pending_approval_requests` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_get_last_backup_failed_at` | `domains::dashboard::commands::dashboard_get_last_backup_failed_at` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_get_journal_draft_count` | `domains::dashboard::commands::dashboard_get_journal_draft_count` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_get_stock_value_snapshot` | `domains::dashboard::commands::dashboard_get_stock_value_snapshot` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_has_any_products` | `domains::dashboard::commands::dashboard_has_any_products` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
+| `dashboard_compute_insights` | `domains::dashboard::commands::dashboard_compute_insights` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/insightEngine.ts` |
+| `dashboard_get_product_inline_hints` | `domains::dashboard::commands::dashboard_get_product_inline_hints` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/insightEngine.ts` |
+| `diagnostics_get_audit_entries` | `domains::diagnostics::commands::diagnostics_get_audit_entries` | `src-tauri/src/domains/diagnostics/commands.rs` | yes | `src/modules/diagnostics/services/auditService.ts` |
+| `diagnostics_get_audit_entities` | `domains::diagnostics::commands::diagnostics_get_audit_entities` | `src-tauri/src/domains/diagnostics/commands.rs` | yes | `src/modules/diagnostics/services/auditService.ts` |
+| `diagnostics_export_support_bundle` | `domains::diagnostics::commands::diagnostics_export_support_bundle` | `src-tauri/src/domains/diagnostics/commands.rs` | yes | `src/modules/diagnostics/services/supportBundleService.ts` |
+| `diagnostics_list_recent_documents` | `domains::diagnostics::commands::diagnostics_list_recent_documents` | `src-tauri/src/domains/diagnostics/commands.rs` | yes | `src/modules/diagnostics/services/accountingDebugService.ts` |
+| `diagnostics_get_posting_trace` | `domains::diagnostics::commands::diagnostics_get_posting_trace` | `src-tauri/src/domains/diagnostics/commands.rs` | yes | `src/modules/diagnostics/services/accountingDebugService.ts` |
+| `diagnostics_get_journal_entry_raw` | `domains::diagnostics::commands::diagnostics_get_journal_entry_raw` | `src-tauri/src/domains/diagnostics/commands.rs` | yes | `src/modules/diagnostics/services/accountingDebugService.ts` |
+| `diagnostics_get_balances_around` | `domains::diagnostics::commands::diagnostics_get_balances_around` | `src-tauri/src/domains/diagnostics/commands.rs` | yes | `src/modules/diagnostics/services/accountingDebugService.ts` |
+| `diagnostics_get_invariant_results` | `domains::diagnostics::commands::diagnostics_get_invariant_results` | `src-tauri/src/domains/diagnostics/commands.rs` | yes | `src/modules/diagnostics/services/accountingDebugService.ts` |
+| `diagnostics_get_drift_report` | `domains::diagnostics::commands::diagnostics_get_drift_report` | `src-tauri/src/domains/diagnostics/commands.rs` | yes | `src/modules/diagnostics/services/accountingDebugService.ts` |
+| `diagnostics_explain_account_balance` | `domains::diagnostics::commands::diagnostics_explain_account_balance` | `src-tauri/src/domains/diagnostics/commands.rs` | yes | `src/modules/diagnostics/services/accountingDebugService.ts` |
+| `expenses_get_expense_categories` | `domains::expenses::commands::expenses_get_expense_categories` | `src-tauri/src/domains/expenses/commands.rs` | yes | `src/modules/expenses/services/expenseService.ts` |
+| `expenses_save_expense_category` | `domains::expenses::commands::expenses_save_expense_category` | `src-tauri/src/domains/expenses/commands.rs` | yes | `src/modules/expenses/services/expenseService.ts` |
+| `expenses_delete_expense_category` | `domains::expenses::commands::expenses_delete_expense_category` | `src-tauri/src/domains/expenses/commands.rs` | yes | `src/modules/expenses/services/expenseService.ts` |
+| `expenses_get_expenses` | `domains::expenses::commands::expenses_get_expenses` | `src-tauri/src/domains/expenses/commands.rs` | yes | `src/modules/expenses/services/expenseService.ts` |
+| `expenses_get_expense` | `domains::expenses::commands::expenses_get_expense` | `src-tauri/src/domains/expenses/commands.rs` | yes | `src/modules/expenses/services/expenseService.ts` |
+| `expenses_create_expense` | `domains::expenses::commands::expenses_create_expense` | `src-tauri/src/domains/expenses/commands.rs` | yes | `src/modules/expenses/services/expenseService.ts` |
+| `expenses_get_recurring_expenses` | `domains::expenses::commands::expenses_get_recurring_expenses` | `src-tauri/src/domains/expenses/commands.rs` | yes | `src/modules/expenses/services/expenseService.ts` |
+| `expenses_save_recurring_expense` | `domains::expenses::commands::expenses_save_recurring_expense` | `src-tauri/src/domains/expenses/commands.rs` | yes | `src/modules/expenses/services/expenseService.ts` |
+| `expenses_delete_recurring_expense` | `domains::expenses::commands::expenses_delete_recurring_expense` | `src-tauri/src/domains/expenses/commands.rs` | yes | `src/modules/expenses/services/expenseService.ts` |
+| `expenses_get_due_recurring_expenses` | `domains::expenses::commands::expenses_get_due_recurring_expenses` | `src-tauri/src/domains/expenses/commands.rs` | yes | `src/modules/expenses/services/expenseService.ts` |
+| `expenses_post_due_recurring_expense` | `domains::expenses::commands::expenses_post_due_recurring_expense` | `src-tauri/src/domains/expenses/commands.rs` | yes | `src/modules/expenses/services/expenseService.ts` |
+| `invoices_get_invoices` | `domains::invoices::commands::invoices_get_invoices` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_get_invoices_paged` | `domains::invoices::commands::invoices_get_invoices_paged` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_get_invoice` | `domains::invoices::commands::invoices_get_invoice` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_preview_sale` | `domains::invoices::commands::invoices_preview_sale` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_create_sale` | `domains::invoices::commands::invoices_create_sale` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_create_refund` | `domains::invoices::commands::invoices_create_refund` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_get_refund` | `domains::invoices::commands::invoices_get_refund` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_get_invoice_print_data` | `domains::invoices::commands::invoices_get_invoice_print_data` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_get_quotations` | `domains::invoices::commands::invoices_get_quotations` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_get_quotation` | `domains::invoices::commands::invoices_get_quotation` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_save_quotation` | `domains::invoices::commands::invoices_save_quotation` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_set_quotation_status` | `domains::invoices::commands::invoices_set_quotation_status` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_convert_quotation_to_invoice` | `domains::invoices::commands::invoices_convert_quotation_to_invoice` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_get_current_shift` | `domains::invoices::commands::invoices_get_current_shift` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_get_shifts` | `domains::invoices::commands::invoices_get_shifts` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_get_shift` | `domains::invoices::commands::invoices_get_shift` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_open_pos_shift` | `domains::invoices::commands::invoices_open_pos_shift` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_get_x_report` | `domains::invoices::commands::invoices_get_x_report` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_close_pos_shift` | `domains::invoices::commands::invoices_close_pos_shift` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_force_close_pos_shift` | `domains::invoices::commands::invoices_force_close_pos_shift` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_record_cash_in_out` | `domains::invoices::commands::invoices_record_cash_in_out` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_get_held_sales` | `domains::invoices::commands::invoices_get_held_sales` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_hold_sale` | `domains::invoices::commands::invoices_hold_sale` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_resume_held_sale` | `domains::invoices::commands::invoices_resume_held_sale` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `invoices_discard_held_sale` | `domains::invoices::commands::invoices_discard_held_sale` | `src-tauri/src/domains/invoices/commands.rs` | yes | `src/modules/invoices/services/invoiceService.ts` |
+| `parties_check_duplicates` | `domains::parties::commands::parties_check_duplicates` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_get_party_groups` | `domains::parties::commands::parties_get_party_groups` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_get_customers` | `domains::parties::commands::parties_get_customers` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_get_customer` | `domains::parties::commands::parties_get_customer` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_save_customer` | `domains::parties::commands::parties_save_customer` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_get_customer_statement` | `domains::parties::commands::parties_get_customer_statement` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_get_suppliers` | `domains::parties::commands::parties_get_suppliers` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_get_supplier` | `domains::parties::commands::parties_get_supplier` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_save_supplier` | `domains::parties::commands::parties_save_supplier` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_get_supplier_statement` | `domains::parties::commands::parties_get_supplier_statement` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_link_party_records` | `domains::parties::commands::parties_link_party_records` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_unlink_party_record` | `domains::parties::commands::parties_unlink_party_record` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_get_linked_net_balance` | `domains::parties::commands::parties_get_linked_net_balance` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_get_party_history` | `domains::parties::commands::parties_get_party_history` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `parties_get_party_aging` | `domains::parties::commands::parties_get_party_aging` | `src-tauri/src/domains/parties/commands.rs` | yes | `src/modules/parties/services/partyService.ts` |
+| `payments_get_payments` | `domains::payments::commands::payments_get_payments` | `src-tauri/src/domains/payments/commands.rs` | yes | `src/modules/payments/services/paymentService.ts` |
+| `payments_get_payments_paged` | `domains::payments::commands::payments_get_payments_paged` | `src-tauri/src/domains/payments/commands.rs` | yes | `src/modules/payments/services/paymentService.ts` |
+| `payments_get_payment` | `domains::payments::commands::payments_get_payment` | `src-tauri/src/domains/payments/commands.rs` | yes | `src/modules/payments/services/paymentService.ts` |
+| `payments_create_payment` | `domains::payments::commands::payments_create_payment` | `src-tauri/src/domains/payments/commands.rs` | yes | `src/modules/payments/services/paymentService.ts` |
+| `payments_allocate_existing_payment` | `domains::payments::commands::payments_allocate_existing_payment` | `src-tauri/src/domains/payments/commands.rs` | yes | `src/modules/payments/services/paymentService.ts` |
+| `payments_remove_allocation` | `domains::payments::commands::payments_remove_allocation` | `src-tauri/src/domains/payments/commands.rs` | yes | `src/modules/payments/services/paymentService.ts` |
+| `payments_get_open_documents` | `domains::payments::commands::payments_get_open_documents` | `src-tauri/src/domains/payments/commands.rs` | yes | `src/modules/payments/services/paymentService.ts` |
+| `products_get_products` | `domains::products::commands::catalog::products_get_products` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/productService.ts` |
+| `products_get_product` | `domains::products::commands::catalog::products_get_product` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/core/services/backend.ts`, `src/modules/products/services/productService.ts` |
+| `products_find_by_code` | `domains::products::commands::catalog::products_find_by_code` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/productService.ts` |
+| `products_generate_ean13` | `domains::products::commands::catalog::products_generate_ean13` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/productService.ts` |
+| `products_create_product` | `domains::products::commands::catalog::products_create_product` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/productService.ts` |
+| `products_update_product` | `domains::products::commands::catalog::products_update_product` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/productService.ts` |
+| `products_suggest_sku` | `domains::products::commands::catalog::products_suggest_sku` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/productService.ts` |
+| `products_get_categories` | `domains::products::commands::catalog::products_get_categories` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_save_category` | `domains::products::commands::catalog::products_save_category` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_delete_category` | `domains::products::commands::catalog::products_delete_category` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_get_units` | `domains::products::commands::catalog::products_get_units` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_save_unit` | `domains::products::commands::catalog::products_save_unit` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_apply_unit_preset` | `domains::products::commands::catalog::products_apply_unit_preset` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_delete_unit` | `domains::products::commands::catalog::products_delete_unit` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_get_price_lists` | `domains::products::commands::catalog::products_get_price_lists` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_save_price_list` | `domains::products::commands::catalog::products_save_price_list` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_delete_price_list` | `domains::products::commands::catalog::products_delete_price_list` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_set_price_list_values` | `domains::products::commands::catalog::products_set_price_list_values` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_get_custom_field_defs` | `domains::products::commands::catalog::products_get_custom_field_defs` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_save_custom_field_def` | `domains::products::commands::catalog::products_save_custom_field_def` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_delete_custom_field_def` | `domains::products::commands::catalog::products_delete_custom_field_def` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_reorder_custom_field_defs` | `domains::products::commands::catalog::products_reorder_custom_field_defs` | `src-tauri/src/domains/products/commands/catalog.rs` | yes | `src/modules/products/services/catalogService.ts` |
+| `products_get_stock_adjustments` | `domains::products::commands::inventory::products_get_stock_adjustments` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_get_stock_adjustment` | `domains::products::commands::inventory::products_get_stock_adjustment` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_create_stock_adjustment` | `domains::products::commands::inventory::products_create_stock_adjustment` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_complete_adjustment` | `domains::products::commands::inventory::products_complete_adjustment` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_delete_draft_adjustment` | `domains::products::commands::inventory::products_delete_draft_adjustment` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_get_stock_movements` | `domains::products::commands::inventory::products_get_stock_movements` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_get_stock_movements_paged` | `domains::products::commands::inventory::products_get_stock_movements_paged` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_get_batches` | `domains::products::commands::inventory::products_get_batches` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_get_expiry_report` | `domains::products::commands::inventory::products_get_expiry_report` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_write_off_expired_batches` | `domains::products::commands::inventory::products_write_off_expired_batches` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_return_batches_to_supplier` | `domains::products::commands::inventory::products_return_batches_to_supplier` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_get_debit_note_drafts` | `domains::products::commands::inventory::products_get_debit_note_drafts` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_get_stock_counts` | `domains::products::commands::inventory::products_get_stock_counts` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_get_stock_count` | `domains::products::commands::inventory::products_get_stock_count` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_create_stock_count` | `domains::products::commands::inventory::products_create_stock_count` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_update_stock_count_line` | `domains::products::commands::inventory::products_update_stock_count_line` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_submit_count_for_review` | `domains::products::commands::inventory::products_submit_count_for_review` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_resume_counting` | `domains::products::commands::inventory::products_resume_counting` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_complete_stock_count` | `domains::products::commands::inventory::products_complete_stock_count` | `src-tauri/src/domains/products/commands/inventory.rs` | yes | `src/modules/products/services/inventoryService.ts` |
+| `products_get_transfers` | `domains::products::commands::transfers::products_get_transfers` | `src-tauri/src/domains/products/commands/transfers.rs` | yes | `src/modules/products/services/transferService.ts` |
+| `products_get_transfer` | `domains::products::commands::transfers::products_get_transfer` | `src-tauri/src/domains/products/commands/transfers.rs` | yes | `src/modules/products/services/transferService.ts` |
+| `products_create_transfer` | `domains::products::commands::transfers::products_create_transfer` | `src-tauri/src/domains/products/commands/transfers.rs` | yes | `src/modules/products/services/transferService.ts` |
+| `products_send_transfer` | `domains::products::commands::transfers::products_send_transfer` | `src-tauri/src/domains/products/commands/transfers.rs` | yes | `src/modules/products/services/transferService.ts` |
+| `products_receive_transfer` | `domains::products::commands::transfers::products_receive_transfer` | `src-tauri/src/domains/products/commands/transfers.rs` | yes | `src/modules/products/services/transferService.ts` |
+| `products_reject_transfer` | `domains::products::commands::transfers::products_reject_transfer` | `src-tauri/src/domains/products/commands/transfers.rs` | yes | `src/modules/products/services/transferService.ts` |
+| `purchases_get_purchase_orders` | `domains::purchases::commands::purchases_get_purchase_orders` | `src-tauri/src/domains/purchases/commands.rs` | yes | `src/modules/purchases/services/purchaseService.ts` |
+| `purchases_get_purchase_order` | `domains::purchases::commands::purchases_get_purchase_order` | `src-tauri/src/domains/purchases/commands.rs` | yes | `src/modules/purchases/services/purchaseService.ts` |
+| `purchases_get_purchase_return` | `domains::purchases::commands::purchases_get_purchase_return` | `src-tauri/src/domains/purchases/commands.rs` | yes | `src/modules/purchases/services/purchaseService.ts` |
+| `purchases_get_active_batches` | `domains::purchases::commands::purchases_get_active_batches` | `src-tauri/src/domains/purchases/commands.rs` | yes | `src/modules/purchases/services/purchaseService.ts` |
+| `purchases_get_debit_note_drafts` | `domains::purchases::commands::purchases_get_debit_note_drafts` | `src-tauri/src/domains/purchases/commands.rs` | yes | `src/modules/purchases/services/purchaseService.ts` |
+| `purchases_save_purchase_order` | `domains::purchases::commands::purchases_save_purchase_order` | `src-tauri/src/domains/purchases/commands.rs` | yes | `src/modules/purchases/services/purchaseService.ts` |
+| `purchases_send_purchase_order_to_supplier` | `domains::purchases::commands::purchases_send_purchase_order_to_supplier` | `src-tauri/src/domains/purchases/commands.rs` | yes | `src/modules/purchases/services/purchaseService.ts` |
+| `purchases_receive_purchase_order` | `domains::purchases::commands::purchases_receive_purchase_order` | `src-tauri/src/domains/purchases/commands.rs` | yes | `src/modules/purchases/services/purchaseService.ts` |
+| `purchases_confirm_purchase_order` | `domains::purchases::commands::purchases_confirm_purchase_order` | `src-tauri/src/domains/purchases/commands.rs` | yes | `src/modules/purchases/services/purchaseService.ts` |
+| `purchases_cancel_purchase_order` | `domains::purchases::commands::purchases_cancel_purchase_order` | `src-tauri/src/domains/purchases/commands.rs` | yes | `src/modules/purchases/services/purchaseService.ts` |
+| `purchases_create_purchase_return` | `domains::purchases::commands::purchases_create_purchase_return` | `src-tauri/src/domains/purchases/commands.rs` | yes | `src/modules/purchases/services/purchaseService.ts` |
+| `purchases_post_debit_note_draft` | `domains::purchases::commands::purchases_post_debit_note_draft` | `src-tauri/src/domains/purchases/commands.rs` | yes | `src/modules/purchases/services/purchaseService.ts` |
+| `reports_get_trial_balance` | `domains::reports::commands::reports_get_trial_balance` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_profit_and_loss` | `domains::reports::commands::reports_get_profit_and_loss` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_profit_and_loss_comparison` | `domains::reports::commands::reports_get_profit_and_loss_comparison` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_cost_center_profit_and_loss` | `domains::reports::commands::reports_get_cost_center_profit_and_loss` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_cost_center_budget_vs_actual` | `domains::reports::commands::reports_get_cost_center_budget_vs_actual` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_balance_sheet` | `domains::reports::commands::reports_get_balance_sheet` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_account_ledger` | `domains::reports::commands::reports_get_account_ledger` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_party_ledger` | `domains::reports::commands::reports_get_party_ledger` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_vat_report` | `domains::reports::commands::reports_get_vat_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_vat_detail` | `domains::reports::commands::reports_get_vat_detail` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_cash_flow_statement` | `domains::reports::commands::reports_get_cash_flow_statement` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_day_book` | `domains::reports::commands::reports_get_day_book` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_period_comparison` | `domains::reports::commands::reports_get_period_comparison` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_business_health_report` | `domains::reports::commands::reports_get_business_health_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_ledger_targets` | `domains::reports::commands::reports_get_ledger_targets` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_dimension_options` | `domains::reports::commands::reports_get_dimension_options` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_sales_report` | `domains::reports::commands::reports_get_sales_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_inventory_report` | `domains::reports::commands::reports_get_inventory_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_discounts_report` | `domains::reports::commands::reports_get_discounts_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_gross_profit_report` | `domains::reports::commands::reports_get_gross_profit_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_returns_report` | `domains::reports::commands::reports_get_returns_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_expenses_report` | `domains::reports::commands::reports_get_expenses_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_shifts_report` | `domains::reports::commands::reports_get_shifts_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_low_stock_report` | `domains::reports::commands::reports_get_low_stock_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_dead_stock_report` | `domains::reports::commands::reports_get_dead_stock_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_stocktake_variances` | `domains::reports::commands::reports_get_stocktake_variances` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_transfers_report` | `domains::reports::commands::reports_get_transfers_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_purchases_report` | `domains::reports::commands::reports_get_purchases_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_branch_comparison` | `domains::reports::commands::reports_get_branch_comparison` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_profit_leakage_report` | `domains::reports::commands::reports_get_profit_leakage_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_aging_report` | `domains::reports::commands::reports_get_aging_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `reports_get_overdue_report` | `domains::reports::commands::reports_get_overdue_report` | `src-tauri/src/domains/reports/commands.rs` | yes | `src/modules/reports/services/reportService.ts` |
+| `settings_get_settings` | `domains::settings::commands::settings_get_settings` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/settingsService.ts` |
+| `settings_update_settings` | `domains::settings::commands::settings_update_settings` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/settingsService.ts` |
+| `settings_get_taxes` | `domains::settings::commands::settings_get_taxes` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/settingsService.ts` |
+| `settings_save_tax` | `domains::settings::commands::settings_save_tax` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/settingsService.ts` |
+| `settings_delete_tax` | `domains::settings::commands::settings_delete_tax` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/settingsService.ts` |
+| `settings_get_payment_methods` | `domains::settings::commands::settings_get_payment_methods` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/settingsService.ts` |
+| `settings_save_payment_method` | `domains::settings::commands::settings_save_payment_method` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/settingsService.ts` |
+| `settings_reorder_payment_methods` | `domains::settings::commands::settings_reorder_payment_methods` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/settingsService.ts` |
+| `settings_delete_payment_method` | `domains::settings::commands::settings_delete_payment_method` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/settingsService.ts` |
+| `settings_get_branches` | `domains::settings::commands::settings_get_branches` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_create_branch` | `domains::settings::commands::settings_create_branch` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_update_branch` | `domains::settings::commands::settings_update_branch` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_deactivate_branch` | `domains::settings::commands::settings_deactivate_branch` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_reactivate_branch` | `domains::settings::commands::settings_reactivate_branch` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_get_cost_centers` | `domains::settings::commands::settings_get_cost_centers` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_create_cost_center` | `domains::settings::commands::settings_create_cost_center` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_update_cost_center` | `domains::settings::commands::settings_update_cost_center` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_delete_cost_center` | `domains::settings::commands::settings_delete_cost_center` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_get_currencies` | `domains::settings::commands::settings_get_currencies` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_get_exchange_rates` | `domains::settings::commands::settings_get_exchange_rates` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_create_currency` | `domains::settings::commands::settings_create_currency` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_update_currency` | `domains::settings::commands::settings_update_currency` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_save_exchange_rate` | `domains::settings::commands::settings_save_exchange_rate` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_is_base_currency_locked` | `domains::settings::commands::settings_is_base_currency_locked` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_set_base_currency` | `domains::settings::commands::settings_set_base_currency` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_get_revaluation_preview` | `domains::settings::commands::settings_get_revaluation_preview` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_get_default_revaluation_rates` | `domains::settings::commands::settings_get_default_revaluation_rates` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_post_revaluation` | `domains::settings::commands::settings_post_revaluation` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/branchesService.ts` |
+| `settings_get_lan_sharing_status` | `domains::settings::commands::settings_get_lan_sharing_status` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/networkService.ts` |
+| `settings_enable_lan_sharing` | `domains::settings::commands::settings_enable_lan_sharing` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/networkService.ts` |
+| `settings_disable_lan_sharing` | `domains::settings::commands::settings_disable_lan_sharing` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/networkService.ts` |
+| `settings_rotate_pairing_code` | `domains::settings::commands::settings_rotate_pairing_code` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/networkService.ts` |
+| `settings_reconnect_backend` | `domains::settings::commands::settings_reconnect_backend` | `src-tauri/src/domains/settings/commands.rs` | yes | `src/modules/settings/services/networkService.ts` |
+| `setup_get_device_setup_state` | `domains::setup::commands::setup_get_device_setup_state` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/deviceService.ts` |
+| `setup_provision_main` | `domains::setup::commands::setup_provision_main` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/deviceService.ts` |
+| `setup_pair_terminal` | `domains::setup::commands::setup_pair_terminal` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/deviceService.ts` |
+| `setup_get_onboarding_progress` | `domains::setup::commands::setup_get_onboarding_progress` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_save_onboarding_progress` | `domains::setup::commands::setup_save_onboarding_progress` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_mark_step_done` | `domains::setup::commands::setup_mark_step_done` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_mark_step_skipped` | `domains::setup::commands::setup_mark_step_skipped` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_apply_business_type_defaults` | `domains::setup::commands::setup_apply_business_type_defaults` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_is_base_currency_locked` | `domains::setup::commands::setup_is_base_currency_locked` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_apply_country_tax` | `domains::setup::commands::setup_apply_country_tax` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_apply_fiscal_year` | `domains::setup::commands::setup_apply_fiscal_year` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_apply_branches` | `domains::setup::commands::setup_apply_branches` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_apply_coa_template` | `domains::setup::commands::setup_apply_coa_template` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_apply_payment_methods` | `domains::setup::commands::setup_apply_payment_methods` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_get_opening_balance_equity_net` | `domains::setup::commands::setup_get_opening_balance_equity_net` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_is_first_use_posted` | `domains::setup::commands::setup_is_first_use_posted` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_post_opening_balances` | `domains::setup::commands::setup_post_opening_balances` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_post_opening_stock` | `domains::setup::commands::setup_post_opening_stock` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_reclose_opening_balance_equity` | `domains::setup::commands::setup_reclose_opening_balance_equity` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_post_party_opening` | `domains::setup::commands::setup_post_party_opening` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_reverse_party_opening` | `domains::setup::commands::setup_reverse_party_opening` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `setup_finish_onboarding` | `domains::setup::commands::setup_finish_onboarding` | `src-tauri/src/domains/setup/commands.rs` | yes | `src/modules/setup/services/setupService.ts` |
+| `templates_list_templates` | `domains::templates::commands::templates_list_templates` | `src-tauri/src/domains/templates/commands.rs` | yes | `src/modules/templates/services/templateService.ts` |
+| `templates_get_template` | `domains::templates::commands::templates_get_template` | `src-tauri/src/domains/templates/commands.rs` | yes | `src/modules/templates/services/templateService.ts` |
+| `templates_get_default_template` | `domains::templates::commands::templates_get_default_template` | `src-tauri/src/domains/templates/commands.rs` | yes | `src/modules/templates/services/templateService.ts` |
+| `templates_save_template` | `domains::templates::commands::templates_save_template` | `src-tauri/src/domains/templates/commands.rs` | yes | `src/modules/templates/services/templateService.ts` |
+| `templates_set_as_default` | `domains::templates::commands::templates_set_as_default` | `src-tauri/src/domains/templates/commands.rs` | yes | `src/modules/templates/services/templateService.ts` |
+| `templates_duplicate_template` | `domains::templates::commands::templates_duplicate_template` | `src-tauri/src/domains/templates/commands.rs` | yes | `src/modules/templates/services/templateService.ts` |
+| `templates_delete_template` | `domains::templates::commands::templates_delete_template` | `src-tauri/src/domains/templates/commands.rs` | yes | `src/modules/templates/services/templateService.ts` |
+| `templates_reset_template_to_defaults` | `domains::templates::commands::templates_reset_template_to_defaults` | `src-tauri/src/domains/templates/commands.rs` | yes | `src/modules/templates/services/templateService.ts` |
+| `templates_import_template` | `domains::templates::commands::templates_import_template` | `src-tauri/src/domains/templates/commands.rs` | yes | `src/modules/templates/services/templateService.ts` |
+| `templates_create_template` | `domains::templates::commands::templates_create_template` | `src-tauri/src/domains/templates/commands.rs` | yes | `src/modules/templates/services/templateService.ts` |
+| `users_get_users` | `domains::users::commands::users_get_users` | `src-tauri/src/domains/users/commands.rs` | yes | `src/modules/users/services/userService.ts` |
+| `users_get_user` | `domains::users::commands::users_get_user` | `src-tauri/src/domains/users/commands.rs` | yes | `src/modules/users/services/userService.ts` |
+| `users_create_user` | `domains::users::commands::users_create_user` | `src-tauri/src/domains/users/commands.rs` | yes | `src/modules/users/services/userService.ts` |
+| `users_update_user` | `domains::users::commands::users_update_user` | `src-tauri/src/domains/users/commands.rs` | yes | `src/modules/users/services/userService.ts` |
+| `users_login` | `domains::users::commands::users_login` | `src-tauri/src/domains/users/commands.rs` | yes | `src/modules/users/services/authService.ts` |
+| `users_logout` | `domains::users::commands::users_logout` | `src-tauri/src/domains/users/commands.rs` | yes | `src/modules/users/services/authService.ts` |
+| `users_restore_session` | `domains::users::commands::users_restore_session` | `src-tauri/src/domains/users/commands.rs` | yes | `src/modules/users/services/authService.ts` |
+| `users_verify_manager_pin` | `domains::users::commands::users_verify_manager_pin` | `src-tauri/src/domains/users/commands.rs` | yes | `src/modules/users/services/authService.ts` |
+| `vouchers_create_receipt_voucher` | `domains::vouchers::commands::vouchers_create_receipt_voucher` | `src-tauri/src/domains/vouchers/commands.rs` | yes | `src/modules/vouchers/services/voucherService.ts` |
+| `vouchers_create_payment_voucher` | `domains::vouchers::commands::vouchers_create_payment_voucher` | `src-tauri/src/domains/vouchers/commands.rs` | yes | `src/modules/vouchers/services/voucherService.ts` |
+| `vouchers_create_transfer_voucher` | `domains::vouchers::commands::vouchers_create_transfer_voucher` | `src-tauri/src/domains/vouchers/commands.rs` | yes | `src/modules/vouchers/services/voucherService.ts` |
+| `vouchers_create_owner_voucher` | `domains::vouchers::commands::vouchers_create_owner_voucher` | `src-tauri/src/domains/vouchers/commands.rs` | yes | `src/modules/vouchers/services/voucherService.ts` |
+| `vouchers_get_vouchers` | `domains::vouchers::commands::vouchers_get_vouchers` | `src-tauri/src/domains/vouchers/commands.rs` | yes | `src/modules/vouchers/services/voucherService.ts` |
+| `vouchers_get_voucher` | `domains::vouchers::commands::vouchers_get_voucher` | `src-tauri/src/domains/vouchers/commands.rs` | yes | `src/modules/vouchers/services/voucherService.ts` |
+| `vouchers_get_unsettled_tender_groups` | `domains::vouchers::commands::vouchers_get_unsettled_tender_groups` | `src-tauri/src/domains/vouchers/commands.rs` | yes | `src/modules/vouchers/services/voucherService.ts` |
+| `vouchers_estimate_settlement_fee` | `domains::vouchers::commands::vouchers_estimate_settlement_fee` | `src-tauri/src/domains/vouchers/commands.rs` | yes | `src/modules/vouchers/services/voucherService.ts` |
+| `vouchers_create_card_settlement` | `domains::vouchers::commands::vouchers_create_card_settlement` | `src-tauri/src/domains/vouchers/commands.rs` | yes | `src/modules/vouchers/services/voucherService.ts` |
+| `vouchers_get_card_settlements` | `domains::vouchers::commands::vouchers_get_card_settlements` | `src-tauri/src/domains/vouchers/commands.rs` | yes | `src/modules/vouchers/services/voucherService.ts` |
+| `vouchers_get_card_settlement` | `domains::vouchers::commands::vouchers_get_card_settlement` | `src-tauri/src/domains/vouchers/commands.rs` | yes | `src/modules/vouchers/services/voucherService.ts` |
+| `settings_backup_settings` | `infrastructure::backup::commands::settings_backup_settings` | `src-tauri/src/infrastructure/backup/commands.rs` | yes | `src/modules/settings/services/backupService.ts` |
+| `settings_save_backup_settings` | `infrastructure::backup::commands::settings_save_backup_settings` | `src-tauri/src/infrastructure/backup/commands.rs` | yes | `src/modules/settings/services/backupService.ts` |
+| `settings_preview_backup_counts` | `infrastructure::backup::commands::settings_preview_backup_counts` | `src-tauri/src/infrastructure/backup/commands.rs` | yes | `src/modules/settings/services/backupService.ts` |
+| `settings_build_backup_archive` | `infrastructure::backup::commands::settings_build_backup_archive` | `src-tauri/src/infrastructure/backup/commands.rs` | yes | `src/modules/settings/services/backupService.ts` |
+| `settings_record_backup_saved` | `infrastructure::backup::commands::settings_record_backup_saved` | `src-tauri/src/infrastructure/backup/commands.rs` | yes | `src/modules/settings/services/backupService.ts` |
+| `settings_run_auto_backup_if_due` | `infrastructure::backup::commands::settings_run_auto_backup_if_due` | `src-tauri/src/infrastructure/backup/commands.rs` | yes | `src/modules/settings/services/backupService.ts` |
+| `settings_preview_restore` | `infrastructure::backup::commands::settings_preview_restore` | `src-tauri/src/infrastructure/backup/commands.rs` | yes | `src/modules/settings/services/backupService.ts` |
+| `settings_restore_from_archive` | `infrastructure::backup::commands::settings_restore_from_archive` | `src-tauri/src/infrastructure/backup/commands.rs` | yes | `src/modules/settings/services/backupService.ts` |
+| `setup_inspect_legacy_snapshot` | `infrastructure::import::commands::setup_inspect_legacy_snapshot` | `src-tauri/src/infrastructure/import/commands.rs` | yes | `src/modules/setup/services/legacyImportService.ts` |
+| `setup_import_snapshot` | `infrastructure::import::commands::setup_import_snapshot` | `src-tauri/src/infrastructure/import/commands.rs` | yes | `src/modules/core/services/devToolsService.ts`, `src/modules/setup/services/legacyImportService.ts` |
 | `render_pdf` | `infrastructure::pdf::render::render_pdf` | `src-tauri/src/infrastructure/pdf/render.rs` | yes | `src/modules/core/services/pdfService.ts` |
 | `render_preview` | `infrastructure::pdf::render::render_preview` | `src-tauri/src/infrastructure/pdf/render.rs` | yes | `src/modules/core/services/pdfService.ts` |
 | `list_printers` | `infrastructure::print::commands::list_printers` | `src-tauri/src/infrastructure/print/commands.rs` | yes | `src/modules/core/services/printService.ts` |
 | `print_thermal_receipt` | `infrastructure::print::commands::print_thermal_receipt` | `src-tauri/src/infrastructure/print/commands.rs` | yes | `src/modules/core/services/printService.ts` |
 | `print_test_receipt` | `infrastructure::print::commands::print_test_receipt` | `src-tauri/src/infrastructure/print/commands.rs` | yes | `src/modules/core/services/printService.ts` |
 
-**Plugins:** `single_instance`, `opener`, `fs`, `dialog`, `log`. Frontend plugin use: `@tauri-apps/api (17)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `@tauri-apps/plugin-opener (2)`
+**Plugins:** `single_instance`, `opener`, `fs`, `dialog`, `log`. Frontend plugin use: `@tauri-apps/api (18)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `@tauri-apps/plugin-opener (2)`
 
-**Rust module tree:** `core/mod.rs → pub mod auth`, `core/mod.rs → pub mod db`, `core/mod.rs → pub mod device`, `core/mod.rs → pub mod diag`, `core/mod.rs → pub mod dto`, `core/mod.rs → pub mod error`, `core/mod.rs → pub mod events`, `core/mod.rs → pub mod ipc`, `core/mod.rs → pub mod lock`, `core/mod.rs → pub mod poller`, `core/mod.rs → pub mod settings`, `core/mod.rs → pub mod state`, `core/mod.rs → pub mod status`, `core/mod.rs → pub mod terminal`, `core/mod.rs → pub mod tx`, `entities/catalog/mod.rs → pub mod categories`, `entities/catalog/mod.rs → pub mod custom_field_defs`, `entities/catalog/mod.rs → pub mod price_lists`, `entities/catalog/mod.rs → pub mod product_batches`, `entities/catalog/mod.rs → pub mod product_branch_stock`, `entities/catalog/mod.rs → pub mod product_prices`, `entities/catalog/mod.rs → pub mod products`, `entities/catalog/mod.rs → pub mod units`, `entities/expenses/mod.rs → pub mod expense_categories`, `entities/expenses/mod.rs → pub mod expenses`, `entities/expenses/mod.rs → pub mod recurring_expenses`, `entities/inventory/mod.rs → pub mod debit_note_drafts`, `entities/inventory/mod.rs → pub mod stock_adjustment_lines`, `entities/inventory/mod.rs → pub mod stock_adjustments`, `entities/inventory/mod.rs → pub mod stock_count_lines`, `entities/inventory/mod.rs → pub mod stock_counts`, `entities/inventory/mod.rs → pub mod stock_movements`, `entities/inventory/mod.rs → pub mod stock_transfer_lines`, `entities/inventory/mod.rs → pub mod stock_transfers`, `entities/journal/mod.rs → pub mod journal_draft_lines`, `entities/journal/mod.rs → pub mod journal_drafts`, `entities/journal/mod.rs → pub mod journal_entries`, `entities/journal/mod.rs → pub mod journal_lines`, `entities/journal/mod.rs → pub mod journal_templates`, `entities/mod.rs → pub mod doc_date`, `entities/mod.rs → pub mod soft_delete`, `entities/mod.rs → pub mod values`, `entities/mod.rs → pub mod org`, `entities/mod.rs → pub mod catalog`, `entities/mod.rs → pub mod inventory`, `entities/mod.rs → pub mod parties`, `entities/mod.rs → pub mod sales`, `entities/mod.rs → pub mod purchases`, `entities/mod.rs → pub mod payments`, `entities/mod.rs → pub mod expenses`, `entities/mod.rs → pub mod journal`, `entities/mod.rs → pub mod platform`, `entities/org/mod.rs → pub mod accounts`, `entities/org/mod.rs → pub mod branches`, `entities/org/mod.rs → pub mod cost_center_budgets`, `entities/org/mod.rs → pub mod cost_centers`, `entities/org/mod.rs → pub mod credentials`, `entities/org/mod.rs → pub mod currencies`, `entities/org/mod.rs → pub mod exchange_rates`, `entities/org/mod.rs → pub mod fiscal_years` … +96 more
+**Rust module tree:** `core/mod.rs → pub mod auth`, `core/mod.rs → pub mod db`, `core/mod.rs → pub mod device`, `core/mod.rs → pub mod diag`, `core/mod.rs → pub mod dto`, `core/mod.rs → pub mod error`, `core/mod.rs → pub mod events`, `core/mod.rs → pub mod grants`, `core/mod.rs → pub mod ipc`, `core/mod.rs → pub mod lock`, `core/mod.rs → pub mod poller`, `core/mod.rs → pub mod settings`, `core/mod.rs → pub mod state`, `core/mod.rs → pub mod status`, `core/mod.rs → pub mod terminal`, `core/mod.rs → pub mod tx`, `domains/accounting/commands/mod.rs → pub mod accounts`, `domains/accounting/commands/mod.rs → pub mod journal`, `domains/accounting/commands/mod.rs → pub mod period`, `domains/accounting/commands/mod.rs → pub mod templates`, `domains/accounting/dto/mod.rs → pub mod accounts`, `domains/accounting/dto/mod.rs → pub mod journal`, `domains/accounting/dto/mod.rs → pub mod period`, `domains/accounting/dto/mod.rs → pub mod templates`, `domains/accounting/mod.rs → pub mod commands`, `domains/accounting/mod.rs → pub mod dto`, `domains/accounting/mod.rs → pub mod service`, `domains/accounting/mod.rs → pub mod undo`, `domains/accounting/mod.rs → pub mod undo_period`, `domains/accounting/service/mod.rs → pub mod accounts`, `domains/accounting/service/mod.rs → pub mod journal`, `domains/accounting/service/mod.rs → pub mod journal_reads`, `domains/accounting/service/mod.rs → pub mod period`, `domains/accounting/service/mod.rs → pub mod rows`, `domains/accounting/service/mod.rs → pub mod templates`, `domains/accounting/service/mod.rs → pub mod vat`, `domains/analytics/mod.rs → pub mod commands`, `domains/analytics/mod.rs → pub mod dto`, `domains/analytics/mod.rs → pub mod service`, `domains/analytics/service/mod.rs → pub mod common`, `domains/analytics/service/mod.rs → pub mod customers`, `domains/analytics/service/mod.rs → pub mod products`, `domains/analytics/service/mod.rs → pub mod sales`, `domains/approvals/mod.rs → pub mod commands`, `domains/approvals/mod.rs → pub mod dto`, `domains/approvals/mod.rs → pub mod service`, `domains/dashboard/mod.rs → pub mod commands`, `domains/dashboard/mod.rs → pub mod dto`, `domains/dashboard/mod.rs → pub mod service`, `domains/dashboard/service/insights/mod.rs → pub mod common`, `domains/dashboard/service/insights/mod.rs → pub mod engine`, `domains/dashboard/service/insights/mod.rs → pub mod hints`, `domains/dashboard/service/insights/mod.rs → pub mod rules`, `domains/dashboard/service/insights/rules/mod.rs → pub mod accounting`, `domains/dashboard/service/insights/rules/mod.rs → pub mod cash`, `domains/dashboard/service/insights/rules/mod.rs → pub mod receivables`, `domains/dashboard/service/insights/rules/mod.rs → pub mod sales`, `domains/dashboard/service/insights/rules/mod.rs → pub mod stock`, `domains/dashboard/service/mod.rs → pub mod common`, `domains/dashboard/service/mod.rs → pub mod feed` … +309 more
 
-**Contract gaps:** invoked-but-unregistered `products_get_product` · registered-but-never-invoked — · defined-but-unregistered — · registered-but-undefined —
+**Contract gaps:** invoked-but-unregistered — · registered-but-never-invoked — · defined-but-unregistered — · registered-but-undefined —
 
 ## Mock backend map (src/mocks — accounting engine)
 
@@ -365,7 +677,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `db.ts` | `resetDb`, `nextNumber` | core, invoices, settings |
 | `events.ts` | `on`, `off`, `emit` | core, invoices, parties, products |
 | `index.ts` | `bootMockDb`, `isBooted` | accounting, analytics, approvals, core, diagnostics, expenses, invoices, main, parties, payments, products, purchases, reports, settings, setup, templates, users, vouchers |
-| `persist.ts` | `flushSnapshot`, `mutate`, `loadSnapshot`, `clearSnapshot` | accounting, core, invoices, parties, products, settings, setup, users |
+| `persist.ts` | `flushSnapshot`, `mutate`, `loadSnapshot`, `readPersistedSnapshot`, `clearSnapshot` | accounting, core, invoices, parties, products, settings, setup, users |
 | `seed/accounts.ts` | `seedAccounts`, `postOpeningCapital` | — |
 | `seed/branches9.ts` | `seedBranches9` | — |
 | `seed/catalog.ts` | `seedCatalog`, `postOpeningStock` | — |
@@ -387,14 +699,16 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | App shell | `AppSidebar`, `AppTopbar`, `BrandBranchSwitcher`, `DefaultLayout`, `KeyboardShortcutsSheet`, `NavMain`, `NavQuickActions`, `NavUser`, `NotificationsDrawer` |
 | Core controllers (composables/stores) | `useAppearance`, `useAsync`, `useCommandPalette`, `useConfirm`, `useForm`, `useGridTab`, `useHotkeys`, `useInsights`, `useKeybindings`, `useKeyboardShortcutsSheet`, `useNotificationStore`, `useNotifications`, `useTheme`, `useToast` |
 | Core helpers | `attachments`, `brand`, `countries`, `countryProfiles`, `dirIcon`, `exportXlsx`, `format`, `keyCode`, `keyboardShortcuts`, `labels`, `navigation`, `numbers`, `search`, `tafqit`, `utils`, `validation` |
-| Core services | `attachmentService`, `backend`, `dashboardService`, `devToolsService`, `geoService`, `insightEngine`, `insightRules`, `insightTypes`, `pdfService`, `printService`, `saveFile` |
+| Core services | `attachmentService`, `backend`, `backendMirror`, `dashboardService`, `devToolsService`, `geoService`, `insightEngine`, `insightRules`, `insightTypes`, `pdfService`, `printService`, `saveFile` |
 | shadcn primitives | `alert-dialog`, `avatar`, `badge`, `breadcrumb`, `button`, `calendar`, `card`, `collapsible`, `combobox`, `command`, `dialog`, `dropdown-menu`, `empty`, `field`, `input`, `input-group`, `kbd`, `label`, `native-select`, `popover`, `range-calendar`, `separator`, `sheet`, `sidebar`, `skeleton`, `sonner`, `switch`, `table`, `tabs`, `textarea`, `toggle`, `toggle-group`, `tooltip` |
 
 ## Boundary report
 
-### Seam violations — value imports of `src/mocks` outside `services/` (0 new, 0 known)
+### Seam violations — value imports of `src/mocks` outside `services/` (1 new, 0 known)
 
-_none_
+| File | Mock targets | Status |
+|---|---|---|
+| `src/modules/settings/pages/NetworkSettingsPage.vue` | `index.ts` | **NEW** |
 
 ### Pages over 250 lines (CLAUDE.md rule 12)
 
@@ -402,7 +716,7 @@ _none_
 |---|---|
 | `src/modules/invoices/pages/PosPage.vue` | 866 |
 | `src/modules/accounting/pages/JournalEntryFormPage.vue` | 593 |
-| `src/modules/core/pages/DevUiPage.vue` | 578 |
+| `src/modules/core/pages/DevUiPage.vue` | 590 |
 | `src/modules/parties/pages/PartyFormPage.vue` | 525 |
 | `src/modules/accounting/pages/JournalListPage.vue` | 482 |
 | `src/modules/products/pages/ProductFormPage.vue` | 469 |
@@ -435,7 +749,7 @@ _none_
 | Layer | Facts |
 |---|---|
 | Desktop shell | Tauri v2 — product `Equal`, identifier `com.abdallah.accounting-app` (never change) |
-| Rust crates | `tauri`, `tauri-plugin-opener`, `serde`, `serde_json`, `tauri-plugin-fs`, `tauri-plugin-dialog`, `migration`, `sea-orm`, `rust_decimal`, `rust_decimal_macros`, `uuid`, `chrono`, `chrono-tz`, `argon2`, `keyring`, `thiserror`, `serde_with`, `async-trait`, `log`, `tokio`, `tauri-plugin-log`, `typst`, `typst-pdf`, `typst-library`, `typst-layout`, `typst-syntax`, `typst-utils`, `typst-svg`, `qrcode`, `image`, `ecow`, `time`, `lopdf`, `resvg`, `usvg`, `tiny-skia`, `tauri-plugin-single-instance`, `tauri-plugin-autostart`, `getrandom`, `ts-rs` … +1 more |
+| Rust crates | `tauri`, `tauri-plugin-opener`, `serde`, `serde_json`, `tauri-plugin-fs`, `tauri-plugin-dialog`, `migration`, `sea-orm`, `rust_decimal`, `rust_decimal_macros`, `uuid`, `chrono`, `chrono-tz`, `argon2`, `keyring`, `thiserror`, `serde_with`, `async-trait`, `log`, `tokio`, `tauri-plugin-log`, `typst`, `typst-pdf`, `typst-library`, `typst-layout`, `typst-syntax`, `typst-utils`, `typst-svg`, `qrcode`, `image`, `ecow`, `time`, `lopdf`, `resvg`, `usvg`, `tiny-skia`, `tauri-plugin-single-instance`, `tauri-plugin-autostart`, `getrandom`, `ts-rs` … +9 more |
 | Rust extra binaries | `typst_spike`, `pdf_smoke`, `report_smoke`, `thermal_smoke` |
 | Frontend deps | `@fontsource-variable/cairo`, `@fontsource/ibm-plex-sans-arabic`, `@fontsource/noto-naskh-arabic`, `@fontsource/tajawal`, `@lucide/vue`, `@tailwindcss/vite`, `@tauri-apps/api`, `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@vueuse/core`, `bwip-js`, `class-variance-authority`, `clsx`, `exceljs`, `fflate`, `libphonenumber-js`, `modern-screenshot`, `pinia`, `reka-ui`, `tailwind-merge`, `tailwindcss`, `tw-animate-css`, `uqr`, `vue`, `vue-router`, `vue-sonner`, `zod` |
 | Dev deps | `@tauri-apps/cli`, `@types/node`, `@vitejs/plugin-vue`, `typescript`, `vite`, `vue-tsc` |
@@ -452,6 +766,7 @@ _none_
 | `bun run build:android` | `cd src-tauri/gen/android && ./gradlew.bat assembleArm64Debug` |
 | `bun run verify:mocks` | `bun run scripts/verify/run.ts` |
 | `bun run verify:replay` | `bun run scripts/verify/replay.ts` |
+| `bun run verify:export-snapshot` | `bun run scripts/verify/export-snapshot.ts` |
 | `bun run check` | `node scripts/check-text-tokens.js && node scripts/check-rtl.js && bun run scripts/check-contrast.ts && node scripts/check-ui-rules.js && node scripts/check-routes.js` |
 | `bun run memory` | `bun run scripts/memory/run.ts` |
 | `bun run memory:check` | `bun run scripts/memory/run.ts --check` |
@@ -579,5 +894,30 @@ _none_
 | `plans/pending/21-rust-backend/02-core-and-shared/phase-d-stock.md` | 21 · 02.D — `shared::stock`, `shared::balances`, `shared::invariants` |
 | `plans/pending/21-rust-backend/02-core-and-shared/phase-e-activity.md` | 21 · 02.E — `shared::activity` and the undo registry |
 | `plans/pending/21-rust-backend/02-core-and-shared/phase-f-ipc-bridge.md` | 21 · 02.F — IPC bridge: typed bindings, the frontend switch, change events |
+| `plans/pending/21-rust-backend/03-DOMAINS-IMPLEMENTATION.md` | 21 · Part 03 — Domains implementation (every `port` function on Rust) |
+| `plans/pending/21-rust-backend/03-domains/_part02-gaps.md` | 21 · Part 03 — Part 02 gaps found while planning (manager-owned) |
+| `plans/pending/21-rust-backend/03-domains/00-import.md` | 21 · 03.00 — `import` (D10 snapshot importer: MockDb snapshot → MariaDB, one transaction) |
+| `plans/pending/21-rust-backend/03-domains/01-settings.md` | 21 · 03.01 — `settings` (store settings with the branch/device split, taxes, payment methods, branches, cost centers, currencies, revaluation, LAN sharing + server-failure screen) |
+| `plans/pending/21-rust-backend/03-domains/02-setup.md` | 21 · 03.02 — `setup` (first-run device role + provisioning + terminal pairing, the 11-step wizard, opening balances, party openings) |
+| `plans/pending/21-rust-backend/03-domains/03-users.md` | 21 · 03.03 — `users` (user records, login/session with argon2 credentials, manager PIN) |
+| `plans/pending/21-rust-backend/03-domains/04-approvals.md` | 21 · 03.04 — `approvals` (async manager-approval queue) |
+| `plans/pending/21-rust-backend/03-domains/05-parties.md` | 21 · 03.05 — `parties` (customers/suppliers, codes, statements, balances, aging, linking) |
+| `plans/pending/21-rust-backend/03-domains/06-products.md` | 21 · 03.06 — `products` (catalog: products, categories, units, price lists, custom fields) |
+| `plans/pending/21-rust-backend/03-domains/06b-inventory.md` | 21 · 03.06b — `products` (inventory: adjustments, movements, batches/expiry, stock counts, branch transfers) |
+| `plans/pending/21-rust-backend/03-domains/07-purchases.md` | 21 · 03.07 — `purchases` (purchase orders, receiving at cost, landed costs, returns / debit notes) |
+| `plans/pending/21-rust-backend/03-domains/08-invoices.md` | 21 · 03.08 — `invoices` part 1 (sales, sales returns, quotations, invoice reads, print data) |
+| `plans/pending/21-rust-backend/03-domains/08b-pos-shifts.md` | 21 · 03.08b — `invoices` part 2 (POS shifts, cash in/out, X/Z report, held sales) |
+| `plans/pending/21-rust-backend/03-domains/09-payments.md` | 21 · 03.09 — `payments` (customer receipts / supplier payments, sub-ledger allocations, realized FX) |
+| `plans/pending/21-rust-backend/03-domains/10-vouchers.md` | 21 · 03.10 — `vouchers` (general receipt/payment/transfer/owner vouchers, card & wallet settlements) |
+| `plans/pending/21-rust-backend/03-domains/11-expenses.md` | 21 · 03.11 — `expenses` (expense categories, one-shot expenses, recurring-expense templates) |
+| `plans/pending/21-rust-backend/03-domains/12-accounting.md` | 21 · 03.12 — `accounting` (chart of accounts, manual journal, drafts, reversal, templates/recurring, undo) |
+| `plans/pending/21-rust-backend/03-domains/12b-period-close.md` | 21 · 03.12b — `accounting` part 2 (fiscal years, lock date, year close/reopen, VAT settlement) |
+| `plans/pending/21-rust-backend/03-domains/13-reports.md` | 21 · 03.13 — `reports` (read-only reports engine: financial statements and ledgers) |
+| `plans/pending/21-rust-backend/03-domains/13b-reports-operational.md` | 21 · 03.13b — `reports` (read-only reports engine: operational reports) |
+| `plans/pending/21-rust-backend/03-domains/14-analytics.md` | 21 · 03.14 — `analytics` + `dashboard` (read-only analytics tabs and home KPIs) |
+| `plans/pending/21-rust-backend/03-domains/14b-insights.md` | 21 · 03.14b — `dashboard` insights (rule engine, product inline hints, thresholds) |
+| `plans/pending/21-rust-backend/03-domains/15-templates.md` | 21 · 03.15 — `templates` (Typst print-template designer store, D9) |
+| `plans/pending/21-rust-backend/03-domains/16-diagnostics.md` | 21 · 03.16 — `diagnostics` (audit-log reads, support-bundle data, debug-build accounting debugger) |
+| `plans/pending/21-rust-backend/03-domains/17-backup.md` | 21 · 03.17 — `backup` (backup/restore through SQL in the existing archive format, auto backup on the Main PC, automatic backup before pending migrations) |
 | `plans/pending/21-rust-backend/README.md` | 21 — Real backend (Tauri + Rust + SeaORM + MariaDB) |
 | `plans/pending/22-invoice-templates/README.md` | 22 — Invoice templates: 10 × A4, 10 × mobile image, thermal unchanged |

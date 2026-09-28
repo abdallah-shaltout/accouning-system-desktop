@@ -8,6 +8,7 @@ pub mod diag;
 pub mod dto;
 pub mod error;
 pub mod events;
+pub mod grants;
 pub mod ipc;
 pub mod lock;
 pub mod poller;

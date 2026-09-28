@@ -22,39 +22,16 @@ import { ApiError, round2, sum, uid } from '../utils';
 import { accountFor } from './accounts';
 import { applyStockChange, DEFAULT_BRANCH_ID, logActivity, postJournal, productById, type PostingLine } from './core';
 import { receiveBatch } from './inventory';
+import type {
+  OpeningCashLine,
+  OpeningEntryInput,
+  OpeningOtherLine,
+  OpeningPartyLine,
+  OpeningStockLine as OpeningStockLineType,
+  PartyOpeningBalanceInput as PartyOpeningBalanceInputType,
+} from '@/modules/setup/types';
 
-export interface OpeningCashLine {
-  /** 'cash' role (a drawer) or 'bank' role account id — always a specific account, not a role, since a company can have several. */
-  accountId: string;
-  amount: number;
-  currency?: string;
-  amountFc?: number;
-  rate?: number;
-}
-
-export interface OpeningPartyLine {
-  partyKind: 'customer' | 'supplier';
-  partyId: string;
-  amount: number;
-  /** 'debit' = the customer owes us / we owe the supplier less; mirrors the party-form stub's `side`. */
-  side: 'debit' | 'credit';
-}
-
-export interface OpeningOtherLine {
-  accountId: string;
-  side: 'debit' | 'credit';
-  amount: number;
-  description?: string;
-}
-
-export interface OpeningEntryInput {
-  date: string;
-  cash: OpeningCashLine[];
-  customers: OpeningPartyLine[];
-  suppliers: OpeningPartyLine[];
-  other: OpeningOtherLine[];
-  createdBy: string;
-}
+export type { OpeningCashLine, OpeningEntryInput, OpeningOtherLine, OpeningPartyLine };
 
 /** True once the company has posted its first real sale or purchase (docs/v2/05 §3 "Before first use"). */
 export function hasFirstUsePosted(): boolean {
@@ -185,13 +162,7 @@ export function postOpeningBalancesAndClose(
 // Opening stock (docs/v2/05 §3 tab 4 "المخزون") — per branch, reason 'opening', stockValue set.
 // ---------------------------------------------------------------------------------------------
 
-export interface OpeningStockLine {
-  productId: string;
-  qty: number;
-  unitCost: number;
-  batchNo?: string;
-  expiryDate?: string;
-}
+export type OpeningStockLine = OpeningStockLineType;
 
 /**
  * Posts opening stock for one branch: Dr inventory[branch] / Cr openingBalanceEquity, exactly
@@ -248,14 +219,7 @@ export function postOpeningStockDefault(date: string, lines: OpeningStockLine[],
 // Party-form "رصيد سابق من نظام قديم" stub (docs/v2/05 §4)
 // ---------------------------------------------------------------------------------------------
 
-export interface PartyOpeningBalanceInput {
-  partyKind: 'customer' | 'supplier';
-  partyId: string;
-  amount: number;
-  side: 'debit' | 'credit';
-  asOfDate: string;
-  createdBy: string;
-}
+export type PartyOpeningBalanceInput = PartyOpeningBalanceInputType;
 
 /**
  * Posts a small OPENING entry for one party added after (or during) onboarding — docs/v2/05 §4:
@@ -308,6 +272,14 @@ export function postPartyOpeningBalance(input: PartyOpeningBalanceInput): Journa
 export function reversePartyOpeningBalance(entryId: string, userId: string): JournalEntry {
   const original = db.journalEntries.find((e) => e.id === entryId);
   if (!original) throw new ApiError('القيد غير موجود', 'NOT_FOUND');
+  // D-10 (parity with the Rust `reverse_party_opening`, setup.md §3.7): this entry point only
+  // reverses a party opening-balance entry — not just any 'opening'-sourced entry (the wizard's
+  // step-8 review entry and the opening-stock entry also use sourceRef.kind === 'opening' but have
+  // no party line) and never a non-opening entry at all.
+  const hasPartyLine = original.lines.some((l) => l.partyId);
+  if (original.sourceRef?.kind !== 'opening' || !hasPartyLine) {
+    throw new ApiError('هذا القيد ليس رصيداً افتتاحياً لطرف', 'VALIDATION');
+  }
   const allocated = db.payments.some((p) => p.allocations.some((a) => a.targetKind === 'opening' && a.targetId === entryId));
   if (allocated) throw new ApiError('لا يمكن التراجع عن رصيد افتتاحي له تخصيص دفعة — أزل التخصيص أولاً', 'FORBIDDEN');
   const reversedLines: PostingLine[] = original.lines.map((l) => ({

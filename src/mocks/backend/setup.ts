@@ -13,6 +13,7 @@ import { ApiError, localDateKey, uid } from "../utils";
 import { createBranch } from "./branches";
 import type { CountryCode } from "@/modules/core/helpers/countryProfiles";
 import { formatAddress } from "@/modules/core/helpers/format";
+import type { WizardBranchInput, WizardPaymentMethodInput } from "@/modules/setup/types";
 
 /**
  * Business-type defaults (docs/v2/05 §2 step 1 "Sets the defaults: units, product fields…"). Only
@@ -92,12 +93,6 @@ export function setFiscalYear(
     return fy;
 }
 
-export interface WizardBranchInput {
-    name: string;
-    code: string;
-    address?: import('@/modules/core/types/address').Address;
-}
-
 /**
  * Creates every branch from the wizard's step 5 (docs/v2/05 §2 step 5), accountFor-style
  * auto-created cash account + cost center included (reuses the real `createBranch` — same
@@ -148,20 +143,6 @@ export function applyBranches(
                     branches: true,
                 }),
         );
-}
-
-export interface WizardPaymentMethodInput {
-    name: string;
-    type:
-        | "cash"
-        | "card"
-        | "bank_transfer"
-        | "wallet"
-        | "credit"
-        | "store_credit";
-    accountRole:
-        "cash" | "bank" | "cardClearing" | "walletClearing" | "receivable";
-    active: boolean;
 }
 
 /** Replaces the seeded payment-methods shell with the wizard's step-7 selection. */

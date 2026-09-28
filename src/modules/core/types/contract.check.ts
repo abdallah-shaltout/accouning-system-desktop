@@ -6,10 +6,13 @@
  *
  * Never imported by app code — this file exists only to be type-checked by `bun run build`.
  */
-import type { Equals, Expect } from './contract';
+import type { Equals, Expect, Simplify } from './contract';
 import type { ApiErrorPayload, BackendChangedPayload, BackendServerStatus, BackendStatus, ChangeCategory } from './backend';
 import type { PagedQuery, PagedResult, PageSort } from './paging';
-import type { ActivityEntry } from './index';
+import type { ActivityEntry, DashboardSummary } from './index';
+import type { HomeKpi, HomeKpis, TopCustomerRow, TopProductRow, getRecentActivity, getRecentInvoices } from '../services/dashboardService';
+import type { Insight, InsightIconKey } from '../services/insightTypes';
+import type { Role } from '@/modules/users/types';
 
 import type { ApiErrorPayload as GenApiErrorPayload } from './gen/ApiErrorPayload';
 import type { BackendChangedPayload as GenBackendChangedPayload } from './gen/BackendChangedPayload';
@@ -20,6 +23,17 @@ import type { PageSort as GenPageSort } from './gen/PageSort';
 import type { PagedQuery as GenPagedQuery } from './gen/PagedQuery';
 import type { PagedResult as GenPagedResult } from './gen/PagedResult';
 import type { ActivityEntry as GenActivityEntry } from './gen/ActivityEntry';
+
+import type { DashboardSummary as GenDashboardSummary } from './gen/DashboardSummary';
+import type { HomeKpi as GenHomeKpi } from './gen/HomeKpi';
+import type { HomeKpis as GenHomeKpis } from './gen/HomeKpis';
+import type { GrossProfitKpi as GenGrossProfitKpi } from './gen/GrossProfitKpi';
+import type { ReceivablesKpi as GenReceivablesKpi } from './gen/ReceivablesKpi';
+import type { TopProductRow as GenTopProductRow } from './gen/TopProductRow';
+import type { TopCustomerRow as GenTopCustomerRow } from './gen/TopCustomerRow';
+import type { RecentInvoice as GenRecentInvoice } from './gen/RecentInvoice';
+import type { RecentActivityEntry as GenRecentActivityEntry } from './gen/RecentActivityEntry';
+import type { InsightDto as GenInsightDto } from './gen/InsightDto';
 
 export type _ApiErrorPayload = Expect<Equals<GenApiErrorPayload, ApiErrorPayload>>;
 export type _BackendChangedPayload = Expect<Equals<GenBackendChangedPayload, BackendChangedPayload>>;
@@ -35,3 +49,36 @@ export type _PagedQuery = Expect<Equals<GenPagedQuery<Record<string, unknown>>, 
 export type _PagedResult = Expect<Equals<GenPagedResult<string>, PagedResult<string>>>;
 
 export type _ActivityEntry = Expect<Equals<GenActivityEntry, ActivityEntry>>;
+
+// --- 21.03 14-analytics.md / 14b-insights.md (dashboard) ------------------------------------------
+
+export type _DashboardSummary = Expect<Equals<GenDashboardSummary, DashboardSummary>>;
+export type _HomeKpi = Expect<Equals<GenHomeKpi, HomeKpi>>;
+// `HomeKpis.grossProfit`/`.receivables` are themselves intersections (`HomeKpi & { marginPct }`
+// etc.) — a nested intersection field defeats `Equals` even under an outer `Simplify` (it only
+// flattens the outer object's own members, not a member's own type), so those two fields are
+// pre-simplified before the top-level comparison (same G-38 reasoning as `_GrossProfitKpi` below).
+export type _HomeKpis = Expect<
+  Equals<GenHomeKpis, Simplify<Omit<HomeKpis, 'grossProfit' | 'receivables'> & { grossProfit: Simplify<HomeKpis['grossProfit']>; receivables: Simplify<HomeKpis['receivables']> }>>
+>;
+export type _TopProductRow = Expect<Equals<GenTopProductRow, TopProductRow>>;
+export type _TopCustomerRow = Expect<Equals<GenTopCustomerRow, TopCustomerRow>>;
+
+// G-38: `HomeKpi & { marginPct: number }` / `HomeKpi & { overdue: number }` are intersections on the
+// TS side but flat structs on the Rust side — compared via `Simplify` (contract.ts's own doc
+// comment gives this exact pair as the motivating example).
+export type _GrossProfitKpi = Expect<Equals<Simplify<GenGrossProfitKpi>, Simplify<HomeKpis['grossProfit']>>>;
+export type _ReceivablesKpi = Expect<Equals<Simplify<GenReceivablesKpi>, Simplify<HomeKpis['receivables']>>>;
+
+// `Invoice & { customerName?: string }` / `ActivityEntry & { userName?: string }` — same reason;
+// the hand-written shape is inline in each function's return type, so it's pulled out via
+// `Awaited<ReturnType<...>>[number]` rather than duplicated as a second named type.
+export type _RecentInvoice = Expect<Equals<Simplify<GenRecentInvoice>, Simplify<Awaited<ReturnType<typeof getRecentInvoices>>[number]>>>;
+export type _RecentActivityEntry = Expect<Equals<Simplify<GenRecentActivityEntry>, Simplify<Awaited<ReturnType<typeof getRecentActivity>>[number]>>>;
+
+// `Insight` minus the Vue `icon: Component`, plus the wire-facing `icon: InsightIconKey` — see
+// 14b-insights.md §2's `contract-ok` note: `icon` is a Vue component client-side (the service maps
+// `InsightIconKey` → `Component`), and `roles` is `readonly Role[]` in TS vs a plain array in Rust,
+// neither of which `Equals`/`Simplify` needs reconciled beyond the shape below.
+// contract-ok: icon is a Vue component; the service maps InsightIconKey → Component; roles is readonly in TS
+export type _InsightDto = Expect<Equals<Simplify<GenInsightDto>, Simplify<Omit<Insight, 'icon' | 'roles'> & { icon: InsightIconKey; roles: Role[] }>>>;

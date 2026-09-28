@@ -4,8 +4,13 @@ import { on } from '@/mocks/events';
 import { db } from '@/mocks/db';
 import { mutate } from '@/mocks/persist';
 import type { Role } from '@/modules/users/types';
-import { INSIGHT_RULES } from './insightRules';
+import { backendCall, usesRust } from '@/modules/core/services/backend';
+import { clearMirrors, mirrored } from '@/modules/core/services/backendMirror';
+import { numeralSystem } from '@/modules/core/helpers/format';
+import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
+import { INSIGHT_ICONS, INSIGHT_RULES } from './insightRules';
 import { DEFAULT_THRESHOLDS, type Insight, type InsightSeverity, type InsightThresholds } from './insightTypes';
+import type { InsightDto } from '@/modules/core/types/gen/InsightDto';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
@@ -21,11 +26,33 @@ const SEVERITY_ORDER: Record<InsightSeverity, number> = { critical: 0, warning: 
 
 // --- Thresholds (Settings → التوصيات, persisted like `roleAccessOverrides`) ----------------------
 
+/**
+ * I-2 (21.03 14b-insights.md): thresholds have no command of their own — they are
+ * `StoreSettings.insightThresholds`, a branch field 01-settings already reads/writes. On the Rust
+ * path this reads the settings store (loaded by the router guard before any page,
+ * `src/router/index.ts`) instead of `db.settings` directly.
+ */
 export const getThresholds = wrap('core.getThresholds', function getThresholds(): InsightThresholds {
+  if (usesRust('settings')) {
+    return { ...DEFAULT_THRESHOLDS, ...(useSettingsStore().settings?.insightThresholds ?? {}) };
+  }
   return { ...DEFAULT_THRESHOLDS, ...(db.settings.insightThresholds ?? {}) };
 });
 
-export const setThresholds = wrap('core.setThresholds', function setThresholds(patch: Partial<InsightThresholds>): InsightThresholds {
+/**
+ * I-3: a write must be awaitable to surface failures (zero data loss) — became `async` (the mock
+ * path too, so both sides share one contract). The only page this touches,
+ * `RecommendationsSettingsPage.vue:53`, was updated to `await setThresholds(patch)` in the same
+ * change.
+ */
+export const setThresholds = wrap('core.setThresholds', async function setThresholds(patch: Partial<InsightThresholds>): Promise<InsightThresholds> {
+  if (usesRust('settings')) {
+    const next = { ...getThresholds(), ...patch };
+    await useSettingsStore().update({ insightThresholds: next });
+    clearMirrors('insights:');
+    clearMirrors('productHints:');
+    return getThresholds();
+  }
   mutate(() => (db.settings.insightThresholds = { ...getThresholds(), ...patch }));
   invalidate();
   return getThresholds();
@@ -100,7 +127,25 @@ function invalidate() {
 
 for (const evt of ['ledger:changed', 'catalog:changed', 'parties:changed'] as const) on(evt, invalidate);
 
-function computeAll(): Insight[] {
+/** Rust `InsightDto` → the Vue-facing `Insight` shape (icon key → component). */
+function toInsight(dto: InsightDto): Insight {
+  return { ...dto, icon: INSIGHT_ICONS[dto.icon] };
+}
+
+/**
+ * `computeAll(role?)` (14b-insights.md §6): `role` only keys the mirror cache on the Rust path
+ * (server authority already filters by the *session* role, I-5) — the mock path still ignores it,
+ * since the mock's own rules already run role-agnostic and `getInsights`/`getInsightsFor` do the
+ * role filtering below either way.
+ */
+function computeAll(role?: Role): Insight[] {
+  if (usesRust('dashboard')) {
+    return mirrored(
+      `insights:${role ?? ''}:${numeralSystem.value}`,
+      async () => (await backendCall('dashboard_compute_insights', { numerals: numeralSystem.value })).map(toInsight),
+      [],
+    );
+  }
   if (cache) return cache;
   const ctx = { today: localDateKey(new Date()), role: undefined, thresholds: getThresholds() };
   const all: Insight[] = [];
@@ -128,7 +173,7 @@ export interface GetInsightsOptions {
 /** `insightService.getInsights` (doc D1) — filters by role, applies dismiss/snooze, sorts, limits. */
 export const getInsights = wrap('core.getInsights', function getInsights(opts: GetInsightsOptions): Insight[] {
   const today = localDateKey(new Date());
-  let list = computeAll().filter((i) => !opts.role || i.roles.includes(opts.role));
+  let list = computeAll(opts.role).filter((i) => !opts.role || i.roles.includes(opts.role));
   if (opts.ruleKey) list = list.filter((i) => i.ruleKey === opts.ruleKey);
   if (!opts.includeHidden) list = list.filter((i) => !isHidden(opts.userId, i.id, today));
   list = [...list].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || b.value - a.value);
@@ -146,7 +191,7 @@ export const getInsights = wrap('core.getInsights', function getInsights(opts: G
  * for one product instead, reusing the same thresholds the rules use.
  */
 export const getInsightsFor = wrap('core.getInsightsFor', function getInsightsFor(role: Role | undefined, predicate: (i: Insight) => boolean): Insight[] {
-  return computeAll().filter((i) => (!role || i.roles.includes(role)) && predicate(i));
+  return computeAll(role).filter((i) => (!role || i.roles.includes(role)) && predicate(i));
 });
 
 /** insight ids ending in `:${entityId}` and matching one of `ruleKeys` — the common inline-hint case. */
@@ -162,6 +207,13 @@ export const getInsightsForEntity = wrap('core.getInsightsForEntity', function g
  * logic, just a per-entity view of the same conditions.
  */
 export const getProductInlineHints = wrap('core.getProductInlineHints', function getProductInlineHints(role: Role | undefined, productId: string): Insight[] {
+  if (usesRust('dashboard')) {
+    return mirrored(
+      `productHints:${role ?? ''}:${productId}`,
+      async () => (await backendCall('dashboard_get_product_inline_hints', { productId })).map(toInsight),
+      [],
+    );
+  }
   const product = db.products.find((p) => p.id === productId);
   if (!product || !product.active || product.type !== 'product') return [];
   const thresholds = getThresholds();
@@ -226,4 +278,6 @@ export const getProductInlineHints = wrap('core.getProductInlineHints', function
 
 export const forceRefresh = wrap('core.forceRefresh', function forceRefresh() {
   invalidate();
+  clearMirrors('insights:');
+  clearMirrors('productHints:');
 });
