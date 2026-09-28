@@ -1,6 +1,6 @@
 # 04 — Sections & Arabic Copy (Phases C, D, G)
 
-Status: pending
+Status: **done** (2026-09-29). All copy shipped as written except the hero H1 line 2 («وبياناتك في محلّك.» instead of «ومحدش شايفها غيرك.» — the original wrapped to 4 lines at display size) and S5 (merged into S9, see README Deviations). Phase G: three full articles live at `/blog/<slug>` from `app/data/blog.ts`.
 
 Final copy for every section. All strings live in `app/data/*.ts` (03) — this file is their
 source. Written with the copywriting skill's rules: benefits over features, specific over vague,
@@ -152,7 +152,7 @@ No copy beyond the mocks. `DashboardMock` (dark, lime chart, KPIs: «مبيعا�
 
 ## Gate
 
-- [ ] All copy in `app/data/*.ts`, typed, no inline strings in section components.
-- [ ] Read-aloud pass: no exclamation marks, no buzzwords («انطلق», «سلس», «ثوري» banned), every
+- [ ] All copy in `app/data/*.ts`, typed, no inline strings in section components. — *Partly: all list content (ticker, stats, cards, accordion, rules, team, types, FAQ, blog, nav) is in `data/`; section headlines/eyebrows live in their section component.*
+- [x] Read-aloud pass: no exclamation marks, no buzzwords («انطلق», «سلس», «ثوري» banned), every
       claim true of the shipped app (cross-check against `AGENT_MEMORY.md` feature list).
-- [ ] Digits `.num`-wrapped everywhere, `%` leading, currency `ج.م` consistent.
+- [x] Digits `.num`-wrapped everywhere, `%` leading, currency `ج.م` consistent.

@@ -1,6 +1,6 @@
 # 05 — Motion & GSAP ScrollTrigger Choreography (Phase E)
 
-Status: pending
+Status: **done** (2026-09-29). Change from plan: first-paint motion (hero panel, headline lines, nav) runs as CSS keyframes (`.intro-*` in main.css) so it starts at first paint; accordions animate with CSS `grid-template-rows`; the marquee is a CSS keyframe. GSAP (loaded async) owns all scroll-linked motion: reveals, count-ups, parallax, stacked-card spread, progress bars. Open: 2 measurement items.
 
 Motion philosophy: **calm, physical, expensive.** The reference is not a scroll-jacking site —
 it's hairlines, soft reveals, one marquee, and floating UI cards. Every animation is
@@ -106,7 +106,7 @@ Timeline on mount, total ~1.1s:
 
 ## Gate
 
-- [ ] Every section's reveal fires exactly once at the right threshold, in RTL direction.
-- [ ] Accordions: rapid-clicking never desyncs heights (tweens `overwrite: 'auto'`).
-- [ ] `grep -r "markers" app/` → 0 hits; `ctx.revert()` verified via route hop to `/blog` and back (no duplicated triggers).
-- [ ] 6× CPU throttle scroll test recorded in the QA doc.
+- [x] Every section's reveal fires exactly once at the right threshold, in RTL direction.
+- [x] Accordions: rapid-clicking never desyncs heights (tweens `overwrite: 'auto'`).
+- [ ] `grep -r "markers" app/` → 0 hits; `ctx.revert()` verified via route hop to `/blog` and back (no duplicated triggers). — *markers grep = 0 ✓; revert-on-unmount is in `useLandingMotion` but a route-hop trigger count was not measured.*
+- [ ] 6× CPU throttle scroll test recorded in the QA doc. — *Not done.*

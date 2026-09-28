@@ -1,5 +1,11 @@
 # 01 — Reference Analysis (pixel anatomy of the Nero template)
 
+> **Corrected during implementation (2026-09-29)** — see README "Deviations" X1–X3: S5 is not a
+> separate section (it is a presentation shot of S9), the page is rounded white panels on a
+> coral → forest frame (1400px frame, 1320px content, ~28px panel radius), S9's features are a
+> hairline 3 + 2 grid, and S10's collapsed rows are light bars. Measured colors: coral `#F3553B`,
+> forest `#03201F`, caption cream `#FFE9D4`, panels `#F9F9F9` / `#EEEEF0`.
+
 Sources: `../reference/01-256119823.png` (high-res crops: hero, ticker, stats, product cards,
 device showcase, feature accordion) and `../reference/03-256119823.png` (the full page,
 1600×11507 — the authoritative section order and proportions).

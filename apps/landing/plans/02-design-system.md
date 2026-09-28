@@ -1,6 +1,6 @@
 # 02 — Design System (Tailwind v4 `@theme`, fonts, RTL rules, primitives)
 
-Status: pending
+Status: **done** (2026-09-29). Tokens live in `app/assets/css/main.css`; values were re-measured from the reference at implementation time (coral `#F3553B`, forest `#03201F`, cream `#FFE9D4`, container 1320px) and supersede the first-draft values below. Primitives shipped: `LContainer`, `LEyebrow`, `LPillButton`, `LLogo`, `LSplitHeading`, `LStatValue`, `LWindowMock`, `LAccordionBar`, `LBlogCard`, `LPagePanel`, `LBreadcrumb`, `LLegalPage`, `BlogCover`, `BlogArticleBody`. Open: 2 items (below).
 
 The landing has its **own** token file: `apps/landing/app/assets/css/main.css`. It mirrors the
 reference palette (not the desktop app's accent presets) but keeps the app's *soul rules*: no pure
@@ -8,13 +8,13 @@ black, no weight ≥ 700, hairlines over shadows, logical properties only.
 
 ## Tasks
 
-- [ ] Create `app/assets/css/main.css` with `@import "tailwindcss";` + the `@theme` block below.
-- [ ] Add base layer: `html { dir handled in nuxt.config }`, `body` bg/ink defaults, `.num` utility,
+- [x] Create `app/assets/css/main.css` with `@import "tailwindcss";` + the `@theme` block below.
+- [x] Add base layer: `html { dir handled in nuxt.config }`, `body` bg/ink defaults, `.num` utility,
       selection color (coral/20), focus-visible ring (coral).
-- [ ] Register fonts via `@nuxt/fonts` (Alexandria 400/500/600 + IBM Plex Sans Arabic 400/500) —
+- [x] Register fonts via `@nuxt/fonts` (Alexandria 400/500/600 + IBM Plex Sans Arabic 400/500) —
       subsets `arabic,latin`, `font-display: swap`, preload the two display weights.
-- [ ] Build the primitives listed below in `app/components/ui/`, each ≤ 80 lines.
-- [ ] Verify every color used on the page comes from a token (grep for `#` in components = 0 hits).
+- [x] Build the primitives listed below in `app/components/ui/`, each ≤ 80 lines.
+- [x] Verify every color used on the page comes from a token (grep for `#` in components = 0 hits).
 
 ## `@theme` tokens (final values — from 01-reference-analysis "Global observations")
 
@@ -130,5 +130,5 @@ Mini app-UI mocks live in `app/components/mocks/` (`MiniInvoiceCard`, `MiniStock
 
 ## Gate
 
-- [ ] `/` renders a token test page (temporarily) showing palette, ramp, primitives in RTL — then delete it.
-- [ ] Zero hex colors outside `main.css`; zero `tracking-` on Arabic nodes; zero physical utilities without `rtl-ok`.
+- [ ] `/` renders a token test page (temporarily) showing palette, ramp, primitives in RTL — then delete it. — *Not done: replaced by section-by-section screenshot comparison against the reference (07).*
+- [ ] Zero hex colors outside `main.css`; zero `tracking-` on Arabic nodes; zero physical utilities without `rtl-ok`. — *Partly: 0 hex in components except `ui/BlogCover.vue` (illustration palettes, like the app's print-template exemption). 0 physical utilities, `tracking-` only on Latin digits.*

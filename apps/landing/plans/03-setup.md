@@ -1,25 +1,25 @@
 # 03 — Project Setup & Architecture (Phase A)
 
-Status: pending
+Status: **done** (2026-09-29). Nuxt 4.5 · Tailwind 4.3 (Vite plugin) · @nuxt/image 2 · @nuxt/fonts · @nuxtjs/seo 5 · GSAP 3.15 · lucide-vue-next. TypeScript pinned to 5.x (vue-tsc does not run on TS 7). GSAP is now loaded **asynchronously** after `onNuxtReady` and exposed as `$motion` (see Deviations in README).
 
 Greenfield scaffold in `apps/landing/`. Own package; never touches the desktop app's build.
 Package manager: **bun** (same as the repo).
 
 ## Tasks
 
-- [ ] Scaffold: `cd apps/landing && bunx nuxi@latest init . --package-manager bun` (Nuxt 4,
+- [x] Scaffold: `cd apps/landing && bunx nuxi@latest init . --package-manager bun` (Nuxt 4,
       `app/` directory structure). Keep `reference/` and `plans/` folders untouched.
-- [ ] Add deps: `bun add gsap` · `bun add -D tailwindcss @tailwindcss/vite`
-- [ ] Add modules: `bunx nuxi module add image fonts seo` (`@nuxt/image`, `@nuxt/fonts`,
+- [x] Add deps: `bun add gsap` · `bun add -D tailwindcss @tailwindcss/vite`
+- [x] Add modules: `bunx nuxi module add image fonts seo` (`@nuxt/image`, `@nuxt/fonts`,
       `@nuxtjs/seo` — the umbrella that brings schema-org, sitemap, robots, og-image, seo-utils).
-- [ ] Wire Tailwind v4 as a **Vite plugin** (not PostCSS): `vite: { plugins: [tailwindcss()] }`
+- [x] Wire Tailwind v4 as a **Vite plugin** (not PostCSS): `vite: { plugins: [tailwindcss()] }`
       in `nuxt.config.ts`, css: `['~/assets/css/main.css']`.
-- [ ] `nuxt.config.ts` essentials (below).
-- [ ] Folder structure (below).
-- [ ] GSAP client plugin + `useLandingMotion` composable skeleton (below).
-- [ ] `app/utils/brand.ts` — copied constants (D10): `APP_NAME_AR`, `APP_NAME_EN`, `APP_SHORT`,
+- [x] `nuxt.config.ts` essentials (below).
+- [x] Folder structure (below).
+- [x] GSAP client plugin + `useLandingMotion` composable skeleton (below).
+- [x] `app/utils/brand.ts` — copied constants (D10): `APP_NAME_AR`, `APP_NAME_EN`, `APP_SHORT`,
       plus landing-only: `TAGLINE_AR`, nav labels, download/contact links read from runtimeConfig.
-- [ ] `bun run dev` boots; `bun run generate` produces `dist/` (add `"generate": "nuxt generate"`,
+- [x] `bun run dev` boots; `bun run generate` produces `dist/` (add `"generate": "nuxt generate"`,
       `"preview": "nuxt preview"` scripts).
 
 ## `nuxt.config.ts` (the load-bearing parts)
@@ -128,7 +128,7 @@ ScrollTriggers are created in DOM order (sections mount top-to-bottom in `index.
 
 ## Gate (Phase A done when)
 
-- [ ] `bun run dev` serves an RTL Arabic page with tokens + fonts applied (Alexandria visible in headings).
-- [ ] `bun run generate && bun run preview` works; `dist/` contains prerendered `index.html` with `dir="rtl"`.
-- [ ] GSAP demo tween runs (then removed); no SSR errors (`gsap` never imported server-side).
-- [ ] `reference/` and `plans/` excluded from the build output.
+- [x] `bun run dev` serves an RTL Arabic page with tokens + fonts applied (Alexandria visible in headings).
+- [x] `bun run generate && bun run preview` works; `dist/` contains prerendered `index.html` with `dir="rtl"`.
+- [x] GSAP demo tween runs (then removed); no SSR errors (`gsap` never imported server-side).
+- [x] `reference/` and `plans/` excluded from the build output.
