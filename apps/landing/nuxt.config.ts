@@ -5,8 +5,10 @@ const siteUrl = process.env.NUXT_PUBLIC_SITE_URL ?? 'https://equal-app.com'
 export default defineNuxtConfig({
   compatibilityDate: '2026-09-01',
   devtools: { enabled: false },
+  features: { inlineStyles: true },
   modules: ['@nuxt/image', '@nuxt/fonts', '@nuxtjs/seo'],
   css: ['~/assets/css/main.css'],
+  components: [{ path: '~/components', pathPrefix: false }],
   vite: { plugins: [tailwindcss()] },
 
   app: {
@@ -19,10 +21,10 @@ export default defineNuxtConfig({
 
   fonts: {
     families: [
-      { name: 'Alexandria', provider: 'google', weights: [400, 500, 600], subsets: ['arabic', 'latin'] },
-      { name: 'IBM Plex Sans Arabic', provider: 'google', weights: [400, 500], subsets: ['arabic', 'latin'] },
+      // Only the display face is preloaded: it paints the hero headline (the LCP element).
+      { name: 'Alexandria', provider: 'google', weights: [400, 500, 600], subsets: ['arabic', 'latin'], preload: true },
+      { name: 'IBM Plex Sans Arabic', provider: 'google', weights: [400, 500], subsets: ['arabic', 'latin'], preload: false },
     ],
-    defaults: { preload: true },
   },
 
   image: { quality: 80, format: ['webp'] },
@@ -46,7 +48,8 @@ export default defineNuxtConfig({
       logo: '/logo.png',
     },
   },
-  sitemap: { zeroRuntime: true },
+  sitemap: { zeroRuntime: true, exclude: ['/og-card'] },
+  routeRules: { '/og-card': { robots: false } },
 
   runtimeConfig: {
     public: {
@@ -57,5 +60,5 @@ export default defineNuxtConfig({
     },
   },
 
-  nitro: { prerender: { crawlLinks: true, routes: ['/', '/llms.txt'] } },
+  nitro: { prerender: { crawlLinks: true, routes: ['/', '/blog', '/og-card'] } },
 })

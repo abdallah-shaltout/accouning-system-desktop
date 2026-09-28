@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+/*
+ * Equal landing design tokens. Values are measured off the Nero reference
+ * (apps/landing/reference/*.png, 1400px frame) — see plans/01-reference-analysis.md.
+ * Every color on the page comes from here: no hex values inside components.
+ */
+@theme {
+  --color-coral-300: #FF9C87;
+  --color-coral-400: #F7735C;
+  --color-coral-500: #F3553B;
+  --color-coral-600: #E0452C;
+  --color-coral-700: #C42A12;
+  --color-cream: #FFE9D4;
+  --color-hero-50: #FAF8F4;
+  --color-hero-100: #F4F1EB;
+  --color-hero-200: #EBE4D9;
+  --color-panel-50: #F9F9F9;
+  --color-panel-100: #F1F1F2;
+  --color-panel-200: #E4E4E6;
+  --color-panel-300: #D2D3D5;
+  --color-ink: #082422;
+  --color-ink-soft: #5E6968;
+  --color-ink-mute: #687170;
+  --color-forest-800: #0A2B29;
+  --color-forest-900: #03201F;
+  --color-forest-950: #021716;
+  --color-lime-200: #E0F79A;
+  --color-lime-400: #C2EC3F;
+  --color-lime-500: #A3D10C;
+  --color-mint-500: #22B573;
+
+  --font-display: "Alexandria", "Cairo", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "IBM Plex Sans Arabic", "Alexandria", ui-sans-serif, system-ui, sans-serif;
+
+  --text-hero: clamp(2.5rem, 5.4vw, 4.625rem);
+  --text-hero--line-height: 1.12;
+  --text-stat: clamp(3.5rem, 7.6vw, 6.5rem);
+  --text-stat--line-height: 1;
+  --text-h2: clamp(2rem, 4.1vw, 3.625rem);
+  --text-h2--line-height: 1.16;
+  --text-h3: clamp(1.375rem, 1.8vw, 1.5rem);
+  --text-h3--line-height: 1.35;
+  --text-footer: clamp(2.25rem, 3.8vw, 3.25rem);
+  --text-footer--line-height: 1.2;
+  --text-figure: 2.625rem;
+  --text-figure--line-height: 1.05;
+  --text-lead: 1.0625rem;
+  --text-lead--line-height: 1.75;
+  --text-eyebrow: 0.9375rem;
+  --text-eyebrow--line-height: 1.5;
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1.4;
+  --text-nano: 0.5625rem;
+  --text-nano--line-height: 1.35;
+
+  --radius-panel: 1.75rem;
+  --radius-card: 1.5rem;
+  --radius-bar: 1.25rem;
+  --radius-mini: 1rem;
+
+  --container-content: 87.5rem;
+  --container-prose: 44rem;
+
+  --shadow-float: 0 30px 60px -30px rgb(3 32 31 / 0.35);
+  --shadow-soft: 0 12px 32px -16px rgb(3 32 31 / 0.18);
+  --shadow-glass: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 20px 40px -24px rgb(3 32 31 / 0.35);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-marquee: marquee 36s linear infinite;
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-spin-slow: spin 2.4s linear infinite;
+
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(50%); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 6rem;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-forest-900 font-body text-ink antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4, .font-display {
+    font-family: var(--font-display);
+    font-weight: 500;
+  }
+  b, strong { font-weight: 600; }
+  ::selection { background: color-mix(in oklab, var(--color-coral-500) 22%, transparent); }
+  :focus-visible {
+    outline: 2px solid var(--color-coral-500);
+    outline-offset: 3px;
+    border-radius: 0.5rem;
+  }
+  img, svg { display: block; }
+}
+
+/*
+ * First-paint choreography runs in CSS, not GSAP, so it starts with the first paint instead of
+ * after hydration (LCP on slow phones). GSAP takes over for scroll-linked motion only.
+ */
+@layer components {
+  .intro-panel { animation: intro-panel 1.4s var(--ease-out-expo) both; }
+  /* Opacity only: GSAP owns these layers' transforms (idle float + scroll parallax). */
+  .hero-art [data-hero-layer] { animation: intro-fade 1.6s var(--ease-out-expo) 0.15s both; }
+  .intro-up { animation: intro-fade-up 0.9s var(--ease-out-expo) both; animation-delay: var(--delay, 0s); }
+  .intro-line > span { animation: intro-line 0.9s var(--ease-out-expo) both; }
+  .intro-line:nth-child(1) > span { animation-delay: 0.1s; }
+  .intro-line:nth-child(2) > span { animation-delay: 0.2s; }
+  .intro-pop { animation: intro-pop 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both; animation-delay: var(--delay, 0s); }
+  .intro-nav { animation: intro-nav 0.8s var(--ease-out-expo) 0.35s both; }
+
+  @keyframes intro-panel { from { clip-path: inset(4% 2% 6% 2% round 28px); transform: scale(1.015); } to { clip-path: inset(0 round 0); transform: none; } }
+  @keyframes intro-fade-up { from { opacity: 0; transform: translateY(24px); } }
+  @keyframes intro-fade { from { opacity: 0; } }
+  @keyframes intro-line { from { transform: translateY(70%); } }
+  @keyframes intro-pop { from { opacity: 0; transform: scale(0.9); } }
+  @keyframes intro-nav { from { opacity: 0; transform: translateY(-24px); } }
+}
+
+@layer components {
+  /* Mini app-UI surfaces used inside the coral product cards (plans/02 "mocks"). */
+  .mini-card {
+    @apply w-full max-w-83 rounded-mini border border-white/40 bg-white/10 p-3.5 text-white;
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.25);
+  }
+  .mini-row {
+    @apply flex h-10 items-center justify-between rounded-lg bg-white/15 px-3 text-micro text-white;
+  }
+}
+
+@layer utilities {
+  /* Latin digits stay LTR and tabular inside RTL copy. */
+  .num {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-variant-numeric: tabular-nums;
+  }
+  /* Skip style/layout/paint for off-screen sections until they approach the viewport. */
+  .cv-auto { content-visibility: auto; contain-intrinsic-size: auto 1100px; }
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+  .scrollbar-none { scrollbar-width: none; }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
+  /* Line-mask wrapper for GSAP headline reveals (never split Arabic per character). */
+  .line-mask { display: block; overflow: hidden; padding-block: 0.08em; margin-block: -0.08em; }
+  .line-mask > span { display: block; }
+  .hatch {
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--color-ink) 7%, transparent) 0 1px,
+      transparent 1px 12px
+    );
+  }
+}

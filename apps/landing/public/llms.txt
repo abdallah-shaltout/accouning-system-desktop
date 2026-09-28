@@ -1,0 +1,32 @@
+# ايكوال المحاسبي (Equal Accounting)
+
+> ايكوال المحاسبي هو برنامج محاسبة سطح مكتب للمحلات يعمل بدون إنترنت. Equal Accounting is an Arabic-first, offline Windows desktop accounting and point-of-sale app for small shops in Egypt and the Arab world. Shop data stays on the shop's own computer.
+
+## What it is
+- Category: accounting software, point of sale (POS), inventory management
+- Platform: Windows 10 and Windows 11 desktop app; works fully offline
+- Language: Arabic, right-to-left interface
+- Data: stored locally on the shop's main computer; other cashier PCs connect over the shop's local network (no external server)
+- Pricing: free trial, no mandatory monthly subscription
+
+## Key features (facts)
+- Tax invoices with VAT, tax-inclusive prices by default; discount order: line discount, then invoice discount, then VAT
+- POS with shifts, barcode scanning, held sales, X report, cash in/out
+- Inventory: weighted-average cost, periodic stock counts with review, adjustments, batches and expiry dates, branch transfers
+- Purchases: purchase orders, partial receiving, purchase returns and debit notes
+- 28 ready-made reports: trial balance, profit and loss, balance sheet, cash flow, aging, VAT, stock and sales reports
+- 14 automatic accounting integrity checks on the ledger
+- Roles and permissions (cashier, accountant, storekeeper, manager), manager approvals, full audit log
+- Multi-branch, cost centers, multi-currency
+- Encrypted automatic backups saved wherever the user chooses
+
+## Pages
+- [Home](/): overview, features, FAQ
+- [FAQ](/#faq): offline use, VAT invoices, multiple devices, pricing, backups, Arabic UI
+- [Tax invoice guide (Arabic)](/blog/alfatura-aldaribiya)
+- [Why offline matters (Arabic)](/blog/leh-offline-aham-miza)
+- [Stock count without closing the shop (Arabic)](/blog/jard-bidun-ighlaq)
+- [Privacy](/privacy)
+
+## Contact
+- Email: hello@equal-app.com
