@@ -244,7 +244,7 @@ export function recordStockAdjustment(input: StockAdjustmentInput, userId: strin
   };
   mutate(() => db.stockAdjustments.push(adj));
   if (!asDraft) postAdjustment(adj, userId);
-  logActivity('stock', `${TYPE_LABEL[adj.type]}${adj.reason ? ` — ${STOCK_IN_REASON_LABEL[adj.reason]}` : ''} ${adj.number}${asDraft ? ' (مسودة)' : ''} — ${adj.lines.length} صنف`, userId, adj.date, `/inventory/adjustments/${adj.id}`);
+  logActivity('stock', `${TYPE_LABEL[adj.type]}${adj.reason ? ` — ${STOCK_IN_REASON_LABEL[adj.reason]}` : ''} ${adj.number}${asDraft ? ' (مسودة)' : ''} — ${adj.lines.length} صنف`, userId, adj.date, { name: 'adjustment', params: { id: adj.id } });
   if (!asDraft) emit('catalog:changed');
   return adj;
 }
@@ -276,7 +276,7 @@ export function completeStockAdjustment(id: string, userId: string): StockAdjust
     adj.status = 'COMPLETED';
   });
   postAdjustment(adj, userId);
-  logActivity('stock', `اعتماد ${TYPE_LABEL[adj.type]} ${adj.number}`, userId, adj.date, `/inventory/adjustments/${adj.id}`);
+  logActivity('stock', `اعتماد ${TYPE_LABEL[adj.type]} ${adj.number}`, userId, adj.date, { name: 'adjustment', params: { id: adj.id } });
   emit('catalog:changed');
   return adj;
 }
@@ -322,7 +322,7 @@ export function startStockCount(input: StockCountInput, userId: string): StockCo
     note: input.note,
   };
   mutate(() => db.stockCounts.push(count));
-  logActivity('stock', `بدء جرد ${count.number}${count.blind ? ' (أعمى)' : ''} — ${count.lines.length} صنف`, userId, count.startedAt, `/inventory/counts/${count.id}`);
+  logActivity('stock', `بدء جرد ${count.number}${count.blind ? ' (أعمى)' : ''} — ${count.lines.length} صنف`, userId, count.startedAt, { name: 'count', params: { id: count.id } });
   return count;
 }
 
@@ -382,7 +382,7 @@ export function applyStockCount(countId: string, userId: string): StockAdjustmen
     count.adjustmentId = adj.id;
   });
   postAdjustment(adj, userId);
-  logActivity('stock', `اعتماد نتيجة الجرد ${count.number}`, userId, adj.date, `/inventory/adjustments/${adj.id}`);
+  logActivity('stock', `اعتماد نتيجة الجرد ${count.number}`, userId, adj.date, { name: 'adjustment', params: { id: adj.id } });
   emit('catalog:changed');
   return adj;
 }
@@ -441,6 +441,6 @@ export function draftReturnToSupplier(supplierId: string, lines: { productId: st
     note,
   };
   mutate(() => db.debitNoteDrafts.push(draft));
-  logActivity('stock', `مسودة إرجاع للمورد ${draft.number} — بانتظار مرحلة المشتريات (Phase 8)`, userId, draft.date, `/products`);
+  logActivity('stock', `مسودة إرجاع للمورد ${draft.number} — بانتظار مرحلة المشتريات (Phase 8)`, userId, draft.date, { name: 'products' });
   return draft;
 }

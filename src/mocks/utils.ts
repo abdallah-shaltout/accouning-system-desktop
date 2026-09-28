@@ -48,11 +48,16 @@ export function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
-/** Error thrown by mock services; `message` is user-facing Arabic text. */
+/**
+ * Error thrown by mock services; `message` is user-facing Arabic text. `'INTERNAL'` (F-3, C-02) is
+ * a Rust-only code for infrastructure failures the mock never produces — included here so
+ * `ApiError`'s code union matches `ApiErrorCode` (`core/types/backend.ts`) exactly and
+ * `backendCall`'s rejection mapping can construct one for any Rust-side failure.
+ */
 export class ApiError extends Error {
   constructor(
     message: string,
-    public code: 'NOT_FOUND' | 'VALIDATION' | 'CONFLICT' | 'FORBIDDEN' | 'UNAUTHORIZED' = 'VALIDATION',
+    public code: 'NOT_FOUND' | 'VALIDATION' | 'CONFLICT' | 'FORBIDDEN' | 'UNAUTHORIZED' | 'INTERNAL' = 'VALIDATION',
   ) {
     super(message);
     this.name = 'ApiError';

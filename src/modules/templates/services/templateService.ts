@@ -7,6 +7,7 @@
  * leave open" kind of setting anyway). Matches the same localStorage
  * pattern as `useAppearance.ts` and `format.ts`'s numeral setting.
  */
+import { ApiError } from '@/mocks';
 import { defaultTemplateOptions, type DocumentKind, type PdfTemplate, type TemplateExport } from '../types';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
@@ -141,7 +142,7 @@ export const exportTemplate = wrap('templates.exportTemplate', function exportTe
 
 export const importTemplate = wrap('templates.importTemplate', function importTemplate(json: TemplateExport): PdfTemplate {
   if (json.schema !== 'pdf-template-v1' || !json.template) {
-    throw new Error('ملف القالب غير صالح');
+    throw new ApiError('ملف القالب غير صالح', 'VALIDATION');
   }
   const now = new Date().toISOString();
   const imported: PdfTemplate = {

@@ -102,7 +102,10 @@ export function recordCardSettlement(input: CardSettlementInput, userId: string)
     createdBy: userId,
   });
 
-  logActivity('payment', `تسوية بطاقات ${settlement.number} — إيداع ${settlement.depositAmount.toFixed(2)} وعمولة ${feeAmount.toFixed(2)}`, userId, input.date, `/payments/settlements/${settlement.id}`);
+  // Judgment call (01.C): no per-settlement detail route exists — only the list route
+  // `card-settlements` (`/payments/settlements`). Linking to the list, recorded in
+  // 01-FRONTEND-ANALYSIS.md's status note as a finding, not a guessed-at new route.
+  logActivity('payment', `تسوية بطاقات ${settlement.number} — إيداع ${settlement.depositAmount.toFixed(2)} وعمولة ${feeAmount.toFixed(2)}`, userId, input.date, { name: 'card-settlements' });
   emit('ledger:changed');
   return settlement;
 }

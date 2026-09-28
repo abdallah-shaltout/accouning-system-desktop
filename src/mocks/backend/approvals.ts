@@ -30,7 +30,7 @@ export function requestApproval(input: ApprovalRequestInput, userId: string, use
     link: input.link,
   };
   mutate(() => db.approvalRequests.push(request));
-  logActivity('approval', `طلب اعتماد جديد: ${KIND_LABEL[input.kind]} — ${input.summary}`, userId, request.requestedAt, '/approvals');
+  logActivity('approval', `طلب اعتماد جديد: ${KIND_LABEL[input.kind]} — ${input.summary}`, userId, request.requestedAt, { name: 'approvals' });
   emit('ledger:changed'); // cheapest existing event to invalidate the insight-engine cache / bell badge
   return request;
 }
@@ -58,7 +58,7 @@ export function decideApproval(id: string, status: 'approved' | 'rejected', inpu
     `${status === 'approved' ? 'اعتماد' : 'رفض'} طلب: ${KIND_LABEL[request.kind]} — ${request.summary}`,
     userId,
     request.decidedAt!,
-    '/approvals',
+    { name: 'approvals' },
   );
   emit('ledger:changed');
   return request;

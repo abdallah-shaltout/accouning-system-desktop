@@ -6,7 +6,7 @@ area: onboarding
 fingerprint: perf:onboarding:duration
 first_seen: 2026-09-26
 last_seen: 2026-09-26
-occurrences: 8
+occurrences: 9
 ---
 
 ## onboarding flow ran 218% slower than baseline

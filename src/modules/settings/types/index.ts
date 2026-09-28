@@ -115,6 +115,9 @@ export interface StoreSettings {
     a4PrinterName?: string;
     /** Phase 14: label printer is a placeholder field — label printing itself is Phase 11b's job. */
     labelPrinterName?: string;
+    /** Plan 22: default A4 / mobile-image invoice template (print page gallery → "تعيين كافتراضي"). Absent = the registry default. */
+    a4Template?: import('@/modules/invoices/helpers/invoiceTemplates').A4TemplateId;
+    imageTemplate?: import('@/modules/invoices/helpers/invoiceTemplates').ImageTemplateId;
   };
   theme: 'light' | 'dark';
   /**

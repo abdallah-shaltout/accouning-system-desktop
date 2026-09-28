@@ -1,0 +1,56 @@
+//! `categories` (products/types `Category`). Soft-delete table (B-1 list); self-referential tree.
+
+use chrono::{DateTime, Utc};
+use sea_orm::entity::prelude::*;
+
+use crate::entities::soft_delete::{self, SoftDelete};
+use crate::utils::id::Id;
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
+#[sea_orm(table_name = "categories")]
+pub struct Model {
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub id: Id,
+    pub name: String,
+    pub parent_id: Option<Id>,
+    pub purchase_account_id: Option<Id>,
+    pub revenue_account_id: Option<Id>,
+    pub cogs_account_id: Option<Id>,
+    pub sale_tax_id: Option<Id>,
+    pub purchase_tax_id: Option<Id>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub deleted_at: Option<DateTime<Utc>>,
+    pub sync_status: String,
+    /// Generated column (read-only) — never set by app code.
+    #[sea_orm(column_name = "name_live")]
+    pub name_live: Option<String>,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {
+    #[sea_orm(has_many = "super::products::Entity")]
+    Products,
+}
+
+impl Related<super::products::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Products.def()
+    }
+}
+
+impl ActiveModelBehavior for ActiveModel {}
+
+impl SoftDelete for Entity {
+    fn id_column() -> Self::Column {
+        Column::Id
+    }
+
+    fn deleted_at_column() -> Self::Column {
+        Column::DeletedAt
+    }
+
+    fn deleted_at_active_model(at: Option<DateTime<Utc>>) -> Self::ActiveModel {
+        ActiveModel { deleted_at: soft_delete::deleted_at_value(at), ..Default::default() }
+    }
+}

@@ -134,6 +134,6 @@ export function postRevaluation(date: string, rates: Record<string, number>, use
     allowClosedPeriod: true,
   });
 
-  logActivity('journal', `إعادة تقييم العملات بتاريخ ${date} (${rows.length} رصيد)`, userId, date, `/accounting/journal/${entry.id}`);
+  logActivity('journal', `إعادة تقييم العملات بتاريخ ${date} (${rows.length} رصيد)`, userId, date, { name: 'journal-entry', params: { id: entry.id } });
   return { entryId: entry.id, reversalEntryId: reversal.id, rows };
 }

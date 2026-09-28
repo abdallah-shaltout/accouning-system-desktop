@@ -3,6 +3,7 @@
  * and writes this shape: `logService` (in-process API), the Rust `diag_*` commands (opaque JSON
  * lines on disk), the IndexedDB ring buffer, and the dev pages.
  */
+import type { AppRoute } from '@/modules/core/types/route';
 
 export type LogChannel = 'error' | 'perf' | 'debug' | 'audit' | 'accounting';
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -89,5 +90,5 @@ export interface AuditEntry {
   reason?: string;
   /** The Arabic activity-feed message this record also produces, so the feed keeps reading the same. */
   message: string;
-  link?: string;
+  link?: AppRoute;
 }

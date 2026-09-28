@@ -1,4 +1,5 @@
 import { ApiError, clone, db, delay, inDateRange, session } from '@/mocks';
+import { logActivity } from '@/mocks/backend/core';
 import {
   activeBatchesFor,
   applyStockCount,
@@ -81,6 +82,7 @@ export const deleteDraftAdjustment = wrap('products.deleteDraftAdjustment', asyn
   if (!adj) throw new ApiError('التسوية غير موجودة', 'NOT_FOUND');
   if (adj.status !== 'DRAFT') throw new ApiError('لا يمكن حذف تسوية معتمدة — أنشئ تسوية عكسية بدلاً من ذلك');
   mutate(() => (db.stockAdjustments = db.stockAdjustments.filter((a) => a.id !== id)));
+  logActivity('stock', `حذف مسودة تسوية ${adj.number}`, session.userId, new Date().toISOString(), { name: 'adjustment', params: { id: adj.id } });
 });
 
 export interface MovementFilter {

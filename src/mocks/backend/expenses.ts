@@ -32,7 +32,7 @@ export function saveExpenseCategory(input: ExpenseCategoryInput, id?: string): E
 export function deleteExpenseCategory(id: string): void {
   const category = db.expenseCategories.find((c) => c.id === id);
   if (!category) throw new ApiError('التصنيف غير موجود', 'NOT_FOUND');
-  if (!category.canDelete) throw new ApiError('لا يمكن حذف تصنيف أساسي — يمكن إلغاء تفعيله فقط');
+  if (!category.canDelete) throw new ApiError('لا يمكن حذف تصنيف أساسي — يمكن إلغاء تفعيله فقط', 'FORBIDDEN');
   if (db.expenses.some((e) => e.categoryId === id)) throw new ApiError('لا يمكن حذف تصنيف له مصروفات مسجلة — قم بإلغاء تفعيله بدلاً من ذلك', 'CONFLICT');
   mutate(() => (db.expenseCategories = db.expenseCategories.filter((c) => c.id !== id)));
 }
@@ -111,7 +111,7 @@ export function recordExpense(input: ExpenseInput, userId: string): Expense {
     attachmentIds: input.attachmentIds,
   });
 
-  logActivity('expense', `مصروف ${expense.number} — ${category.name} بقيمة ${expense.amount.toFixed(2)}`, userId, input.date, `/expenses/${expense.id}`);
+  logActivity('expense', `مصروف ${expense.number} — ${category.name} بقيمة ${expense.amount.toFixed(2)}`, userId, input.date, { name: 'expense-detail', params: { id: expense.id } });
   emit('ledger:changed');
   return expense;
 }

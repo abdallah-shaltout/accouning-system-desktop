@@ -245,7 +245,8 @@ export function extract(): Extracted {
       });
     }
 
-    if (moduleName && parts[3] === 'types') collectTypes(sf, moduleName, file, types);
+    const excluded = config.excludeFromTypes.some((pattern) => pattern.test(file));
+    if (moduleName && parts[3] === 'types' && !excluded) collectTypes(sf, moduleName, file, types);
     if (file.startsWith(config.mocksDir + '/') || isService) collectPathLinks(sf, file, pathLinks);
   }
 

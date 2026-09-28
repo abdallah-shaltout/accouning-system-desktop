@@ -108,7 +108,7 @@ export function recordManualJournal(input: JournalEntryInput, userId: string, is
     attachmentIds: input.attachmentIds,
     templateId: input.templateId,
   });
-  logActivity('journal', `قيد يدوي ${entry.number} — ${entry.description}`, userId, entry.date, `/accounting/journal/${entry.id}`);
+  logActivity('journal', `قيد يدوي ${entry.number} — ${entry.description}`, userId, entry.date, { name: 'journal-entry', params: { id: entry.id } });
   return entry;
 }
 
@@ -157,7 +157,7 @@ export function reverseJournal(id: string, userId: string, date: string, reason:
     original.reversed = true;
     original.reversalReason = reason.trim();
   });
-  logActivity('journal', `عكس القيد ${original.number}`, userId, reversal.date, `/accounting/journal/${reversal.id}`);
+  logActivity('journal', `عكس القيد ${original.number}`, userId, reversal.date, { name: 'journal-entry', params: { id: reversal.id } });
   return reversal;
 }
 
@@ -196,13 +196,15 @@ export function saveJournalTemplate(input: JournalTemplateInput, userId: string,
     template = { id: uid('jtpl'), name: input.name.trim(), description: input.description, lines: input.lines, recurrence: input.recurrence, createdAt: new Date().toISOString(), createdBy: userId };
     mutate(() => db.journalTemplates.push(template));
   }
+  logActivity('journal', `${id ? 'تعديل' : 'إضافة'} قالب القيد "${template.name}"`, userId, new Date().toISOString(), { name: 'journal-templates' });
   return template;
 }
 
-export function deleteJournalTemplate(id: string): void {
+export function deleteJournalTemplate(id: string, userId: string): void {
   const template = db.journalTemplates.find((t) => t.id === id);
   if (!template) throw new ApiError('القالب غير موجود', 'NOT_FOUND');
   mutate(() => (db.journalTemplates = db.journalTemplates.filter((t) => t.id !== id)));
+  logActivity('journal', `حذف قالب القيد "${template.name}"`, userId, new Date().toISOString(), { name: 'journal-templates' });
 }
 
 /** Advances a recurring template's `nextDate` by one period after it's been posted (A3). */
@@ -272,7 +274,7 @@ export function postVatSettlement(from: string, to: string, userId: string, isAd
     createdBy: userId,
     allowClosedPeriod: isAdmin,
   });
-  logActivity('journal', `تسوية ضريبة القيمة المضافة ${entry.number}`, userId, entry.date, `/accounting/journal/${entry.id}`);
+  logActivity('journal', `تسوية ضريبة القيمة المضافة ${entry.number}`, userId, entry.date, { name: 'journal-entry', params: { id: entry.id } });
   return entry;
 }
 

@@ -25,11 +25,13 @@ import { errorMessage } from './modules/core/controllers/useToast';
 import { initAutoBackup } from './modules/settings/services/backupService';
 import { initDiagnostics } from './modules/diagnostics/services/diagnosticsService';
 import { fingerprintOf, log } from './modules/diagnostics/services/logService';
+import { initBackendBridge } from './modules/core/services/backend';
 
 initTheme();
 initAppearance();
 registerDefaultShortcuts();
 initDiagnostics();
+void initBackendBridge();
 
 // Last-resort browser-level nets: anything that never reaches Vue's errorHandler (a script error
 // during boot, a rejected promise nobody awaited) still lands on the `error` channel (18.B1).

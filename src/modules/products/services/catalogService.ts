@@ -198,6 +198,9 @@ export const saveCustomFieldDef = wrap('products.saveCustomFieldDef', async func
 
 export const deleteCustomFieldDef = wrap('products.deleteCustomFieldDef', async function deleteCustomFieldDef(id: string): Promise<void> {
   await delay();
+  if (db.products.some((p) => p.customFields && Object.prototype.hasOwnProperty.call(p.customFields, id))) {
+    throw new ApiError('لا يمكن حذف حقل مستخدم في بيانات منتجات — عطّله بدلاً من ذلك', 'CONFLICT');
+  }
   mutate(() => (db.customFieldDefs = db.customFieldDefs.filter((f) => f.id !== id)));
   emit('catalog:changed');
 });

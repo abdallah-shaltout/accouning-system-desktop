@@ -171,9 +171,16 @@ Flat, single-level groups (mirrors the reference system's IA, trimmed to our mod
 Full-bleed, chrome-free layout (no sidebar) — matches the reference's `blank` layout pattern for its POS screen, since cashiers need maximum screen real estate and minimum distraction. Product grid + cart panel side-by-side (cart pinned to the trailing edge, which is the **left** side in RTL).
 
 ### Invoice print preview
-Two swappable layouts:
-- **A4**: standard printable page, full itemized table, company header/footer, ZATCA QR code bottom-left.
-- **Thermal (58mm/80mm)**: narrow single-column receipt layout, condensed line items, QR code centered at bottom — this is the layout the original reference system never actually built (it only ever did A4), so treat it as a first-class addition here, not an afterthought.
+Three swappable layouts (plan 22, `plans/pending/22-invoice-templates/`):
+- **A4**: 10 templates picked from a live-thumbnail gallery (`TemplateGallery.vue`) — القياسي (the original ZATCA table, `InvoiceA4.vue`), مؤسسي, عمود جانبي, شريط علوي, سويسري, مربعات, فاخر, مضغوط, خطاب رسمي, هندسي. Each is structurally different, not a recolour.
+- **Thermal (58mm/80mm)**: narrow single-column receipt layout, condensed line items, QR code centered at bottom — unchanged, one fixed layout.
+- **صورة للموبايل**: 10 phone-width (400 px) templates — إيصال تحويل (InstaPay style), تذكرة, بطاقة بنكية, محادثة, ورقة إيصال, داكن فاخر, إجمالي بارز, قوائم مجمعة, ملصق, زجاجي — saved as a 3× PNG through `saveFile` (kind `image`) or copied to the clipboard (`invoiceImageService.ts`).
+
+Rules for templates:
+- **Data only from `useInvoiceDoc`** (`modules/invoices/controllers/useInvoiceDoc.ts`): lines, `totals`/`breakdown` rows, QR, titles, amount in words. A template never computes money.
+- **Colours from `--color-doc-*`** tokens (fixed, identical in light/dark — a document never follows the app theme). Big figures use `text-display`. Faces from `font-doc-{cairo,plex,tajawal,naskh}`, applied by `InvoiceDocument.vue` from the registry — don't set a font inside a template.
+- **Registry is the single owner**: add a template = one component + one row in `helpers/invoiceTemplates.ts` + one row in `components/templates/registry.ts`. A4 templates that draw edge to edge set `bleed: true` (the page then prints with no margin).
+- `.num` forces `direction: ltr`, so `ms-*`/`me-*` on a `.num` span flip sides — use `mx-*`, and add `text-center` to a `.num` block inside a centred group.
 
 ## Building pages (docs/v2/17-ui-system-rtl-themes.md Phase F)
 

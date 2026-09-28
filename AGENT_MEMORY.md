@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **756 files / 118,771 lines** (json 4, md 79, rust 22, ts 222, vue 429).
+Indexed: **961 files / 144,743 lines** (json 4, md 112, rust 164, ts 230, vue 451).
 
 **Lookup order:** Where-to-find → Open diagnostics → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -44,10 +44,10 @@ Known failures not yet fixed — check before starting work in an affected area.
 
 **By kind:** | Kind | Open count |
 |---|---|
-| خلل | 12 |
+| خلل | 18 |
 | أداء | 2 |
 
-**By area:** `onboarding (5)`, `setup-wizard-eg (5)`, `branches-currencies (1)`, `full-persona-pass (1)`, `purchases (1)`, `reports-v2 (1)`
+**By area:** `onboarding (6)`, `setup-wizard-eg (5)`, `accounting (2)`, `branches-currencies (1)`, `full-persona-pass (1)`, `purchases (1)`, `reports-v2 (1)`, `settings (1)`, `ui (1)`, `window (1)`
 
 
 
@@ -55,25 +55,31 @@ Known failures not yet fixed — check before starting work in an affected area.
 |---|---|---|---|---|---|---|---|
 | `BUG-0001` | خلل | onboarding | مفتوح | 2 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0001-onboarding-flow-crashed-unhandled-except.md` |
 | `BUG-0002` | خلل | setup-wizard-eg | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0002-setup-wizard-eg-flow-crashed-unhandled-e.md` |
-| `BUG-0004` | خلل | purchases | مفتوح | 2 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0004-purchases-flow-crashed-unhandled-excepti.md` |
-| `BUG-0005` | خلل | branches-currencies | مفتوح | 2 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0005-branches-currencies-flow-failed-an-asser.md` |
+| `BUG-0004` | خلل | purchases | مفتوح | 3 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0004-purchases-flow-crashed-unhandled-excepti.md` |
+| `BUG-0005` | خلل | branches-currencies | مفتوح | 3 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0005-branches-currencies-flow-failed-an-asser.md` |
 | `BUG-0006` | خلل | reports-v2 | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0006-reports-v2-flow-crashed-unhandled-except.md` |
-| `BUG-0007` | خلل | full-persona-pass | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0007-full-persona-pass-flow-failed-an-asserti.md` |
+| `BUG-0007` | خلل | full-persona-pass | مفتوح | 2 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0007-full-persona-pass-flow-failed-an-asserti.md` |
 | `BUG-0008` | خلل | onboarding | مفتوح | 3 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0008-onboarding-flow-failed-an-assertion.md` |
 | `BUG-0009` | خلل | onboarding | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0009-onboarding-flow-crashed-unhandled-except.md` |
 | `BUG-0010` | خلل | setup-wizard-eg | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0010-setup-wizard-eg-flow-crashed-unhandled-e.md` |
 | `BUG-0011` | خلل | onboarding | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0011-onboarding-flow-crashed-unhandled-except.md` |
 | `BUG-0012` | خلل | setup-wizard-eg | مفتوح | 3 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0012-setup-wizard-eg-flow-failed-an-assertion.md` |
 | `BUG-0013` | خلل | setup-wizard-eg | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0013-setup-wizard-eg-flow-crashed-unhandled-e.md` |
-| `PERF-0001` | أداء | onboarding | مفتوح | 8 | 2026-09-26 |  | `docs/diagnostics/issues/PERF-0001-onboarding-flow-ran-218-slower-than-base.md` |
-| `PERF-0002` | أداء | setup-wizard-eg | مفتوح | 7 | 2026-09-26 |  | `docs/diagnostics/issues/PERF-0002-setup-wizard-eg-flow-ran-567-slower-than.md` |
+| `BUG-0014` | خلل | onboarding | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0014-onboarding-flow-crashed-unhandled-except.md` |
+| `BUG-0015` | خلل | accounting | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0015-maximum-call-stack-size-exceeded.md` |
+| `BUG-0016` | خلل | accounting | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0016-maximum-call-stack-size-exceeded.md` |
+| `BUG-0017` | خلل | ui | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0017-failed-to-fetch-dynamically-imported-mod.md` |
+| `BUG-0018` | خلل | settings | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0018-failed-to-execute-structuredclone-on-win.md` |
+| `BUG-0019` | خلل | window | مفتوح | 1 | 2026-09-26 |  | `docs/diagnostics/issues/BUG-0019-failed-to-fetch-dynamically-imported-mod.md` |
+| `PERF-0001` | أداء | onboarding | مفتوح | 9 | 2026-09-26 |  | `docs/diagnostics/issues/PERF-0001-onboarding-flow-ran-218-slower-than-base.md` |
+| `PERF-0002` | أداء | setup-wizard-eg | مفتوح | 8 | 2026-09-26 |  | `docs/diagnostics/issues/PERF-0002-setup-wizard-eg-flow-ran-567-slower-than.md` |
 
 ## Architecture (layers & data flow)
 
 ```text
-pages (112) / components (353) / controllers (24)   src/modules/<domain>/…
+pages (112) / components (376) / controllers (25)   src/modules/<domain>/…
         │  may call ONLY ▼                  (seam rule — see Boundary report)
-services (39)   src/modules/<domain>/services/*   ← swap point for a real backend
+services (41)   src/modules/<domain>/services/*   ← swap point for a real backend
    │                                   │
    ▼                                   ▼
 mock backend  src/mocks/     Tauri IPC invoke('<cmd>') → src-tauri/src/lib.rs
@@ -90,18 +96,18 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **accounting** | 12 / 3370 | commands 1, components 1, pages 7, routes 1, services 1, types 1 | 8 | yes |
 | **analytics** | 8 / 467 | components 5, pages 1, routes 1, services 1 | 1 |  |
 | **approvals** | 5 / 250 | commands 1, pages 1, routes 1, services 1, types 1 | 1 | yes |
-| **core** | 348 / 19557 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 10, types 5 | 5 |  |
-| **diagnostics** | 20 / 2061 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 1 | 0 | yes |
+| **core** | 352 / 19849 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 11, types 8 | 5 |  |
+| **diagnostics** | 21 / 2080 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 2 | 0 | yes |
 | **expenses** | 8 / 945 | pages 5, routes 1, services 1, types 1 | 5 |  |
-| **invoices** | 32 / 5589 | commands 1, components 13, controllers 2, helpers 3, pages 10, routes 1, services 1, types 1 | 11 | yes |
-| **parties** | 11 / 1846 | components 1, helpers 3, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
+| **invoices** | 57 / 7587 | commands 1, components 36, controllers 3, helpers 3, pages 10, routes 1, services 2, types 1 | 11 | yes |
+| **parties** | 11 / 1861 | components 1, helpers 3, pages 3, routes 1, services 1, types 1, validators 1 | 8 |  |
 | **payments** | 6 / 877 | pages 3, routes 1, services 1, types 1 | 3 |  |
-| **products** | 32 / 5092 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
+| **products** | 32 / 5097 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 1, validators 1 | 16 |  |
 | **purchases** | 11 / 1712 | commands 1, components 1, pages 6, routes 1, services 1, types 1 | 7 | yes |
 | **reports** | 44 / 6206 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 1 | 28 | yes |
-| **settings** | 33 / 4967 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
+| **settings** | 33 / 4980 | commands 1, components 5, controllers 3, helpers 2, pages 15, routes 1, services 3, types 3 | 18 | yes |
 | **setup** | 17 / 1698 | components 12, pages 2, routes 1, services 1, types 1 | 2 |  |
-| **templates** | 4 / 919 | pages 2, services 1, types 1 | 0 |  |
+| **templates** | 4 / 920 | pages 2, services 1, types 1 | 0 |  |
 | **users** | 11 / 966 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 1, validators 1 | 4 |  |
 | **vouchers** | 9 / 810 | commands 1, pages 5, routes 1, services 1, types 1 | 5 | yes |
 
@@ -113,6 +119,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | analytics | `analyticsService` | `getSalesAnalytics`, `getProductAnalytics`, `getCustomerAnalytics` |
 | approvals | `approvalService` | `submitApprovalRequest`, `getApprovalRequests`, `getPendingApprovalCount`, `approveRequest`, `rejectRequest` |
 | core | `attachmentService` | `fetchAttachments`, `fetchAttachment`, `saveAttachment`, `removeAttachment`, `uid` |
+| core | `backend` | `usesRust`, `backendCall`, `initBackendBridge`, `getBackendStatus` |
 | core | `dashboardService` | `getInTransitTransfers`, `getPendingApprovalRequests`, `getLastBackupFailedAt`, `getJournalDraftCount`, `getStockValueSnapshot`, `hasAnyProducts`, `onLedgerChanged`, `getDashboardSummary`, `getLowStockProducts`, `getRecentInvoices`, `getRecentActivity`, `getHomeKpis`, `getTopProducts`, `getTopCustomers` |
 | core | `devToolsService` | `resetToEmpty`, `reloadDemoData` |
 | core | `geoService` | `getRegions`, `getCities`, `getDistricts`, `getLabels`, `searchPlaces` |
@@ -120,7 +127,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | core | `insightRules` | `INSIGHT_RULES` |
 | core | `insightTypes` | `DEFAULT_THRESHOLDS` |
 | core | `pdfService` | `render`, `renderAndSave`, `renderPreview`, `sampleInvoicePayload`, `buildLabelItems`, `renderLabels`, `renderLabelsAndSave`, `renderGenericReport`, `renderGenericReportAndSave`, `renderReportPdf`, `saveReportPdf`, `renderLabelsPreview` |
-| core | `printService` | `printReceipt`, `testPrint`, `initPrintResultListener` |
+| core | `printService` | `listPrinters`, `printReceipt`, `testPrint`, `initPrintResultListener` |
 | core | `saveFile` | `saveFile` |
 | diagnostics | `accountingDebugService` | `listRecentDocuments`, `getPostingTrace`, `getJournalEntryRaw`, `getBalancesAround`, `getInvariantResults`, `getDriftReport`, `explainAccountBalance`, `startReproRecording`, `stopReproRecording`, `isReproRecording`, `exportReproBundle` |
 | diagnostics | `actionJournal` | `isRecording`, `startRecording`, `stopRecording`, `recordServiceCall`, `currentJournal`, `buildReproBundle`, `debugRecordingAvailable` |
@@ -131,6 +138,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | diagnostics | `logService` | `fingerprintOf`, `setLogContext`, `newCorrelationId`, `withCorrelation`, `registerSink`, `debugEnabled`, `log` |
 | diagnostics | `supportBundleService` | `exportSupportBundle` |
 | expenses | `expenseService` | `getExpenseCategories`, `saveExpenseCategory`, `deleteExpenseCategory`, `getExpenses`, `getExpense`, `createExpense`, `getRecurringExpenses`, `saveRecurringExpense`, `deleteRecurringExpense`, `getDueRecurringExpenses`, `postDueRecurringExpense` |
+| invoices | `invoiceImageService` | `saveInvoiceImage`, `copyInvoiceImage` |
 | invoices | `invoiceService` | `isOverdue`, `getInvoices`, `getInvoicesPaged`, `getInvoice`, `previewSale`, `createSale`, `createRefund`, `getRefund`, `getInvoicePrintData`, `getCurrentShift`, `getShifts`, `getShift`, `openPosShift`, `getXReport`, `closePosShift`, `forceClosePosShift`, `recordCashInOut`, `getHeldSales`, `holdSale`, `resumeHeldSale`, `discardHeldSale`, `getQuotations`, `getQuotation`, `saveQuotation`, `setQuotationStatus`, `convertQuotationToInvoice` |
 | parties | `partyService` | `findDuplicates`, `checkDuplicates`, `getPartyGroups`, `getCustomers`, `getCustomer`, `saveCustomer`, `getCustomerStatement`, `getSuppliers`, `getSupplier`, `saveSupplier`, `getSupplierStatement`, `linkPartyRecords`, `unlinkPartyRecord`, `getLinkedNetBalance`, `getPartyHistory`, `getPartyAging`, `ApiError`, `uid` |
 | payments | `paymentService` | `getPayments`, `getPaymentsPaged`, `getPayment`, `createPayment`, `allocateExistingPayment`, `removeAllocation`, `getOpenDocuments` |
@@ -284,48 +292,47 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 |---|---|---|
 | **accounting** | core (106), users (6), mocks (4), parties (4), reports (3), settings (2), diagnostics (1), invoices (1) | 9 |
 | **analytics** | core (16), diagnostics (1), mocks (1) | 1 |
-| **app** | core (14), settings (5), diagnostics (4), users (4), accounting (2), approvals (2), invoices (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), mocks (1), parties (1), payments (1), products (1), setup (1) | 1 |
+| **app** | core (15), settings (5), diagnostics (4), users (4), accounting (2), approvals (2), invoices (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), mocks (1), parties (1), payments (1), products (1), setup (1) | 1 |
 | **approvals** | core (12), mocks (2), diagnostics (1), users (1) | 5 |
-| **core** | users (19), mocks (16), products (14), invoices (13), settings (10), diagnostics (8), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), approvals (1), payments (1), reports (1), setup (1) | 18 |
-| **diagnostics** | core (26), mocks (5) | 18 |
+| **core** | users (19), mocks (18), products (14), invoices (13), settings (10), diagnostics (9), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), approvals (1), payments (1), reports (1), setup (1) | 18 |
+| **diagnostics** | core (28), mocks (5) | 18 |
 | **expenses** | core (59), accounting (3), users (3), mocks (2), parties (2), settings (2), diagnostics (1) | 2 |
-| **invoices** | core (177), products (10), mocks (9), settings (9), parties (8), users (8), reports (6), approvals (2), accounting (1), diagnostics (1), payments (1) | 10 |
-| **mocks** | core (14), invoices (9), accounting (8), products (8), settings (5), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 17 |
-| **parties** | core (60), mocks (6), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
+| **invoices** | core (220), products (11), settings (11), mocks (9), users (9), parties (8), reports (6), approvals (2), diagnostics (2), accounting (1), payments (1) | 10 |
+| **mocks** | core (15), invoices (9), accounting (8), products (8), settings (5), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), users (1) | 18 |
+| **parties** | core (61), mocks (6), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
 | **payments** | core (42), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
-| **products** | core (206), mocks (13), users (13), settings (8), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
+| **products** | core (206), mocks (14), users (13), settings (8), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
 | **purchases** | core (79), products (5), users (4), invoices (3), mocks (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
 | **reports** | core (163), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
-| **settings** | core (175), users (18), mocks (14), diagnostics (7), invoices (5), products (3), templates (2) | 12 |
+| **settings** | core (176), users (18), mocks (14), diagnostics (7), invoices (6), products (3), templates (2) | 12 |
 | **setup** | core (57), mocks (8), settings (4), accounting (2), products (2), diagnostics (1), parties (1), users (1) | 3 |
-| **templates** | core (16), diagnostics (1) | 3 |
+| **templates** | core (16), diagnostics (1), mocks (1) | 3 |
 | **users** | core (37), mocks (5), products (3), diagnostics (2) | 15 |
 | **vouchers** | core (48), mocks (3), accounting (2), settings (2), users (2), diagnostics (1), invoices (1) | 3 |
 
-**Most-used npm packages** (files importing): `vue (393)`, `@lucide/vue (166)`, `reka-ui (118)`, `vue-router (98)`, `@vueuse/core (79)`, `@tauri-apps/api (16)`, `class-variance-authority (9)`, `pinia (9)`, `zod (5)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `tailwind-merge (1)`, `vue-sonner (1)`
+**Most-used npm packages** (files importing): `vue (417)`, `@lucide/vue (171)`, `reka-ui (118)`, `vue-router (98)`, `@vueuse/core (79)`, `@tauri-apps/api (17)`, `class-variance-authority (9)`, `pinia (9)`, `zod (5)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `modern-screenshot (1)`, `tailwind-merge (1)` … +1 more
 
 ## Rust ↔ Vue IPC contract
 
 | Command | Rust path | Defined in | Registered | Invoked from |
 |---|---|---|---|---|
-| `diag_append` | `diag::diag_append` | `src-tauri/src/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
-| `diag_read` | `diag::diag_read` | `src-tauri/src/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
-| `diag_clear` | `diag::diag_clear` | `src-tauri/src/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
-| `diag_open_folder` | `diag::diag_open_folder` | `src-tauri/src/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
-| `diag_rotate` | `diag::diag_rotate` | `src-tauri/src/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
-| `greet` | `greet` | `src-tauri/src/lib.rs` | yes | — |
-| `render_pdf_spike` | `pdf::render_pdf_spike` | `src-tauri/src/pdf/mod.rs` | yes | — |
-| `render_pdf` | `pdf::render::render_pdf` | `src-tauri/src/pdf/render.rs` | yes | `src/modules/core/services/pdfService.ts` |
-| `render_preview` | `pdf::render::render_preview` | `src-tauri/src/pdf/render.rs` | yes | `src/modules/core/services/pdfService.ts` |
-| `list_printers` | `print::commands::list_printers` | `src-tauri/src/print/commands.rs` | yes | `src/modules/settings/pages/PrintingSettingsPage.vue` |
-| `print_thermal_receipt` | `print::commands::print_thermal_receipt` | `src-tauri/src/print/commands.rs` | yes | `src/modules/core/services/printService.ts` |
-| `print_test_receipt` | `print::commands::print_test_receipt` | `src-tauri/src/print/commands.rs` | yes | `src/modules/core/services/printService.ts` |
+| `diag_append` | `core::diag::diag_append` | `src-tauri/src/core/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
+| `diag_read` | `core::diag::diag_read` | `src-tauri/src/core/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
+| `diag_clear` | `core::diag::diag_clear` | `src-tauri/src/core/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
+| `diag_open_folder` | `core::diag::diag_open_folder` | `src-tauri/src/core/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
+| `diag_rotate` | `core::diag::diag_rotate` | `src-tauri/src/core/diag/mod.rs` | yes | `src/modules/diagnostics/services/diagnosticsService.ts` |
+| `core_backend_status` | `core::status::core_backend_status` | `src-tauri/src/core/status.rs` | yes | `src/modules/core/services/backend.ts` |
+| `render_pdf` | `infrastructure::pdf::render::render_pdf` | `src-tauri/src/infrastructure/pdf/render.rs` | yes | `src/modules/core/services/pdfService.ts` |
+| `render_preview` | `infrastructure::pdf::render::render_preview` | `src-tauri/src/infrastructure/pdf/render.rs` | yes | `src/modules/core/services/pdfService.ts` |
+| `list_printers` | `infrastructure::print::commands::list_printers` | `src-tauri/src/infrastructure/print/commands.rs` | yes | `src/modules/core/services/printService.ts` |
+| `print_thermal_receipt` | `infrastructure::print::commands::print_thermal_receipt` | `src-tauri/src/infrastructure/print/commands.rs` | yes | `src/modules/core/services/printService.ts` |
+| `print_test_receipt` | `infrastructure::print::commands::print_test_receipt` | `src-tauri/src/infrastructure/print/commands.rs` | yes | `src/modules/core/services/printService.ts` |
 
-**Plugins:** `sql`, `opener`, `fs`, `dialog`, `log`. Frontend plugin use: `@tauri-apps/api (16)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `@tauri-apps/plugin-opener (2)`
+**Plugins:** `single_instance`, `opener`, `fs`, `dialog`, `log`. Frontend plugin use: `@tauri-apps/api (17)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `@tauri-apps/plugin-opener (2)`
 
-**Rust module tree:** `lib.rs → pub mod diag`, `lib.rs → pub mod pdf`, `lib.rs → pub mod print`, `pdf/mod.rs → pub mod fonts`, `pdf/mod.rs → mod payload`, `pdf/mod.rs → mod qr`, `pdf/mod.rs → pub mod raster`, `pdf/mod.rs → pub mod render`, `pdf/mod.rs → mod world`, `print/mod.rs → pub mod dither`, `print/mod.rs → pub mod escpos`, `print/mod.rs → pub mod payload`, `print/mod.rs → pub mod printers`, `print/mod.rs → pub mod render`, `print/mod.rs → mod transport`, `print/mod.rs → pub mod commands`
+**Rust module tree:** `core/mod.rs → pub mod auth`, `core/mod.rs → pub mod db`, `core/mod.rs → pub mod device`, `core/mod.rs → pub mod diag`, `core/mod.rs → pub mod dto`, `core/mod.rs → pub mod error`, `core/mod.rs → pub mod events`, `core/mod.rs → pub mod ipc`, `core/mod.rs → pub mod lock`, `core/mod.rs → pub mod poller`, `core/mod.rs → pub mod settings`, `core/mod.rs → pub mod state`, `core/mod.rs → pub mod status`, `core/mod.rs → pub mod terminal`, `core/mod.rs → pub mod tx`, `entities/catalog/mod.rs → pub mod categories`, `entities/catalog/mod.rs → pub mod custom_field_defs`, `entities/catalog/mod.rs → pub mod price_lists`, `entities/catalog/mod.rs → pub mod product_batches`, `entities/catalog/mod.rs → pub mod product_branch_stock`, `entities/catalog/mod.rs → pub mod product_prices`, `entities/catalog/mod.rs → pub mod products`, `entities/catalog/mod.rs → pub mod units`, `entities/expenses/mod.rs → pub mod expense_categories`, `entities/expenses/mod.rs → pub mod expenses`, `entities/expenses/mod.rs → pub mod recurring_expenses`, `entities/inventory/mod.rs → pub mod debit_note_drafts`, `entities/inventory/mod.rs → pub mod stock_adjustment_lines`, `entities/inventory/mod.rs → pub mod stock_adjustments`, `entities/inventory/mod.rs → pub mod stock_count_lines`, `entities/inventory/mod.rs → pub mod stock_counts`, `entities/inventory/mod.rs → pub mod stock_movements`, `entities/inventory/mod.rs → pub mod stock_transfer_lines`, `entities/inventory/mod.rs → pub mod stock_transfers`, `entities/journal/mod.rs → pub mod journal_draft_lines`, `entities/journal/mod.rs → pub mod journal_drafts`, `entities/journal/mod.rs → pub mod journal_entries`, `entities/journal/mod.rs → pub mod journal_lines`, `entities/journal/mod.rs → pub mod journal_templates`, `entities/mod.rs → pub mod doc_date`, `entities/mod.rs → pub mod soft_delete`, `entities/mod.rs → pub mod values`, `entities/mod.rs → pub mod org`, `entities/mod.rs → pub mod catalog`, `entities/mod.rs → pub mod inventory`, `entities/mod.rs → pub mod parties`, `entities/mod.rs → pub mod sales`, `entities/mod.rs → pub mod purchases`, `entities/mod.rs → pub mod payments`, `entities/mod.rs → pub mod expenses`, `entities/mod.rs → pub mod journal`, `entities/mod.rs → pub mod platform`, `entities/org/mod.rs → pub mod accounts`, `entities/org/mod.rs → pub mod branches`, `entities/org/mod.rs → pub mod cost_center_budgets`, `entities/org/mod.rs → pub mod cost_centers`, `entities/org/mod.rs → pub mod credentials`, `entities/org/mod.rs → pub mod currencies`, `entities/org/mod.rs → pub mod exchange_rates`, `entities/org/mod.rs → pub mod fiscal_years` … +96 more
 
-**Contract gaps:** invoked-but-unregistered — · registered-but-never-invoked `greet`, `render_pdf_spike` · defined-but-unregistered — · registered-but-undefined —
+**Contract gaps:** invoked-but-unregistered `products_get_product` · registered-but-never-invoked — · defined-but-unregistered — · registered-but-undefined —
 
 ## Mock backend map (src/mocks — accounting engine)
 
@@ -357,7 +364,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `backend/vouchers.ts` | `recordReceiptVoucher`, `recordPaymentVoucher`, `recordTransferVoucher`, `recordOwnerVoucher`, `getVoucherById` | vouchers |
 | `db.ts` | `resetDb`, `nextNumber` | core, invoices, settings |
 | `events.ts` | `on`, `off`, `emit` | core, invoices, parties, products |
-| `index.ts` | `bootMockDb`, `isBooted` | accounting, analytics, approvals, core, diagnostics, expenses, invoices, main, parties, payments, products, purchases, reports, settings, setup, users, vouchers |
+| `index.ts` | `bootMockDb`, `isBooted` | accounting, analytics, approvals, core, diagnostics, expenses, invoices, main, parties, payments, products, purchases, reports, settings, setup, templates, users, vouchers |
 | `persist.ts` | `flushSnapshot`, `mutate`, `loadSnapshot`, `clearSnapshot` | accounting, core, invoices, parties, products, settings, setup, users |
 | `seed/accounts.ts` | `seedAccounts`, `postOpeningCapital` | — |
 | `seed/branches9.ts` | `seedBranches9` | — |
@@ -380,7 +387,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | App shell | `AppSidebar`, `AppTopbar`, `BrandBranchSwitcher`, `DefaultLayout`, `KeyboardShortcutsSheet`, `NavMain`, `NavQuickActions`, `NavUser`, `NotificationsDrawer` |
 | Core controllers (composables/stores) | `useAppearance`, `useAsync`, `useCommandPalette`, `useConfirm`, `useForm`, `useGridTab`, `useHotkeys`, `useInsights`, `useKeybindings`, `useKeyboardShortcutsSheet`, `useNotificationStore`, `useNotifications`, `useTheme`, `useToast` |
 | Core helpers | `attachments`, `brand`, `countries`, `countryProfiles`, `dirIcon`, `exportXlsx`, `format`, `keyCode`, `keyboardShortcuts`, `labels`, `navigation`, `numbers`, `search`, `tafqit`, `utils`, `validation` |
-| Core services | `attachmentService`, `dashboardService`, `devToolsService`, `geoService`, `insightEngine`, `insightRules`, `insightTypes`, `pdfService`, `printService`, `saveFile` |
+| Core services | `attachmentService`, `backend`, `dashboardService`, `devToolsService`, `geoService`, `insightEngine`, `insightRules`, `insightTypes`, `pdfService`, `printService`, `saveFile` |
 | shadcn primitives | `alert-dialog`, `avatar`, `badge`, `breadcrumb`, `button`, `calendar`, `card`, `collapsible`, `combobox`, `command`, `dialog`, `dropdown-menu`, `empty`, `field`, `input`, `input-group`, `kbd`, `label`, `native-select`, `popover`, `range-calendar`, `separator`, `sheet`, `sidebar`, `skeleton`, `sonner`, `switch`, `table`, `tabs`, `textarea`, `toggle`, `toggle-group`, `tooltip` |
 
 ## Boundary report
@@ -428,7 +435,7 @@ _none_
 | Layer | Facts |
 |---|---|
 | Desktop shell | Tauri v2 — product `Equal`, identifier `com.abdallah.accounting-app` (never change) |
-| Rust crates | `tauri`, `tauri-plugin-opener`, `serde`, `serde_json`, `tauri-plugin-sql`, `tauri-plugin-fs`, `tauri-plugin-dialog`, `tauri-plugin-log`, `typst`, `typst-pdf`, `typst-library`, `typst-layout`, `typst-syntax`, `typst-utils`, `typst-svg`, `qrcode`, `image`, `ecow`, `time`, `lopdf`, `resvg`, `usvg`, `tiny-skia`, `windows` |
+| Rust crates | `tauri`, `tauri-plugin-opener`, `serde`, `serde_json`, `tauri-plugin-fs`, `tauri-plugin-dialog`, `migration`, `sea-orm`, `rust_decimal`, `rust_decimal_macros`, `uuid`, `chrono`, `chrono-tz`, `argon2`, `keyring`, `thiserror`, `serde_with`, `async-trait`, `log`, `tokio`, `tauri-plugin-log`, `typst`, `typst-pdf`, `typst-library`, `typst-layout`, `typst-syntax`, `typst-utils`, `typst-svg`, `qrcode`, `image`, `ecow`, `time`, `lopdf`, `resvg`, `usvg`, `tiny-skia`, `tauri-plugin-single-instance`, `tauri-plugin-autostart`, `getrandom`, `ts-rs` … +1 more |
 | Rust extra binaries | `typst_spike`, `pdf_smoke`, `report_smoke`, `thermal_smoke` |
 | Frontend deps | `@fontsource-variable/cairo`, `@fontsource/ibm-plex-sans-arabic`, `@fontsource/noto-naskh-arabic`, `@fontsource/tajawal`, `@lucide/vue`, `@tailwindcss/vite`, `@tauri-apps/api`, `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@vueuse/core`, `bwip-js`, `class-variance-authority`, `clsx`, `exceljs`, `fflate`, `libphonenumber-js`, `modern-screenshot`, `pinia`, `reka-ui`, `tailwind-merge`, `tailwindcss`, `tw-animate-css`, `uqr`, `vue`, `vue-router`, `vue-sonner`, `zod` |
 | Dev deps | `@tauri-apps/cli`, `@types/node`, `@vitejs/plugin-vue`, `typescript`, `vite`, `vue-tsc` |
@@ -453,6 +460,10 @@ _none_
 | `bun run diag` | `bun run scripts/diagnostics/run.ts` |
 | `bun run diag:check` | `bun run scripts/diagnostics/run.ts --check` |
 | `bun run geo:build` | `bun run scripts/geo/build.ts` |
+| `bun run fetch:mariadb` | `node scripts/fetch-mariadb.js` |
+| `bun run db:dev` | `node scripts/fetch-mariadb.js && cargo run --manifest-path src-tauri/Cargo.toml --bin db_dev_server` |
+| `bun run bindings` | `cargo test --manifest-path src-tauri/Cargo.toml --lib export_bindings` |
+| `bun run bindings:check` | `bun run bindings && git diff --exit-code -- "src/modules/*/types/gen"` |
 
 ## Docs index
 
@@ -492,6 +503,12 @@ _none_
 | `docs/diagnostics/issues/BUG-0011-onboarding-flow-crashed-unhandled-except.md` |  |
 | `docs/diagnostics/issues/BUG-0012-setup-wizard-eg-flow-failed-an-assertion.md` |  |
 | `docs/diagnostics/issues/BUG-0013-setup-wizard-eg-flow-crashed-unhandled-e.md` |  |
+| `docs/diagnostics/issues/BUG-0014-onboarding-flow-crashed-unhandled-except.md` |  |
+| `docs/diagnostics/issues/BUG-0015-maximum-call-stack-size-exceeded.md` |  |
+| `docs/diagnostics/issues/BUG-0016-maximum-call-stack-size-exceeded.md` |  |
+| `docs/diagnostics/issues/BUG-0017-failed-to-fetch-dynamically-imported-mod.md` |  |
+| `docs/diagnostics/issues/BUG-0018-failed-to-execute-structuredclone-on-win.md` |  |
+| `docs/diagnostics/issues/BUG-0019-failed-to-fetch-dynamically-imported-mod.md` |  |
 | `docs/diagnostics/issues/DBG-0001-example-entry.md` |  |
 | `docs/diagnostics/issues/PERF-0001-onboarding-flow-ran-218-slower-than-base.md` |  |
 | `docs/diagnostics/issues/PERF-0002-setup-wizard-eg-flow-ran-567-slower-than.md` |  |
@@ -534,6 +551,33 @@ _none_
 | `plans/pending/18-countries-a11y-diagnostics/README.md` | 18 — Egypt + Saudi as real countries, address picker, phone/switch fixes, contrast, and a diagnostics system |
 | `plans/pending/21-rust-backend/00-MASTER-PLAN.md` | 21 — Real backend: Tauri + Rust + SeaORM + MariaDB (master plan) |
 | `plans/pending/21-rust-backend/01-FRONTEND-ANALYSIS.md` | 21 · Part 01 — Frontend analysis (the contract the Rust backend must honour) |
+| `plans/pending/21-rust-backend/01-frontend-analysis/accounting.md` | 21 · 01.B — `accounting` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/analytics.md` | 21 · 01.B — `analytics` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/approvals.md` | 21 · 01.B — `approvals` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/core.md` | 21 · 01.B — `core` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/cross-cutting.md` | 21 · 01.D — Cross-cutting contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/diagnostics.md` | 21 · 01.B — `diagnostics` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/expenses.md` | 21 · 01.B — `expenses` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/invoices.md` | 21 · 01.B — `invoices` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/parties.md` | 21 · 01.B — `parties` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/payments.md` | 21 · 01.B — `payments` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/products.md` | 21 · 01.B — `products` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/purchases.md` | 21 · 01.B — `purchases` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/reports.md` | 21 · 01.B — `reports` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/settings.md` | 21 · 01.B — `settings` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/setup.md` | 21 · 01.B — `setup` contract |
 | `plans/pending/21-rust-backend/01-frontend-analysis/TEMPLATE.md` | 21 · 01.B — `<module>` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/templates.md` | 21 · 01.B — `templates` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/users.md` | 21 · 01.B — `users` contract |
+| `plans/pending/21-rust-backend/01-frontend-analysis/vouchers.md` | 21 · 01.B — `vouchers` contract |
+| `plans/pending/21-rust-backend/02-CORE-AND-SHARED-ARCHITECTURE.md` | 21 · Part 02 — Core and shared architecture (the Rust foundation) |
+| `plans/pending/21-rust-backend/02-core-and-shared/phase-a-foundation.md` | 21 · 02.A — Foundation: workspace, DB, `AppError`, `AppState`, `with_tx` |
+| `plans/pending/21-rust-backend/02-core-and-shared/phase-a2-bundled-database.md` | 21 · 02.A2 — Bundled MariaDB server (D11): payload, installer, provisioning, supervision |
+| `plans/pending/21-rust-backend/02-core-and-shared/phase-a3-main-pc-hosting.md` | 21 · 02.A3 — Main-PC LAN hosting: firewall, pairing, continuity (D11, D8) |
+| `plans/pending/21-rust-backend/02-core-and-shared/phase-b-entities.md` | 21 · 02.B — Entities and migrations for the 46 tables (+ `print_templates`) |
+| `plans/pending/21-rust-backend/02-core-and-shared/phase-c-ledger.md` | 21 · 02.C — `shared::ledger`, `shared::numbering`, `shared::currency` |
+| `plans/pending/21-rust-backend/02-core-and-shared/phase-d-stock.md` | 21 · 02.D — `shared::stock`, `shared::balances`, `shared::invariants` |
+| `plans/pending/21-rust-backend/02-core-and-shared/phase-e-activity.md` | 21 · 02.E — `shared::activity` and the undo registry |
+| `plans/pending/21-rust-backend/02-core-and-shared/phase-f-ipc-bridge.md` | 21 · 02.F — IPC bridge: typed bindings, the frontend switch, change events |
 | `plans/pending/21-rust-backend/README.md` | 21 — Real backend (Tauri + Rust + SeaORM + MariaDB) |
 | `plans/pending/22-invoice-templates/README.md` | 22 — Invoice templates: 10 × A4, 10 × mobile image, thermal unchanged |

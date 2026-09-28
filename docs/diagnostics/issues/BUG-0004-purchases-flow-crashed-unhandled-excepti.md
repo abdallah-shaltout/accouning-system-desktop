@@ -6,7 +6,7 @@ area: purchases
 fingerprint: e2e:purchases:crash:  - waiting for locator("table tbody tr").first.locator("input[type=number]").first
 first_seen: 2026-09-26
 last_seen: 2026-09-26
-occurrences: 2
+occurrences: 3
 ---
 
 ## purchases flow crashed (unhandled exception):   - waiting for locator("table tbody tr").first.locator("input[type=number]").first

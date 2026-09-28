@@ -1,5 +1,6 @@
 import type { Account, FiscalYear, JournalEntry, JournalEntryType, JournalLine, JournalSourceKind } from '@/modules/accounting/types';
 import type { ActivityKind } from '@/modules/core/types';
+import type { AppRoute } from '@/modules/core/types/route';
 import type { AuditAction, AuditEntry, AuditFieldDiff } from '@/modules/diagnostics/types';
 import type { Product, StockMovementReason } from '@/modules/products/types';
 import { db, nextNumber } from '../db';
@@ -308,15 +309,35 @@ const DEFAULT_ACTION_BY_KIND: Partial<Record<ActivityKind, AuditAction>> = {
   settings: 'settings',
 };
 
-/** Entity kind guessed from an activity `link` like `/invoices/inv-12` or `/inventory/adjustments/adj-3`. */
-function entityFromLink(kind: ActivityKind, link?: string): { entity: string; entityId: string } {
+/**
+ * Route name -> business entity string (18.B4's `AuditEntry.entity`), for the routes this module's
+ * `link` fields actually use. Only detail routes (ones with an `:id` param) resolve an `entityId`;
+ * a list route (e.g. `'approvals'`, `'journal-templates'`) has none to extract, same as the old
+ * string-parsing code's fallback. Not the same direction/shape as `ENTITY_TO_ACTIVITY_KIND` below
+ * (entity -> `ActivityKind`) — route names don't map 1:1 to entity strings (`'purchase'` route ->
+ * `purchaseOrder` entity, `'journal-entry'` route -> `journal` entity, etc.).
+ */
+const ROUTE_NAME_TO_ENTITY: Partial<Record<AppRoute['name'], string>> = {
+  invoice: 'invoice',
+  'expense-detail': 'expense',
+  adjustment: 'adjustment',
+  count: 'count',
+  'journal-entry': 'journal',
+  purchase: 'purchaseOrder',
+  customer: 'customer',
+  supplier: 'supplier',
+  'user-editor': 'user',
+  'voucher-detail': 'voucher',
+  transfers: 'transfer',
+};
+
+/** Entity kind derived from an activity `link` (a named `AppRoute`), e.g. `{ name: 'invoice', params: { id: 'inv-12' } }`. */
+function entityFromLink(kind: ActivityKind, link?: AppRoute): { entity: string; entityId: string } {
   if (link) {
-    const segments = link.split('?')[0].split('/').filter(Boolean);
-    const last = segments.at(-1);
-    const parent = segments.at(-2);
-    if (last && !/^\d+$/.test(last) && last !== parent) {
-      return { entity: parent ?? kind, entityId: last };
-    }
+    const entity = ROUTE_NAME_TO_ENTITY[link.name];
+    const params = (link as { params?: Record<string, unknown> }).params;
+    const entityId = params && typeof params.id !== 'undefined' ? String(params.id) : undefined;
+    if (entity && entityId) return { entity, entityId };
   }
   return { entity: kind, entityId: uid('unk') };
 }
@@ -328,7 +349,7 @@ function entityFromLink(kind: ActivityKind, link?: string): { entity: string; en
  * log; see plan doc 18 decision 3). Call sites that need explicit `entity`/`action`/before-after
  * diffs should call `logAudit` directly instead (it also updates the activity feed).
  */
-export function logActivity(kind: ActivityKind, message: string, userId: string, date: string, link?: string): void {
+export function logActivity(kind: ActivityKind, message: string, userId: string, date: string, link?: AppRoute): void {
   const { entity, entityId } = entityFromLink(kind, link);
   logAudit({
     entity,
@@ -354,7 +375,7 @@ export interface LogAuditInput {
   at?: string;
   reason?: string;
   message: string;
-  link?: string;
+  link?: AppRoute;
   /** Also appended to the legacy `activity` feed under this kind. Defaults to a reasonable guess from `entity`. */
   activityKind?: ActivityKind;
 }
@@ -591,7 +612,7 @@ export function closeFiscalYear(fiscalYearId: string, userId: string): { fiscalY
     fy.closedAt = new Date().toISOString();
     fy.closedBy = userId;
   });
-  logActivity('journal', `إقفال السنة المالية ${fy.name}`, userId, new Date().toISOString(), '/accounting/fiscal-years');
+  logActivity('journal', `إقفال السنة المالية ${fy.name}`, userId, new Date().toISOString(), { name: 'fiscal-years' });
 
   // Open the next year automatically if it doesn't exist yet (B2 step 4).
   let nextYear = db.fiscalYears.find((f) => f.startDate > fy.endDate);
@@ -651,6 +672,6 @@ export function reopenFiscalYear(fiscalYearId: string, userId: string): FiscalYe
     fy.closedAt = undefined;
     fy.closedBy = undefined;
   });
-  logActivity('journal', `إعادة فتح السنة المالية ${fy.name}`, userId, new Date().toISOString(), '/accounting/fiscal-years');
+  logActivity('journal', `إعادة فتح السنة المالية ${fy.name}`, userId, new Date().toISOString(), { name: 'fiscal-years' });
   return fy;
 }

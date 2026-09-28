@@ -51,7 +51,7 @@ export function recordReceiptVoucher(input: ReceiptVoucherInput, userId: string)
     createdBy: userId,
     attachmentIds: input.attachmentIds,
   });
-  logActivity('voucher', `${KIND_LABEL('RECEIPT')} ${voucher.number} بقيمة ${input.amount.toFixed(2)}`, userId, input.date, `/vouchers/${voucher.id}`);
+  logActivity('voucher', `${KIND_LABEL('RECEIPT')} ${voucher.number} بقيمة ${input.amount.toFixed(2)}`, userId, input.date, { name: 'voucher-detail', params: { id: voucher.id } });
   emit('ledger:changed');
   return voucher;
 }
@@ -79,7 +79,7 @@ export function recordPaymentVoucher(input: PaymentVoucherInput, userId: string)
     createdBy: userId,
     attachmentIds: input.attachmentIds,
   });
-  logActivity('voucher', `${KIND_LABEL('PAYMENT')} ${voucher.number} بقيمة ${input.amount.toFixed(2)}`, userId, input.date, `/vouchers/${voucher.id}`);
+  logActivity('voucher', `${KIND_LABEL('PAYMENT')} ${voucher.number} بقيمة ${input.amount.toFixed(2)}`, userId, input.date, { name: 'voucher-detail', params: { id: voucher.id } });
   emit('ledger:changed');
   return voucher;
 }
@@ -111,7 +111,7 @@ export function recordTransferVoucher(input: TransferVoucherInput, userId: strin
     createdBy: userId,
     attachmentIds: input.attachmentIds,
   });
-  logActivity('voucher', `${KIND_LABEL('TRANSFER')} ${voucher.number} بقيمة ${input.amount.toFixed(2)}`, userId, input.date, `/vouchers/${voucher.id}`);
+  logActivity('voucher', `${KIND_LABEL('TRANSFER')} ${voucher.number} بقيمة ${input.amount.toFixed(2)}`, userId, input.date, { name: 'voucher-detail', params: { id: voucher.id } });
   emit('ledger:changed');
   return voucher;
 }
@@ -139,7 +139,7 @@ export function recordOwnerVoucher(input: OwnerVoucherInput, userId: string): Vo
     createdBy: userId,
     attachmentIds: input.attachmentIds,
   });
-  logActivity('voucher', `${KIND_LABEL('OWNER')} ${voucher.number} بقيمة ${input.amount.toFixed(2)}`, userId, input.date, `/vouchers/${voucher.id}`);
+  logActivity('voucher', `${KIND_LABEL('OWNER')} ${voucher.number} بقيمة ${input.amount.toFixed(2)}`, userId, input.date, { name: 'voucher-detail', params: { id: voucher.id } });
   emit('ledger:changed');
   return voucher;
 }

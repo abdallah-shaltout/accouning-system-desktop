@@ -6,7 +6,7 @@ Every service function the pages call (the seam), what it touches in the mock ba
 Rust backend should do with it. Source of truth for plans/pending/21-rust-backend Part 01. Dispositions
 are **heuristic suggestions** until a reviewer confirms them in `scripts/contract/config.ts` → `overrides`.
 
-**339** wrapped service functions · **46** MockDb tables · **254** exported module types · **240** mock-engine functions · **61** path-string links to convert.
+**342** wrapped service functions · **46** MockDb tables · **254** exported module types · **240** mock-engine functions · **1** path-string links to convert.
 
 ## Modules
 
@@ -15,19 +15,19 @@ are **heuristic suggestions** until a reviewer confirms them in `scripts/contrac
 | **accounting** | 33 | 30 |  | 3 |  |  | 10 | activity, ledger, numbering, period | [accounting.md](accounting.md) |
 | **analytics** | 3 | 3 |  |  |  |  | 0 |  | [analytics.md](analytics.md) |
 | **approvals** | 5 | 5 |  |  |  |  | 3 | activity | [approvals.md](approvals.md) |
-| **core** | 35 | 20 | 8 | 7 |  |  | 39 | activity, currency, ledger, numbering, period, stock | [core.md](core.md) |
-| **diagnostics** | 14 | 11 |  | 3 |  |  | 0 |  | [diagnostics.md](diagnostics.md) |
+| **core** | 36 | 18 | 9 | 7 | 2 |  | 1 | activity, currency, ledger, numbering, period, stock | [core.md](core.md) |
+| **diagnostics** | 14 | 3 |  | 3 | 8 |  | 0 |  | [diagnostics.md](diagnostics.md) |
 | **expenses** | 11 | 11 |  |  |  |  | 7 | activity, ledger, numbering, period | [expenses.md](expenses.md) |
-| **invoices** | 26 | 25 |  | 1 |  |  | 12 | activity, currency, ledger, numbering, period, stock | [invoices.md](invoices.md) |
+| **invoices** | 28 | 25 |  | 3 |  |  | 12 | activity, currency, ledger, numbering, period, stock | [invoices.md](invoices.md) |
 | **parties** | 16 | 16 |  |  |  |  | 5 | activity | [parties.md](parties.md) |
 | **payments** | 7 | 7 |  |  |  |  | 7 | activity, ledger, numbering, period | [payments.md](payments.md) |
 | **products** | 51 | 49 |  | 2 |  |  | 15 | activity, ledger, numbering, period, stock | [products.md](products.md) |
 | **purchases** | 12 | 12 |  |  |  |  | 9 | activity, ledger, numbering, period, stock | [purchases.md](purchases.md) |
 | **reports** | 32 | 32 |  |  |  |  | 0 |  | [reports.md](reports.md) |
-| **settings** | 42 | 36 |  | 6 |  |  | 12 | activity, ledger, numbering, period | [settings.md](settings.md) |
-| **setup** | 21 | 21 |  |  |  |  | 15 | activity, ledger, numbering, period, stock | [setup.md](setup.md) |
+| **settings** | 42 | 35 |  | 7 |  |  | 12 | activity, ledger, numbering, period | [settings.md](settings.md) |
+| **setup** | 21 | 20 |  |  |  | 1 | 15 | activity, ledger, numbering, period, stock | [setup.md](setup.md) |
 | **templates** | 11 | 11 |  |  |  |  | 0 |  | [templates.md](templates.md) |
-| **users** | 9 | 9 |  |  |  |  | 4 | activity | [users.md](users.md) |
+| **users** | 9 | 8 |  |  | 1 |  | 4 | activity | [users.md](users.md) |
 | **vouchers** | 11 | 11 |  |  |  |  | 6 | activity, ledger, numbering, period | [vouchers.md](vouchers.md) |
 
 ## Shared managers (master plan §3 rule 3)
@@ -38,7 +38,7 @@ Which service functions reach each capability — every one of them must go thro
 |---|---|---|---|
 | **ledger** | `backend/core#postJournal`, `backend/core#postDraftJournal`, `backend/core#draftJournal` | 42 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
 | **stock** | `backend/core#applyStockChange`, `backend/inventory#receiveBatch`, `backend/inventory#consumeFefo` | 18 | core, invoices, products, purchases, setup |
-| **activity** | `backend/core#logAudit`, `backend/core#logActivity` | 74 | accounting, approvals, core, expenses, invoices, parties, payments, products, purchases, settings, setup, users, vouchers |
+| **activity** | `backend/core#logAudit`, `backend/core#logActivity` | 85 | accounting, approvals, core, expenses, invoices, parties, payments, products, purchases, settings, setup, users, vouchers |
 | **numbering** | `db#nextNumber` | 46 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
 | **currency** | `backend/currency#toBase`, `backend/currency#convertLinesToBase`, `backend/currency#requireRate` | 4 | core, invoices |
 | **period** | `backend/core#assertOpenPeriod` | 42 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
@@ -50,9 +50,9 @@ Which service functions reach each capability — every one of them must go thro
 | Table | Read by (fns) | Written by (fns) | Writer modules |
 |---|---|---|---|
 | `accounts` | 90 | 12 | accounting, core, settings, setup |
-| `activity` | 75 | 74 | accounting, approvals, core, expenses, invoices, parties, payments, products, purchases, settings, setup, users, vouchers |
+| `activity` | 86 | 85 | accounting, approvals, core, expenses, invoices, parties, payments, products, purchases, settings, setup, users, vouchers |
 | `approvalRequests` | 5 | 1 | approvals |
-| `audit` | 76 | 74 | accounting, approvals, core, expenses, invoices, parties, payments, products, purchases, settings, setup, users, vouchers |
+| `audit` | 87 | 85 | accounting, approvals, core, expenses, invoices, parties, payments, products, purchases, settings, setup, users, vouchers |
 | `branches` | 56 | 6 | core, settings, setup |
 | `cardSettlements` | 5 | 2 | core, vouchers |
 | `categories` | 15 | 3 | core, products |
@@ -65,26 +65,26 @@ Which service functions reach each capability — every one of them must go thro
 | `debitNoteDrafts` | 4 | 2 | products, purchases |
 | `exchangeRates` | 7 | 2 | core, settings |
 | `expenseCategories` | 9 | 3 | core, expenses |
-| `expenses` | 8 | 3 | core, expenses |
+| `expenses` | 9 | 3 | core, expenses |
 | `fiscalYears` | 48 | 5 | accounting, core, setup |
 | `heldSales` | 4 | 3 | invoices |
-| `invoices` | 46 | 8 | core, invoices, payments |
+| `invoices` | 48 | 8 | core, invoices, payments |
 | `journalDrafts` | 12 | 6 | accounting, core |
-| `journalEntries` | 94 | 42 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
+| `journalEntries` | 96 | 42 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
 | `journalTemplates` | 6 | 3 | accounting |
 | `partyGroups` | 2 | 1 | core |
 | `partyHistory` | 4 | 3 | core, parties |
 | `paymentMethods` | 26 | 5 | core, settings, setup |
-| `payments` | 18 | 5 | core, payments |
+| `payments` | 19 | 5 | core, payments |
 | `priceLists` | 5 | 3 | core, products |
 | `productBatches` | 17 | 14 | core, invoices, products, purchases, setup |
-| `products` | 61 | 5 | core, products |
-| `purchaseOrders` | 23 | 11 | core, payments, purchases |
+| `products` | 62 | 5 | core, products |
+| `purchaseOrders` | 24 | 11 | core, payments, purchases |
 | `purchaseReturns` | 14 | 3 | core, purchases |
 | `quotations` | 8 | 3 | invoices |
 | `recurringExpenses` | 6 | 4 | core, expenses |
 | `refunds` | 19 | 2 | core, invoices |
-| `settings` | 83 | 18 | accounting, core, settings, setup |
+| `settings` | 85 | 18 | accounting, core, settings, setup |
 | `shifts` | 17 | 4 | core, invoices |
 | `stockAdjustments` | 9 | 7 | core, products |
 | `stockCounts` | 8 | 4 | products |
@@ -94,73 +94,13 @@ Which service functions reach each capability — every one of them must go thro
 | `taxes` | 22 | 4 | core, settings, setup |
 | `units` | 6 | 5 | core, products, setup |
 | `users` | 29 | 3 | core, users |
-| `vouchers` | 13 | 8 | accounting, core, invoices, vouchers |
+| `vouchers` | 14 | 8 | accounting, core, invoices, vouchers |
 
 ## Path-string links (must become named route objects — CLAUDE.md rule 25)
 
 | File | Line | Literal |
 |---|---|---|
-| `src/mocks/backend/approvals.ts` | 33 | `'/approvals'` |
-| `src/mocks/backend/approvals.ts` | 61 | `'/approvals'` |
-| `src/mocks/backend/branches.ts` | 126 | `'/settings/branches'` |
-| `src/mocks/backend/branches.ts` | 164 | `'/settings/branches'` |
-| `src/mocks/backend/branches.ts` | 188 | `'/settings/branches'` |
-| `src/mocks/backend/branches.ts` | 200 | `'/settings/branches'` |
-| `src/mocks/backend/branches.ts` | 241 | `'/settings/cost-centers'` |
-| `src/mocks/backend/branches.ts` | 249 | `'/settings/cost-centers'` |
-| `src/mocks/backend/core.ts` | 594 | `'/accounting/fiscal-years'` |
-| `src/mocks/backend/core.ts` | 654 | `'/accounting/fiscal-years'` |
-| `src/mocks/backend/expenses.ts` | 114 | ``/expenses/${expense.id}`` |
-| `src/mocks/backend/inventory.ts` | 247 | ``/inventory/adjustments/${adj.id}`` |
-| `src/mocks/backend/inventory.ts` | 279 | ``/inventory/adjustments/${adj.id}`` |
-| `src/mocks/backend/inventory.ts` | 325 | ``/inventory/counts/${count.id}`` |
-| `src/mocks/backend/inventory.ts` | 385 | ``/inventory/adjustments/${adj.id}`` |
-| `src/mocks/backend/inventory.ts` | 444 | ``/products`` |
-| `src/mocks/backend/journal.ts` | 111 | ``/accounting/journal/${entry.id}`` |
-| `src/mocks/backend/journal.ts` | 160 | ``/accounting/journal/${reversal.id}`` |
-| `src/mocks/backend/journal.ts` | 275 | ``/accounting/journal/${entry.id}`` |
-| `src/mocks/backend/opening.ts` | 138 | `'/accounting/journal'` |
-| `src/mocks/backend/opening.ts` | 166 | `'/accounting/journal'` |
-| `src/mocks/backend/opening.ts` | 235 | `'/inventory'` |
-| `src/mocks/backend/opening.ts` | 295 | ``/customers/${input.partyId}`` |
-| `src/mocks/backend/opening.ts` | 295 | ``/suppliers/${input.partyId}`` |
-| `src/mocks/backend/purchases.ts` | 169 | ``/purchases/${po.id}`` |
-| `src/mocks/backend/purchases.ts` | 182 | ``/purchases/${po.id}`` |
-| `src/mocks/backend/purchases.ts` | 351 | ``/purchases/${po.id}`` |
-| `src/mocks/backend/purchases.ts` | 364 | ``/purchases/${backorder.id}`` |
-| `src/mocks/backend/purchases.ts` | 383 | ``/purchases/${po.id}`` |
-| `src/mocks/backend/purchases.ts` | 518 | ``/purchases/${po.id}`` |
-| `src/mocks/backend/revaluation.ts` | 137 | ``/accounting/journal/${entry.id}`` |
-| `src/mocks/backend/sales.ts` | 389 | ``/invoices/${invoice.id}`` |
-| `src/mocks/backend/sales.ts` | 533 | ``/invoices/${invoice.id}`` |
-| `src/mocks/backend/settlements.ts` | 105 | ``/payments/settlements/${settlement.id}`` |
-| `src/mocks/backend/shifts.ts` | 40 | `'/pos/shifts'` |
-| `src/mocks/backend/shifts.ts` | 152 | `'/pos/shifts'` |
-| `src/mocks/backend/transfers.ts` | 57 | ``/inventory/transfers/${transfer.id}`` |
-| `src/mocks/backend/transfers.ts` | 116 | ``/inventory/transfers/${transfer.id}`` |
-| `src/mocks/backend/transfers.ts` | 185 | ``/inventory/transfers/${transfer.id}`` |
-| `src/mocks/backend/transfers.ts` | 231 | ``/inventory/transfers/${transfer.id}`` |
-| `src/mocks/backend/vouchers.ts` | 54 | ``/vouchers/${voucher.id}`` |
-| `src/mocks/backend/vouchers.ts` | 82 | ``/vouchers/${voucher.id}`` |
-| `src/mocks/backend/vouchers.ts` | 114 | ``/vouchers/${voucher.id}`` |
-| `src/mocks/backend/vouchers.ts` | 142 | ``/vouchers/${voucher.id}`` |
-| `src/mocks/seed/history.ts` | 210 | ``/accounting/journal/${entry.id}`` |
-| `src/modules/accounting/services/accountingService.ts` | 117 | `'/accounting/accounts'` |
-| `src/modules/accounting/services/accountingService.ts` | 151 | `'/accounting/accounts'` |
-| `src/modules/accounting/services/accountingService.ts` | 359 | `'/accounting/fiscal-years'` |
-| `src/modules/accounting/services/accountingService.ts` | 375 | `'/accounting/fiscal-years'` |
 | `src/modules/diagnostics/services/logService.ts` | 55 | `'/src/'` |
-| `src/modules/parties/services/partyService.ts` | 125 | ``/customers/${customer.id}`` |
-| `src/modules/parties/services/partyService.ts` | 132 | ``/customers/${customer.id}`` |
-| `src/modules/parties/services/partyService.ts` | 182 | ``/suppliers/${supplier.id}`` |
-| `src/modules/parties/services/partyService.ts` | 189 | ``/suppliers/${supplier.id}`` |
-| `src/modules/products/services/productService.ts` | 136 | ``/products/${product.id}`` |
-| `src/modules/products/services/productService.ts` | 157 | ``/products/${product.id}`` |
-| `src/modules/settings/services/settingsService.ts` | 20 | `'/settings/general'` |
-| `src/modules/settings/services/settingsService.ts` | 54 | `'/settings/taxes'` |
-| `src/modules/settings/services/settingsService.ts` | 91 | `'/settings/payment-methods'` |
-| `src/modules/users/services/userService.ts` | 36 | ``/users/${user.id}`` |
-| `src/modules/users/services/userService.ts` | 58 | ``/users/${user.id}`` |
 
 ## Unwrapped service exports (not endpoints — helpers, constants, re-exports)
 

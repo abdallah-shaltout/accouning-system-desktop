@@ -114,6 +114,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -134,6 +135,8 @@
           "debounceTimer",
           "draftsInYear",
           "e",
+          "entity",
+          "entityId",
           "entry",
           "failed",
           "fy",
@@ -141,7 +144,6 @@
           "keptPairs",
           "key",
           "l",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -157,7 +159,7 @@
           "obeNet",
           "openingEquity",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -168,7 +170,6 @@
           "retained",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -277,6 +278,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -289,12 +291,13 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "line",
           "listener",
@@ -303,7 +306,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -313,7 +316,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -367,12 +369,19 @@
       "closure": {
         "tables": [
           "accounts",
+          "activity",
+          "audit",
           "journalTemplates"
         ],
         "writes": [
+          "activity",
+          "audit",
           "journalTemplates"
         ],
         "mockFns": [
+          "src/mocks/backend/core.ts#entityFromLink",
+          "src/mocks/backend/core.ts#logActivity",
+          "src/mocks/backend/core.ts#logAudit",
           "src/mocks/backend/journal.ts#saveJournalTemplate",
           "src/mocks/backend/journal.ts#validateTemplateLines",
           "src/mocks/persist.ts#idbSet",
@@ -386,18 +395,26 @@
         ],
         "mockRefs": [
           "DB_NAME",
+          "DEFAULT_ACTION_BY_KIND",
+          "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "account",
+          "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
+          "entry",
           "found",
           "idCounters",
           "latencyOverride",
           "line",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
@@ -413,7 +430,9 @@
         "platform": [
           "indexedDB"
         ],
-        "capabilities": []
+        "capabilities": [
+          "activity"
+        ]
       },
       "disposition": "port",
       "dispositionReason": "reads and writes backend data",
@@ -1234,6 +1253,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -1247,12 +1267,13 @@
           "day",
           "debitAccount",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -1262,7 +1283,7 @@
           "method",
           "now",
           "pairs",
-          "parent",
+          "params",
           "payableAccount",
           "pendingSaveResolvers",
           "prefix",
@@ -1273,7 +1294,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -1470,6 +1490,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -1482,12 +1503,13 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "line",
           "listener",
@@ -1497,7 +1519,7 @@
           "next",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -1507,7 +1529,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -1554,12 +1575,19 @@
       "serviceCalls": [],
       "closure": {
         "tables": [
+          "activity",
+          "audit",
           "journalTemplates"
         ],
         "writes": [
+          "activity",
+          "audit",
           "journalTemplates"
         ],
         "mockFns": [
+          "src/mocks/backend/core.ts#entityFromLink",
+          "src/mocks/backend/core.ts#logActivity",
+          "src/mocks/backend/core.ts#logAudit",
           "src/mocks/backend/journal.ts#deleteJournalTemplate",
           "src/mocks/persist.ts#idbSet",
           "src/mocks/persist.ts#mutate",
@@ -1567,23 +1595,34 @@
           "src/mocks/persist.ts#scheduleSnapshot",
           "src/mocks/persist.ts#writeSnapshotNow",
           "src/mocks/utils.ts#clone",
-          "src/mocks/utils.ts#delay"
+          "src/mocks/utils.ts#delay",
+          "src/mocks/utils.ts#uid"
         ],
         "mockRefs": [
           "DB_NAME",
+          "DEFAULT_ACTION_BY_KIND",
+          "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
+          "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
+          "entry",
+          "idCounters",
           "latencyOverride",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
+          "session",
           "snapshot",
           "template",
           "tx",
@@ -1593,7 +1632,9 @@
         "platform": [
           "indexedDB"
         ],
-        "capabilities": []
+        "capabilities": [
+          "activity"
+        ]
       },
       "disposition": "port",
       "dispositionReason": "reads and writes backend data",
@@ -1673,6 +1714,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -1686,12 +1728,13 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
@@ -1699,7 +1742,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -1710,7 +1753,6 @@
           "reversal",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -1791,23 +1833,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -1908,6 +1951,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -1920,12 +1964,13 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
@@ -1934,7 +1979,7 @@
           "now",
           "original",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -1945,7 +1990,6 @@
           "reversal",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -2062,23 +2106,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -2150,23 +2195,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -2231,23 +2277,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -2385,6 +2432,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -2398,6 +2446,8 @@
           "day",
           "debounceTimer",
           "e",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
@@ -2406,7 +2456,6 @@
           "keptPairs",
           "key",
           "l",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -2417,7 +2466,7 @@
           "outputAccount",
           "outputVat",
           "pairs",
-          "parent",
+          "params",
           "payableAccount",
           "pendingSaveResolvers",
           "prefix",
@@ -2428,7 +2477,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -2757,26 +2805,27 @@
           "KIND_LABEL",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "request",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -2929,26 +2978,27 @@
           "KIND_LABEL",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "request",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -3019,26 +3069,27 @@
           "KIND_LABEL",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "request",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -3736,7 +3787,7 @@
       "service": "printService",
       "name": "initPrintResultListener",
       "file": "src/modules/core/services/printService.ts",
-      "line": 256,
+      "line": 268,
       "params": [],
       "returns": "Promise<void>",
       "dtoTypes": [],
@@ -3855,12 +3906,40 @@
       "rustCommand": "core_init_print_result_listener"
     },
     {
+      "source": "core.listPrinters",
+      "module": "core",
+      "service": "printService",
+      "name": "listPrinters",
+      "file": "src/modules/core/services/printService.ts",
+      "line": 63,
+      "params": [],
+      "returns": "Promise<PrinterInfo[]>",
+      "dtoTypes": [],
+      "serviceCalls": [],
+      "closure": {
+        "tables": [],
+        "writes": [],
+        "mockFns": [],
+        "mockRefs": [],
+        "invokes": [
+          "list_printers"
+        ],
+        "platform": [
+          "@tauri-apps/api",
+          "@tauri-apps/api/core"
+        ],
+        "capabilities": []
+      },
+      "disposition": "rust-existing",
+      "dispositionReason": "already calls Rust (list_printers)"
+    },
+    {
       "source": "core.printReceipt",
       "module": "core",
       "service": "printService",
       "name": "printReceipt",
       "file": "src/modules/core/services/printService.ts",
-      "line": 184,
+      "line": 196,
       "params": [
         {
           "name": "saleId",
@@ -4189,6 +4268,7 @@
           "REFUND_REASONS",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STOCK_IN_REASON_LABEL",
@@ -4308,6 +4388,8 @@
           "draws",
           "e",
           "electricity",
+          "entity",
+          "entityId",
           "entry",
           "equity",
           "events",
@@ -4361,7 +4443,6 @@
           "landedPo",
           "landedShare",
           "largestIdx",
-          "last",
           "lastConfirmed",
           "lastTime",
           "lc",
@@ -4414,6 +4495,7 @@
           "paidOut",
           "pairs",
           "panadol",
+          "params",
           "parent",
           "partial",
           "partyGroupsFixture",
@@ -4487,7 +4569,6 @@
           "salesTotal",
           "saving",
           "seen",
-          "segments",
           "selected",
           "sendQty",
           "sentQty",
@@ -4592,9 +4673,8 @@
           "stock"
         ]
       },
-      "disposition": "port",
-      "dispositionReason": "reads and writes backend data",
-      "rustCommand": "core_reload_demo_data"
+      "disposition": "dev-only",
+      "dispositionReason": "override: 01.B core review — reseeds and overwrites nearly every table with fixed demo data; a dev/demo capability, must never exist as a general-purpose production command (same class as users.getDemoAccounts, F9)"
     },
     {
       "source": "core.render",
@@ -5209,9 +5289,8 @@
         ],
         "capabilities": []
       },
-      "disposition": "port",
-      "dispositionReason": "reads backend data",
-      "rustCommand": "core_reset_to_empty"
+      "disposition": "dev-only",
+      "dispositionReason": "override: 01.B core review — wipes all persisted data with no confirmation/audit trail beyond the caller reloading the app; a dev/demo reset capability, must never exist as a general-purpose production command (same class as users.getDemoAccounts, F9)"
     },
     {
       "source": "core.sampleInvoicePayload",
@@ -5431,7 +5510,7 @@
       "service": "printService",
       "name": "testPrint",
       "file": "src/modules/core/services/printService.ts",
-      "line": 206,
+      "line": 218,
       "params": [
         {
           "name": "thermal",
@@ -5528,9 +5607,8 @@
         "platform": [],
         "capabilities": []
       },
-      "disposition": "port",
-      "dispositionReason": "reads backend data",
-      "rustCommand": "diagnostics_explain_account_balance"
+      "disposition": "dev-only",
+      "dispositionReason": "override: 01.B diagnostics review — powers the /dev/diagnostics accounting-debugger tab and repro recording (18.F3-F4), dev-build-only per CLAUDE.md, never a production command"
     },
     {
       "source": "diagnostics.exportReproBundle",
@@ -5708,9 +5786,8 @@
         "platform": [],
         "capabilities": []
       },
-      "disposition": "port",
-      "dispositionReason": "reads backend data",
-      "rustCommand": "diagnostics_get_balances_around"
+      "disposition": "dev-only",
+      "dispositionReason": "override: 01.B diagnostics review — powers the /dev/diagnostics accounting-debugger tab and repro recording (18.F3-F4), dev-build-only per CLAUDE.md, never a production command"
     },
     {
       "source": "diagnostics.getDriftReport",
@@ -5761,9 +5838,8 @@
         "platform": [],
         "capabilities": []
       },
-      "disposition": "port",
-      "dispositionReason": "reads backend data",
-      "rustCommand": "diagnostics_get_drift_report"
+      "disposition": "dev-only",
+      "dispositionReason": "override: 01.B diagnostics review — powers the /dev/diagnostics accounting-debugger tab and repro recording (18.F3-F4), dev-build-only per CLAUDE.md, never a production command"
     },
     {
       "source": "diagnostics.getInvariantResults",
@@ -5903,9 +5979,8 @@
         "platform": [],
         "capabilities": []
       },
-      "disposition": "port",
-      "dispositionReason": "reads backend data",
-      "rustCommand": "diagnostics_get_invariant_results"
+      "disposition": "dev-only",
+      "dispositionReason": "override: 01.B diagnostics review — powers the /dev/diagnostics accounting-debugger tab and repro recording (18.F3-F4), dev-build-only per CLAUDE.md, never a production command"
     },
     {
       "source": "diagnostics.getJournalEntryRaw",
@@ -5946,9 +6021,8 @@
         "platform": [],
         "capabilities": []
       },
-      "disposition": "port",
-      "dispositionReason": "reads backend data",
-      "rustCommand": "diagnostics_get_journal_entry_raw"
+      "disposition": "dev-only",
+      "dispositionReason": "override: 01.B diagnostics review — powers the /dev/diagnostics accounting-debugger tab and repro recording (18.F3-F4), dev-build-only per CLAUDE.md, never a production command"
     },
     {
       "source": "diagnostics.getPostingTrace",
@@ -5987,9 +6061,8 @@
         "platform": [],
         "capabilities": []
       },
-      "disposition": "port",
-      "dispositionReason": "reads backend data",
-      "rustCommand": "diagnostics_get_posting_trace"
+      "disposition": "dev-only",
+      "dispositionReason": "override: 01.B diagnostics review — powers the /dev/diagnostics accounting-debugger tab and repro recording (18.F3-F4), dev-build-only per CLAUDE.md, never a production command"
     },
     {
       "source": "diagnostics.isReproRecording",
@@ -6051,9 +6124,8 @@
         "platform": [],
         "capabilities": []
       },
-      "disposition": "port",
-      "dispositionReason": "reads backend data",
-      "rustCommand": "diagnostics_list_recent_documents"
+      "disposition": "dev-only",
+      "dispositionReason": "override: 01.B diagnostics review — powers the /dev/diagnostics accounting-debugger tab and repro recording (18.F3-F4), dev-build-only per CLAUDE.md, never a production command"
     },
     {
       "source": "diagnostics.startReproRecording",
@@ -6077,9 +6149,8 @@
         "platform": [],
         "capabilities": []
       },
-      "disposition": "port",
-      "dispositionReason": "reads backend data",
-      "rustCommand": "diagnostics_start_repro_recording"
+      "disposition": "dev-only",
+      "dispositionReason": "override: 01.B diagnostics review — powers the /dev/diagnostics accounting-debugger tab and repro recording (18.F3-F4), dev-build-only per CLAUDE.md, never a production command"
     },
     {
       "source": "diagnostics.stopReproRecording",
@@ -6186,6 +6257,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -6199,13 +6271,14 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "expense",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -6217,7 +6290,7 @@
           "now",
           "paidFrom",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "rate",
@@ -6228,7 +6301,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -6669,6 +6741,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -6683,13 +6756,14 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "expense",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -6702,7 +6776,7 @@
           "now",
           "paidFrom",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "rate",
@@ -6713,7 +6787,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -6984,6 +7057,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -7002,6 +7076,8 @@
           "day",
           "debounceTimer",
           "destination",
+          "entity",
+          "entityId",
           "entry",
           "expectedCash",
           "fee",
@@ -7011,7 +7087,6 @@
           "keptPairs",
           "key",
           "label",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -7021,7 +7096,7 @@
           "method",
           "now",
           "pairs",
-          "parent",
+          "params",
           "payIns",
           "payOuts",
           "pendingSaveResolvers",
@@ -7035,7 +7110,6 @@
           "salesByMethod",
           "salesTotal",
           "saving",
-          "segments",
           "session",
           "shift",
           "shiftInvoices",
@@ -7195,6 +7269,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -7224,6 +7299,8 @@
           "diff",
           "dim",
           "draws",
+          "entity",
+          "entityId",
           "entry",
           "fcTotal",
           "freeTextBase",
@@ -7240,7 +7317,6 @@
           "key",
           "l",
           "largestIdx",
-          "last",
           "latencyOverride",
           "line",
           "lineTaxes",
@@ -7254,7 +7330,7 @@
           "now",
           "paidAmount",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "perLine",
           "posting",
@@ -7273,7 +7349,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "shift",
           "snapshot",
@@ -7314,6 +7389,38 @@
       "disposition": "port",
       "dispositionReason": "reads and writes backend data",
       "rustCommand": "invoices_convert_quotation_to_invoice"
+    },
+    {
+      "source": "invoices.copyInvoiceImage",
+      "module": "invoices",
+      "service": "invoiceImageService",
+      "name": "copyInvoiceImage",
+      "file": "src/modules/invoices/services/invoiceImageService.ts",
+      "line": 28,
+      "params": [
+        {
+          "name": "element",
+          "type": "HTMLElement",
+          "optional": false
+        }
+      ],
+      "returns": "Promise<void>",
+      "dtoTypes": [],
+      "serviceCalls": [],
+      "closure": {
+        "tables": [],
+        "writes": [],
+        "mockFns": [],
+        "mockRefs": [],
+        "invokes": [],
+        "platform": [
+          "document",
+          "navigator"
+        ],
+        "capabilities": []
+      },
+      "disposition": "frontend",
+      "dispositionReason": "webview/plugin only (document, navigator)"
     },
     {
       "source": "invoices.createRefund",
@@ -7403,6 +7510,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -7419,6 +7527,8 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "grandTotal",
@@ -7429,7 +7539,6 @@
           "isFinal",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "line",
           "lines",
@@ -7442,7 +7551,7 @@
           "now",
           "paidOut",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "previous",
@@ -7460,7 +7569,6 @@
           "returning",
           "ring",
           "saving",
-          "segments",
           "session",
           "settledToReceivable",
           "settlementLines",
@@ -7613,6 +7721,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -7642,6 +7751,8 @@
           "diff",
           "dim",
           "draws",
+          "entity",
+          "entityId",
           "entry",
           "fcTotal",
           "freeTextBase",
@@ -7658,7 +7769,6 @@
           "key",
           "l",
           "largestIdx",
-          "last",
           "latencyOverride",
           "line",
           "lineTaxes",
@@ -7672,7 +7782,7 @@
           "now",
           "paidAmount",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "perLine",
           "posting",
@@ -7691,7 +7801,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "shift",
           "snapshot",
@@ -7883,6 +7992,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -7902,6 +8012,8 @@
           "day",
           "debounceTimer",
           "destination",
+          "entity",
+          "entityId",
           "entry",
           "expectedCash",
           "fee",
@@ -7911,7 +8023,6 @@
           "keptPairs",
           "key",
           "label",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -7921,7 +8032,7 @@
           "method",
           "now",
           "pairs",
-          "parent",
+          "params",
           "payIns",
           "payOuts",
           "pendingSaveResolvers",
@@ -7935,7 +8046,6 @@
           "salesByMethod",
           "salesTotal",
           "saving",
-          "segments",
           "session",
           "shift",
           "shiftInvoices",
@@ -8708,24 +8818,25 @@
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
           "PREFIX",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "shift",
           "snapshot",
@@ -9022,6 +9133,50 @@
       "rustCommand": "invoices_resume_held_sale"
     },
     {
+      "source": "invoices.saveInvoiceImage",
+      "module": "invoices",
+      "service": "invoiceImageService",
+      "name": "saveInvoiceImage",
+      "file": "src/modules/invoices/services/invoiceImageService.ts",
+      "line": 22,
+      "params": [
+        {
+          "name": "element",
+          "type": "HTMLElement",
+          "optional": false
+        },
+        {
+          "name": "invoiceNumber",
+          "type": "string",
+          "optional": false
+        }
+      ],
+      "returns": "Promise<string | true | null>",
+      "dtoTypes": [],
+      "serviceCalls": [
+        "core.saveFile"
+      ],
+      "closure": {
+        "tables": [],
+        "writes": [],
+        "mockFns": [],
+        "mockRefs": [],
+        "invokes": [],
+        "platform": [
+          "@tauri-apps/api",
+          "@tauri-apps/plugin-dialog",
+          "@tauri-apps/plugin-fs",
+          "@tauri-apps/plugin-opener",
+          "Blob",
+          "document",
+          "localStorage"
+        ],
+        "capabilities": []
+      },
+      "disposition": "frontend",
+      "dispositionReason": "webview/plugin only (@tauri-apps/api, @tauri-apps/plugin-dialog, @tauri-apps/plugin-fs, @tauri-apps/plugin-opener, Blob, document, localStorage)"
+    },
+    {
       "source": "invoices.saveQuotation",
       "module": "invoices",
       "service": "invoiceService",
@@ -9175,7 +9330,7 @@
       "service": "partyService",
       "name": "checkDuplicates",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 75,
+      "line": 81,
       "params": [
         {
           "name": "input",
@@ -9222,7 +9377,7 @@
       "service": "partyService",
       "name": "findDuplicates",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 60,
+      "line": 66,
       "params": [
         {
           "name": "input",
@@ -9260,7 +9415,7 @@
       "service": "partyService",
       "name": "getCustomer",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 107,
+      "line": 113,
       "params": [
         {
           "name": "id",
@@ -9315,7 +9470,7 @@
       "service": "partyService",
       "name": "getCustomers",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 93,
+      "line": 99,
       "params": [
         {
           "name": "filter",
@@ -9357,7 +9512,7 @@
       "service": "partyService",
       "name": "getCustomerStatement",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 141,
+      "line": 147,
       "params": [
         {
           "name": "id",
@@ -9411,7 +9566,7 @@
       "service": "partyService",
       "name": "getLinkedNetBalance",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 233,
+      "line": 248,
       "params": [
         {
           "name": "customerId",
@@ -9465,7 +9620,7 @@
       "service": "partyService",
       "name": "getPartyAging",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 261,
+      "line": 276,
       "params": [
         {
           "name": "kind",
@@ -9522,7 +9677,7 @@
       "service": "partyService",
       "name": "getPartyGroups",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 82,
+      "line": 88,
       "params": [
         {
           "name": "kind",
@@ -9564,7 +9719,7 @@
       "service": "partyService",
       "name": "getPartyHistory",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 241,
+      "line": 256,
       "params": [
         {
           "name": "partyId",
@@ -9606,7 +9761,7 @@
       "service": "partyService",
       "name": "getSupplier",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 165,
+      "line": 171,
       "params": [
         {
           "name": "id",
@@ -9661,7 +9816,7 @@
       "service": "partyService",
       "name": "getSuppliers",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 152,
+      "line": 158,
       "params": [
         {
           "name": "filter",
@@ -9703,7 +9858,7 @@
       "service": "partyService",
       "name": "getSupplierStatement",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 198,
+      "line": 205,
       "params": [
         {
           "name": "id",
@@ -9757,7 +9912,7 @@
       "service": "partyService",
       "name": "linkPartyRecords",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 206,
+      "line": 213,
       "params": [
         {
           "name": "customerId",
@@ -9775,14 +9930,21 @@
       "serviceCalls": [],
       "closure": {
         "tables": [
+          "activity",
+          "audit",
           "customers",
           "suppliers"
         ],
         "writes": [
+          "activity",
+          "audit",
           "customers",
           "suppliers"
         ],
         "mockFns": [
+          "src/mocks/backend/core.ts#entityFromLink",
+          "src/mocks/backend/core.ts#logActivity",
+          "src/mocks/backend/core.ts#logAudit",
           "src/mocks/events.ts#emit",
           "src/mocks/persist.ts#idbSet",
           "src/mocks/persist.ts#mutate",
@@ -9790,25 +9952,36 @@
           "src/mocks/persist.ts#scheduleSnapshot",
           "src/mocks/persist.ts#writeSnapshotNow",
           "src/mocks/utils.ts#clone",
-          "src/mocks/utils.ts#delay"
+          "src/mocks/utils.ts#delay",
+          "src/mocks/utils.ts#uid"
         ],
         "mockRefs": [
           "DB_NAME",
+          "DEFAULT_ACTION_BY_KIND",
+          "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
+          "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
+          "entry",
+          "idCounters",
           "latencyOverride",
           "listener",
           "listeners",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
+          "session",
           "snapshot",
           "tx",
           "wait"
@@ -9817,7 +9990,9 @@
         "platform": [
           "indexedDB"
         ],
-        "capabilities": []
+        "capabilities": [
+          "activity"
+        ]
       },
       "disposition": "port",
       "dispositionReason": "reads and writes backend data",
@@ -9829,7 +10004,7 @@
       "service": "partyService",
       "name": "saveCustomer",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 114,
+      "line": 120,
       "params": [
         {
           "name": "input",
@@ -9857,6 +10032,7 @@
           "journalEntries",
           "partyHistory",
           "payments",
+          "settings",
           "suppliers"
         ],
         "writes": [
@@ -9891,6 +10067,7 @@
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -9900,19 +10077,19 @@
           "candidates",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -9937,7 +10114,7 @@
       "service": "partyService",
       "name": "saveSupplier",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 172,
+      "line": 178,
       "params": [
         {
           "name": "input",
@@ -9965,6 +10142,7 @@
           "journalEntries",
           "partyHistory",
           "payments",
+          "settings",
           "suppliers"
         ],
         "writes": [
@@ -9999,6 +10177,7 @@
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -10008,19 +10187,19 @@
           "candidates",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -10045,7 +10224,7 @@
       "service": "partyService",
       "name": "unlinkPartyRecord",
       "file": "src/modules/parties/services/partyService.ts",
-      "line": 218,
+      "line": 226,
       "params": [
         {
           "name": "partyId",
@@ -10063,11 +10242,19 @@
       "serviceCalls": [],
       "closure": {
         "tables": [
+          "activity",
+          "audit",
           "customers",
           "suppliers"
         ],
-        "writes": [],
+        "writes": [
+          "activity",
+          "audit"
+        ],
         "mockFns": [
+          "src/mocks/backend/core.ts#entityFromLink",
+          "src/mocks/backend/core.ts#logActivity",
+          "src/mocks/backend/core.ts#logAudit",
           "src/mocks/events.ts#emit",
           "src/mocks/persist.ts#idbSet",
           "src/mocks/persist.ts#mutate",
@@ -10075,25 +10262,36 @@
           "src/mocks/persist.ts#scheduleSnapshot",
           "src/mocks/persist.ts#writeSnapshotNow",
           "src/mocks/utils.ts#clone",
-          "src/mocks/utils.ts#delay"
+          "src/mocks/utils.ts#delay",
+          "src/mocks/utils.ts#uid"
         ],
         "mockRefs": [
           "DB_NAME",
+          "DEFAULT_ACTION_BY_KIND",
+          "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
+          "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
+          "entry",
+          "idCounters",
           "latencyOverride",
           "listener",
           "listeners",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
+          "session",
           "snapshot",
           "tx",
           "wait"
@@ -10102,10 +10300,12 @@
         "platform": [
           "indexedDB"
         ],
-        "capabilities": []
+        "capabilities": [
+          "activity"
+        ]
       },
       "disposition": "port",
-      "dispositionReason": "reads backend data",
+      "dispositionReason": "reads and writes backend data",
       "rustCommand": "parties_unlink_party_record"
     },
     {
@@ -10200,6 +10400,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -10219,6 +10420,8 @@
           "debounceTimer",
           "dim",
           "doc",
+          "entity",
+          "entityId",
           "entry",
           "fc",
           "fcOutstanding",
@@ -10231,7 +10434,6 @@
           "invoice",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
@@ -10244,7 +10446,7 @@
           "openDocs",
           "outstanding",
           "pairs",
-          "parent",
+          "params",
           "partyName",
           "payment",
           "pendingSaveResolvers",
@@ -10259,7 +10461,6 @@
           "ring",
           "rows",
           "saving",
-          "segments",
           "session",
           "settled",
           "snapshot",
@@ -10376,6 +10577,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -10403,6 +10605,8 @@
           "debounceTimer",
           "dim",
           "doc",
+          "entity",
+          "entityId",
           "entry",
           "fcOutstanding",
           "fcSettled",
@@ -10414,7 +10618,6 @@
           "invoice",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
@@ -10424,7 +10627,7 @@
           "openDocs",
           "outstanding",
           "pairs",
-          "parent",
+          "params",
           "partyName",
           "payment",
           "pendingSaveResolvers",
@@ -10440,7 +10643,6 @@
           "ring",
           "rows",
           "saving",
-          "segments",
           "session",
           "settled",
           "settlementAccount",
@@ -10732,6 +10934,7 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -10739,14 +10942,15 @@
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
           "invoice",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
-          "parent",
+          "params",
           "payment",
           "pendingSaveResolvers",
           "po",
@@ -10754,7 +10958,6 @@
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "settled",
           "snapshot",
@@ -10779,7 +10982,7 @@
       "service": "inventoryService",
       "name": "adjustmentValue",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 42,
+      "line": 43,
       "params": [
         {
           "name": "adj",
@@ -10880,7 +11083,7 @@
       "service": "inventoryService",
       "name": "batchAlertTone",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 203,
+      "line": 205,
       "params": [
         {
           "name": "batch",
@@ -10963,7 +11166,7 @@
       "service": "inventoryService",
       "name": "completeAdjustment",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 73,
+      "line": 74,
       "params": [
         {
           "name": "id",
@@ -11045,6 +11248,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -11065,13 +11269,14 @@
           "debounceTimer",
           "dedupeKey",
           "draws",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "gains",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "line",
           "lines",
@@ -11082,7 +11287,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "product",
@@ -11097,7 +11302,6 @@
           "ring",
           "saving",
           "seen",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -11135,7 +11339,7 @@
       "service": "inventoryService",
       "name": "completeStockCount",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 265,
+      "line": 267,
       "params": [
         {
           "name": "countId",
@@ -11219,6 +11423,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -11240,13 +11445,14 @@
           "debounceTimer",
           "dedupeKey",
           "draws",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "gains",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "line",
           "lines",
@@ -11257,7 +11463,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "product",
@@ -11272,7 +11478,6 @@
           "ring",
           "saving",
           "seen",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -11396,6 +11601,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STOCK_IN_REASON_LABEL",
@@ -11418,13 +11624,14 @@
           "debounceTimer",
           "dedupeKey",
           "draws",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "gains",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "line",
           "lines",
@@ -11435,7 +11642,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "product",
@@ -11450,7 +11657,6 @@
           "ring",
           "saving",
           "seen",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -11489,7 +11695,7 @@
       "service": "inventoryService",
       "name": "createStockAdjustment",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 68,
+      "line": 69,
       "params": [
         {
           "name": "input",
@@ -11579,6 +11785,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STOCK_IN_REASON_LABEL",
@@ -11601,13 +11808,14 @@
           "debounceTimer",
           "dedupeKey",
           "draws",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "gains",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "line",
           "lines",
@@ -11618,7 +11826,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "product",
@@ -11633,7 +11841,6 @@
           "ring",
           "saving",
           "seen",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -11672,7 +11879,7 @@
       "service": "inventoryService",
       "name": "createStockCount",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 245,
+      "line": 247,
       "params": [
         {
           "name": "input",
@@ -11725,6 +11932,7 @@
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
           "PREFIX",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -11732,12 +11940,13 @@
           "conn",
           "count",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
           "p",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "product",
@@ -11746,7 +11955,6 @@
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -11823,6 +12031,7 @@
           "DEFAULT_ACTION_BY_KIND",
           "ENTITY_TO_ACTIVITY_KIND",
           "PREFIX",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -11830,11 +12039,12 @@
           "branch",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "line",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "product",
@@ -11842,7 +12052,6 @@
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "transfer",
@@ -11946,7 +12155,8 @@
       "serviceCalls": [],
       "closure": {
         "tables": [
-          "customFieldDefs"
+          "customFieldDefs",
+          "products"
         ],
         "writes": [
           "customFieldDefs"
@@ -11998,7 +12208,7 @@
       "service": "inventoryService",
       "name": "deleteDraftAdjustment",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 78,
+      "line": 79,
       "params": [
         {
           "name": "id",
@@ -12011,35 +12221,53 @@
       "serviceCalls": [],
       "closure": {
         "tables": [
+          "activity",
+          "audit",
           "stockAdjustments"
         ],
         "writes": [
+          "activity",
+          "audit",
           "stockAdjustments"
         ],
         "mockFns": [
+          "src/mocks/backend/core.ts#entityFromLink",
+          "src/mocks/backend/core.ts#logActivity",
+          "src/mocks/backend/core.ts#logAudit",
           "src/mocks/persist.ts#idbSet",
           "src/mocks/persist.ts#mutate",
           "src/mocks/persist.ts#openDb",
           "src/mocks/persist.ts#scheduleSnapshot",
           "src/mocks/persist.ts#writeSnapshotNow",
           "src/mocks/utils.ts#clone",
-          "src/mocks/utils.ts#delay"
+          "src/mocks/utils.ts#delay",
+          "src/mocks/utils.ts#uid"
         ],
         "mockRefs": [
           "DB_NAME",
+          "DEFAULT_ACTION_BY_KIND",
+          "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
+          "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
+          "entry",
+          "idCounters",
           "latencyOverride",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
+          "session",
           "snapshot",
           "tx",
           "wait"
@@ -12048,7 +12276,9 @@
         "platform": [
           "indexedDB"
         ],
-        "capabilities": []
+        "capabilities": [
+          "activity"
+        ]
       },
       "disposition": "port",
       "dispositionReason": "reads and writes backend data",
@@ -12269,7 +12499,7 @@
       "service": "inventoryService",
       "name": "getBatches",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 162,
+      "line": 164,
       "params": [
         {
           "name": "productId",
@@ -12385,7 +12615,7 @@
       "service": "inventoryService",
       "name": "getDebitNoteDrafts",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 224,
+      "line": 226,
       "params": [],
       "returns": "Promise<DebitNoteDraft[]>",
       "dtoTypes": [
@@ -12421,7 +12651,7 @@
       "service": "inventoryService",
       "name": "getExpiryReport",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 188,
+      "line": 190,
       "params": [],
       "returns": "Promise<ExpiryRow[]>",
       "dtoTypes": [],
@@ -12581,7 +12811,7 @@
       "service": "inventoryService",
       "name": "getStockAdjustment",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 60,
+      "line": 61,
       "params": [
         {
           "name": "id",
@@ -12624,7 +12854,7 @@
       "service": "inventoryService",
       "name": "getStockAdjustments",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 46,
+      "line": 47,
       "params": [
         {
           "name": "filter",
@@ -12673,7 +12903,7 @@
       "service": "inventoryService",
       "name": "getStockCount",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 238,
+      "line": 240,
       "params": [
         {
           "name": "id",
@@ -12715,7 +12945,7 @@
       "service": "inventoryService",
       "name": "getStockCounts",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 233,
+      "line": 235,
       "params": [],
       "returns": "Promise<StockCount[]>",
       "dtoTypes": [
@@ -12751,7 +12981,7 @@
       "service": "inventoryService",
       "name": "getStockMovements",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 94,
+      "line": 96,
       "params": [
         {
           "name": "filter",
@@ -12804,7 +13034,7 @@
       "service": "inventoryService",
       "name": "getStockMovementsPaged",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 110,
+      "line": 112,
       "params": [
         {
           "name": "query",
@@ -13076,6 +13306,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -13092,12 +13323,13 @@
           "debounceTimer",
           "destLines",
           "dim",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "line",
           "lines",
           "listener",
@@ -13106,7 +13338,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "product",
@@ -13121,7 +13353,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "sentQty",
           "sentValue",
           "session",
@@ -13238,6 +13469,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -13252,12 +13484,13 @@
           "day",
           "debounceTimer",
           "dim",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "line",
           "listener",
           "listeners",
@@ -13265,7 +13498,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "product",
@@ -13278,7 +13511,6 @@
           "ring",
           "s",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "sourceLines",
@@ -13317,7 +13549,7 @@
       "service": "catalogService",
       "name": "reorderCustomFieldDefs",
       "file": "src/modules/products/services/catalogService.ts",
-      "line": 205,
+      "line": 208,
       "params": [
         {
           "name": "orderedIds",
@@ -13382,7 +13614,7 @@
       "service": "inventoryService",
       "name": "resumeCounting",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 260,
+      "line": 262,
       "params": [
         {
           "name": "countId",
@@ -13448,7 +13680,7 @@
       "service": "inventoryService",
       "name": "returnBatchesToSupplier",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 215,
+      "line": 217,
       "params": [
         {
           "name": "supplierId",
@@ -13507,6 +13739,7 @@
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
           "PREFIX",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -13514,18 +13747,18 @@
           "conn",
           "debounceTimer",
           "draft",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -13930,6 +14163,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -13945,13 +14179,14 @@
           "day",
           "debounceTimer",
           "dim",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
           "l",
-          "last",
           "line",
           "listener",
           "listeners",
@@ -13959,7 +14194,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "postingSourceLines",
           "prefix",
@@ -13973,7 +14208,6 @@
           "ring",
           "s",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "src",
@@ -14083,7 +14317,7 @@
       "service": "inventoryService",
       "name": "submitCountForReview",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 255,
+      "line": 257,
       "params": [
         {
           "name": "countId",
@@ -14238,25 +14472,26 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -14280,7 +14515,7 @@
       "service": "inventoryService",
       "name": "updateStockCountLine",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 250,
+      "line": 252,
       "params": [
         {
           "name": "countId",
@@ -14360,7 +14595,7 @@
       "service": "inventoryService",
       "name": "writeOffExpiredBatches",
       "file": "src/modules/products/services/inventoryService.ts",
-      "line": 209,
+      "line": 211,
       "params": [
         {
           "name": "batchIds",
@@ -14450,6 +14685,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STOCK_IN_REASON_LABEL",
@@ -14473,6 +14709,8 @@
           "debounceTimer",
           "dedupeKey",
           "draws",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "gains",
@@ -14480,7 +14718,6 @@
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "line",
           "lines",
@@ -14491,7 +14728,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "product",
@@ -14506,7 +14743,6 @@
           "ring",
           "saving",
           "seen",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -14589,24 +14825,25 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "po",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -14723,6 +14960,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -14748,6 +14986,8 @@
           "day",
           "debounceTimer",
           "dim",
+          "entity",
+          "entityId",
           "entry",
           "factor",
           "found",
@@ -14758,7 +14998,6 @@
           "key",
           "landedCosts",
           "landedShare",
-          "last",
           "latencyOverride",
           "lc",
           "line",
@@ -14772,7 +15011,7 @@
           "otherSupplierLines",
           "ownSupplierTotal",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "po",
           "poLine",
@@ -14794,7 +15033,6 @@
           "rl",
           "rv",
           "saving",
-          "segments",
           "serviceByAccount",
           "session",
           "share",
@@ -14934,6 +15172,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -14953,6 +15192,8 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "factor",
           "fy",
@@ -14960,7 +15201,6 @@
           "inventoryValue",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "line",
           "lines",
@@ -14973,7 +15213,7 @@
           "newValue",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "po",
           "poLine",
@@ -14993,7 +15233,6 @@
           "returned",
           "ring",
           "saving",
-          "segments",
           "serviceByAccount",
           "session",
           "settledToPayable",
@@ -15357,6 +15596,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -15377,6 +15617,8 @@
           "day",
           "debounceTimer",
           "draft",
+          "entity",
+          "entityId",
           "entry",
           "factor",
           "fy",
@@ -15384,7 +15626,6 @@
           "inventoryValue",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "line",
           "lines",
@@ -15397,7 +15638,7 @@
           "newValue",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "po",
           "poId",
@@ -15420,7 +15661,6 @@
           "returned",
           "ring",
           "saving",
-          "segments",
           "serviceByAccount",
           "session",
           "settledToPayable",
@@ -15561,6 +15801,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -15586,6 +15827,8 @@
           "day",
           "debounceTimer",
           "dim",
+          "entity",
+          "entityId",
           "entry",
           "factor",
           "found",
@@ -15596,7 +15839,6 @@
           "key",
           "landedCosts",
           "landedShare",
-          "last",
           "latencyOverride",
           "lc",
           "line",
@@ -15610,7 +15852,7 @@
           "otherSupplierLines",
           "ownSupplierTotal",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "po",
           "poLine",
@@ -15632,7 +15874,6 @@
           "rl",
           "rv",
           "saving",
-          "segments",
           "serviceByAccount",
           "session",
           "share",
@@ -15781,6 +16022,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -15806,6 +16048,8 @@
           "day",
           "debounceTimer",
           "dim",
+          "entity",
+          "entityId",
           "entry",
           "factor",
           "found",
@@ -15816,7 +16060,6 @@
           "key",
           "landedCosts",
           "landedShare",
-          "last",
           "latencyOverride",
           "lc",
           "line",
@@ -15830,7 +16073,7 @@
           "otherSupplierLines",
           "ownSupplierTotal",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "po",
           "poLine",
@@ -15852,7 +16095,6 @@
           "rl",
           "rv",
           "saving",
-          "segments",
           "serviceByAccount",
           "session",
           "share",
@@ -15946,24 +16188,25 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "po",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -17684,23 +17927,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -17813,6 +18057,7 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -17825,21 +18070,22 @@
           "conn",
           "costCenter",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "i",
           "idCounters",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
           "mainCash",
+          "params",
           "parent",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "siblings",
           "snapshot",
@@ -17910,6 +18156,7 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -17917,17 +18164,17 @@
           "cc",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -18068,6 +18315,7 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -18076,18 +18324,18 @@
           "branch",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
           "openShift",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "stockLeft",
@@ -18125,39 +18373,57 @@
       "serviceCalls": [],
       "closure": {
         "tables": [
+          "activity",
+          "audit",
           "costCenters",
           "journalEntries"
         ],
         "writes": [
+          "activity",
+          "audit",
           "costCenters"
         ],
         "mockFns": [
           "src/mocks/backend/branches.ts#deleteCostCenter",
+          "src/mocks/backend/core.ts#entityFromLink",
+          "src/mocks/backend/core.ts#logActivity",
+          "src/mocks/backend/core.ts#logAudit",
           "src/mocks/persist.ts#idbSet",
           "src/mocks/persist.ts#mutate",
           "src/mocks/persist.ts#openDb",
           "src/mocks/persist.ts#scheduleSnapshot",
           "src/mocks/persist.ts#writeSnapshotNow",
           "src/mocks/utils.ts#clone",
-          "src/mocks/utils.ts#delay"
+          "src/mocks/utils.ts#delay",
+          "src/mocks/utils.ts#uid"
         ],
         "mockRefs": [
           "DB_NAME",
+          "DEFAULT_ACTION_BY_KIND",
+          "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
+          "at",
           "cc",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
+          "entry",
+          "idCounters",
           "inUse",
           "latencyOverride",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
+          "session",
           "snapshot",
           "tx",
           "wait"
@@ -18166,7 +18432,9 @@
         "platform": [
           "indexedDB"
         ],
-        "capabilities": []
+        "capabilities": [
+          "activity"
+        ]
       },
       "disposition": "port",
       "dispositionReason": "reads and writes backend data",
@@ -18212,7 +18480,7 @@
       "service": "settingsService",
       "name": "deletePaymentMethod",
       "file": "src/modules/settings/services/settingsService.ts",
-      "line": 103,
+      "line": 110,
       "params": [
         {
           "name": "id",
@@ -18225,35 +18493,49 @@
       "serviceCalls": [],
       "closure": {
         "tables": [
-          "paymentMethods"
+          "activity",
+          "audit",
+          "expenses",
+          "invoices",
+          "paymentMethods",
+          "vouchers"
         ],
         "writes": [
+          "activity",
+          "audit",
           "paymentMethods"
         ],
         "mockFns": [
+          "src/mocks/backend/core.ts#logAudit",
           "src/mocks/persist.ts#idbSet",
           "src/mocks/persist.ts#mutate",
           "src/mocks/persist.ts#openDb",
           "src/mocks/persist.ts#scheduleSnapshot",
           "src/mocks/persist.ts#writeSnapshotNow",
           "src/mocks/utils.ts#clone",
-          "src/mocks/utils.ts#delay"
+          "src/mocks/utils.ts#delay",
+          "src/mocks/utils.ts#uid"
         ],
         "mockRefs": [
           "DB_NAME",
+          "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
+          "at",
           "conn",
           "debounceTimer",
+          "entry",
+          "idCounters",
           "latencyOverride",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
+          "session",
           "snapshot",
           "tx",
           "wait"
@@ -18262,7 +18544,9 @@
         "platform": [
           "indexedDB"
         ],
-        "capabilities": []
+        "capabilities": [
+          "activity"
+        ]
       },
       "disposition": "port",
       "dispositionReason": "reads and writes backend data",
@@ -18274,7 +18558,7 @@
       "service": "settingsService",
       "name": "deleteTax",
       "file": "src/modules/settings/services/settingsService.ts",
-      "line": 58,
+      "line": 62,
       "params": [
         {
           "name": "id",
@@ -18287,35 +18571,48 @@
       "serviceCalls": [],
       "closure": {
         "tables": [
+          "activity",
+          "audit",
+          "invoices",
+          "purchaseOrders",
           "taxes"
         ],
         "writes": [
+          "activity",
+          "audit",
           "taxes"
         ],
         "mockFns": [
+          "src/mocks/backend/core.ts#logAudit",
           "src/mocks/persist.ts#idbSet",
           "src/mocks/persist.ts#mutate",
           "src/mocks/persist.ts#openDb",
           "src/mocks/persist.ts#scheduleSnapshot",
           "src/mocks/persist.ts#writeSnapshotNow",
           "src/mocks/utils.ts#clone",
-          "src/mocks/utils.ts#delay"
+          "src/mocks/utils.ts#delay",
+          "src/mocks/utils.ts#uid"
         ],
         "mockRefs": [
           "DB_NAME",
+          "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
+          "at",
           "conn",
           "debounceTimer",
+          "entry",
+          "idCounters",
           "latencyOverride",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
+          "session",
           "snapshot",
           "tx",
           "wait"
@@ -18324,7 +18621,9 @@
         "platform": [
           "indexedDB"
         ],
-        "capabilities": []
+        "capabilities": [
+          "activity"
+        ]
       },
       "disposition": "port",
       "dispositionReason": "reads and writes backend data",
@@ -18528,7 +18827,7 @@
       "service": "settingsService",
       "name": "getPaymentMethods",
       "file": "src/modules/settings/services/settingsService.ts",
-      "line": 70,
+      "line": 77,
       "params": [],
       "returns": "Promise<PaymentMethod[]>",
       "dtoTypes": [
@@ -18622,7 +18921,7 @@
       "service": "settingsService",
       "name": "getSettings",
       "file": "src/modules/settings/services/settingsService.ts",
-      "line": 8,
+      "line": 9,
       "params": [],
       "returns": "Promise<StoreSettings>",
       "dtoTypes": [
@@ -18658,7 +18957,7 @@
       "service": "settingsService",
       "name": "getTaxes",
       "file": "src/modules/settings/services/settingsService.ts",
-      "line": 24,
+      "line": 28,
       "params": [],
       "returns": "Promise<Tax[]>",
       "dtoTypes": [
@@ -18734,23 +19033,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -18867,9 +19167,8 @@
         ],
         "capabilities": []
       },
-      "disposition": "port",
-      "dispositionReason": "reads backend data",
-      "rustCommand": "settings_list_history"
+      "disposition": "frontend",
+      "dispositionReason": "override: 01.B settings review — lists local .zip files via plugin-fs (Tauri) or an IndexedDB store (browser); the folder path it reads comes from the already-ported getSettings/backupSettings, so no capability is lost by keeping this frontend-only"
     },
     {
       "source": "settings.pickBackupFolder",
@@ -19007,6 +19306,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -19024,6 +19324,8 @@
           "day",
           "debounceTimer",
           "desc",
+          "entity",
+          "entityId",
           "entry",
           "fcBalance",
           "fy",
@@ -19031,7 +19333,6 @@
           "keptPairs",
           "key",
           "l",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -19041,7 +19342,7 @@
           "next",
           "now",
           "pairs",
-          "parent",
+          "params",
           "party",
           "pendingSaveResolvers",
           "prefix",
@@ -19058,7 +19359,6 @@
           "row",
           "rows",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -19209,6 +19509,7 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -19217,17 +19518,17 @@
           "branch",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -19251,7 +19552,7 @@
       "service": "settingsService",
       "name": "reorderPaymentMethods",
       "file": "src/modules/settings/services/settingsService.ts",
-      "line": 95,
+      "line": 102,
       "params": [
         {
           "name": "orderedIds",
@@ -19366,25 +19667,26 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
           "migrations",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "record",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "store",
@@ -19462,23 +19764,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -19580,7 +19883,7 @@
       "service": "settingsService",
       "name": "savePaymentMethod",
       "file": "src/modules/settings/services/settingsService.ts",
-      "line": 75,
+      "line": 82,
       "params": [
         {
           "name": "input",
@@ -19629,23 +19932,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -19669,7 +19973,7 @@
       "service": "settingsService",
       "name": "saveTax",
       "file": "src/modules/settings/services/settingsService.ts",
-      "line": 29,
+      "line": 33,
       "params": [
         {
           "name": "input",
@@ -19717,23 +20021,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -19770,13 +20075,20 @@
       "serviceCalls": [],
       "closure": {
         "tables": [
+          "activity",
+          "audit",
           "journalEntries",
           "settings"
         ],
         "writes": [
+          "activity",
+          "audit",
           "settings"
         ],
         "mockFns": [
+          "src/mocks/backend/core.ts#entityFromLink",
+          "src/mocks/backend/core.ts#logActivity",
+          "src/mocks/backend/core.ts#logAudit",
           "src/mocks/backend/currency.ts#isBaseCurrencyLocked",
           "src/mocks/backend/currency.ts#setBaseCurrency",
           "src/mocks/persist.ts#idbSet",
@@ -19785,32 +20097,46 @@
           "src/mocks/persist.ts#scheduleSnapshot",
           "src/mocks/persist.ts#writeSnapshotNow",
           "src/mocks/utils.ts#clone",
-          "src/mocks/utils.ts#delay"
+          "src/mocks/utils.ts#delay",
+          "src/mocks/utils.ts#uid"
         ],
         "mockRefs": [
           "DB_NAME",
+          "DEFAULT_ACTION_BY_KIND",
+          "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
+          "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
+          "entry",
+          "idCounters",
           "latencyOverride",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
+          "session",
           "snapshot",
           "tx",
+          "upper",
           "wait"
         ],
         "invokes": [],
         "platform": [
           "indexedDB"
         ],
-        "capabilities": []
+        "capabilities": [
+          "activity"
+        ]
       },
       "disposition": "port",
       "dispositionReason": "reads and writes backend data",
@@ -19994,6 +20320,7 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -20001,17 +20328,17 @@
           "cc",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -20105,7 +20432,7 @@
       "service": "settingsService",
       "name": "updateSettings",
       "file": "src/modules/settings/services/settingsService.ts",
-      "line": 13,
+      "line": 14,
       "params": [
         {
           "name": "patch",
@@ -20148,23 +20475,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -20278,6 +20606,7 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -20291,22 +20620,23 @@
           "conn",
           "costCenter",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "i",
           "idCounters",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
           "main",
           "mainCash",
+          "params",
           "parent",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "siblings",
           "snapshot",
@@ -20506,17 +20836,24 @@
       ],
       "closure": {
         "tables": [
+          "activity",
+          "audit",
           "currencies",
           "journalEntries",
           "settings",
           "taxes"
         ],
         "writes": [
+          "activity",
+          "audit",
           "currencies",
           "settings",
           "taxes"
         ],
         "mockFns": [
+          "src/mocks/backend/core.ts#entityFromLink",
+          "src/mocks/backend/core.ts#logActivity",
+          "src/mocks/backend/core.ts#logAudit",
           "src/mocks/backend/currency.ts#baseCurrency",
           "src/mocks/backend/currency.ts#createCurrency",
           "src/mocks/backend/currency.ts#isBaseCurrencyLocked",
@@ -20527,19 +20864,29 @@
           "src/mocks/persist.ts#scheduleSnapshot",
           "src/mocks/persist.ts#writeSnapshotNow",
           "src/mocks/utils.ts#clone",
-          "src/mocks/utils.ts#delay"
+          "src/mocks/utils.ts#delay",
+          "src/mocks/utils.ts#uid"
         ],
         "mockRefs": [
           "DB_NAME",
+          "DEFAULT_ACTION_BY_KIND",
+          "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
+          "at",
           "conn",
           "currency",
           "debounceTimer",
+          "entity",
+          "entityId",
+          "entry",
+          "idCounters",
           "latencyOverride",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
@@ -20548,13 +20895,16 @@
           "session",
           "snapshot",
           "tx",
+          "upper",
           "wait"
         ],
         "invokes": [],
         "platform": [
           "indexedDB"
         ],
-        "capabilities": []
+        "capabilities": [
+          "activity"
+        ]
       },
       "disposition": "port",
       "dispositionReason": "reads and writes backend data",
@@ -20592,6 +20942,7 @@
       "closure": {
         "tables": [
           "fiscalYears",
+          "journalEntries",
           "settings"
         ],
         "writes": [
@@ -20667,6 +21018,7 @@
       "serviceCalls": [],
       "closure": {
         "tables": [
+          "journalEntries",
           "paymentMethods"
         ],
         "writes": [
@@ -20862,6 +21214,7 @@
         ],
         "writes": [],
         "mockFns": [
+          "src/mocks/backend/currency.ts#isBaseCurrencyLocked",
           "src/mocks/utils.ts#delay"
         ],
         "mockRefs": [
@@ -21082,9 +21435,8 @@
         ],
         "capabilities": []
       },
-      "disposition": "port",
-      "dispositionReason": "reads backend data",
-      "rustCommand": "setup_persist_progress"
+      "disposition": "drop",
+      "dispositionReason": "override: 01.B setup review — only calls flushSnapshot() (mock-specific IndexedDB persistence); under MariaDB every write already commits durably inside its own transaction, so there is no Rust equivalent"
     },
     {
       "source": "setup.postOpeningBalances",
@@ -21166,6 +21518,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -21183,6 +21536,8 @@
           "debounceTimer",
           "diff",
           "e",
+          "entity",
+          "entityId",
           "entry",
           "equity",
           "fy",
@@ -21190,7 +21545,6 @@
           "keptPairs",
           "key",
           "l",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -21201,7 +21555,7 @@
           "now",
           "o",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -21212,7 +21566,6 @@
           "ring",
           "s",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -21329,6 +21682,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -21344,6 +21698,8 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "equity",
           "fy",
@@ -21351,7 +21707,6 @@
           "inventoryAccount",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "line",
           "listener",
@@ -21360,7 +21715,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "product",
@@ -21371,7 +21726,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -21473,6 +21827,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -21489,13 +21844,14 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "goLiveDate",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "listener",
           "listeners",
@@ -21503,7 +21859,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "partyDebit",
           "partyLine",
           "pendingSaveResolvers",
@@ -21516,7 +21872,6 @@
           "ring",
           "role",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -21678,6 +22033,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -21691,6 +22047,8 @@
           "day",
           "debounceTimer",
           "e",
+          "entity",
+          "entityId",
           "entry",
           "equity",
           "fy",
@@ -21698,7 +22056,6 @@
           "keptPairs",
           "key",
           "l",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -21708,7 +22065,7 @@
           "net",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -21718,7 +22075,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -21766,13 +22122,18 @@
       "closure": {
         "tables": [
           "accounts",
+          "activity",
+          "audit",
           "branches",
           "counters",
           "fiscalYears",
           "journalEntries",
+          "payments",
           "settings"
         ],
         "writes": [
+          "activity",
+          "audit",
           "counters",
           "journalEntries"
         ],
@@ -21780,6 +22141,9 @@
           "src/mocks/backend/accounts.ts#accountById",
           "src/mocks/backend/accounts.ts#accountFor",
           "src/mocks/backend/core.ts#assertOpenPeriod",
+          "src/mocks/backend/core.ts#entityFromLink",
+          "src/mocks/backend/core.ts#logActivity",
+          "src/mocks/backend/core.ts#logAudit",
           "src/mocks/backend/core.ts#postJournal",
           "src/mocks/backend/core.ts#resolvePosting",
           "src/mocks/backend/currency.ts#baseCurrency",
@@ -21802,16 +22166,21 @@
         ],
         "mockRefs": [
           "DB_NAME",
+          "DEFAULT_ACTION_BY_KIND",
           "DEFAULT_BRANCH_ID",
+          "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "account",
+          "allocated",
+          "at",
           "branchId",
           "byEntryId",
           "candidates",
@@ -21819,6 +22188,8 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
@@ -21833,6 +22204,8 @@
           "original",
           "originalRef",
           "pairs",
+          "params",
+          "partyLine",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -21860,6 +22233,7 @@
           "localStorage"
         ],
         "capabilities": [
+          "activity",
           "ledger",
           "numbering",
           "period"
@@ -21937,7 +22311,7 @@
       "service": "templateService",
       "name": "createTemplate",
       "file": "src/modules/templates/services/templateService.ts",
-      "line": 161,
+      "line": 162,
       "params": [
         {
           "name": "kind",
@@ -21983,7 +22357,7 @@
       "service": "templateService",
       "name": "deleteTemplate",
       "file": "src/modules/templates/services/templateService.ts",
-      "line": 121,
+      "line": 122,
       "params": [
         {
           "name": "id",
@@ -22015,7 +22389,7 @@
       "service": "templateService",
       "name": "duplicateTemplate",
       "file": "src/modules/templates/services/templateService.ts",
-      "line": 102,
+      "line": 103,
       "params": [
         {
           "name": "id",
@@ -22049,7 +22423,7 @@
       "service": "templateService",
       "name": "exportTemplate",
       "file": "src/modules/templates/services/templateService.ts",
-      "line": 137,
+      "line": 138,
       "params": [
         {
           "name": "template",
@@ -22082,7 +22456,7 @@
       "service": "templateService",
       "name": "getDefaultTemplate",
       "file": "src/modules/templates/services/templateService.ts",
-      "line": 77,
+      "line": 78,
       "params": [
         {
           "name": "kind",
@@ -22117,7 +22491,7 @@
       "service": "templateService",
       "name": "getTemplate",
       "file": "src/modules/templates/services/templateService.ts",
-      "line": 73,
+      "line": 74,
       "params": [
         {
           "name": "id",
@@ -22151,7 +22525,7 @@
       "service": "templateService",
       "name": "importTemplate",
       "file": "src/modules/templates/services/templateService.ts",
-      "line": 142,
+      "line": 143,
       "params": [
         {
           "name": "json",
@@ -22186,7 +22560,7 @@
       "service": "templateService",
       "name": "listTemplates",
       "file": "src/modules/templates/services/templateService.ts",
-      "line": 68,
+      "line": 69,
       "params": [
         {
           "name": "kind",
@@ -22221,7 +22595,7 @@
       "service": "templateService",
       "name": "resetTemplateToDefaults",
       "file": "src/modules/templates/services/templateService.ts",
-      "line": 126,
+      "line": 127,
       "params": [
         {
           "name": "id",
@@ -22255,7 +22629,7 @@
       "service": "templateService",
       "name": "saveTemplate",
       "file": "src/modules/templates/services/templateService.ts",
-      "line": 82,
+      "line": 83,
       "params": [
         {
           "name": "template",
@@ -22289,7 +22663,7 @@
       "service": "templateService",
       "name": "setAsDefault",
       "file": "src/modules/templates/services/templateService.ts",
-      "line": 92,
+      "line": 93,
       "params": [
         {
           "name": "id",
@@ -22367,23 +22741,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -22433,9 +22808,8 @@
         "platform": [],
         "capabilities": []
       },
-      "disposition": "port",
-      "dispositionReason": "reads backend data",
-      "rustCommand": "users_get_demo_accounts"
+      "disposition": "dev-only",
+      "dispositionReason": "override: 01.B users review — returns plaintext passwords for the dev/demo login-screen account picker; must never exist as a general-purpose production command (same class of restriction as devToolsService, F9)"
     },
     {
       "source": "users.getUser",
@@ -22569,23 +22943,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -22735,23 +23110,24 @@
           "ENTITY_TO_ACTIVITY_KIND",
           "LATENCY_PRESETS",
           "MOCK_LATENCY",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
           "at",
           "conn",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "idCounters",
-          "last",
           "latencyOverride",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "req",
           "resolvers",
           "result",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "tx",
@@ -22897,6 +23273,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -22913,6 +23290,8 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "existing",
           "feeAmount",
@@ -22925,7 +23304,6 @@
           "keptPairs",
           "key",
           "keys",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -22936,7 +23314,7 @@
           "methodById",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -22947,7 +23325,6 @@
           "ring",
           "s",
           "saving",
-          "segments",
           "selected",
           "session",
           "settlement",
@@ -23055,6 +23432,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -23069,12 +23447,13 @@
           "day",
           "debounceTimer",
           "drawingsAccount",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -23083,7 +23462,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -23093,7 +23472,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -23200,6 +23578,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -23213,12 +23592,13 @@
           "day",
           "debitAccount",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -23228,7 +23608,7 @@
           "method",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -23238,7 +23618,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -23345,6 +23724,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -23358,12 +23738,13 @@
           "d",
           "day",
           "debounceTimer",
+          "entity",
+          "entityId",
           "entry",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -23373,7 +23754,7 @@
           "method",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -23383,7 +23764,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "steps",
@@ -23488,6 +23868,7 @@
           "PREFIX",
           "RING_SIZE",
           "ROLE_LABEL",
+          "ROUTE_NAME_TO_ENTITY",
           "SCHEMA_VERSION",
           "SNAPSHOT_KEY",
           "STORE_NAME",
@@ -23501,13 +23882,14 @@
           "day",
           "debounceTimer",
           "destination",
+          "entity",
+          "entityId",
           "entry",
           "fee",
           "fy",
           "idCounters",
           "keptPairs",
           "key",
-          "last",
           "latencyOverride",
           "lines",
           "listener",
@@ -23516,7 +23898,7 @@
           "m",
           "now",
           "pairs",
-          "parent",
+          "params",
           "pendingSaveResolvers",
           "prefix",
           "raw",
@@ -23526,7 +23908,6 @@
           "result",
           "ring",
           "saving",
-          "segments",
           "session",
           "snapshot",
           "source",
@@ -24731,7 +25112,7 @@
       "id": "src/mocks/backend/branches.ts#defaultCostCenterFor",
       "file": "src/mocks/backend/branches.ts",
       "name": "defaultCostCenterFor",
-      "line": 263,
+      "line": 264,
       "tables": [],
       "writes": [],
       "calls": [
@@ -24758,6 +25139,7 @@
         "costCenters"
       ],
       "calls": [
+        "src/mocks/backend/core.ts#logActivity",
         "src/mocks/persist.ts#mutate"
       ],
       "mockRefs": [
@@ -24907,7 +25289,7 @@
       "id": "src/mocks/backend/core.ts#applyStockChange",
       "file": "src/mocks/backend/core.ts",
       "name": "applyStockChange",
-      "line": 267,
+      "line": 268,
       "tables": [
         "stockMovements"
       ],
@@ -24932,7 +25314,7 @@
       "id": "src/mocks/backend/core.ts#assertOpenPeriod",
       "file": "src/mocks/backend/core.ts",
       "name": "assertOpenPeriod",
-      "line": 104,
+      "line": 105,
       "tables": [
         "fiscalYears",
         "settings"
@@ -24955,7 +25337,7 @@
       "id": "src/mocks/backend/core.ts#closeFiscalYear",
       "file": "src/mocks/backend/core.ts",
       "name": "closeFiscalYear",
-      "line": 539,
+      "line": 560,
       "tables": [
         "accounts",
         "fiscalYears",
@@ -25002,7 +25384,7 @@
       "id": "src/mocks/backend/core.ts#closeYearPreChecks",
       "file": "src/mocks/backend/core.ts",
       "name": "closeYearPreChecks",
-      "line": 496,
+      "line": 517,
       "tables": [
         "fiscalYears",
         "journalDrafts",
@@ -25032,7 +25414,7 @@
       "id": "src/mocks/backend/core.ts#deleteDraftJournal",
       "file": "src/mocks/backend/core.ts",
       "name": "deleteDraftJournal",
-      "line": 225,
+      "line": 226,
       "tables": [
         "journalDrafts"
       ],
@@ -25054,7 +25436,7 @@
       "id": "src/mocks/backend/core.ts#diffFields",
       "file": "src/mocks/backend/core.ts",
       "name": "diffFields",
-      "line": 422,
+      "line": 443,
       "tables": [],
       "writes": [],
       "calls": [],
@@ -25075,7 +25457,7 @@
       "id": "src/mocks/backend/core.ts#draftJournal",
       "file": "src/mocks/backend/core.ts",
       "name": "draftJournal",
-      "line": 177,
+      "line": 178,
       "tables": [
         "journalDrafts"
       ],
@@ -25101,16 +25483,17 @@
       "id": "src/mocks/backend/core.ts#entityFromLink",
       "file": "src/mocks/backend/core.ts",
       "name": "entityFromLink",
-      "line": 312,
+      "line": 335,
       "tables": [],
       "writes": [],
       "calls": [
         "src/mocks/utils.ts#uid"
       ],
       "mockRefs": [
-        "last",
-        "parent",
-        "segments"
+        "ROUTE_NAME_TO_ENTITY",
+        "entity",
+        "entityId",
+        "params"
       ],
       "invokes": [],
       "platform": [],
@@ -25121,7 +25504,7 @@
       "id": "src/mocks/backend/core.ts#logActivity",
       "file": "src/mocks/backend/core.ts",
       "name": "logActivity",
-      "line": 331,
+      "line": 352,
       "tables": [],
       "writes": [],
       "calls": [
@@ -25140,7 +25523,7 @@
       "id": "src/mocks/backend/core.ts#logAudit",
       "file": "src/mocks/backend/core.ts",
       "name": "logAudit",
-      "line": 388,
+      "line": 409,
       "tables": [
         "activity",
         "audit"
@@ -25167,7 +25550,7 @@
       "id": "src/mocks/backend/core.ts#postDraftJournal",
       "file": "src/mocks/backend/core.ts",
       "name": "postDraftJournal",
-      "line": 232,
+      "line": 233,
       "tables": [
         "journalDrafts",
         "journalEntries"
@@ -25195,7 +25578,7 @@
       "id": "src/mocks/backend/core.ts#postJournal",
       "file": "src/mocks/backend/core.ts",
       "name": "postJournal",
-      "line": 123,
+      "line": 124,
       "tables": [
         "journalEntries"
       ],
@@ -25225,7 +25608,7 @@
       "id": "src/mocks/backend/core.ts#productById",
       "file": "src/mocks/backend/core.ts",
       "name": "productById",
-      "line": 250,
+      "line": 251,
       "tables": [
         "products"
       ],
@@ -25243,7 +25626,7 @@
       "id": "src/mocks/backend/core.ts#purchaseTaxRate",
       "file": "src/mocks/backend/core.ts",
       "name": "purchaseTaxRate",
-      "line": 447,
+      "line": 468,
       "tables": [
         "taxes"
       ],
@@ -25261,7 +25644,7 @@
       "id": "src/mocks/backend/core.ts#reopenFiscalYear",
       "file": "src/mocks/backend/core.ts",
       "name": "reopenFiscalYear",
-      "line": 619,
+      "line": 640,
       "tables": [
         "fiscalYears",
         "journalEntries"
@@ -25289,7 +25672,7 @@
       "id": "src/mocks/backend/core.ts#resolvePosting",
       "file": "src/mocks/backend/core.ts",
       "name": "resolvePosting",
-      "line": 54,
+      "line": 55,
       "tables": [
         "branches"
       ],
@@ -25321,7 +25704,7 @@
       "id": "src/mocks/backend/core.ts#salesTaxRate",
       "file": "src/mocks/backend/core.ts",
       "name": "salesTaxRate",
-      "line": 440,
+      "line": 461,
       "tables": [
         "settings",
         "taxes"
@@ -25340,7 +25723,7 @@
       "id": "src/mocks/backend/core.ts#trialBalanceFor",
       "file": "src/mocks/backend/core.ts",
       "name": "trialBalanceFor",
-      "line": 471,
+      "line": 492,
       "tables": [
         "accounts",
         "journalEntries"
@@ -25368,7 +25751,7 @@
       "id": "src/mocks/backend/core.ts#updateDraftJournal",
       "file": "src/mocks/backend/core.ts",
       "name": "updateDraftJournal",
-      "line": 207,
+      "line": 208,
       "tables": [
         "journalDrafts"
       ],
@@ -25391,7 +25774,7 @@
       "id": "src/mocks/backend/core.ts#userById",
       "file": "src/mocks/backend/core.ts",
       "name": "userById",
-      "line": 452,
+      "line": 473,
       "tables": [
         "users"
       ],
@@ -25407,7 +25790,7 @@
       "id": "src/mocks/backend/currency.ts#activeCurrencies",
       "file": "src/mocks/backend/currency.ts",
       "name": "activeCurrencies",
-      "line": 25,
+      "line": 26,
       "tables": [
         "currencies"
       ],
@@ -25423,7 +25806,7 @@
       "id": "src/mocks/backend/currency.ts#baseCurrency",
       "file": "src/mocks/backend/currency.ts",
       "name": "baseCurrency",
-      "line": 13,
+      "line": 14,
       "tables": [
         "settings"
       ],
@@ -25441,7 +25824,7 @@
       "id": "src/mocks/backend/currency.ts#convertLinesToBase",
       "file": "src/mocks/backend/currency.ts",
       "name": "convertLinesToBase",
-      "line": 94,
+      "line": 97,
       "tables": [],
       "writes": [],
       "calls": [
@@ -25465,7 +25848,7 @@
       "id": "src/mocks/backend/currency.ts#createCurrency",
       "file": "src/mocks/backend/currency.ts",
       "name": "createCurrency",
-      "line": 29,
+      "line": 30,
       "tables": [
         "currencies"
       ],
@@ -25488,7 +25871,7 @@
       "id": "src/mocks/backend/currency.ts#currencyByCode",
       "file": "src/mocks/backend/currency.ts",
       "name": "currencyByCode",
-      "line": 21,
+      "line": 22,
       "tables": [
         "currencies"
       ],
@@ -25504,7 +25887,7 @@
       "id": "src/mocks/backend/currency.ts#isBaseCurrency",
       "file": "src/mocks/backend/currency.ts",
       "name": "isBaseCurrency",
-      "line": 17,
+      "line": 18,
       "tables": [],
       "writes": [],
       "calls": [
@@ -25520,7 +25903,7 @@
       "id": "src/mocks/backend/currency.ts#isBaseCurrencyLocked",
       "file": "src/mocks/backend/currency.ts",
       "name": "isBaseCurrencyLocked",
-      "line": 49,
+      "line": 50,
       "tables": [
         "journalEntries"
       ],
@@ -25536,7 +25919,7 @@
       "id": "src/mocks/backend/currency.ts#latestRate",
       "file": "src/mocks/backend/currency.ts",
       "name": "latestRate",
-      "line": 74,
+      "line": 77,
       "tables": [
         "exchangeRates"
       ],
@@ -25559,7 +25942,7 @@
       "id": "src/mocks/backend/currency.ts#requireRate",
       "file": "src/mocks/backend/currency.ts",
       "name": "requireRate",
-      "line": 82,
+      "line": 85,
       "tables": [],
       "writes": [],
       "calls": [
@@ -25577,7 +25960,7 @@
       "id": "src/mocks/backend/currency.ts#saveExchangeRate",
       "file": "src/mocks/backend/currency.ts",
       "name": "saveExchangeRate",
-      "line": 59,
+      "line": 62,
       "tables": [
         "exchangeRates"
       ],
@@ -25605,7 +25988,7 @@
       "id": "src/mocks/backend/currency.ts#setBaseCurrency",
       "file": "src/mocks/backend/currency.ts",
       "name": "setBaseCurrency",
-      "line": 53,
+      "line": 54,
       "tables": [
         "settings"
       ],
@@ -25613,10 +25996,13 @@
         "settings"
       ],
       "calls": [
+        "src/mocks/backend/core.ts#logActivity",
         "src/mocks/backend/currency.ts#isBaseCurrencyLocked",
         "src/mocks/persist.ts#mutate"
       ],
-      "mockRefs": [],
+      "mockRefs": [
+        "upper"
+      ],
       "invokes": [],
       "platform": [],
       "round2": 0,
@@ -25626,7 +26012,7 @@
       "id": "src/mocks/backend/currency.ts#toBase",
       "file": "src/mocks/backend/currency.ts",
       "name": "toBase",
-      "line": 112,
+      "line": 115,
       "tables": [],
       "writes": [],
       "calls": [
@@ -25642,7 +26028,7 @@
       "id": "src/mocks/backend/currency.ts#updateCurrency",
       "file": "src/mocks/backend/currency.ts",
       "name": "updateCurrency",
-      "line": 38,
+      "line": 39,
       "tables": [],
       "writes": [],
       "calls": [
@@ -26840,7 +27226,7 @@
       "id": "src/mocks/backend/journal.ts#advanceRecurrence",
       "file": "src/mocks/backend/journal.ts",
       "name": "advanceRecurrence",
-      "line": 209,
+      "line": 211,
       "tables": [
         "journalTemplates"
       ],
@@ -26864,7 +27250,7 @@
       "id": "src/mocks/backend/journal.ts#deleteJournalTemplate",
       "file": "src/mocks/backend/journal.ts",
       "name": "deleteJournalTemplate",
-      "line": 202,
+      "line": 203,
       "tables": [
         "journalTemplates"
       ],
@@ -26872,6 +27258,7 @@
         "journalTemplates"
       ],
       "calls": [
+        "src/mocks/backend/core.ts#logActivity",
         "src/mocks/persist.ts#mutate"
       ],
       "mockRefs": [
@@ -26904,7 +27291,7 @@
       "id": "src/mocks/backend/journal.ts#payVatSettlement",
       "file": "src/mocks/backend/journal.ts",
       "name": "payVatSettlement",
-      "line": 287,
+      "line": 289,
       "tables": [
         "journalEntries"
       ],
@@ -26927,7 +27314,7 @@
       "id": "src/mocks/backend/journal.ts#postVatSettlement",
       "file": "src/mocks/backend/journal.ts",
       "name": "postVatSettlement",
-      "line": 254,
+      "line": 256,
       "tables": [],
       "writes": [],
       "calls": [
@@ -27008,6 +27395,7 @@
         "journalTemplates"
       ],
       "calls": [
+        "src/mocks/backend/core.ts#logActivity",
         "src/mocks/backend/journal.ts#validateTemplateLines",
         "src/mocks/persist.ts#mutate",
         "src/mocks/utils.ts#uid"
@@ -27102,7 +27490,7 @@
       "id": "src/mocks/backend/journal.ts#vatTotalsForPeriod",
       "file": "src/mocks/backend/journal.ts",
       "name": "vatTotalsForPeriod",
-      "line": 232,
+      "line": 234,
       "tables": [
         "journalEntries"
       ],
@@ -27263,7 +27651,7 @@
       "id": "src/mocks/backend/opening.ts#postOpeningStockDefault",
       "file": "src/mocks/backend/opening.ts",
       "name": "postOpeningStockDefault",
-      "line": 240,
+      "line": 243,
       "tables": [],
       "writes": [],
       "calls": [
@@ -27316,7 +27704,7 @@
       "id": "src/mocks/backend/opening.ts#postPartyOpeningBalance",
       "file": "src/mocks/backend/opening.ts",
       "name": "postPartyOpeningBalance",
-      "line": 263,
+      "line": 266,
       "tables": [
         "settings"
       ],
@@ -27347,19 +27735,23 @@
       "id": "src/mocks/backend/opening.ts#reversePartyOpeningBalance",
       "file": "src/mocks/backend/opening.ts",
       "name": "reversePartyOpeningBalance",
-      "line": 304,
+      "line": 308,
       "tables": [
-        "journalEntries"
+        "journalEntries",
+        "payments"
       ],
       "writes": [
         "journalEntries"
       ],
       "calls": [
+        "src/mocks/backend/core.ts#logActivity",
         "src/mocks/backend/core.ts#postJournal"
       ],
       "mockRefs": [
+        "allocated",
         "original",
         "originalRef",
+        "partyLine",
         "reversal",
         "reversedLines"
       ],
@@ -28760,7 +29152,7 @@
       "id": "src/mocks/backend/settlements.ts#estimatedFeeFor",
       "file": "src/mocks/backend/settlements.ts",
       "name": "estimatedFeeFor",
-      "line": 117,
+      "line": 120,
       "tables": [
         "paymentMethods"
       ],
@@ -28780,7 +29172,7 @@
       "id": "src/mocks/backend/settlements.ts#getCardSettlementById",
       "file": "src/mocks/backend/settlements.ts",
       "name": "getCardSettlementById",
-      "line": 110,
+      "line": 113,
       "tables": [
         "cardSettlements"
       ],
@@ -28888,7 +29280,7 @@
       "id": "src/mocks/backend/setup.ts#applyBranches",
       "file": "src/mocks/backend/setup.ts",
       "name": "applyBranches",
-      "line": 101,
+      "line": 106,
       "tables": [
         "branches",
         "settings"
@@ -28963,8 +29355,9 @@
       "id": "src/mocks/backend/setup.ts#applyPaymentMethods",
       "file": "src/mocks/backend/setup.ts",
       "name": "applyPaymentMethods",
-      "line": 163,
+      "line": 168,
       "tables": [
+        "journalEntries",
         "paymentMethods"
       ],
       "writes": [
@@ -29002,7 +29395,8 @@
       "name": "setFiscalYear",
       "line": 67,
       "tables": [
-        "fiscalYears"
+        "fiscalYears",
+        "journalEntries"
       ],
       "writes": [
         "fiscalYears"
@@ -29276,7 +29670,7 @@
       "id": "src/mocks/backend/transfers.ts#receiveTransfer",
       "file": "src/mocks/backend/transfers.ts",
       "name": "receiveTransfer",
-      "line": 127,
+      "line": 129,
       "tables": [],
       "writes": [],
       "calls": [
@@ -29319,7 +29713,7 @@
       "id": "src/mocks/backend/transfers.ts#rejectTransfer",
       "file": "src/mocks/backend/transfers.ts",
       "name": "rejectTransfer",
-      "line": 191,
+      "line": 193,
       "tables": [],
       "writes": [],
       "calls": [
@@ -29354,7 +29748,7 @@
       "id": "src/mocks/backend/transfers.ts#sendTransfer",
       "file": "src/mocks/backend/transfers.ts",
       "name": "sendTransfer",
-      "line": 66,
+      "line": 68,
       "tables": [],
       "writes": [],
       "calls": [
@@ -30458,7 +30852,7 @@
     {
       "module": "core",
       "file": "src/modules/core/types/index.ts",
-      "line": 21,
+      "line": 23,
       "name": "ActivityEntry",
       "kind": "interface",
       "fields": [
@@ -30492,7 +30886,7 @@
         },
         {
           "name": "link",
-          "type": "string",
+          "type": "AppRoute",
           "optional": true,
           "hint": "route"
         }
@@ -30501,7 +30895,7 @@
     {
       "module": "core",
       "file": "src/modules/core/types/index.ts",
-      "line": 1,
+      "line": 3,
       "name": "ActivityKind",
       "kind": "type",
       "text": "| 'sale' | 'refund' | 'purchase' | 'purchase_return' | 'payment' | 'stock' | 'journal' | 'product' | 'party' | 'user' | 'settings' | 'auth' | 'shift' /** v2 phase 8 (docs/v2/09-purchases-payments-expenses.md §4-§5): expenses and general vouchers. */ | 'expense' | 'voucher' /** v2 phase 13b (docs/v2/14-platform.md §6): an async approval request was submitted/decided. */ | 'approval'"
@@ -30634,7 +31028,7 @@
     {
       "module": "core",
       "file": "src/modules/core/types/index.ts",
-      "line": 36,
+      "line": 38,
       "name": "DashboardSummary",
       "kind": "interface",
       "fields": [
@@ -30695,7 +31089,7 @@
     {
       "module": "core",
       "file": "src/modules/core/types/index.ts",
-      "line": 31,
+      "line": 33,
       "name": "DateRange",
       "kind": "interface",
       "fields": [
@@ -30932,7 +31326,7 @@
     {
       "module": "diagnostics",
       "file": "src/modules/diagnostics/types/index.ts",
-      "line": 68,
+      "line": 69,
       "name": "AuditAction",
       "kind": "type",
       "text": "'create' | 'update' | 'post' | 'void' | 'reverse' | 'delete' | 'login' | 'settings'"
@@ -30940,7 +31334,7 @@
     {
       "module": "diagnostics",
       "file": "src/modules/diagnostics/types/index.ts",
-      "line": 77,
+      "line": 78,
       "name": "AuditEntry",
       "kind": "interface",
       "fields": [
@@ -31010,7 +31404,7 @@
         },
         {
           "name": "link",
-          "type": "string",
+          "type": "AppRoute",
           "optional": true,
           "hint": "route"
         }
@@ -31019,7 +31413,7 @@
     {
       "module": "diagnostics",
       "file": "src/modules/diagnostics/types/index.ts",
-      "line": 71,
+      "line": 72,
       "name": "AuditFieldDiff",
       "kind": "interface",
       "fields": [
@@ -31043,7 +31437,7 @@
     {
       "module": "diagnostics",
       "file": "src/modules/diagnostics/types/index.ts",
-      "line": 40,
+      "line": 41,
       "name": "FingerprintGroup",
       "kind": "interface",
       "fields": [
@@ -31092,7 +31486,7 @@
     {
       "module": "diagnostics",
       "file": "src/modules/diagnostics/types/index.ts",
-      "line": 7,
+      "line": 8,
       "name": "LogChannel",
       "kind": "type",
       "text": "'error' | 'perf' | 'debug' | 'audit' | 'accounting'"
@@ -31100,7 +31494,7 @@
     {
       "module": "diagnostics",
       "file": "src/modules/diagnostics/types/index.ts",
-      "line": 18,
+      "line": 19,
       "name": "LogContext",
       "kind": "interface",
       "fields": [
@@ -31144,7 +31538,7 @@
     {
       "module": "diagnostics",
       "file": "src/modules/diagnostics/types/index.ts",
-      "line": 27,
+      "line": 28,
       "name": "LogEntry",
       "kind": "interface",
       "fields": [
@@ -31198,7 +31592,7 @@
     {
       "module": "diagnostics",
       "file": "src/modules/diagnostics/types/index.ts",
-      "line": 10,
+      "line": 11,
       "name": "LogErrorInfo",
       "kind": "interface",
       "fields": [
@@ -31227,7 +31621,7 @@
     {
       "module": "diagnostics",
       "file": "src/modules/diagnostics/types/index.ts",
-      "line": 8,
+      "line": 9,
       "name": "LogLevel",
       "kind": "type",
       "text": "'debug' | 'info' | 'warn' | 'error'"
@@ -31235,7 +31629,7 @@
     {
       "module": "diagnostics",
       "file": "src/modules/diagnostics/types/index.ts",
-      "line": 51,
+      "line": 52,
       "name": "PerfStat",
       "kind": "interface",
       "fields": [
@@ -39550,309 +39944,9 @@
   ],
   "pathLinks": [
     {
-      "file": "src/mocks/backend/approvals.ts",
-      "line": 33,
-      "text": "'/approvals'"
-    },
-    {
-      "file": "src/mocks/backend/approvals.ts",
-      "line": 61,
-      "text": "'/approvals'"
-    },
-    {
-      "file": "src/mocks/backend/branches.ts",
-      "line": 126,
-      "text": "'/settings/branches'"
-    },
-    {
-      "file": "src/mocks/backend/branches.ts",
-      "line": 164,
-      "text": "'/settings/branches'"
-    },
-    {
-      "file": "src/mocks/backend/branches.ts",
-      "line": 188,
-      "text": "'/settings/branches'"
-    },
-    {
-      "file": "src/mocks/backend/branches.ts",
-      "line": 200,
-      "text": "'/settings/branches'"
-    },
-    {
-      "file": "src/mocks/backend/branches.ts",
-      "line": 241,
-      "text": "'/settings/cost-centers'"
-    },
-    {
-      "file": "src/mocks/backend/branches.ts",
-      "line": 249,
-      "text": "'/settings/cost-centers'"
-    },
-    {
-      "file": "src/mocks/backend/core.ts",
-      "line": 594,
-      "text": "'/accounting/fiscal-years'"
-    },
-    {
-      "file": "src/mocks/backend/core.ts",
-      "line": 654,
-      "text": "'/accounting/fiscal-years'"
-    },
-    {
-      "file": "src/mocks/backend/expenses.ts",
-      "line": 114,
-      "text": "`/expenses/${expense.id}`"
-    },
-    {
-      "file": "src/mocks/backend/inventory.ts",
-      "line": 247,
-      "text": "`/inventory/adjustments/${adj.id}`"
-    },
-    {
-      "file": "src/mocks/backend/inventory.ts",
-      "line": 279,
-      "text": "`/inventory/adjustments/${adj.id}`"
-    },
-    {
-      "file": "src/mocks/backend/inventory.ts",
-      "line": 325,
-      "text": "`/inventory/counts/${count.id}`"
-    },
-    {
-      "file": "src/mocks/backend/inventory.ts",
-      "line": 385,
-      "text": "`/inventory/adjustments/${adj.id}`"
-    },
-    {
-      "file": "src/mocks/backend/inventory.ts",
-      "line": 444,
-      "text": "`/products`"
-    },
-    {
-      "file": "src/mocks/backend/journal.ts",
-      "line": 111,
-      "text": "`/accounting/journal/${entry.id}`"
-    },
-    {
-      "file": "src/mocks/backend/journal.ts",
-      "line": 160,
-      "text": "`/accounting/journal/${reversal.id}`"
-    },
-    {
-      "file": "src/mocks/backend/journal.ts",
-      "line": 275,
-      "text": "`/accounting/journal/${entry.id}`"
-    },
-    {
-      "file": "src/mocks/backend/opening.ts",
-      "line": 138,
-      "text": "'/accounting/journal'"
-    },
-    {
-      "file": "src/mocks/backend/opening.ts",
-      "line": 166,
-      "text": "'/accounting/journal'"
-    },
-    {
-      "file": "src/mocks/backend/opening.ts",
-      "line": 235,
-      "text": "'/inventory'"
-    },
-    {
-      "file": "src/mocks/backend/opening.ts",
-      "line": 295,
-      "text": "`/customers/${input.partyId}`"
-    },
-    {
-      "file": "src/mocks/backend/opening.ts",
-      "line": 295,
-      "text": "`/suppliers/${input.partyId}`"
-    },
-    {
-      "file": "src/mocks/backend/purchases.ts",
-      "line": 169,
-      "text": "`/purchases/${po.id}`"
-    },
-    {
-      "file": "src/mocks/backend/purchases.ts",
-      "line": 182,
-      "text": "`/purchases/${po.id}`"
-    },
-    {
-      "file": "src/mocks/backend/purchases.ts",
-      "line": 351,
-      "text": "`/purchases/${po.id}`"
-    },
-    {
-      "file": "src/mocks/backend/purchases.ts",
-      "line": 364,
-      "text": "`/purchases/${backorder.id}`"
-    },
-    {
-      "file": "src/mocks/backend/purchases.ts",
-      "line": 383,
-      "text": "`/purchases/${po.id}`"
-    },
-    {
-      "file": "src/mocks/backend/purchases.ts",
-      "line": 518,
-      "text": "`/purchases/${po.id}`"
-    },
-    {
-      "file": "src/mocks/backend/revaluation.ts",
-      "line": 137,
-      "text": "`/accounting/journal/${entry.id}`"
-    },
-    {
-      "file": "src/mocks/backend/sales.ts",
-      "line": 389,
-      "text": "`/invoices/${invoice.id}`"
-    },
-    {
-      "file": "src/mocks/backend/sales.ts",
-      "line": 533,
-      "text": "`/invoices/${invoice.id}`"
-    },
-    {
-      "file": "src/mocks/backend/settlements.ts",
-      "line": 105,
-      "text": "`/payments/settlements/${settlement.id}`"
-    },
-    {
-      "file": "src/mocks/backend/shifts.ts",
-      "line": 40,
-      "text": "'/pos/shifts'"
-    },
-    {
-      "file": "src/mocks/backend/shifts.ts",
-      "line": 152,
-      "text": "'/pos/shifts'"
-    },
-    {
-      "file": "src/mocks/backend/transfers.ts",
-      "line": 57,
-      "text": "`/inventory/transfers/${transfer.id}`"
-    },
-    {
-      "file": "src/mocks/backend/transfers.ts",
-      "line": 116,
-      "text": "`/inventory/transfers/${transfer.id}`"
-    },
-    {
-      "file": "src/mocks/backend/transfers.ts",
-      "line": 185,
-      "text": "`/inventory/transfers/${transfer.id}`"
-    },
-    {
-      "file": "src/mocks/backend/transfers.ts",
-      "line": 231,
-      "text": "`/inventory/transfers/${transfer.id}`"
-    },
-    {
-      "file": "src/mocks/backend/vouchers.ts",
-      "line": 54,
-      "text": "`/vouchers/${voucher.id}`"
-    },
-    {
-      "file": "src/mocks/backend/vouchers.ts",
-      "line": 82,
-      "text": "`/vouchers/${voucher.id}`"
-    },
-    {
-      "file": "src/mocks/backend/vouchers.ts",
-      "line": 114,
-      "text": "`/vouchers/${voucher.id}`"
-    },
-    {
-      "file": "src/mocks/backend/vouchers.ts",
-      "line": 142,
-      "text": "`/vouchers/${voucher.id}`"
-    },
-    {
-      "file": "src/mocks/seed/history.ts",
-      "line": 210,
-      "text": "`/accounting/journal/${entry.id}`"
-    },
-    {
-      "file": "src/modules/accounting/services/accountingService.ts",
-      "line": 117,
-      "text": "'/accounting/accounts'"
-    },
-    {
-      "file": "src/modules/accounting/services/accountingService.ts",
-      "line": 151,
-      "text": "'/accounting/accounts'"
-    },
-    {
-      "file": "src/modules/accounting/services/accountingService.ts",
-      "line": 359,
-      "text": "'/accounting/fiscal-years'"
-    },
-    {
-      "file": "src/modules/accounting/services/accountingService.ts",
-      "line": 375,
-      "text": "'/accounting/fiscal-years'"
-    },
-    {
       "file": "src/modules/diagnostics/services/logService.ts",
       "line": 55,
       "text": "'/src/'"
-    },
-    {
-      "file": "src/modules/parties/services/partyService.ts",
-      "line": 125,
-      "text": "`/customers/${customer.id}`"
-    },
-    {
-      "file": "src/modules/parties/services/partyService.ts",
-      "line": 132,
-      "text": "`/customers/${customer.id}`"
-    },
-    {
-      "file": "src/modules/parties/services/partyService.ts",
-      "line": 182,
-      "text": "`/suppliers/${supplier.id}`"
-    },
-    {
-      "file": "src/modules/parties/services/partyService.ts",
-      "line": 189,
-      "text": "`/suppliers/${supplier.id}`"
-    },
-    {
-      "file": "src/modules/products/services/productService.ts",
-      "line": 136,
-      "text": "`/products/${product.id}`"
-    },
-    {
-      "file": "src/modules/products/services/productService.ts",
-      "line": 157,
-      "text": "`/products/${product.id}`"
-    },
-    {
-      "file": "src/modules/settings/services/settingsService.ts",
-      "line": 20,
-      "text": "'/settings/general'"
-    },
-    {
-      "file": "src/modules/settings/services/settingsService.ts",
-      "line": 54,
-      "text": "'/settings/taxes'"
-    },
-    {
-      "file": "src/modules/settings/services/settingsService.ts",
-      "line": 91,
-      "text": "'/settings/payment-methods'"
-    },
-    {
-      "file": "src/modules/users/services/userService.ts",
-      "line": 36,
-      "text": "`/users/${user.id}`"
-    },
-    {
-      "file": "src/modules/users/services/userService.ts",
-      "line": 58,
-      "text": "`/users/${user.id}`"
     }
   ],
   "tables": [

@@ -14,6 +14,11 @@
 @theme {
   --font-sans: "Cairo Variable", "Cairo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+  /* Invoice template faces (plans/pending/22-invoice-templates) — loaded on demand by the template registry. */
+  --font-doc-cairo: "Cairo Variable", "Cairo", ui-sans-serif, system-ui, sans-serif;
+  --font-doc-plex: "IBM Plex Sans Arabic", "Cairo Variable", ui-sans-serif, sans-serif;
+  --font-doc-tajawal: "Tajawal", "Cairo Variable", ui-sans-serif, sans-serif;
+  --font-doc-naskh: "Noto Naskh Arabic", "Cairo Variable", serif;
 
   /* Linear-style weights: never bold. `font-bold` is clamped too. */
   --font-weight-normal: 400;
@@ -58,6 +63,54 @@
   --color-print-rule: #d4d4d8;
   --color-print-fill: #f4f4f5;
 
+  /*
+   * Invoice template palettes (plans/pending/22-invoice-templates). Fixed like --color-print-*: a
+   * printed or shared invoice looks the same from light or dark mode, so these never follow the app
+   * theme. One small family per template (see src/modules/invoices/helpers/invoiceTemplates.ts).
+   */
+  --color-doc-ink: #18181b;
+  --color-doc-paper: #ffffff;
+  /* A4 */
+  --color-doc-navy: #1f3a60;
+  --color-doc-navy-soft: #e8edf4;
+  --color-doc-teal: #0e5a5c;
+  --color-doc-teal-soft: #e3efee;
+  --color-doc-slate: #1d2b3a;
+  --color-doc-amber: #e0a526;
+  --color-doc-red: #d7261e;
+  --color-doc-sage: #3d6b4f;
+  --color-doc-sage-soft: #edf3ee;
+  --color-doc-bronze: #8a6a3b;
+  --color-doc-bronze-soft: #f6f0e6;
+  --color-doc-burgundy: #7a1f2b;
+  --color-doc-burgundy-soft: #f7ecee;
+  --color-doc-orange: #e2621b;
+  --color-doc-charcoal: #262626;
+  /* Image (mobile) */
+  --color-doc-violet: #4b1d7a;
+  --color-doc-magenta: #8e2a8b;
+  --color-doc-mint: #1fa463;
+  --color-doc-cobalt: #1f4fd1;
+  --color-doc-cobalt-soft: #eef2fb;
+  --color-doc-forest: #0b3d2e;
+  --color-doc-jade: #1b6b50;
+  --color-doc-lime: #c8f169;
+  --color-doc-wallpaper: #e9e2d6;
+  --color-doc-bubble: #d9f5c8;
+  --color-doc-chat: #1f5f55;
+  --color-doc-mustard: #f2c14e;
+  --color-doc-noir: #14161a;
+  --color-doc-noir-soft: #22252b;
+  --color-doc-gold: #d4b06a;
+  --color-doc-coral: #f0604d;
+  --color-doc-coral-soft: #fdecea;
+  --color-doc-ios: #f2f2f7;
+  --color-doc-ios-blue: #0a6cff;
+  --color-doc-poster: #d7f75b;
+  --color-doc-glass-a: #6d5cff;
+  --color-doc-glass-b: #ff7ab6;
+  --color-doc-glass-c: #ffc46b;
+
   --animate-shimmer: shimmer 1.4s ease-in-out infinite;
 
   @keyframes shimmer {
@@ -81,6 +134,7 @@
   --text-heading-sm:  calc(17px * var(--font-scale));  /* section sub-heading (e.g. invoice doc title) */
   --text-heading:     calc(18px * var(--font-scale));  /* section heading (e.g. invoice store name) */
   --text-stat:        calc(26px * var(--font-scale));  /* big stat/KPI numbers */
+  --text-display:     calc(40px * var(--font-scale));  /* hero figure on an invoice template (grand total, invoice number) */
 
   /*
    * Density tokens (docs/v2/14-platform.md §3). Row height/padding for tables and similar dense
@@ -123,6 +177,9 @@
 }
 @utility text-stat {
   font-size: var(--text-stat);
+}
+@utility text-display {
+  font-size: var(--text-display);
 }
 
 :root {
@@ -516,5 +573,7 @@
   body * { visibility: hidden; }
   .print-root, .print-root * { visibility: visible; }
   .print-root { position: absolute; inset-inline-start: 0; top: 0; width: 100%; }
+  /* Invoice templates (plan 22) carry coloured bands and fills — print them as designed. */
+  .print-root { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .no-print { display: none !important; }
 }

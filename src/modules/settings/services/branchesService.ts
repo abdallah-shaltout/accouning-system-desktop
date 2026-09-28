@@ -57,7 +57,7 @@ export const updateCostCenter = wrap('settings.updateCostCenter', async function
 
 export const deleteCostCenter = wrap('settings.deleteCostCenter', async function deleteCostCenter(id: string): Promise<void> {
   await delay();
-  backend.deleteCostCenter(id);
+  backend.deleteCostCenter(id, session.userId);
 });
 
 // --- Currencies ------------------------------------------------------------------------------
@@ -94,7 +94,7 @@ export const isBaseCurrencyLocked = wrap('settings.isBaseCurrencyLocked', async 
 
 export const setBaseCurrency = wrap('settings.setBaseCurrency', async function setBaseCurrency(code: string): Promise<void> {
   await delay();
-  currencyBackend.setBaseCurrency(code);
+  currencyBackend.setBaseCurrency(code, session.userId);
 });
 
 // --- Revaluation wizard ------------------------------------------------------------------------

@@ -6,30 +6,30 @@
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
-| [`explainAccountBalance`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L215) | `accountId: string, partyId?: string \| undefined` | `Promise<ExplainLine[]>` | **port** — reads backend data |  | journalEntries |  |  |
+| [`explainAccountBalance`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L215) | `accountId: string, partyId?: string \| undefined` | `Promise<ExplainLine[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | journalEntries |  |  |
 | [`exportReproBundle`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L264) |  | `Promise<boolean>` | **frontend** — pure computation, no data access |  |  |  |  |
 | [`exportSupportBundle`](../../../src/modules/diagnostics/services/supportBundleService.ts#L55) | `options?: SupportBundleOptions` | `Promise<string \| true \| null>` | **port** — reads backend data |  | settings |  |  |
 | [`getAuditEntities`](../../../src/modules/diagnostics/services/auditService.ts#L42) |  | `Promise<string[]>` | **port** — reads backend data |  | audit |  |  |
 | [`getAuditEntries`](../../../src/modules/diagnostics/services/auditService.ts#L34) | `filter?: AuditFilter` | `Promise<AuditEntry[]>` | **port** — reads backend data |  | audit |  | AuditEntry |
-| [`getBalancesAround`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L76) | `entryId: string` | `Promise<{ accountId: string; accountName: string; accountCode: string \| undefined; befor…` | **port** — reads backend data |  | accounts, journalEntries |  |  |
-| [`getDriftReport`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L124) |  | `Promise<DriftRow[]>` | **port** — reads backend data |  | accounts, customers, invoices, journalEntries, payments, products, purchaseOrders, purchaseReturns, refunds, suppliers |  |  |
-| [`getInvariantResults`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L101) |  | `Promise<InvariantResult[]>` | **port** — reads backend data |  | accounts, journalEntries, payments |  |  |
-| [`getJournalEntryRaw`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L66) | `id: string` | `Promise<import("../../accounting/types").JournalEntry \| undefined>` | **port** — reads backend data |  | journalDrafts, journalEntries |  | JournalEntry |
-| [`getPostingTrace`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L61) | `entryId: string` | `Promise<PostingTrace \| undefined>` | **port** — reads backend data |  |  |  |  |
+| [`getBalancesAround`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L76) | `entryId: string` | `Promise<{ accountId: string; accountName: string; accountCode: string \| undefined; befor…` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | accounts, journalEntries |  |  |
+| [`getDriftReport`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L124) |  | `Promise<DriftRow[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | accounts, customers, invoices, journalEntries, payments, products, purchaseOrders, purchaseReturns, refunds, suppliers |  |  |
+| [`getInvariantResults`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L101) |  | `Promise<InvariantResult[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | accounts, journalEntries, payments |  |  |
+| [`getJournalEntryRaw`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L66) | `id: string` | `Promise<import("../../accounting/types").JournalEntry \| undefined>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | journalDrafts, journalEntries |  | JournalEntry |
+| [`getPostingTrace`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L61) | `entryId: string` | `Promise<PostingTrace \| undefined>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  |  |  |  |
 | [`isReproRecording`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L256) |  | `Promise<boolean>` | **frontend** — pure computation, no data access |  |  |  |  |
-| [`listRecentDocuments`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L38) | `limit?: any` | `Promise<AccountingDocSummary[]>` | **port** — reads backend data |  | journalEntries |  |  |
-| [`startReproRecording`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L246) |  | `Promise<void>` | **port** — reads backend data |  |  |  |  |
+| [`listRecentDocuments`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L38) | `limit?: any` | `Promise<AccountingDocSummary[]>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  | journalEntries |  |  |
+| [`startReproRecording`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L246) |  | `Promise<void>` | **dev-only** — override: 01.B diagnostics review — powers the /dev/diagnos… |  |  |  |  |
 | [`stopReproRecording`](../../../src/modules/diagnostics/services/accountingDebugService.ts#L251) |  | `Promise<void>` | **frontend** — pure computation, no data access |  |  |  |  |
 
 ## Types (`src/modules/diagnostics/types`)
 
 Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _date_ → local date/datetime, _route_ → `RouteRef { name, params }`, _enum_ → Rust enum.
 
-### `AuditAction` (type, `src/modules/diagnostics/types/index.ts:68`)
+### `AuditAction` (type, `src/modules/diagnostics/types/index.ts:69`)
 
 `'create' \| 'update' \| 'post' \| 'void' \| 'reverse' \| 'delete' \| 'login' \| 'settings'`
 
-### `AuditEntry` (interface, `src/modules/diagnostics/types/index.ts:77`)
+### `AuditEntry` (interface, `src/modules/diagnostics/types/index.ts:78`)
 
 - `id: string` — _uuid_
 - `entity: string`
@@ -43,15 +43,15 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `at: string`
 - `reason?: string`
 - `message: string`
-- `link?: string` — _route_
+- `link?: AppRoute` — _route_
 
-### `AuditFieldDiff` (interface, `src/modules/diagnostics/types/index.ts:71`)
+### `AuditFieldDiff` (interface, `src/modules/diagnostics/types/index.ts:72`)
 
 - `field: string`
 - `before?: unknown`
 - `after?: unknown`
 
-### `FingerprintGroup` (interface, `src/modules/diagnostics/types/index.ts:40`)
+### `FingerprintGroup` (interface, `src/modules/diagnostics/types/index.ts:41`)
 
 - `fingerprint: string`
 - `name: string`
@@ -62,11 +62,11 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `lastSeen: string`
 - `sample: LogEntry`
 
-### `LogChannel` (type, `src/modules/diagnostics/types/index.ts:7`)
+### `LogChannel` (type, `src/modules/diagnostics/types/index.ts:8`)
 
 `'error' \| 'perf' \| 'debug' \| 'audit' \| 'accounting'`
 
-### `LogContext` (interface, `src/modules/diagnostics/types/index.ts:18`)
+### `LogContext` (interface, `src/modules/diagnostics/types/index.ts:19`)
 
 - `sessionId: string` — _uuid_
 - `correlationId?: string` — _uuid_
@@ -75,7 +75,7 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `branchId?: string` — _uuid_
 - `appVersion: string`
 
-### `LogEntry` (interface, `src/modules/diagnostics/types/index.ts:27`)
+### `LogEntry` (interface, `src/modules/diagnostics/types/index.ts:28`)
 
 - `v: 1`
 - `ts: string`
@@ -87,18 +87,18 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `err?: LogErrorInfo`
 - `ctx: LogContext`
 
-### `LogErrorInfo` (interface, `src/modules/diagnostics/types/index.ts:10`)
+### `LogErrorInfo` (interface, `src/modules/diagnostics/types/index.ts:11`)
 
 - `name: string`
 - `message: string`
 - `stack?: string`
 - `fingerprint: string`
 
-### `LogLevel` (type, `src/modules/diagnostics/types/index.ts:8`)
+### `LogLevel` (type, `src/modules/diagnostics/types/index.ts:9`)
 
 `'debug' \| 'info' \| 'warn' \| 'error'`
 
-### `PerfStat` (interface, `src/modules/diagnostics/types/index.ts:51`)
+### `PerfStat` (interface, `src/modules/diagnostics/types/index.ts:52`)
 
 - `source: string`
 - `kind: 'service' \| 'route' \| 'longtask' \| 'startup' \| 'snapshot'` — _enum_

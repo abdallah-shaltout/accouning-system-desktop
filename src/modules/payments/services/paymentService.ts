@@ -1,4 +1,4 @@
-import { clone, db, delay, inDateRange, includesText, session } from '@/mocks';
+import { ApiError, clone, db, delay, inDateRange, includesText, session } from '@/mocks';
 import { allocatePayment, allocatedTotal, getOpenDocumentsFor, recordPayment, unallocatedAmount, unallocatePayment } from '@/mocks/backend/payments';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
 import { allocationStatusFor, type AllocationStatus, type OpenDocument, type Payment, type PaymentAllocationInput, type PaymentFilter, type PaymentInput } from '../types';
@@ -68,7 +68,7 @@ export const getPaymentsPaged = wrap('payments.getPaymentsPaged', async function
 export const getPayment = wrap('payments.getPayment', async function getPayment(id: string): Promise<PaymentRow> {
   await delay(100);
   const p = db.payments.find((x) => x.id === id);
-  if (!p) throw new Error('السند غير موجود');
+  if (!p) throw new ApiError('السند غير موجود', 'NOT_FOUND');
   return toRow(p);
 });
 

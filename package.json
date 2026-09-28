@@ -21,7 +21,11 @@
     "contract:check": "bun run scripts/contract/run.ts --check",
     "diag": "bun run scripts/diagnostics/run.ts",
     "diag:check": "bun run scripts/diagnostics/run.ts --check",
-    "geo:build": "bun run scripts/geo/build.ts"
+    "geo:build": "bun run scripts/geo/build.ts",
+    "fetch:mariadb": "node scripts/fetch-mariadb.js",
+    "db:dev": "node scripts/fetch-mariadb.js && cargo run --manifest-path src-tauri/Cargo.toml --bin db_dev_server",
+    "bindings": "cargo test --manifest-path src-tauri/Cargo.toml --lib export_bindings",
+    "bindings:check": "bun run bindings && git diff --exit-code -- \"src/modules/*/types/gen\""
   },
   "dependencies": {
     "@fontsource-variable/cairo": "^5.3.0",

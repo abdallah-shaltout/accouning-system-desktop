@@ -207,7 +207,7 @@ function expense(date: string, description: string, debitCode: string, amount: n
     ],
     createdBy: userId,
   });
-  logActivity('journal', `قيد ${entry.number} — ${description}`, userId, entry.date, `/accounting/journal/${entry.id}`);
+  logActivity('journal', `قيد ${entry.number} — ${description}`, userId, entry.date, { name: 'journal-entry', params: { id: entry.id } });
 }
 
 function sale(

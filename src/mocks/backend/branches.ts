@@ -123,7 +123,7 @@ export function createBranch(input: BranchInput, userId: string): Branch {
     branch.cashAccountId = cashAccount.id;
     branch.costCenterId = costCenter.id;
   });
-  logActivity('settings', `إضافة فرع "${branch.name}" (${branch.code})`, userId, branch.createdAt!, '/settings/branches');
+  logActivity('settings', `إضافة فرع "${branch.name}" (${branch.code})`, userId, branch.createdAt!, { name: 'settings-branches' });
   emit('ledger:changed');
   return branch;
 }
@@ -161,7 +161,7 @@ export function updateBranch(id: string, input: Partial<BranchInput>, userId: st
     after: afterDiff,
     userId,
     message: `تعديل بيانات الفرع "${branch.name}"`,
-    link: '/settings/branches',
+    link: { name: 'settings-branches' },
     activityKind: 'settings',
   });
   return branch;
@@ -185,7 +185,7 @@ export function deactivateBranch(id: string, userId: string): Branch {
     const acc = db.accounts.find((a) => a.id === branch.cashAccountId);
     if (acc) mutate(() => (acc.active = false));
   }
-  logActivity('settings', `إلغاء تفعيل الفرع "${branch.name}"`, userId, new Date().toISOString(), '/settings/branches');
+  logActivity('settings', `إلغاء تفعيل الفرع "${branch.name}"`, userId, new Date().toISOString(), { name: 'settings-branches' });
   return branch;
 }
 
@@ -197,7 +197,7 @@ export function reactivateBranch(id: string, userId: string): Branch {
     const acc = db.accounts.find((a) => a.id === branch.cashAccountId);
     if (acc) mutate(() => (acc.active = true));
   }
-  logActivity('settings', `إعادة تفعيل الفرع "${branch.name}"`, userId, new Date().toISOString(), '/settings/branches');
+  logActivity('settings', `إعادة تفعيل الفرع "${branch.name}"`, userId, new Date().toISOString(), { name: 'settings-branches' });
   return branch;
 }
 
@@ -238,7 +238,7 @@ export function createCostCenter(input: CostCenterInput, userId: string): CostCe
     canDelete: true,
   };
   mutate(() => db.costCenters.push(cc));
-  logActivity('settings', `إضافة مركز تكلفة "${cc.name}"`, userId, new Date().toISOString(), '/settings/cost-centers');
+  logActivity('settings', `إضافة مركز تكلفة "${cc.name}"`, userId, new Date().toISOString(), { name: 'settings-cost-centers' });
   return cc;
 }
 
@@ -246,17 +246,18 @@ export function updateCostCenter(id: string, input: Partial<CostCenterInput>, us
   const cc = db.costCenters.find((c) => c.id === id);
   if (!cc) throw new ApiError('مركز التكلفة غير موجود', 'NOT_FOUND');
   mutate(() => Object.assign(cc, input));
-  logActivity('settings', `تعديل مركز التكلفة "${cc.name}"`, userId, new Date().toISOString(), '/settings/cost-centers');
+  logActivity('settings', `تعديل مركز التكلفة "${cc.name}"`, userId, new Date().toISOString(), { name: 'settings-cost-centers' });
   return cc;
 }
 
-export function deleteCostCenter(id: string): void {
+export function deleteCostCenter(id: string, userId: string): void {
   const cc = db.costCenters.find((c) => c.id === id);
   if (!cc) throw new ApiError('مركز التكلفة غير موجود', 'NOT_FOUND');
   if (!cc.canDelete) throw new ApiError('لا يمكن حذف مركز تكلفة الفرع', 'FORBIDDEN');
   const inUse = db.journalEntries.some((e) => e.lines.some((l) => l.costCenterId === id));
   if (inUse) throw new ApiError('لا يمكن حذف مركز تكلفة له حركات مرحّلة', 'FORBIDDEN');
   mutate(() => (db.costCenters = db.costCenters.filter((c) => c.id !== id)));
+  logActivity('settings', `حذف مركز التكلفة "${cc.name}"`, userId, new Date().toISOString(), { name: 'settings-cost-centers' });
 }
 
 /** Resolves the cost center a new document/line should default to: explicit choice → branch's own cost center → undefined. */

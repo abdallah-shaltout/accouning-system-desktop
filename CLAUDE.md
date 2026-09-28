@@ -19,6 +19,7 @@ by `bun run memory` (pipeline in `scripts/memory/`: scan → parse → analyze �
 `scripts/memory/config.ts`).
 
 ### Protocol
+
 1. **Read `AGENT_MEMORY.md` before any task, plan, or broad search.** Resolve "where is X / who calls
    Y / does Z exist" from it first. Grep or open files only for what it does not answer, or to read
    the exact code you will change.
@@ -29,6 +30,7 @@ by `bun run memory` (pipeline in `scripts/memory/`: scan → parse → analyze �
 4. The memory is generated. **Never hand-edit it** — change the code or `scripts/memory/config.ts`.
 
 ### Architecture rules (all new code)
+
 - **Domain first.** Code belongs to exactly one domain module (`src/modules/<domain>/`) in the layer
   that matches its job: `pages` → `components` → `controllers` → `services` → `helpers`/`types`/
   `validators`. No new top-level folders, and no "utils" dumping grounds for domain logic.
@@ -41,11 +43,16 @@ by `bun run memory` (pipeline in `scripts/memory/`: scan → parse → analyze �
   a service function, a palette command, a Rust command registered in `lib.rs`), not into growing
   `if`/`switch` chains in shared code. Keep functions small and single-purpose, and keep pages under
   ~250 lines.
-- **Rust ↔ Vue:** a new `#[tauri::command]` gets registered in `generate_handler!` and called only
-  from a `core`/module **service**, never directly from a page. It must show up in the IPC table with
-  no contract gaps.
+- **Rust ↔ Vue:** a new `#[tauri::command]` gets registered in `generate_handler!` plus an
+  `ipc_sig!` entry in `src-tauri/src/core/ipc.rs` (`ipc_manifest_matches_handler` checks the two
+  agree), and is called only from a `core`/module **service** through `backendCall`
+  (`core/services/backend.ts`), never directly from a page. Its argument/result DTOs derive ts-rs
+  and are generated into `src/modules/<m>/types/gen/` by `bun run bindings` — never hand-edit
+  `types/gen/`; `bun run bindings:check` fails on drift. It must show up in the IPC table with no
+  contract gaps.
 
 ### Keeping the memory current
+
 - After a **structural change**, run `bun run memory` and commit `AGENT_MEMORY.md` with that change.
   Structural changes are: a new/renamed/moved module, service, route, page, shared component, mock
   file or Rust command, or a new domain. The run takes under a second. `bun run memory:check` fails
@@ -56,15 +63,15 @@ by `bun run memory` (pipeline in `scripts/memory/`: scan → parse → analyze �
 
 ## Read before working
 
-| Doc | Why |
-|---|---|
-| `AGENT_MEMORY.md` | Generated repo map — read first (see above) |
-| `docs/design_system.md` | Tokens, components, do/don't — the visual source of truth |
-| `plans/pending/` | **Active plans** — one folder per plan (see "Plans" below) |
+| Doc                                  | Why                                                                                      |
+| ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `AGENT_MEMORY.md`                    | Generated repo map — read first (see above)                                              |
+| `docs/design_system.md`              | Tokens, components, do/don't — the visual source of truth                                |
+| `plans/pending/`                     | **Active plans** — one folder per plan (see "Plans" below)                               |
 | `docs/v2/17-ui-system-rtl-themes.md` | Earlier plan (pre-`plans/`): RTL, motion, save dialog, sidebar, themes, shared UI system |
-| `docs/v2/15-action-plan.md` | Definition of done (the gates below come from here) |
-| `docs/v2/02-accounting-review.md` | Posting rules and invariants — read before touching any money logic |
-| `docs/v2/README.md` | Index of every v2 doc and the decisions already made |
+| `docs/v2/15-action-plan.md`          | Definition of done (the gates below come from here)                                      |
+| `docs/v2/02-accounting-review.md`    | Posting rules and invariants — read before touching any money logic                      |
+| `docs/v2/README.md`                  | Index of every v2 doc and the decisions already made                                     |
 
 When you finish a planned task, tick its box in the plan file and add a status note at the top of the phase.
 
@@ -73,6 +80,7 @@ When you finish a planned task, tick its box in the plan file and add a status n
 Every implementation plan lives in `plans/`, never loose in `docs/` or the repo root.
 
 ### Layout and lifecycle
+
 - `plans/pending/` holds plans that are not fully done. `plans/completed/` holds plans that are implemented
   and verified. `plans/` is a live index, not an archive.
 - **One folder per plan**, even if it is a single file: `plans/pending/<NN>-<kebab-name>/`. `NN` continues
@@ -91,6 +99,7 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
   Never leave its status unclear.
 
 ### Plan quality (a plan is ready only when all of these hold)
+
 - **Production-ready:** no placeholder logic and no "TODO: figure out later".
 - **Checklist-driven:** every phase has `- [ ]` tasks and a gate, so implementation is not improvised.
 - **Grounded in this repo:** it names the real files, services, routes and tokens (from `AGENT_MEMORY.md`), and
@@ -122,18 +131,19 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
 
 - Feature code lives in `src/modules/<module>/{pages,components,services,controllers,helpers,routes,types}`.
 - Shared code lives in `src/modules/core/`:
-  - `components/shadcn/*` — shadcn-vue primitives, owned in-repo (`bunx shadcn-vue@latest add <name>`).
-  - `components/ui/*` — `App*` wrappers and project components (`AppButton`, `DataTable`, `PageHeader`,
-    `MoneyText`, `StatusBadge`…), built on the shadcn primitives.
-  - `components/blocks/*` and `components/layouts/*` — shared page blocks and page layouts
-    (**being built in doc 17 Phase F**; see "Building pages" below).
-  - `components/layout/*` — the app shell (sidebar, header).
+    - `components/shadcn/*` — shadcn-vue primitives, owned in-repo (`bunx shadcn-vue@latest add <name>`).
+    - `components/ui/*` — `App*` wrappers and project components (`AppButton`, `DataTable`, `PageHeader`,
+      `MoneyText`, `StatusBadge`…), built on the shadcn primitives.
+    - `components/blocks/*` and `components/layouts/*` — shared page blocks and page layouts
+      (**being built in doc 17 Phase F**; see "Building pages" below).
+    - `components/layout/*` — the app shell (sidebar, header).
 - Product name comes only from `core/helpers/brand.ts` (`APP_NAME_AR`, `APP_NAME_EN`, `APP_SHORT`).
   Never hard-code it. Never change the Tauri `identifier` or the backup `APP_NAME`.
 
 ## UI rules
 
 ### Components
+
 1. **shadcn first.** Use an existing `App*`/block/layout if one fits, else a shadcn primitive. Build a
    custom component only when neither fits, and put it in `core/components/ui` (shared) or
    `modules/<m>/components` (feature-only) — never inline a reusable piece inside a page.
@@ -144,6 +154,7 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
 4. Keep an `App*` wrapper's props/emits API stable when rebuilding it — pages must not need edits.
 
 ### Building pages (target system — doc 17 Phase F)
+
 5. A page = **one layout + blocks**: `ListPage`, `FormPage`, `DetailPage`, `SettingsPage`, `ReportShell`.
    Until a layout exists, follow the closest existing page's structure and `PageHeader`.
 6. **No raw `<table>`** in `modules/*/pages` — use `DataTable` (print pages / Typst templates excepted).
@@ -158,6 +169,7 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
 12. Page files stay under ~250 lines; move page-specific pieces into `modules/<m>/components/`.
 
 ### Design tokens
+
 13. Colors, radius and fonts come **only** from tokens in `src/assets/styles/design-system.css`
     (bridged to shadcn via `@theme inline`). No hex colors, no `rounded-[…]`, no `text-[Npx]`
     (`bun run check` enforces the text sizes).
@@ -167,6 +179,7 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
 15. One primary-color action per view. Hairline borders, not heavy shadows. No font weight ≥ 700.
 
 ### RTL — real RTL, not "swap left and right"
+
 16. Use logical utilities only: `ms/me`, `ps/pe`, `start/end`, `border-s/e`, `rounded-s/e`,
     `text-start/end`. Physical `left/right/ml/mr/pl/pr/text-left/text-right` are allowed only when
     driven by an explicit physical `side` prop (Floating UI sides, Sheet/Sidebar `side`), or for
@@ -182,16 +195,19 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
 19. Phone numbers, IBANs, codes stay `dir="ltr"` inside RTL layouts.
 
 ### Motion
+
 20. **Animations always run at full power.** Do not add reduced-motion checks, `motion-reduce:`
     variants, `prefers-reduced-motion` media queries or a "reduce motion" setting.
 
 ### Desktop behavior
+
 21. Any file the user exports (Excel, PDF, backup, JSON) goes through the **native Save dialog**
     (Tauri `plugin-dialog` `save()` + `plugin-fs`), never a silent `<a download>`
     (browser fallback only for dev/e2e). One shared save helper — see doc 17 Phase C.
 22. The POS keeps its full-screen chrome-free layout. App chrome has the `no-print` class.
 
 ### Navigation
+
 23. The sidebar stays small: collapsible groups (only the active one open), brand/branch at the top,
     user at the bottom. New pages go **into an existing group** in `core/helpers/navigation.ts`
     with an `area` for role filtering — do not add new top-level groups without a reason.
@@ -223,7 +239,9 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
   → المحاسبة for a document's posting trace / account resolution / balances before-after, "اشرح هذا
   الرقم" from any resolved account, and the subledger-vs-GL drift report; `runAllInvariants()` in
   `src/mocks/backend/invariants.ts` is the one copy of the 14 invariants both `bun run verify:mocks`
-  and that tab use — don't add a second copy of an invariant check anywhere else. Reproduce with
+  and that tab use — don't add a second copy of an invariant check anywhere else. The only other
+  copy is its Rust port, `shared::invariants` (`src-tauri/src/shared/invariants/`, plan 21 02.D):
+  the two must keep the same keys, order and messages until D5 retires the mock. Reproduce with
   "بدء تسجيل إعادة الإنتاج" + "تصدير حالة لإعادة الإنتاج", replay it headlessly with
   `bun run verify:replay <bundle.json>`.
 - **Every accounting bug fix ships with a `scripts/verify/cases/*.json` regression case** (a
@@ -243,7 +261,7 @@ correlation id.
 
 - **How to log.** `log.error(source, msg, err?, data?)` for anything that broke (always on).
   `log.perf(source, msg, data)` for a duration/budget note (always on, cheap). `log.debug(namespace,
-  msg, data)` for a trace that should stay silent unless a developer turned that namespace on via
+msg, data)` for a trace that should stay silent unless a developer turned that namespace on via
   `localStorage['equal.debug']` or the `/dev/diagnostics` → التتبع tab. Business audit
   (`logAudit`/`logActivity` in `mocks/backend/core.ts`) is separate from these — it is business data
   (who did what to which entity), lives in `db.audit`, ships in every backup, and is never a
@@ -272,7 +290,7 @@ correlation id.
   passes. Run `bun run diag` afterward so `ISSUES.md` picks up the change; `bun run diag:check`
   (wired into the definition-of-done gates) fails the run if it's stale.
 - **Automatic issues from the dev loop (18.G).** `bun run scripts/diagnostics/run.ts --ingest
-  <findings.json>` is the one mechanism every automatic source uses to create/refresh a ledger
+<findings.json>` is the one mechanism every automatic source uses to create/refresh a ledger
   issue by fingerprint (never hand-write a second one): `scripts/e2e/run.py` calls it after every
   run with e2e console/assertion failures (`BUG-`) and perf/bundle-size regressions (`PERF-`);
   `bun run verify:mocks` (`scripts/verify/run.ts`) calls it with any failing invariant (`ACC-`,
@@ -312,7 +330,14 @@ bun run stop                  # free ports 1420/1421 when done
   issue via the same mechanism as `bun run diag`'s auto-stubbing — run `bun run diag:check` afterward.
 - Check light + dark, at 1280 px and 1920 px, in RTL, and by keyboard.
 - New tables and entities: Excel export + command-palette search.
-- Tauri/Rust changes: `cargo build --manifest-path src-tauri/Cargo.toml` and a real `bun run desktop` check.
+- Tauri/Rust changes: `cargo build --manifest-path src-tauri/Cargo.toml`, `cargo test --manifest-path
+  src-tauri/Cargo.toml` (needs `EQUAL_TEST_DATABASE_URL` pointing at a real MariaDB ≥ 10.11 — `bun run
+  db:dev` starts the bundled one at `mysql://root:equal-dev@127.0.0.1:3499`; DB-backed tests fail
+  loudly rather than skip when it's unset; never skipped), `bun run bindings:check` when a DTO or
+  command changed, and a real `bun run desktop` check. Fresh clone: run `node scripts/fetch-webview2.js`
+  and `node scripts/fetch-mariadb.js` once before a bare `cargo build` (tauri-build checks that
+  bundled resources exist). Cargo is throttled on purpose (`src-tauri/.cargo/config.toml` `jobs = 4`,
+  light dev debug info) — don't raise it, and never run two cargo commands at once.
 - e2e selectors: prefer `get_by_role` / accessible names over tag or class selectors; use
   `safe_print()` (not `print()`) in flow files — the Windows console can't encode Arabic.
 
@@ -324,3 +349,13 @@ bun run stop                  # free ports 1420/1421 when done
 - Don't add reduced-motion code or silent downloads.
 - Don't skip hooks (`--no-verify`) or leave the suite red.
 - Don't navigate with path strings or `{ path }`. Use `{ name, params, query }` (rule 25).
+
+## ARCHITECTURAL AUTONOMY & DECISION MAKING
+
+- **DO NOT pause execution to ask multiple-choice questions or request permission for standard implementation details, guards, or validations.**
+- Automatically select the "Recommended" option or the choice that strictly enforces backend authority, data integrity, zero data loss, and ACID compliance.
+- ALWAYS favor strict server-side validation over trusting the frontend.
+- If in doubt, analyze the system deeply and apply the most robust, enterprise-grade solution without waiting for user input.
+- Document your decision briefly in your memory/logs and CONTINUE executing the plan.
+- Only halt execution and ask the user if a decision fundamentally alters the core business requirements or contradicts the `00-MASTER-PLAN.md`.
+

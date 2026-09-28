@@ -1,3 +1,5 @@
+import type { AppRoute } from './route';
+
 export type ActivityKind =
   | 'sale'
   | 'refund'
@@ -24,8 +26,8 @@ export interface ActivityEntry {
   userId: string;
   kind: ActivityKind;
   message: string;
-  /** Route to open when the entry is clicked, e.g. `/invoices/inv-12`. */
-  link?: string;
+  /** Route to open when the entry is clicked, e.g. `{ name: 'invoice', params: { id: 'inv-12' } }`. */
+  link?: AppRoute;
 }
 
 export interface DateRange {

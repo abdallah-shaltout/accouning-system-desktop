@@ -2,7 +2,7 @@
 
 # Contract — `core`
 
-35 service functions. Full signatures: `contract.gen.json`. Plan: plans/pending/21-rust-backend/01-frontend-analysis/core.md.
+36 service functions. Full signatures: `contract.gen.json`. Plan: plans/pending/21-rust-backend/01-frontend-analysis/core.md.
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
@@ -22,9 +22,10 @@
 | [`getThresholds`](../../../src/modules/core/services/insightEngine.ts#L24) |  | `InsightThresholds` | **port** — reads backend data |  | settings |  |  |
 | [`getTopCustomers`](../../../src/modules/core/services/dashboardService.ts#L284) | `period?: HomePeriod, limit?: any` | `Promise<TopCustomerRow[]>` | **port** — reads backend data |  | customers, invoices |  |  |
 | [`getTopProducts`](../../../src/modules/core/services/dashboardService.ts#L261) | `period?: HomePeriod, limit?: any` | `Promise<TopProductRow[]>` | **port** — reads backend data |  | invoices, products |  |  |
-| [`initPrintResultListener`](../../../src/modules/core/services/printService.ts#L256) |  | `Promise<void>` | **port** — reads backend data |  | accounts, branches, customers, invoices, journalEntries, paymentMethods, payments, products, purchaseOrders, purchaseRe… |  |  |
-| [`printReceipt`](../../../src/modules/core/services/printService.ts#L184) | `saleId: string, isCashSale: boolean` | `Promise<PrintReceiptOutcome>` | **port** — reads backend data |  | customers, invoices, products, settings, taxes, users |  |  |
-| [`reloadDemoData`](../../../src/modules/core/services/devToolsService.ts#L19) |  | `Promise<void>` | **port** — reads and writes backend data | accounts, activity, audit, branches, cardSettlements, categories, costCenters, counters, credentials, currencies, customers, exchangeRates, expenseCategories, expenses, fiscalYears, invoices, journalDrafts, journalEntries, partyGroups, partyHistory, paymentMethods, payments, priceLists, productBatches, products, purchaseOrders, purchaseReturns, recurringExpenses, refunds, settings, shifts, stockAdjustments, stockMovements, stockTransfers, suppliers, taxes, units, users, vouchers |  | activity, currency, ledger, numbering, period, stock |  |
+| [`initPrintResultListener`](../../../src/modules/core/services/printService.ts#L268) |  | `Promise<void>` | **port** — reads backend data |  | accounts, branches, customers, invoices, journalEntries, paymentMethods, payments, products, purchaseOrders, purchaseRe… |  |  |
+| [`listPrinters`](../../../src/modules/core/services/printService.ts#L63) |  | `Promise<PrinterInfo[]>` | **rust-existing** — already calls Rust (list_printers) |  |  |  |  |
+| [`printReceipt`](../../../src/modules/core/services/printService.ts#L196) | `saleId: string, isCashSale: boolean` | `Promise<PrintReceiptOutcome>` | **port** — reads backend data |  | customers, invoices, products, settings, taxes, users |  |  |
+| [`reloadDemoData`](../../../src/modules/core/services/devToolsService.ts#L19) |  | `Promise<void>` | **dev-only** — override: 01.B core review — reseeds and overwrites nearly … | accounts, activity, audit, branches, cardSettlements, categories, costCenters, counters, credentials, currencies, customers, exchangeRates, expenseCategories, expenses, fiscalYears, invoices, journalDrafts, journalEntries, partyGroups, partyHistory, paymentMethods, payments, priceLists, productBatches, products, purchaseOrders, purchaseReturns, recurringExpenses, refunds, settings, shifts, stockAdjustments, stockMovements, stockTransfers, suppliers, taxes, units, users, vouchers |  | activity, currency, ledger, numbering, period, stock |  |
 | [`render`](../../../src/modules/core/services/pdfService.ts#L508) | `kind: PdfDocumentKind, id: string, templateId?: string \| undefined` | `Promise<RenderPdfOutcome>` | **port** — reads backend data |  | accounts, branches, customers, invoices, journalEntries, paymentMethods, payments, products, purchaseOrders, purchaseRe… |  |  |
 | [`renderAndSave`](../../../src/modules/core/services/pdfService.ts#L546) | `kind: PdfDocumentKind, id: string, filename: string, templateId?: string \| undefined` | `Promise<boolean>` | **port** — reads backend data |  | accounts, branches, customers, invoices, journalEntries, paymentMethods, payments, products, purchaseOrders, purchaseRe… |  |  |
 | [`renderGenericReport`](../../../src/modules/core/services/pdfService.ts#L769) | `req: GenericReportRequest` | `Promise<RenderPdfOutcome>` | **rust-existing** — already calls Rust (render_pdf) |  |  |  |  |
@@ -34,28 +35,28 @@
 | [`renderLabelsPreview`](../../../src/modules/core/services/pdfService.ts#L829) | `picks: LabelPick[], label: LabelOptions` | `Promise<RenderPreviewOutcome>` | **rust-existing** — already calls Rust (render_preview) |  |  |  | LabelOptions |
 | [`renderPreview`](../../../src/modules/core/services/pdfService.ts#L568) | `payload: DocumentPayload, options: TemplateOptions, templateSource: string \| null, baseT…` | `Promise<RenderPreviewOutcome>` | **rust-existing** — already calls Rust (render_preview) |  |  |  | BaseTemplateId, TemplateOptions |
 | [`renderReportPdf`](../../../src/modules/core/services/pdfService.ts#L799) | `report: ReportDocument` | `Promise<Uint8Array<ArrayBufferLike> \| null>` | **rust-existing** — already calls Rust (render_pdf) |  |  |  |  |
-| [`resetToEmpty`](../../../src/modules/core/services/devToolsService.ts#L14) |  | `Promise<void>` | **port** — reads backend data |  |  |  |  |
+| [`resetToEmpty`](../../../src/modules/core/services/devToolsService.ts#L14) |  | `Promise<void>` | **dev-only** — override: 01.B core review — wipes all persisted data with … |  |  |  |  |
 | [`sampleInvoicePayload`](../../../src/modules/core/services/pdfService.ts#L595) |  | `DocumentPayload` | **frontend** — pure computation, no data access |  |  |  |  |
 | [`saveFile`](../../../src/modules/core/services/saveFile.ts#L95) | `data: string \| Uint8Array<ArrayBufferLike> \| Blob, options: SaveFileOptions` | `Promise<string \| true \| null>` | **frontend** — webview/plugin only (@tauri-apps/api, @tauri-apps/plugin-di… |  |  |  |  |
 | [`saveReportPdf`](../../../src/modules/core/services/pdfService.ts#L822) | `report: ReportDocument, filename: string` | `Promise<boolean>` | **rust-existing** — already calls Rust (render_pdf) |  |  |  |  |
 | [`setThresholds`](../../../src/modules/core/services/insightEngine.ts#L28) | `patch: Partial<InsightThresholds>` | `InsightThresholds` | **port** — reads and writes backend data | settings |  |  |  |
 | [`snoozeInsight`](../../../src/modules/core/services/insightEngine.ts#L70) | `userId: string \| undefined, insightId: string, untilIso?: string \| undefined` | `void` | **frontend** — webview/plugin only (localStorage) |  |  |  |  |
-| [`testPrint`](../../../src/modules/core/services/printService.ts#L206) | `thermal: ThermalPrinterSettings, width: ThermalWidth` | `Promise<{ ok: boolean; error?: string; }>` | **port** — reads backend data |  | customers, invoices, products, settings, taxes, users |  | ThermalPrinterSettings, ThermalWidth |
+| [`testPrint`](../../../src/modules/core/services/printService.ts#L218) | `thermal: ThermalPrinterSettings, width: ThermalWidth` | `Promise<{ ok: boolean; error?: string; }>` | **port** — reads backend data |  | customers, invoices, products, settings, taxes, users |  | ThermalPrinterSettings, ThermalWidth |
 
 ## Types (`src/modules/core/types`)
 
 Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _date_ → local date/datetime, _route_ → `RouteRef { name, params }`, _enum_ → Rust enum.
 
-### `ActivityEntry` (interface, `src/modules/core/types/index.ts:21`)
+### `ActivityEntry` (interface, `src/modules/core/types/index.ts:23`)
 
 - `id: string` — _uuid_
 - `date: string` — _date_
 - `userId: string` — _uuid_
 - `kind: ActivityKind`
 - `message: string`
-- `link?: string` — _route_
+- `link?: AppRoute` — _route_
 
-### `ActivityKind` (type, `src/modules/core/types/index.ts:1`)
+### `ActivityKind` (type, `src/modules/core/types/index.ts:3`)
 
 `\| 'sale' \| 'refund' \| 'purchase' \| 'purchase_return' \| 'payment' \| 'stock' \| 'journal' \| 'product' \| 'party' \| 'user' \| 'settings' \| 'auth' \| 'shift' /** v2 phase 8 (docs/v2/09-purchases-payments-expenses.md §4-§5): expenses and general vouchers. */ \| 'expense' \| 'voucher' /** v2 phase 13b (docs/v2/14-platform.md §6): an async approval request was submitted/decided. */ \| 'approval'`
 
@@ -87,7 +88,7 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 
 `{ [K in N]: RouteLocationAsRelative<K> & { name: K } }[N]`
 
-### `DashboardSummary` (interface, `src/modules/core/types/index.ts:36`)
+### `DashboardSummary` (interface, `src/modules/core/types/index.ts:38`)
 
 - `todaySales: number` — _decimal_
 - `todayInvoiceCount: number`
@@ -99,7 +100,7 @@ Hints: _decimal_ → `rust_decimal::Decimal` / `DECIMAL`, _uuid_ → UUIDv7, _da
 - `bankBalance: number` — _decimal_
 - `salesTrend: { date: string; total: number }[]`
 
-### `DateRange` (interface, `src/modules/core/types/index.ts:31`)
+### `DateRange` (interface, `src/modules/core/types/index.ts:33`)
 
 - `from: string`
 - `to: string` — _route_

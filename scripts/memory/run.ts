@@ -39,6 +39,16 @@ if (process.argv.includes('--check')) {
     console.error(`${stale.join(', ')} ${stale.length > 1 ? 'are' : 'is'} stale — run \`bun run memory\`.`);
     process.exit(1);
   }
+  // 21.02-F, F-6: an IPC contract gap (a frontend call to a command Rust never registered, or a
+  // registered command nothing calls) is fatal, not just a note in the rendered report.
+  const { invokedNotRegistered, registeredNotInvoked } = analysis.boundaries.ipc;
+  if (invokedNotRegistered.length > 0 || registeredNotInvoked.length > 0) {
+    console.error(
+      `IPC contract gap — invoked-but-unregistered: ${invokedNotRegistered.join(', ') || 'none'}; ` +
+        `registered-but-never-invoked: ${registeredNotInvoked.join(', ') || 'none'}.`,
+    );
+    process.exit(1);
+  }
   console.log(`${config.output} and ${config.routeMapOutput} are up to date (${ms} ms).`);
 } else {
   if (currentMarkdown !== markdown) fs.writeFileSync(path.join(config.root, config.output), markdown);

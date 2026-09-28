@@ -19,6 +19,10 @@ export interface Config {
   seam: { allowedLayers: string[]; forbiddenTarget: string; compositionRoots: string[]; knownLegacy: string[] };
   maxPageLines: number;
   landmarks: [label: string, path: string][];
+  /** Callee names `parse/ipc.ts` treats as an IPC call to a Tauri command (21.02-F, F-6):
+   * `invoke('cmd')` (direct) and `backendCall('cmd', ...)` (the typed switch-point wrapper,
+   * `core/services/backend.ts`) both count toward the invoked/registered contract-gap check. */
+  ipcCallees: string[];
 }
 
 export const config: Config = {
@@ -78,6 +82,9 @@ export const config: Config = {
 
   /** CLAUDE.md rule 12. */
   maxPageLines: 250,
+
+  /** 21.02-F, F-6. */
+  ipcCallees: ['invoke', 'backendCall'],
 
   /** "Where is X?" quick index. Missing paths are reported so the list never rots silently. */
   landmarks: [

@@ -300,7 +300,7 @@ export function recordPayment(input: PaymentInput, userId: string): Payment {
     `${input.type === 'RECEIVED' ? 'تحصيل' : 'سداد'} ${amount.toFixed(2)} ${input.type === 'RECEIVED' ? 'من' : 'إلى'} ${partyName}`,
     userId,
     input.date,
-    `/payments?highlight=${payment.id}`,
+    { name: 'payments', query: { highlight: payment.id } },
   );
   emit('parties:changed');
   return payment;
@@ -362,7 +362,7 @@ export function allocatePayment(paymentId: string, inputs: PaymentAllocationInpu
     `تخصيص ${sum(newRows, (r) => r.amount).toFixed(2)} من سند ${payment.number} (${partyName}) على ${newRows.map((r) => r.targetNumber).join('، ')}`,
     userId,
     new Date().toISOString(),
-    `/payments?highlight=${payment.id}`,
+    { name: 'payments', query: { highlight: payment.id } },
   );
   emit('parties:changed');
   return payment;
@@ -382,7 +382,7 @@ export function unallocatePayment(paymentId: string, allocationId: string, userI
       payment.targetRefNumber = payment.allocations[0]?.targetNumber;
     }
   });
-  logActivity('payment', `إلغاء تخصيص ${alloc.amount.toFixed(2)} من سند ${payment.number} عن ${alloc.targetNumber}`, userId, new Date().toISOString(), `/payments?highlight=${payment.id}`);
+  logActivity('payment', `إلغاء تخصيص ${alloc.amount.toFixed(2)} من سند ${payment.number} عن ${alloc.targetNumber}`, userId, new Date().toISOString(), { name: 'payments', query: { highlight: payment.id } });
   emit('parties:changed');
   return payment;
 }

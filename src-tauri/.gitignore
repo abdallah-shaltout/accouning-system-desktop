@@ -9,3 +9,6 @@
 
 # WebView2 fixed runtime shipped in the installer — downloaded by scripts/fetch-webview2.js
 /Microsoft.WebView2.FixedVersionRuntime.*
+
+# Bundled MariaDB server payload shipped in the installer — downloaded by scripts/fetch-mariadb.js
+/mariadb-*-winx64/

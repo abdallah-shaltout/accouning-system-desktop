@@ -69,6 +69,11 @@ export function setFiscalYear(
     startDay: number,
     referenceDate: string,
 ): FiscalYear {
+    if (db.journalEntries.length > 0)
+        throw new ApiError(
+            "لا يمكن تغيير السنة المالية بعد بدء الترحيل",
+            "FORBIDDEN",
+        );
     const ref = new Date(referenceDate);
     let start = new Date(ref.getFullYear(), startMonth - 1, startDay);
     if (start > ref)
@@ -123,7 +128,7 @@ export function applyBranches(
                 (x) => x.code.toLowerCase() === b.code.toLowerCase(),
             )
         )
-            continue;
+            throw new ApiError(`رمز الفرع "${b.code}" مستخدم بالفعل`);
         createBranch(
             {
                 name: b.name,
@@ -161,6 +166,11 @@ export interface WizardPaymentMethodInput {
 
 /** Replaces the seeded payment-methods shell with the wizard's step-7 selection. */
 export function applyPaymentMethods(methods: WizardPaymentMethodInput[]): void {
+    if (db.journalEntries.length > 0)
+        throw new ApiError(
+            "لا يمكن تغيير طرق الدفع بعد بدء الترحيل",
+            "FORBIDDEN",
+        );
     mutate(
         () =>
             (db.paymentMethods = methods.map((m, i) => ({

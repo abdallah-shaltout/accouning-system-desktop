@@ -54,7 +54,9 @@ export function draftTransfer(input: StockTransferInput, userId: string): StockT
     note: input.note,
   };
   mutate(() => db.stockTransfers.push(transfer));
-  logActivity('stock', `إنشاء تحويل مخزون ${transfer.number} من ${branchById(input.fromBranchId)?.name} إلى ${branchById(input.toBranchId)?.name}`, userId, transfer.date, `/inventory/transfers/${transfer.id}`);
+  // Judgment call (01.C): no per-transfer detail route/page exists — only the list route
+  // `transfers` (`/inventory/transfers`, StockTransferListPage.vue). Linking to the list.
+  logActivity('stock', `إنشاء تحويل مخزون ${transfer.number} من ${branchById(input.fromBranchId)?.name} إلى ${branchById(input.toBranchId)?.name}`, userId, transfer.date, { name: 'transfers' });
   return transfer;
 }
 
@@ -113,7 +115,7 @@ export function sendTransfer(id: string, userId: string, date = new Date().toISO
     createdBy: userId,
   });
 
-  logActivity('stock', `إرسال تحويل ${transfer.number} بقيمة ${transitValue.toFixed(2)}`, userId, transfer.sentAt!, `/inventory/transfers/${transfer.id}`);
+  logActivity('stock', `إرسال تحويل ${transfer.number} بقيمة ${transitValue.toFixed(2)}`, userId, transfer.sentAt!, { name: 'transfers' });
   emit('ledger:changed');
   return transfer;
 }
@@ -182,7 +184,7 @@ export function receiveTransfer(id: string, input: ReceiveTransferInput, userId:
     createdBy: userId,
   });
 
-  logActivity('stock', `استلام تحويل ${transfer.number}${shortageValue > 0 ? ` — عجز ${shortageValue.toFixed(2)}` : ''}`, userId, transfer.receivedAt!, `/inventory/transfers/${transfer.id}`);
+  logActivity('stock', `استلام تحويل ${transfer.number}${shortageValue > 0 ? ` — عجز ${shortageValue.toFixed(2)}` : ''}`, userId, transfer.receivedAt!, { name: 'transfers' });
   emit('ledger:changed');
   return transfer;
 }
@@ -228,7 +230,7 @@ export function rejectTransfer(id: string, reason: string, userId: string, date 
     createdBy: userId,
   });
 
-  logActivity('stock', `رفض تحويل ${transfer.number} — ${reason.trim()}`, userId, transfer.rejectedAt!, `/inventory/transfers/${transfer.id}`);
+  logActivity('stock', `رفض تحويل ${transfer.number} — ${reason.trim()}`, userId, transfer.rejectedAt!, { name: 'transfers' });
   emit('ledger:changed');
   return transfer;
 }

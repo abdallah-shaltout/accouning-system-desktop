@@ -5,8 +5,8 @@
 //!
 //! `cargo run --bin report_smoke`
 
-use accounting_app_lib::pdf::render::{render_pdf, render_preview};
-use accounting_app_lib::pdf::RenderRequest;
+use accounting_app_lib::infrastructure::pdf::render::{render_pdf, render_preview};
+use accounting_app_lib::infrastructure::pdf::RenderRequest;
 use serde_json::{json, Value};
 
 fn row(cells: &[&str], kind: &str) -> Value {

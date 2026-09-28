@@ -55,6 +55,18 @@ export interface PrinterInfo {
 }
 
 /**
+ * Lists the OS's installed printers (Windows queue names), via the Rust `list_printers` command —
+ * wrapped here instead of the settings page invoking Tauri directly (C-12, plan 21 Part 02 Phase A):
+ * pages call only module services (CLAUDE.md "Rust ↔ Vue"). Same browser-dev-mode fallback shape
+ * as the rest of this file — outside Tauri there is nothing to enumerate, so it resolves to `[]`.
+ */
+export const listPrinters = wrap('core.listPrinters', async function listPrinters(): Promise<PrinterInfo[]> {
+  if (!isTauri()) return [];
+  const { invoke } = await import('@tauri-apps/api/core');
+  return invoke<PrinterInfo[]>('list_printers');
+});
+
+/**
  * Same QR SVG builder as `pdfService.ts`'s private `qrSvg` (duplicated
  * intentionally rather than exporting a second symbol from that file, to
  * keep this phase's diff scoped to files it owns).

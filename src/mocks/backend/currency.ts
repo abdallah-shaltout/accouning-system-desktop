@@ -9,6 +9,7 @@ import { db } from '../db';
 import { mutate } from '../persist';
 import { ApiError, localDateKey, round2, uid } from '../utils';
 import { DEFAULT_COUNTRY, countryProfile } from '@/modules/core/helpers/countryProfiles';
+import { logActivity } from './core';
 
 export function baseCurrency(): string {
   return db.settings.currency || countryProfile(DEFAULT_COUNTRY).currency.code;
@@ -50,9 +51,11 @@ export function isBaseCurrencyLocked(): boolean {
   return db.journalEntries.length > 0;
 }
 
-export function setBaseCurrency(code: string): void {
+export function setBaseCurrency(code: string, userId: string): void {
   if (isBaseCurrencyLocked()) throw new ApiError('لا يمكن تغيير العملة الأساسية بعد بدء الترحيل', 'FORBIDDEN');
-  mutate(() => (db.settings.currency = code.toUpperCase()));
+  const upper = code.toUpperCase();
+  mutate(() => (db.settings.currency = upper));
+  logActivity('settings', `تغيير العملة الأساسية إلى ${upper}`, userId, new Date().toISOString(), { name: 'settings-general' });
 }
 
 /** Saves a rate-table row. `input.rate` is base-per-unit; `input.inverseRate` (unit-per-base) is inverted first when that's what the form captured. */

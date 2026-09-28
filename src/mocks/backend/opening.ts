@@ -18,7 +18,7 @@
 import type { JournalEntry } from '@/modules/accounting/types';
 import type { Product } from '@/modules/products/types';
 import { db } from '../db';
-import { round2, sum, uid } from '../utils';
+import { ApiError, round2, sum, uid } from '../utils';
 import { accountFor } from './accounts';
 import { applyStockChange, DEFAULT_BRANCH_ID, logActivity, postJournal, productById, type PostingLine } from './core';
 import { receiveBatch } from './inventory';
@@ -135,7 +135,7 @@ export function postOpeningEntry(input: OpeningEntryInput): JournalEntry {
     createdBy: input.createdBy,
     allowClosedPeriod: true,
   });
-  logActivity('journal', 'ترحيل القيد الافتتاحي', input.createdBy, new Date().toISOString(), '/accounting/journal');
+  logActivity('journal', 'ترحيل القيد الافتتاحي', input.createdBy, new Date().toISOString(), { name: 'journal' });
   return entry;
 }
 
@@ -163,7 +163,7 @@ export function closeOpeningBalanceEquity(date: string, target: 'capital' | 'own
     createdBy,
     allowClosedPeriod: true,
   });
-  logActivity('journal', 'إقفال حساب الأرصدة الافتتاحية', createdBy, new Date().toISOString(), '/accounting/journal');
+  logActivity('journal', 'إقفال حساب الأرصدة الافتتاحية', createdBy, new Date().toISOString(), { name: 'journal' });
   return entry;
 }
 
@@ -232,7 +232,10 @@ export function postOpeningStockForBranch(branchId: string, date: string, lines:
     createdBy,
     allowClosedPeriod: true,
   });
-  logActivity('stock', `رصيد افتتاحي للمخزون — ${valid.length} صنف`, createdBy, date, '/inventory');
+  // Judgment call (01.C): no route named exactly `/inventory` exists — `movements` (the general
+  // inventory ledger view) is the closest match, since this is a stock-in event, not tied to one
+  // adjustment/count/transfer document. Recorded in 01-FRONTEND-ANALYSIS.md's status note.
+  logActivity('stock', `رصيد افتتاحي للمخزون — ${valid.length} صنف`, createdBy, date, { name: 'movements' });
   return entry;
 }
 
@@ -292,18 +295,21 @@ export function postPartyOpeningBalance(input: PartyOpeningBalanceInput): Journa
     `رصيد افتتاحي (${input.amount}) — ${input.partyKind === 'customer' ? 'عميل' : 'مورد'}`,
     input.createdBy,
     new Date().toISOString(),
-    input.partyKind === 'customer' ? `/customers/${input.partyId}` : `/suppliers/${input.partyId}`,
+    input.partyKind === 'customer' ? { name: 'customer', params: { id: input.partyId } } : { name: 'supplier', params: { id: input.partyId } },
   );
   return entry;
 }
 
 /**
  * Reverses a previously posted party opening-balance entry (docs/v2/05 §4 "Editing: allowed until
- * a payment is allocated to it"). Callers check allocation state before calling this.
+ * a payment is allocated to it"). The allocation check is enforced here, not left to the caller —
+ * an IPC boundary can't rely on the calling page having checked first.
  */
 export function reversePartyOpeningBalance(entryId: string, userId: string): JournalEntry {
   const original = db.journalEntries.find((e) => e.id === entryId);
-  if (!original) throw new Error('القيد غير موجود');
+  if (!original) throw new ApiError('القيد غير موجود', 'NOT_FOUND');
+  const allocated = db.payments.some((p) => p.allocations.some((a) => a.targetKind === 'opening' && a.targetId === entryId));
+  if (allocated) throw new ApiError('لا يمكن التراجع عن رصيد افتتاحي له تخصيص دفعة — أزل التخصيص أولاً', 'FORBIDDEN');
   const reversedLines: PostingLine[] = original.lines.map((l) => ({
     accountId: l.accountId,
     debit: l.credit,
@@ -328,5 +334,17 @@ export function reversePartyOpeningBalance(entryId: string, userId: string): Jou
   const originalRef = db.journalEntries.find((e) => e.id === entryId)!;
   originalRef.reversed = true;
   reversal.reversalOfId = entryId;
+  const partyLine = original.lines.find((l) => l.partyId);
+  logActivity(
+    'party',
+    'التراجع عن رصيد افتتاحي',
+    userId,
+    new Date().toISOString(),
+    partyLine?.partyKind === 'customer'
+      ? { name: 'customer', params: { id: partyLine.partyId! } }
+      : partyLine?.partyKind === 'supplier'
+        ? { name: 'supplier', params: { id: partyLine.partyId! } }
+        : undefined,
+  );
   return reversal;
 }

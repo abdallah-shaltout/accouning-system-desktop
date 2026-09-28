@@ -7,7 +7,7 @@
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
 | [`createUser`](../../../src/modules/users/services/userService.ts#L26) | `input: UserInput` | `Promise<User>` | **port** — reads and writes backend data | activity, audit, credentials, users |  | activity | User, UserInput |
-| [`getDemoAccounts`](../../../src/modules/users/services/authService.ts#L53) |  | `Promise<{ id: string; username: string; password: string; name: string; role: User["role"…` | **port** — reads backend data |  | credentials, users |  | User |
+| [`getDemoAccounts`](../../../src/modules/users/services/authService.ts#L53) |  | `Promise<{ id: string; username: string; password: string; name: string; role: User["role"…` | **dev-only** — override: 01.B users review — returns plaintext passwords f… |  | credentials, users |  | User |
 | [`getUser`](../../../src/modules/users/services/userService.ts#L13) | `id: string` | `Promise<User>` | **port** — reads backend data |  | users |  | User |
 | [`getUsers`](../../../src/modules/users/services/userService.ts#L8) |  | `Promise<User[]>` | **port** — reads backend data |  | users |  | User |
 | [`login`](../../../src/modules/users/services/authService.ts#L8) | `username: string, password: string` | `Promise<User>` | **port** — reads and writes backend data | activity, audit | credentials, users | activity | User |

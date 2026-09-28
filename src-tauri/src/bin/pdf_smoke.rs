@@ -24,8 +24,8 @@
 //! (`src/modules/core/services/pdfService.ts`) actually produces it, sanity
 //! checked the same structural way with `lopdf`.
 
-use accounting_app_lib::pdf::render::{render_pdf, render_preview};
-use accounting_app_lib::pdf::RenderRequest;
+use accounting_app_lib::infrastructure::pdf::render::{render_pdf, render_preview};
+use accounting_app_lib::infrastructure::pdf::RenderRequest;
 
 /// Minimal local base64 decoder (mirrors `pdf/render.rs`'s private one) just
 /// to decode the smoke test's own `render_pdf` output back to bytes — kept

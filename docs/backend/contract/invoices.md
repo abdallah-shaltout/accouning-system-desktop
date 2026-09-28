@@ -2,12 +2,13 @@
 
 # Contract — `invoices`
 
-26 service functions. Full signatures: `contract.gen.json`. Plan: plans/pending/21-rust-backend/01-frontend-analysis/invoices.md.
+28 service functions. Full signatures: `contract.gen.json`. Plan: plans/pending/21-rust-backend/01-frontend-analysis/invoices.md.
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
 | [`closePosShift`](../../../src/modules/invoices/services/invoiceService.ts#L297) | `shiftId: string, input: CloseShiftInput` | `Promise<Shift>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries, shifts, vouchers | accounts, branches, fiscalYears, invoices, paymentMethods, settings | activity, ledger, numbering, period | CloseShiftInput, Shift |
 | [`convertQuotationToInvoice`](../../../src/modules/invoices/services/invoiceService.ts#L455) | `id: string, payment: { paymentMethod: SaleInput["paymentMethod"]; paidAmount: number; ten…` | `Promise<Invoice>` | **port** — reads and writes backend data | activity, audit, counters, invoices, journalEntries, productBatches, quotations, stockMovements | accounts, branches, currencies, customers, exchangeRates, fiscalYears, paymentMethods, products, settings, shifts, taxe… | activity, currency, ledger, numbering, period, stock | Invoice, SaleInput |
+| [`copyInvoiceImage`](../../../src/modules/invoices/services/invoiceImageService.ts#L28) | `element: HTMLElement` | `Promise<void>` | **frontend** — webview/plugin only (document, navigator) |  |  |  |  |
 | [`createRefund`](../../../src/modules/invoices/services/invoiceService.ts#L178) | `input: RefundInput` | `Promise<Refund>` | **port** — reads and writes backend data | activity, audit, counters, invoices, journalEntries, refunds, stockMovements | accounts, branches, fiscalYears, products, settings, shifts | activity, ledger, numbering, period, stock | Refund, RefundInput |
 | [`createSale`](../../../src/modules/invoices/services/invoiceService.ts#L151) | `input: SaleInput` | `Promise<Invoice>` | **port** — reads and writes backend data | activity, audit, counters, invoices, journalEntries, productBatches, stockMovements | accounts, branches, currencies, customers, exchangeRates, fiscalYears, paymentMethods, products, settings, shifts, taxe… | activity, currency, ledger, numbering, period, stock | Invoice, SaleInput |
 | [`discardHeldSale`](../../../src/modules/invoices/services/invoiceService.ts#L352) | `id: string` | `Promise<void>` | **port** — reads and writes backend data | heldSales |  |  |  |
@@ -30,6 +31,7 @@
 | [`previewSale`](../../../src/modules/invoices/services/invoiceService.ts#L138) | `input: SaleInput` | `Promise<JournalPreviewLine[]>` | **port** — reads backend data |  | accounts, branches, currencies, customers, exchangeRates, paymentMethods, products, settings, taxes, users | currency | JournalPreviewLine, SaleInput |
 | [`recordCashInOut`](../../../src/modules/invoices/services/invoiceService.ts#L319) | `terminalId: string, kind: "PAY_IN" \| "PAY_OUT" \| "BANK_DROP", amount: number, note?: st…` | `Promise<void>` | **port** — reads backend data |  | shifts |  |  |
 | [`resumeHeldSale`](../../../src/modules/invoices/services/invoiceService.ts#L344) | `id: string` | `Promise<HeldSale>` | **port** — reads and writes backend data | heldSales |  |  | HeldSale |
+| [`saveInvoiceImage`](../../../src/modules/invoices/services/invoiceImageService.ts#L22) | `element: HTMLElement, invoiceNumber: string` | `Promise<string \| true \| null>` | **frontend** — webview/plugin only (@tauri-apps/api, @tauri-apps/plugin-di… |  |  |  |  |
 | [`saveQuotation`](../../../src/modules/invoices/services/invoiceService.ts#L384) | `input: { customerId?: string; expiryDate?: string; lines: SaleInput["lines"]; discountRat…` | `Promise<Quotation>` | **port** — reads and writes backend data | counters, quotations | products, settings, taxes | numbering | Quotation, SaleInput |
 | [`setQuotationStatus`](../../../src/modules/invoices/services/invoiceService.ts#L446) | `id: string, status: QuotationStatus` | `Promise<Quotation>` | **port** — reads and writes backend data | quotations |  |  | Quotation, QuotationStatus |
 

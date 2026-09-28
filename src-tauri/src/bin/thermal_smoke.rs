@@ -18,10 +18,10 @@
 //! any real installed Windows printers (this is a CI/dev sandbox, so an
 //! empty result there is expected and reported as such, not a failure).
 
-use accounting_app_lib::print::commands::list_printers;
-use accounting_app_lib::print::payload::{ConnectionType, PrintReceiptRequest, ReceiptWidth, ThermalPrinterConfig};
-use accounting_app_lib::print::escpos;
-use accounting_app_lib::print::render::render_receipt_bitmap;
+use accounting_app_lib::infrastructure::print::commands::list_printers;
+use accounting_app_lib::infrastructure::print::payload::{ConnectionType, PrintReceiptRequest, ReceiptWidth, ThermalPrinterConfig};
+use accounting_app_lib::infrastructure::print::escpos;
+use accounting_app_lib::infrastructure::print::render::render_receipt_bitmap;
 
 fn realistic_receipt_payload() -> serde_json::Value {
     serde_json::json!({
@@ -199,7 +199,7 @@ fn main() {
         },
         options: serde_json::json!({}),
     };
-    match accounting_app_lib::print::commands::run_print_job(&bad_req) {
+    match accounting_app_lib::infrastructure::print::commands::run_print_job(&bad_req) {
         Ok(()) => {
             println!("  FAIL: expected an error (no printer_name set)");
             failures += 1;

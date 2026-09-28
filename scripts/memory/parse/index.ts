@@ -14,7 +14,7 @@ export function parse(files: SourceFile[], config: Config): ParsedRepo {
     exports: parseExports(files),
     routes: parseRoutes(files),
     rust: parseRust(files, config),
-    ipc: parseIpc(files),
+    ipc: parseIpc(files, config),
     docs: parseDocs(files),
     manifests: parseManifests(config),
   };

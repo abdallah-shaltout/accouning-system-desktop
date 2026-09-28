@@ -8,7 +8,7 @@
 //! - a structural sanity check on the produced PDF bytes (page count via the
 //!   `%%EOF`/`/Type /Page` scan — see `sanity_check` below)
 
-use accounting_app_lib::pdf::{render_spike, SpikeDocument};
+use accounting_app_lib::infrastructure::pdf::{render_spike, SpikeDocument};
 
 fn main() {
     let doc = SpikeDocument::default();

@@ -6,7 +6,7 @@ area: branches-currencies
 fingerprint: e2e:branches-currencies:assertion-failure
 first_seen: 2026-09-26
 last_seen: 2026-09-26
-occurrences: 2
+occurrences: 3
 ---
 
 ## branches-currencies flow failed an assertion

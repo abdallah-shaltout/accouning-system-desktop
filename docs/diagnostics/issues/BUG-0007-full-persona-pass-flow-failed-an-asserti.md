@@ -6,7 +6,7 @@ area: full-persona-pass
 fingerprint: e2e:full-persona-pass:assertion-failure
 first_seen: 2026-09-26
 last_seen: 2026-09-26
-occurrences: 1
+occurrences: 2
 ---
 
 ## full-persona-pass flow failed an assertion

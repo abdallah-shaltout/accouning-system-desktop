@@ -19,7 +19,7 @@ import {
   type OpeningStockLine,
   type PartyOpeningBalanceInput,
 } from '@/mocks/backend/opening';
-import { createCurrency, setBaseCurrency } from '@/mocks/backend/currency';
+import { createCurrency, isBaseCurrencyLocked as currencyIsBaseCurrencyLocked, setBaseCurrency } from '@/mocks/backend/currency';
 import { mutate } from '@/mocks/persist';
 import type { Account, FiscalYear } from '@/modules/accounting/types';
 import type { AccountTemplate } from '@/mocks/fixtures/accounts';
@@ -98,7 +98,7 @@ export const applyBusinessTypeDefaults = wrap('setup.applyBusinessTypeDefaults',
 
 export const isBaseCurrencyLocked = wrap('setup.isBaseCurrencyLocked', async function isBaseCurrencyLocked(): Promise<boolean> {
   await delay(30);
-  return db.journalEntries.length > 0;
+  return currencyIsBaseCurrencyLocked();
 });
 
 export const applyCountryTax = wrap('setup.applyCountryTax', async function applyCountryTax(input: {
@@ -112,7 +112,7 @@ export const applyCountryTax = wrap('setup.applyCountryTax', async function appl
   if (await isBaseCurrencyLocked()) throw new ApiError('لا يمكن تغيير الدولة أو العملة الأساسية بعد أول ترحيل', 'FORBIDDEN');
 
   const profile = countryProfile(input.country);
-  if (db.settings.currency !== input.currency) setBaseCurrency(input.currency);
+  if (db.settings.currency !== input.currency) setBaseCurrency(input.currency, session.userId);
 
   // v2 doc 18.D: applies the *full* profile, not only currency — tax rate/name, prices-include-VAT
   // default and `settings.country` (today Egypt was wrongly seeded at 15% because this only ever
@@ -121,8 +121,8 @@ export const applyCountryTax = wrap('setup.applyCountryTax', async function appl
     db.settings.pricesIncludeTax = input.pricesIncludeTax;
     db.settings.country = profile.code;
     db.taxes = db.taxes.map((t) => {
-      if (t.id === 'tax-vat-out') return { ...t, rate: profile.vat.standardRate, name: `${profile.vat.label} (مبيعات)` };
-      if (t.id === 'tax-vat-in') return { ...t, rate: profile.vat.standardRate, name: `${profile.vat.label} (مشتريات)` };
+      if (t.accountRole === 'vatOutput') return { ...t, rate: profile.vat.standardRate, name: `${profile.vat.label} (مبيعات)` };
+      if (t.accountRole === 'vatInput') return { ...t, rate: profile.vat.standardRate, name: `${profile.vat.label} (مشتريات)` };
       return t;
     });
   });

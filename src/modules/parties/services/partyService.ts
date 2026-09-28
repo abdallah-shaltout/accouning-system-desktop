@@ -4,6 +4,7 @@ import { logActivity } from '@/mocks/backend/core';
 import { getOpenDocumentsFor, unallocatedCreditFor } from '@/mocks/backend/payments';
 import { emit } from '@/mocks/events';
 import { mutate } from '@/mocks/persist';
+import { countryProfile } from '@/modules/core/helpers/countryProfiles';
 import type { AgingBucket, Customer, CustomerInput, PartyGroup, PartyHistoryEntry, PartyStatementRow, Supplier, SupplierInput } from '../types';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
@@ -28,7 +29,12 @@ export interface DuplicateWarning {
 
 function validateCommon(input: { name: string; phone?: string; vatNumber?: string }) {
   if (!input.name.trim()) throw new ApiError('الاسم مطلوب');
-  if (input.vatNumber && !/^3\d{13}3$/.test(input.vatNumber)) throw new ApiError('الرقم الضريبي يجب أن يكون 15 رقماً يبدأ وينتهي بالرقم 3');
+  if (input.vatNumber) {
+    const profile = countryProfile(db.settings.country);
+    if (!profile.taxId.pattern.test(input.vatNumber)) {
+      throw new ApiError(`${profile.taxId.label} يجب أن يكون ${profile.taxId.hint}`);
+    }
+  }
 }
 
 function clean<T extends Record<string, any>>(input: T): T {
@@ -122,14 +128,14 @@ export const saveCustomer = wrap('parties.saveCustomer', async function saveCust
     if (data.active === false && customerBalance(id) > 0) throw new ApiError('لا يمكن إيقاف عميل عليه رصيد مستحق');
     mutate(() => Object.assign(found, data, { updatedAt: new Date().toISOString() }));
     customer = found;
-    logActivity('party', `تعديل العميل ${customer.name}`, session.userId, new Date().toISOString(), `/customers/${customer.id}`);  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
+    logActivity('party', `تعديل العميل ${customer.name}`, session.userId, new Date().toISOString(), { name: 'customer', params: { id: customer.id } });
     mutate(() =>
       db.partyHistory.push({ id: uid('phist'), partyId: customer.id, partyKind: 'customer', date: new Date().toISOString(), message: 'تعديل بيانات العميل', userId: session.userId }),
     );
   } else {
     customer = { id: uid('cus'), code: nextCode('customer'), balance: 0, createdAt: new Date().toISOString(), ...data } as Customer;
     mutate(() => db.customers.push(customer));
-    logActivity('party', `إضافة العميل ${customer.name}`, session.userId, new Date().toISOString(), `/customers/${customer.id}`);  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
+    logActivity('party', `إضافة العميل ${customer.name}`, session.userId, new Date().toISOString(), { name: 'customer', params: { id: customer.id } });
     mutate(() =>
       db.partyHistory.push({ id: uid('phist'), partyId: customer.id, partyKind: 'customer', date: new Date().toISOString(), message: 'إنشاء بطاقة العميل', userId: session.userId }),
     );
@@ -177,16 +183,17 @@ export const saveSupplier = wrap('parties.saveSupplier', async function saveSupp
   if (id) {
     const found = db.suppliers.find((s) => s.id === id);
     if (!found) throw new ApiError('المورد غير موجود', 'NOT_FOUND');
+    if (data.active === false && supplierBalance(id) > 0) throw new ApiError('لا يمكن إيقاف مورد عليه رصيد مستحق');
     mutate(() => Object.assign(found, data, { updatedAt: new Date().toISOString() }));
     supplier = found;
-    logActivity('party', `تعديل المورد ${supplier.name}`, session.userId, new Date().toISOString(), `/suppliers/${supplier.id}`);  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
+    logActivity('party', `تعديل المورد ${supplier.name}`, session.userId, new Date().toISOString(), { name: 'supplier', params: { id: supplier.id } });
     mutate(() =>
       db.partyHistory.push({ id: uid('phist'), partyId: supplier.id, partyKind: 'supplier', date: new Date().toISOString(), message: 'تعديل بيانات المورد', userId: session.userId }),
     );
   } else {
     supplier = { id: uid('sup'), code: nextCode('supplier'), balance: 0, createdAt: new Date().toISOString(), ...data } as Supplier;
     mutate(() => db.suppliers.push(supplier));
-    logActivity('party', `إضافة المورد ${supplier.name}`, session.userId, new Date().toISOString(), `/suppliers/${supplier.id}`);  /* route-ok: stored activity-log link, parsed by entityFromLink, never navigated by the UI (Decision 8) */
+    logActivity('party', `إضافة المورد ${supplier.name}`, session.userId, new Date().toISOString(), { name: 'supplier', params: { id: supplier.id } });
     mutate(() =>
       db.partyHistory.push({ id: uid('phist'), partyId: supplier.id, partyKind: 'supplier', date: new Date().toISOString(), message: 'إنشاء بطاقة المورد', userId: session.userId }),
     );
@@ -212,6 +219,7 @@ export const linkPartyRecords = wrap('parties.linkPartyRecords', async function 
     customer.linkedPartyId = supplier.id;
     supplier.linkedPartyId = customer.id;
   });
+  logActivity('party', `ربط بطاقتي "${customer.name}" (عميل) و"${supplier.name}" (مورد)`, session.userId, new Date().toISOString(), { name: 'customer', params: { id: customer.id } });
   emit('parties:changed');
 });
 
@@ -226,6 +234,13 @@ export const unlinkPartyRecord = wrap('parties.unlinkPartyRecord', async functio
     p.linkedPartyId = undefined;
     if (counterpart) counterpart.linkedPartyId = undefined;
   });
+  logActivity(
+    'party',
+    `إلغاء ربط بطاقة "${p.name}"${counterpart ? ` و"${counterpart.name}"` : ''}`,
+    session.userId,
+    new Date().toISOString(),
+    kind === 'customer' ? { name: 'customer', params: { id: p.id } } : { name: 'supplier', params: { id: p.id } },
+  );
   emit('parties:changed');
 });
 

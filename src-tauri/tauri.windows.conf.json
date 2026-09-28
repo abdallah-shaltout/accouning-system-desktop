@@ -1,0 +1,13 @@
+{
+  "bundle": {
+    "resources": {
+      "mariadb-11.4.13-winx64/": "mariadb/"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerHooks": "./windows/installer-hooks.nsh"
+      }
+    }
+  }
+}

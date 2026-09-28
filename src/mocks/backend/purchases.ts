@@ -166,7 +166,7 @@ export function savePurchase(input: PurchaseOrderInput, userId: string, existing
   }
 
   if (input.confirm) receivePurchase(po.id, { date: input.date, lines: po.lines.map((l) => ({ productId: l.productId, receivedQty: baseQty(l) })) }, userId);
-  else logActivity('purchase', `حفظ أمر الشراء ${po.number} كمسودة`, userId, input.date, `/purchases/${po.id}`);
+  else logActivity('purchase', `حفظ أمر الشراء ${po.number} كمسودة`, userId, input.date, { name: 'purchase', params: { id: po.id } });
   return po;
 }
 
@@ -179,7 +179,7 @@ export function sendPurchaseToSupplier(id: string, userId: string): PurchaseOrde
     po.status = 'ORDERED';
     po.sentAt = new Date().toISOString();
   });
-  logActivity('purchase', `إرسال أمر الشراء ${po.number} للمورد`, userId, po.sentAt!, `/purchases/${po.id}`);
+  logActivity('purchase', `إرسال أمر الشراء ${po.number} للمورد`, userId, po.sentAt!, { name: 'purchase', params: { id: po.id } });
   return po;
 }
 
@@ -348,7 +348,7 @@ export function receivePurchase(id: string, input: ReceivePurchaseInput, userId:
     createdBy: userId,
   });
 
-  logActivity('purchase', `استلام أمر الشراء ${po.number} من ${supplier?.name ?? ''} بقيمة ${apAmount.toFixed(2)}`, userId, date, `/purchases/${po.id}`);
+  logActivity('purchase', `استلام أمر الشراء ${po.number} من ${supplier?.name ?? ''} بقيمة ${apAmount.toFixed(2)}`, userId, date, { name: 'purchase', params: { id: po.id } });
   emit('parties:changed');
 
   // v2 §1 "short delivery → إنشاء أمر متبقٍ" — a DRAFT backorder PO for exactly the shortfall,
@@ -361,7 +361,7 @@ export function receivePurchase(id: string, input: ReceivePurchaseInput, userId:
     if (shortLines.length) {
       const backorder = savePurchase({ supplierId: po.supplierId, date, note: `أمر متبقٍ من ${po.number}`, confirm: false, lines: shortLines }, userId);
       mutate(() => (backorder.backorderOfId = po.id));
-      logActivity('purchase', `إنشاء أمر متبقٍ ${backorder.number} من ${po.number}`, userId, date, `/purchases/${backorder.id}`);
+      logActivity('purchase', `إنشاء أمر متبقٍ ${backorder.number} من ${po.number}`, userId, date, { name: 'purchase', params: { id: backorder.id } });
     }
   }
 
@@ -380,7 +380,7 @@ export function cancelPurchase(id: string, userId: string): PurchaseOrder {
   if (!po) throw new ApiError('أمر الشراء غير موجود', 'NOT_FOUND');
   if (po.status !== 'DRAFT' && po.status !== 'ORDERED') throw new ApiError('يمكن إلغاء المسودات والأوامر المرسلة فقط — استخدم مرتجع المشتريات للأوامر المستلمة');
   mutate(() => (po.status = 'CANCELED'));
-  logActivity('purchase', `إلغاء أمر الشراء ${po.number}`, userId, new Date().toISOString(), `/purchases/${po.id}`);
+  logActivity('purchase', `إلغاء أمر الشراء ${po.number}`, userId, new Date().toISOString(), { name: 'purchase', params: { id: po.id } });
   return po;
 }
 
@@ -515,7 +515,7 @@ export function recordPurchaseReturn(input: PurchaseReturnInput, userId: string,
     createdBy: userId,
   });
 
-  logActivity('purchase_return', `مرتجع مشتريات ${ret.number} بقيمة ${ret.grandTotal.toFixed(2)}`, userId, date, `/purchases/${po.id}`);
+  logActivity('purchase_return', `مرتجع مشتريات ${ret.number} بقيمة ${ret.grandTotal.toFixed(2)}`, userId, date, { name: 'purchase', params: { id: po.id } });
   emit('parties:changed');
   return ret;
 }

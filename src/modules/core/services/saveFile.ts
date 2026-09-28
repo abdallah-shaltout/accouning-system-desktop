@@ -9,7 +9,7 @@ import { useToast } from '@/modules/core/controllers/useToast';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
-export type SaveFileKind = 'excel' | 'pdf' | 'backup' | 'json' | 'text';
+export type SaveFileKind = 'excel' | 'pdf' | 'backup' | 'json' | 'text' | 'image';
 
 const EXTENSION_FILTERS: Record<SaveFileKind, { name: string; extensions: string[] }> = {
   excel: { name: 'Excel', extensions: ['xlsx'] },
@@ -17,6 +17,7 @@ const EXTENSION_FILTERS: Record<SaveFileKind, { name: string; extensions: string
   backup: { name: 'Backup', extensions: ['zip'] },
   json: { name: 'JSON', extensions: ['json'] },
   text: { name: 'Text', extensions: ['csv', 'md', 'txt'] },
+  image: { name: 'PNG', extensions: ['png'] },
 };
 
 const LAST_FOLDER_KEY_PREFIX = 'app_save_last_folder:';
@@ -61,6 +62,8 @@ function mimeFor(kind: SaveFileKind): string {
       return 'application/json';
     case 'text':
       return 'text/plain;charset=utf-8';
+    case 'image':
+      return 'image/png';
   }
 }
 

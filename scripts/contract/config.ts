@@ -8,6 +8,13 @@ import type { Disposition } from './types';
 /** D9 (plan 21): print templates move from per-device localStorage to the DB, shared per branch. */
 const d9 = { disposition: 'port', reason: 'D9 — templates move from localStorage to the DB, shared per branch' } as const;
 
+/** 01.B diagnostics review (F9): the accounting-debugger tab (/dev/diagnostics -> Al-Muhasaba) and
+ * repro recording are dev-build-only per CLAUDE.md's Diagnostics section — never a production command. */
+const diagDevOnly = {
+  disposition: 'dev-only',
+  reason: '01.B diagnostics review — powers the /dev/diagnostics accounting-debugger tab and repro recording (18.F3-F4), dev-build-only per CLAUDE.md, never a production command',
+} as const;
+
 export const config = {
   /** Repo root — this file lives in scripts/contract/. */
   root: path.resolve(import.meta.dirname, '../..'),
@@ -63,6 +70,34 @@ export const config = {
     'templates.exportTemplate': d9,
     'templates.importTemplate': d9,
     'templates.createTemplate': d9,
+    'settings.listHistory': {
+      disposition: 'frontend',
+      reason: '01.B settings review — lists local .zip files via plugin-fs (Tauri) or an IndexedDB store (browser); the folder path it reads comes from the already-ported getSettings/backupSettings, so no capability is lost by keeping this frontend-only',
+    },
+    'setup.persistProgress': {
+      disposition: 'drop',
+      reason: '01.B setup review — only calls flushSnapshot() (mock-specific IndexedDB persistence); under MariaDB every write already commits durably inside its own transaction, so there is no Rust equivalent',
+    },
+    'users.getDemoAccounts': {
+      disposition: 'dev-only',
+      reason: '01.B users review — returns plaintext passwords for the dev/demo login-screen account picker; must never exist as a general-purpose production command (same class of restriction as devToolsService, F9)',
+    },
+    'core.resetToEmpty': {
+      disposition: 'dev-only',
+      reason: '01.B core review — wipes all persisted data with no confirmation/audit trail beyond the caller reloading the app; a dev/demo reset capability, must never exist as a general-purpose production command (same class as users.getDemoAccounts, F9)',
+    },
+    'core.reloadDemoData': {
+      disposition: 'dev-only',
+      reason: '01.B core review — reseeds and overwrites nearly every table with fixed demo data; a dev/demo capability, must never exist as a general-purpose production command (same class as users.getDemoAccounts, F9)',
+    },
+    'diagnostics.explainAccountBalance': diagDevOnly,
+    'diagnostics.getBalancesAround': diagDevOnly,
+    'diagnostics.getDriftReport': diagDevOnly,
+    'diagnostics.getInvariantResults': diagDevOnly,
+    'diagnostics.getJournalEntryRaw': diagDevOnly,
+    'diagnostics.getPostingTrace': diagDevOnly,
+    'diagnostics.listRecentDocuments': diagDevOnly,
+    'diagnostics.startReproRecording': diagDevOnly,
   } as Record<string, { disposition: Disposition; reason: string }>,
 
   /** Field-name patterns → DTO/column hints (only applied to fields whose type fits). */
@@ -71,4 +106,12 @@ export const config = {
     date: /(date|At|On|Until|From|To|month|period)$/,
     route: /^(link|to|actionTo|sourceLink|refLink|href|route)$/,
   },
+
+  /**
+   * Repo-relative path patterns excluded from the type inventory (21.02-F, F-6): ts-rs-generated
+   * bindings (`**\/types/gen/**`, already inventoried on the Rust side via their own DTOs) and the
+   * drift-check files (`**\/contract.check.ts`, which exist only to be type-checked by `vue-tsc`,
+   * never a type any service exposes).
+   */
+  excludeFromTypes: [/\/types\/gen\//, /\/contract\.check\.ts$/],
 };

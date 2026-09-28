@@ -37,7 +37,7 @@ export function openShift(input: OpenShiftInput, userId: string, date = new Date
     movements: [],
   };
   mutate(() => db.shifts.push(shift));
-  logActivity('shift', `فتح وردية ${shift.number} — رصيد افتتاحي ${shift.openingFloat.toFixed(2)}`, userId, date, '/pos/shifts');
+  logActivity('shift', `فتح وردية ${shift.number} — رصيد افتتاحي ${shift.openingFloat.toFixed(2)}`, userId, date, { name: 'pos-shifts' });
   return shift;
 }
 
@@ -149,7 +149,7 @@ export function closeShift(shiftId: string, input: CloseShiftInput, userId: stri
     `إغلاق وردية ${shift.number} — المتوقع ${expectedCash.toFixed(2)}، المعدود ${counted.toFixed(2)}، الفرق ${variance.toFixed(2)}`,
     userId,
     date,
-    '/pos/shifts',
+    { name: 'pos-shifts' },
   );
   emit('ledger:changed');
   return shift;

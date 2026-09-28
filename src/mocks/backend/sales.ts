@@ -386,7 +386,7 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
     `فاتورة ${invoice.number} بقيمة ${invoice.grandTotal.toFixed(2)}${customer ? ` — ${customer.name}` : ''}`,
     userId,
     date,
-    `/invoices/${invoice.id}`,
+    { name: 'invoice', params: { id: invoice.id } },
   );
   if (invoice.customerId) emit('parties:changed');
   return invoice;
@@ -530,7 +530,7 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
     if (shift) recordShiftMovement(shift.terminalId, 'REFUND_CASH', paidOut, userId, { refId: refund.id, refNumber: refund.number, at: date });
   }
 
-  logActivity('refund', `مرتجع ${refund.number} على الفاتورة ${invoice.number} بقيمة ${grandTotal.toFixed(2)}`, userId, date, `/invoices/${invoice.id}`);
+  logActivity('refund', `مرتجع ${refund.number} على الفاتورة ${invoice.number} بقيمة ${grandTotal.toFixed(2)}`, userId, date, { name: 'invoice', params: { id: invoice.id } });
   if (invoice.customerId) emit('parties:changed');
   return refund;
 }

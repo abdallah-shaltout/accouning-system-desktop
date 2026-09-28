@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "migration"]
+resolver = "2"
+
 [package]
 name = "accounting-app"
 version = "0.1.0"
@@ -21,13 +25,37 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tauri-plugin-sql = { version = "2.4.1", features = ["sqlite"] }
 tauri-plugin-fs = "2.5.2"
 tauri-plugin-dialog = "2.7.3"
+migration = { path = "migration" }
+
+# 21.02-A — real backend foundation (MariaDB via SeaORM). Reached only through `sea_orm::sqlx` to
+# avoid sqlx version skew (P2-01/A-1).
+sea-orm = { version = "1", features = [
+    "sqlx-mysql",
+    "runtime-tokio-rustls",
+    "macros",
+    "with-rust_decimal",
+    "with-chrono",
+    "with-uuid",
+    "with-json",
+] }
+rust_decimal = { version = "1", features = ["serde-with-str"] }
+rust_decimal_macros = "1"
+uuid = { version = "1", features = ["v7", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
+argon2 = "0.5"
+keyring = { version = "3", features = ["apple-native", "windows-native", "sync-secret-service"] }
+thiserror = "2"
+serde_with = "3"
+async-trait = "0.1"
+log = "0.4"
+tokio = { version = "1", features = ["macros", "process", "rt", "rt-multi-thread", "signal", "sync", "time"] }
 # Diagnostics (18.B3): captures Rust-side panics/logs into the same app-log directory that
 # diag_* (src/diag/mod.rs) writes the TypeScript-side channels into.
 tauri-plugin-log = "2"
@@ -56,6 +84,15 @@ resvg = "0.47"
 usvg = "0.47"
 tiny-skia = "0.12"
 
+# 21.02-A2/A3 — bundled MariaDB (D11): one app instance per PC (P2-58), Main-PC autostart when LAN
+# sharing is on (A3), and OS-random secrets for the DB accounts (P2-49).
+tauri-plugin-single-instance = "2"
+tauri-plugin-autostart = "2"
+getrandom = "0.3"
+# 21.02-F — typed TS bindings generated from Rust DTOs (P2-01). No decimal impl on purpose: a
+# `Decimal` field without `#[ts(type = "number")]` must fail to compile (phase-f F-1).
+ts-rs = { version = "12.0.1", features = ["uuid-impl", "chrono-impl"] }
+
 # Windows printer enumeration + raw-mode spooling (OpenPrinter/StartDocPrinter/
 # WritePrinter/EndDocPrinter) for src-tauri/src/print/{printers,transport}.rs.
 [target.'cfg(windows)'.dependencies]
@@ -66,7 +103,24 @@ windows = { version = "0.61", features = [
     "Win32_Storage_Xps",
     "Win32_System_SystemServices",
     "Win32_Foundation",
+    # 21.02-A2 (bundled MariaDB supervisor, ProgramData path, session-end hook, disk space) and
+    # A3 (computer name for pairing, elevated netsh via ShellExecuteExW).
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Shell",
+    "Win32_System_Threading",
+    "Win32_System_Shutdown",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Com",
+    "Win32_System_SystemInformation",
+    "Win32_Storage_FileSystem",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_System_Registry",
+    "Win32_Networking_WinSock",
 ] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [[bin]]
 name = "typst_spike"
@@ -84,6 +138,15 @@ path = "src/bin/report_smoke.rs"
 name = "thermal_smoke"
 path = "src/bin/thermal_smoke.rs"
 
+
+# Dev-build footprint (user request 2026-09-27: builds froze the PC). Full debug info for typst/
+# tauri/sea-orm made every linked test binary multi-GB and link.exe RAM-hungry. Keep line tables
+# for our own crate (readable backtraces) and no debug info for dependencies.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

@@ -14,7 +14,8 @@ import SkeletonBlock from '@/modules/core/components/ui/SkeletonBlock.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import * as printService from '@/modules/core/services/printService';
 import type { PrinterInfo } from '@/modules/core/services/printService';
-import InvoiceA4 from '@/modules/invoices/components/InvoiceA4.vue';
+import InvoiceDocument from '@/modules/invoices/components/InvoiceDocument.vue';
+import { DEFAULT_A4_TEMPLATE } from '@/modules/invoices/helpers/invoiceTemplates';
 import InvoiceThermal from '@/modules/invoices/components/InvoiceThermal.vue';
 import { getInvoicePrintData, type PrintData } from '@/modules/invoices/services/invoiceService';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
@@ -58,8 +59,7 @@ async function loadPrinters() {
   if (!inTauri) return;
   loadingPrinters.value = true;
   try {
-    const { invoke } = await import('@tauri-apps/api/core');
-    availablePrinters.value = await invoke<PrinterInfo[]>('list_printers');
+    availablePrinters.value = await printService.listPrinters();
     // Default the A4 field to the OS default printer the first time the page loads with nothing saved yet.
     if (!a4PrinterName.value) {
       const def = availablePrinters.value.find((p) => p.is_default);
@@ -226,7 +226,7 @@ async function testThermalPrint() {
 
         <AppCard title="معاينة الطباعة (المتصفح)">
           <p class="mb-4 text-body leading-6 text-text-secondary">
-            يفتح نموذج فاتورة تجريبي بالإعدادات الحالية في نافذة معاينة الطباعة العادية. مستقل عن الاتصال المباشر أعلاه — مفيد كبديل احتياطي.
+            يفتح نموذج فاتورة تجريبي بالإعدادات الحالية في نافذة معاينة الطباعة العادية. من هناك تختار قالب A4 أو قالب صورة الموبايل وتعيّنه كافتراضي.
           </p>
           <AppButton variant="secondary" :icon="Printer" @click="testPrint">فتح نافذة المعاينة</AppButton>
         </AppCard>
@@ -238,8 +238,8 @@ async function testThermalPrint() {
           <div v-else-if="mode === 'thermal'" class="shadow-md">
             <InvoiceThermal :data="sample" :width="width" />
           </div>
-          <div v-else class="origin-top scale-[0.48] bg-white p-[12mm] shadow-md" style="margin-bottom: -52%">
-            <InvoiceA4 :data="sample" />
+          <div v-else class="origin-top scale-[0.48] bg-white shadow-md" style="margin-bottom: -52%">
+            <InvoiceDocument :data="sample" layout="a4" :template-id="store.settings?.printer.a4Template ?? DEFAULT_A4_TEMPLATE" />
           </div>
         </div>
       </AppCard>

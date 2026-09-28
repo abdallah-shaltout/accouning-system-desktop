@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.abdallah.accounting-app",
   "build": {
-    "beforeDevCommand": "node scripts/fetch-webview2.js && bun run dev",
+    "beforeDevCommand": "node scripts/fetch-webview2.js && node scripts/fetch-mariadb.js && bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "node scripts/fetch-webview2.js && bun run build",
+    "beforeBuildCommand": "node scripts/fetch-webview2.js && node scripts/fetch-mariadb.js && bun run build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -17,7 +17,8 @@
         "height": 820,
         "minWidth": 1100,
         "minHeight": 680,
-        "center": true
+        "center": true,
+        "visible": false
       }
     ],
     "security": {
@@ -26,7 +27,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "windows": {
       "webviewInstallMode": {
         "type": "fixedRuntime",
