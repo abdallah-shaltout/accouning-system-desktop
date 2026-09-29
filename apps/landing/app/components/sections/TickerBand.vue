@@ -7,7 +7,7 @@ import { TICKER } from '~/data/features'
     <LContainer>
       <div class="relative overflow-hidden border-y border-white/25">
         <!-- Two copies of the list; the track slides one copy-width toward reading direction and loops. -->
-        <div class="flex w-max animate-marquee items-center hover:[animation-play-state:paused]">
+        <div class="flex w-max animate-marquee items-center">
           <ul v-for="copy in 2" :key="copy" class="flex shrink-0 items-center" :aria-hidden="copy === 2">
             <li
               v-for="item in TICKER"

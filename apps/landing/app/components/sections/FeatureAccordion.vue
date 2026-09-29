@@ -7,17 +7,18 @@ const AUTO_MS = 6000
 
 const active = ref<AccordionFeature['key']>('pos')
 const root = ref<HTMLElement | null>(null)
-const paused = ref(false)
 let inView = false
 let timer: ReturnType<typeof setInterval> | undefined
 
+/** Auto-advance never stops: a click jumps to that feature and restarts the cycle from it. */
 function select(key: AccordionFeature['key']) {
   active.value = key
-  paused.value = true
+  clearInterval(timer)
+  timer = setInterval(advance, AUTO_MS)
 }
 
 function advance() {
-  if (paused.value || !inView) return
+  if (!inView) return
   const i = ACCORDION_FEATURES.findIndex((f) => f.key === active.value)
   active.value = ACCORDION_FEATURES[(i + 1) % ACCORDION_FEATURES.length]!.key
 }
@@ -47,7 +48,7 @@ onBeforeUnmount(() => clearInterval(timer))
       <LSplitHeading id="accordion-title" :lines="['محاسبة تلحق شغلك.']" class="mt-3 text-h2 text-ink" />
 
       <div class="mt-10 grid items-start gap-12 lg:grid-cols-[minmax(0,26rem)_1fr] lg:gap-16">
-        <ul data-acc-list class="lg:mt-6" @mouseleave="paused = false">
+        <ul data-acc-list class="lg:mt-6">
           <li v-for="f in ACCORDION_FEATURES" :key="f.key" data-acc-row class="border-b border-ink/10 last:border-b-0">
             <h3>
               <button
@@ -85,7 +86,7 @@ onBeforeUnmount(() => clearInterval(timer))
           </li>
         </ul>
 
-        <div data-acc-visual class="w-full lg:max-w-133 lg:justify-self-end" @mouseenter="paused = true" @mouseleave="paused = false">
+        <div data-acc-visual class="w-full lg:max-w-133 lg:justify-self-end">
           <FeatureScene :active="active" :features="ACCORDION_FEATURES" />
         </div>
       </div>

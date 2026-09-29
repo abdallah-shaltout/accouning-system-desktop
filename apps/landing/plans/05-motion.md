@@ -1,6 +1,6 @@
 # 05 — Motion & GSAP ScrollTrigger Choreography (Phase E)
 
-Status: **done** (2026-09-29). Change from plan: first-paint motion (hero panel, headline lines, nav) runs as CSS keyframes (`.intro-*` in main.css) so it starts at first paint; accordions animate with CSS `grid-template-rows`; the marquee is a CSS keyframe. GSAP (loaded async) owns all scroll-linked motion: reveals, count-ups, parallax, stacked-card spread, progress bars. Open: 2 measurement items.
+Status: **done** (2026-09-29). Change from plan: first-paint motion (hero panel, headline lines, nav) runs as CSS keyframes (`.intro-*` in main.css) so it starts at first paint; accordions animate with CSS `grid-template-rows`; the marquee is a CSS keyframe. GSAP (loaded async) owns all scroll-linked motion: reveals, count-ups, parallax, stacked-card spread, progress bars. Open: 2 measurement items. **Motion never stops (user decision 2026-09-29):** no reduced-motion code of any kind, no hover pause on the ticker, and the feature accordion and business types keep auto-advancing after clicks and hover — verified with `prefers-reduced-motion: reduce` emulated.
 
 Motion philosophy: **calm, physical, expensive.** The reference is not a scroll-jacking site —
 it's hairlines, soft reveals, one marquee, and floating UI cards. Every animation is
@@ -62,7 +62,7 @@ Timeline on mount, total ~1.1s:
 - Rows cascade in (`x: 32*dir → 0`, stagger 0.08).
 - **Accordion behavior** (component logic + GSAP): open = `gsap.to(desc, { height: 'auto',
   opacity: 1, 0.45s, ease: power3.out })`, close previous in parallel; title color tweens to
-  coral via CSS class. Auto-advance every 5s (paused on hover/interaction, resumes after 10s).
+  coral via CSS class. Auto-advance every 6s and **never stops**: a click jumps to that row and restarts the cycle from it (user decision 2026-09-29: motion always runs).
 - Visual cross-fade: image stack, active `opacity 1 / scale 1` others `opacity 0 / scale 1.03`.
 - Overlay glass card: enters `y: 24, opacity 0` when its image becomes active.
 

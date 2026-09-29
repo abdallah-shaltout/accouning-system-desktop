@@ -4,14 +4,16 @@ import { BUSINESS_TYPES } from '~/data/businessTypes'
 
 const AUTO_S = 8
 const openKey = ref(BUSINESS_TYPES[0]!.key)
-const paused = ref(false)
 const root = ref<HTMLElement | null>(null)
 let progress: gsap.core.Tween | undefined
+let run: (() => void) | undefined
+let visible = false
 
+/** Auto-advance never stops: a click opens that type and restarts the cycle from it. */
 function open(key: string) {
   openKey.value = key
-  paused.value = true
   progress?.kill()
+  if (visible) nextTick(() => run?.())
 }
 
 useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
@@ -21,8 +23,7 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
   gsap.from('[data-type-row]', { autoAlpha: 0, y: 40, duration: 1, stagger: 0.1, ease: 'expo.out', scrollTrigger: revealTrigger(el.querySelector('[data-types]')!) })
 
   // Auto-advance while visible; the bar under the scenario shows the time left.
-  const run = () => {
-    if (paused.value) return
+  run = () => {
     const bar = el.querySelector<HTMLElement>(`[data-progress="${openKey.value}"]`)
     if (!bar) return
     progress = gsap.fromTo(bar, { scaleX: 0 }, {
@@ -32,15 +33,21 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
       onComplete: () => {
         const i = BUSINESS_TYPES.findIndex((t) => t.key === openKey.value)
         openKey.value = BUSINESS_TYPES[(i + 1) % BUSINESS_TYPES.length]!.key
-        nextTick(run)
+        nextTick(() => run?.())
       },
     })
   }
+  // Only the off-screen time is skipped: the cycle resumes where it was when the list returns.
   ScrollTrigger.create({
     trigger: el.querySelector('[data-types]')!,
     start: 'top 70%',
     end: 'bottom 30%',
-    onToggle: (s) => (s.isActive ? run() : progress?.pause()),
+    onToggle: (s) => {
+      visible = s.isActive
+      if (!s.isActive) progress?.pause()
+      else if (progress?.paused()) progress.resume()
+      else run?.()
+    },
   })
 })
 </script>
@@ -57,7 +64,7 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
           <LAccordionBar :id="`type-${t.key}`" :title="t.name" :icon="t.icon" :open="openKey === t.key" @toggle="open(t.key)">
             <p class="max-w-120 font-display text-xl leading-relaxed text-ink text-pretty lg:text-[1.375rem]">«{{ t.scenario }}»</p>
             <span class="mt-5 block h-0.5 w-35 overflow-hidden bg-ink/10">
-              <span :data-progress="t.key" class="block h-full origin-right bg-ink" :style="{ transform: paused ? 'scaleX(1)' : 'scaleX(0)' }" />
+              <span :data-progress="t.key" class="block h-full origin-right scale-x-0 bg-ink" />
             </span>
             <p class="mt-7 flex items-center gap-3">
               <span class="grid size-8 place-items-center rounded-full bg-cream text-coral-600"><Store class="size-4" /></span>
