@@ -1,13 +1,18 @@
 <script setup lang="ts">
 /** Desktop-app window chrome (Equal is a Windows app, so screens sit in a window, not a phone). */
-withDefaults(defineProps<{ title?: string; theme?: 'light' | 'dark' }>(), { title: APP_NAME_AR, theme: 'light' })
+/** `decorative: false` when the window holds a real screenshot whose alt text should be read. */
+withDefaults(defineProps<{ title?: string; theme?: 'light' | 'dark'; decorative?: boolean }>(), {
+  title: APP_NAME_AR,
+  theme: 'light',
+  decorative: true,
+})
 </script>
 
 <template>
   <div
     class="overflow-hidden rounded-mini border shadow-float"
     :class="theme === 'dark' ? 'border-white/10 bg-forest-950 text-white' : 'border-panel-200 bg-white text-ink'"
-    aria-hidden="true"
+    :aria-hidden="decorative ? 'true' : undefined"
   >
     <div
       class="flex h-8 items-center justify-between border-b px-3"

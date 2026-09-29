@@ -2,28 +2,40 @@
 import type { AccordionFeature } from '~/data/features'
 
 /**
- * The accordion's visual (reference: a warm lifestyle photo with a glass card). Rebuilt as a
- * terracotta light scene holding the matching Equal screen, so it stays on-brand and honest.
+ * The accordion's visual: the real Equal screen for the active feature (captured from the desktop
+ * app by scripts/app-shots.py, demo data), in a window on the terracotta light scene. The window
+ * bleeds off the end edge so the screen reads at a legible size.
  */
-defineProps<{ active: AccordionFeature['key']; features: AccordionFeature[] }>()
+const props = defineProps<{ active: AccordionFeature['key']; features: AccordionFeature[] }>()
+const current = computed(() => props.features.find((f) => f.key === props.active) ?? props.features[0]!)
 </script>
 
 <template>
-  <div class="scene relative isolate aspect-[531/682] w-full overflow-hidden">
-    <div
-      v-for="f in features"
-      :key="f.key"
-      class="absolute inset-0 transition-[opacity,transform] duration-900 ease-out-expo"
-      :class="f.key === active ? 'scale-100 opacity-100' : 'pointer-events-none scale-[1.04] opacity-0'"
-    >
-      <div class="absolute inset-s-[7%] top-[8%] w-[104%] rotate-[3deg]">
-        <AppScreenMock :screen="f.key" />
-      </div>
+  <div class="scene relative isolate aspect-4/3 w-full overflow-hidden lg:aspect-3/2 lg:max-h-[calc(100svh-10rem)]">
+    <!-- One window frame; only the screen inside cross-fades, so no coral bleeds through mid-swap. -->
+    <div data-scene-card class="absolute inset-s-[6%] top-[9%] w-[170%] sm:w-[128%] lg:w-[114%]">
+      <LWindowMock :title="current.shot.title" :decorative="false">
+        <div class="relative bg-white">
+          <NuxtImg
+            v-for="(f, i) in features"
+            :key="f.key"
+            :src="`/screens/${f.key}.png`"
+            :alt="f.shot.alt"
+            width="2560"
+            height="2000"
+            sizes="xs:170vw sm:128vw lg:1100px"
+            loading="lazy"
+            class="block h-auto w-full transition-[opacity,transform] duration-700 ease-out-expo"
+            :class="[i > 0 && 'absolute inset-0', f.key === active ? 'scale-100 opacity-100' : 'scale-[1.02] opacity-0']"
+            :aria-hidden="f.key !== active"
+          />
+        </div>
+      </LWindowMock>
     </div>
     <div class="scene-light pointer-events-none absolute inset-0" />
-    <div class="absolute inset-e-4 bottom-4 w-[62%] min-w-60 sm:inset-e-7 sm:bottom-7">
-      <GlassReceiptCard data-scene-card />
-    </div>
+    <p class="absolute inset-e-4 bottom-4 rounded-full bg-forest-950/75 px-3.5 py-1.5 text-micro text-white backdrop-blur-sm sm:inset-e-6 sm:bottom-6">
+      لقطة حقيقية من البرنامج · بيانات تجريبية
+    </p>
   </div>
 </template>
 
@@ -36,7 +48,7 @@ defineProps<{ active: AccordionFeature['key']; features: AccordionFeature[] }>()
 }
 .scene-light {
   background:
-    linear-gradient(180deg, transparent 45%, color-mix(in oklab, var(--color-forest-950) 45%, transparent)),
+    linear-gradient(180deg, transparent 62%, color-mix(in oklab, var(--color-forest-950) 28%, transparent)),
     radial-gradient(60% 40% at 80% 0%, color-mix(in oklab, white 25%, transparent), transparent 70%);
   mix-blend-mode: multiply;
 }

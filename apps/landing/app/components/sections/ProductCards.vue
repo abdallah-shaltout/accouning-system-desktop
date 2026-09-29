@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { PRODUCT_CARDS } from '~/data/features'
-import { MiniInvoiceCard, MiniReportCard, MiniStockCard } from '#components'
+import { SHOTS } from '~/data/screens'
 
-const mocks = { invoice: MiniInvoiceCard, stock: MiniStockCard, report: MiniReportCard }
 const root = ref<HTMLElement | null>(null)
 
 useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
@@ -15,8 +14,7 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
     onEnter: (els) => gsap.to(els, { autoAlpha: 1, y: 0, duration: 1.1, stagger: 0.12, ease: 'expo.out' }),
   })
   gsap.from('[data-product-rule]', { scaleY: 0, transformOrigin: 'top', duration: 1.2, stagger: 0.1, scrollTrigger: revealTrigger(root.value!.querySelector('[data-product-grid]')!) })
-  gsap.from('[data-fill]', { width: 0, duration: 1.4, stagger: 0.08, delay: 0.3, scrollTrigger: revealTrigger(root.value!.querySelector('[data-product-grid]')!) })
-  gsap.from('[data-bar]', { scaleY: 0, duration: 1.1, stagger: 0.06, delay: 0.3, ease: 'back.out(1.4)', scrollTrigger: revealTrigger(root.value!.querySelector('[data-product-grid]')!) })
+  gsap.from('[data-product-shot]', { yPercent: 12, duration: 1.4, stagger: 0.12, delay: 0.2, ease: 'expo.out', scrollTrigger: revealTrigger(root.value!.querySelector('[data-product-grid]')!) })
 })
 </script>
 
@@ -37,13 +35,19 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
       <div data-product-grid class="mt-14 grid gap-6 md:grid-cols-3 md:gap-11 lg:mt-18">
         <article
           v-for="(card, i) in PRODUCT_CARDS"
-          :key="card.mock"
+          :key="card.shot"
           data-product-card
           class="relative flex flex-col"
         >
           <span v-if="i > 0" data-product-rule class="absolute inset-y-0 -inset-s-5.5 hidden w-px bg-white/25 md:block" />
-          <div class="grid flex-1 place-items-center rounded-t-card bg-white/15 px-6 pt-12 pb-10 lg:min-h-121 lg:px-9 lg:pt-17">
-            <component :is="mocks[card.mock]" />
+          <div class="grid flex-1 place-items-center overflow-hidden rounded-t-card bg-white/15 px-6 pt-12 pb-10 lg:min-h-121 lg:px-9 lg:pt-17">
+            <LAppShot
+              data-product-shot
+              :shot="SHOTS[card.shot]"
+              :bleed="card.bleed"
+              :sizes="card.bleed > 1 ? 'xs:170vw md:60vw lg:700px' : 'xs:80vw md:40vw lg:300px'"
+              :class="card.bleed > 1 ? '' : 'max-w-64'"
+            />
           </div>
           <div class="rounded-b-card bg-cream px-6 pt-6 pb-7">
             <h3 class="text-h3 text-ink">{{ card.title }}</h3>

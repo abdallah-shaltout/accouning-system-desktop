@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { TEAM_FEATURES } from '~/data/features'
+import { SHOTS } from '~/data/screens'
 
 const root = ref<HTMLElement | null>(null)
 
@@ -9,8 +10,6 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
   gsap.from('[data-line]', { yPercent: 110, duration: 1.1, stagger: 0.12, ease: 'expo.out', scrollTrigger: revealTrigger(el) })
   const panels = el.querySelector('[data-team-panels]')!
   gsap.from('[data-team-panel]', { autoAlpha: 0, y: 64, duration: 1.2, stagger: 0.14, ease: 'expo.out', scrollTrigger: revealTrigger(panels) })
-  gsap.from('[data-dash-bar]', { scaleY: 0, duration: 1, stagger: 0.05, delay: 0.5, ease: 'back.out(1.3)', scrollTrigger: revealTrigger(panels) })
-  gsap.from('[data-credit-fill]', { width: 0, duration: 1.4, delay: 0.6, scrollTrigger: revealTrigger(panels) })
   gsap.to('[data-team-float]', { y: -10, duration: 3.2, repeat: -1, yoyo: true, ease: 'sine.inOut', stagger: 0.8 })
   gsap.to('[data-team-panel] > [data-parallax]', {
     yPercent: -6,
@@ -38,14 +37,14 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
 
       <div data-team-panels class="mt-12 grid gap-6 md:grid-cols-2 md:gap-11 lg:mt-20">
         <div data-team-panel class="panel-grad relative grid min-h-120 place-items-center overflow-hidden rounded-bar px-6 py-14 lg:h-194">
-          <div data-parallax class="w-full max-w-110">
-            <div data-team-float><DashboardMock /></div>
+          <div data-parallax class="w-full">
+            <div data-team-float><LAppShot :shot="SHOTS.analytics" :bleed="1.3" sizes="xs:130vw md:65vw lg:860px" /></div>
           </div>
         </div>
         <div data-team-panel class="relative grid min-h-120 place-items-center overflow-hidden rounded-bar bg-panel-100 px-6 py-14 lg:h-194">
           <span class="absolute inset-y-0 -inset-s-5.5 hidden w-px bg-ink/10 md:block" />
-          <div data-parallax class="grid w-full place-items-center">
-            <div data-team-float class="w-full max-w-84"><ApprovalCards /></div>
+          <div data-parallax class="w-full">
+            <div data-team-float><LAppShot :shot="SHOTS.roles" :bleed="1.3" sizes="xs:130vw md:65vw lg:860px" /></div>
           </div>
         </div>
       </div>

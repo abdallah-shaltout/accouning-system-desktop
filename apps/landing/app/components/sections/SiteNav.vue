@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Menu, X } from 'lucide-vue-next'
 import { NAV_CTA, NAV_LINKS } from '~/data/nav'
+import type { Motion } from '~/plugins/gsap.client'
 
 const { public: cfg } = useRuntimeConfig()
 const open = ref(false)
@@ -13,7 +14,13 @@ useLandingMotion(root, ({ ScrollTrigger }) => {
 
 const route = useRoute()
 watch(() => route.fullPath, () => { open.value = false })
-watch(open, (v) => { if (import.meta.client) document.documentElement.style.overflow = v ? 'hidden' : '' })
+watch(open, async (v) => {
+  if (!import.meta.client) return
+  document.documentElement.style.overflow = v ? 'hidden' : ''
+  const { lenis } = await (useNuxtApp().$motion as Promise<Motion>)
+  if (v) lenis.stop()
+  else lenis.start()
+})
 </script>
 
 <template>

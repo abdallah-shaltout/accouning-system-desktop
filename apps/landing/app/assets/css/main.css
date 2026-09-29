@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "lenis/dist/lenis.css";
 
 /*
  * Equal landing design tokens. Values are measured off the Nero reference
@@ -83,10 +84,14 @@
 }
 
 @layer base {
+  /* Native smooth scroll only until Lenis loads; Lenis owns the scroll after that (html.lenis). */
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 6rem;
     -webkit-text-size-adjust: 100%;
+  }
+  html.lenis {
+    scroll-behavior: auto;
   }
   body {
     @apply bg-forest-900 font-body text-ink antialiased;

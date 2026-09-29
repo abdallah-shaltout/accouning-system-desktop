@@ -33,7 +33,10 @@ export const TICKER: IconLabel[] = [
 ]
 
 export interface ProductCard {
-  mock: 'invoice' | 'stock' | 'report'
+  /** The real screen crop shown on the card (data/screens.ts). */
+  shot: 'cart' | 'reorder' | 'health'
+  /** How much wider than the card the window is (1 = fits); wide crops bleed off the end edge. */
+  bleed: number
   title: string
   body: string
 }
@@ -41,19 +44,22 @@ export interface ProductCard {
 /** S4 — three product cards on coral. */
 export const PRODUCT_CARDS: ProductCard[] = [
   {
-    mock: 'invoice',
+    shot: 'cart',
+    bleed: 1,
     title: 'بيع بثقة.',
     body: 'فاتورة ضريبية في ثوانٍ، من الكاشير أو من المكتب، بضريبة محسوبة صح — دايمًا.',
   },
   {
-    mock: 'stock',
+    shot: 'reorder',
+    bleed: 1.7,
     title: 'مخزونك تحت عينك.',
     body: 'كل حركة صنف مسجّلة بمتوسط التكلفة، وتنبيه قبل ما الصنف يخلص.',
   },
   {
-    mock: 'report',
+    shot: 'health',
+    bleed: 1.7,
     title: 'قراراتك بالأرقام.',
-    body: 'مبيعات اليوم، أرباحك، وأصنافك الأكثر بيعًا — تقارير جاهزة من غير إكسل.',
+    body: 'ربحيتك وسيولتك وتحصيلك في رقم واحد، و28 تقريرًا جاهزًا من غير إكسل.',
   },
 ]
 
@@ -61,6 +67,8 @@ export interface AccordionFeature {
   key: 'pos' | 'invoices' | 'stock' | 'purchases' | 'reports'
   title: string
   body: string
+  /** The real app screen shown for this feature (public/screens/<key>.png, from scripts/app-shots.py). */
+  shot: { title: string; alt: string }
 }
 
 /** S6 — feature accordion, mapped to real modules of the desktop app. */
@@ -69,26 +77,31 @@ export const ACCORDION_FEATURES: AccordionFeature[] = [
     key: 'pos',
     title: 'كاشير سريع POS',
     body: 'افتح وردية، بيع بالباركود، علّق فاتورة وارجع لها — والشاشة كلها تشتغل بالكيبورد.',
+    shot: { title: 'نقطة البيع', alt: 'شاشة نقطة البيع: سلة فيها أربعة أصناف، والإجمالي وضريبة القيمة المضافة وزر الدفع F12' },
   },
   {
     key: 'invoices',
     title: 'فواتير ومرتجعات',
     body: 'فاتورة ضريبية أو عرض سعر يتحول لفاتورة، ومرتجع مربوط بفاتورته الأصلية.',
+    shot: { title: 'الفواتير', alt: 'قائمة فواتير المبيعات مع التاريخ والعميل وطريقة الدفع وحالة السداد' },
   },
   {
     key: 'stock',
     title: 'مخزون وجرد دوري',
     body: 'جرد بدون إغلاق المحل، تسويات بمستندات، وتتبع تواريخ الصلاحية بالتشغيلة.',
+    shot: { title: 'المنتجات', alt: 'قائمة المنتجات مع سعر البيع والتكلفة وهامش الربح والكمية في المخزون' },
   },
   {
     key: 'purchases',
     title: 'مشتريات وموردون',
     body: 'أمر شراء، استلام جزئي، وإشعار خصم — وكشف حساب المورد جاهز في أي لحظة.',
+    shot: { title: 'أوامر الشراء', alt: 'قائمة أوامر الشراء مع المورد وحالة الاستلام والسداد والمتبقي للمورد' },
   },
   {
     key: 'reports',
     title: 'تقارير ومؤشرات',
     body: 'ميزان مراجعة، أرباح وخسائر، أعمار ديون — 28 تقريرًا تتصدّر وتُطبع.',
+    shot: { title: 'قائمة الدخل', alt: 'تقرير قائمة الدخل: صافي الربح وهامش مجمل الربح والإيرادات لكل حساب' },
   },
 ]
 

@@ -18,10 +18,10 @@ export function useLandingMotion(root: Ref<HTMLElement | null>, setup: (ctx: Mot
   let alive = true
   onMounted(async () => {
     const { $motion } = useNuxtApp()
-    const { gsap, ScrollTrigger } = await ($motion as Promise<Motion>)
+    const { gsap, ScrollTrigger, lenis } = await ($motion as Promise<Motion>)
     const el = root.value
     if (!alive || !el) return
-    ctx = gsap.context(() => setup({ gsap, ScrollTrigger, dir: -1, root: el }), el)
+    ctx = gsap.context(() => setup({ gsap, ScrollTrigger, lenis, dir: -1, root: el }), el)
   })
   onBeforeUnmount(() => {
     alive = false

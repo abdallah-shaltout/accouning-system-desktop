@@ -16,7 +16,7 @@ useLandingMotion(root, ({ gsap }) => {
     n: props.stat.value,
     duration: 1.6,
     ease: 'power2.out',
-    scrollTrigger: { trigger: root.value!, start: 'top 85%', once: true },
+    scrollTrigger: { trigger: root.value!, start: 'top 98%', once: true },
     onUpdate: () => { el.textContent = String(Math.round(counter.n)) },
   })
 })

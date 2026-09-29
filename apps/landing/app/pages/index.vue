@@ -55,7 +55,8 @@ useSchemaOrg([
       <StatsBand />
       <LazyProductCards :hydrate-on-visible="HYDRATE" class="cv-auto" />
     </div>
-    <div class="cv-auto bg-linear-to-b from-coral-500 to-forest-900 px-2.5">
+    <!-- No cv-auto here: content-visibility's paint containment would trap the pinned (fixed) list. -->
+    <div class="bg-linear-to-b from-coral-500 to-forest-900 px-2.5">
       <LazyFeatureAccordion :hydrate-on-visible="HYDRATE" />
     </div>
     <LazyRulesSection :hydrate-on-visible="HYDRATE" class="cv-auto" />
