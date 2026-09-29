@@ -11,7 +11,7 @@ const current = computed(() => props.features.find((f) => f.key === props.active
 </script>
 
 <template>
-  <div class="scene relative isolate aspect-4/3 w-full overflow-hidden lg:aspect-3/2 lg:max-h-[calc(100svh-10rem)]">
+  <div class="scene relative isolate aspect-4/3 w-full overflow-hidden rounded-card lg:aspect-auto lg:h-full">
     <!-- One window frame; only the screen inside cross-fades, so no coral bleeds through mid-swap. -->
     <div data-scene-card class="absolute inset-s-[6%] top-[9%] w-[170%] sm:w-[128%] lg:w-[114%]">
       <LWindowMock :title="current.shot.title" :decorative="false">

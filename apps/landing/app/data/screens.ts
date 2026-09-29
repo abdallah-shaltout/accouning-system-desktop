@@ -1,7 +1,8 @@
 /**
  * Real Equal screens used across the landing (public/screens/*.png). They are captured from the
  * desktop app's demo data by `scripts/app-shots.py` at 2x, so width/height are device pixels.
- * The full per-feature screens are listed on ACCORDION_FEATURES (data/features.ts).
+ * Shots that sit side by side share one aspect ratio (cards ~0.775, team panels 1.8) so their
+ * boxes follow the image and line up. The full per-feature screens are on ACCORDION_FEATURES.
  */
 export interface AppShot {
   src: string
@@ -16,36 +17,36 @@ export const SHOTS = {
   cart: {
     src: '/screens/crop-cart.png',
     width: 840,
-    height: 1424,
+    height: 1084,
     title: 'نقطة البيع',
-    alt: 'سلة نقطة البيع: أربعة أصناف بكمياتها، والمجموع وضريبة القيمة المضافة والإجمالي 655 ج.م وزر الدفع F12',
+    alt: 'سلة نقطة البيع: ثلاثة أصناف بكمياتها، والمجموع وضريبة القيمة المضافة والإجمالي 516 ج.م وزر الدفع F12',
   },
-  reorder: {
-    src: '/screens/crop-reorder.png',
-    width: 2032,
-    height: 660,
-    title: 'المخزون المنخفض وإعادة الطلب',
-    alt: 'تقرير المخزون المنخفض: صنفان بحاجة لإعادة طلب، مع الكمية الحالية والحد الأدنى والكمية المقترحة للطلب',
+  products: {
+    src: '/screens/crop-products.png',
+    width: 1312,
+    height: 1692,
+    title: 'المنتجات',
+    alt: 'قائمة المنتجات: لكل صنف سعر البيع والتكلفة بمتوسط التكلفة وهامش الربح والكمية في المخزون',
   },
   health: {
     src: '/screens/crop-health.png',
-    width: 2032,
-    height: 840,
+    width: 1280,
+    height: 1652,
     title: 'الصحة المالية للمنشأة',
-    alt: 'تقرير الصحة المالية: نتيجة 92.54 من 100، ودرجات السيولة والربحية والمديونية والتحصيل',
+    alt: 'تقرير الصحة المالية للمنشأة: نتيجة إجمالية من 100، ودرجات السيولة والربحية والمديونية والتحصيل',
   },
-  analytics: {
-    src: '/screens/crop-analytics.png',
-    width: 2032,
-    height: 600,
-    title: 'التحليلات',
-    alt: 'رسم أعمدة لاتجاه المبيعات اليومية لآخر 30 يومًا في شاشة التحليلات',
+  users: {
+    src: '/screens/crop-users.png',
+    width: 2016,
+    height: 1120,
+    title: 'المستخدمين',
+    alt: 'قائمة المستخدمين: لكل موظف صلاحيته (مدير، محاسب، كاشير، أمين مخزن) وأقصى خصم مسموح وقائمة الأسعار والحالة',
   },
   roles: {
     src: '/screens/crop-roles.png',
-    width: 2320,
-    height: 1280,
+    width: 2240,
+    height: 1244,
     title: 'المستخدمون والأدوار',
-    alt: 'مصفوفة الصلاحيات: لكل دور (مدير النظام، مدير المتجر، محاسب، كاشير، أمين مخزن) صلاحية كاملة أو عرض أو لا شيء في كل قسم',
+    alt: 'مصفوفة الصلاحيات: لكل دور صلاحية كاملة أو عرض أو لا شيء في كل قسم من البرنامج',
   },
 } satisfies Record<string, AppShot>

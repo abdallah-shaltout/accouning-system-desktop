@@ -11,7 +11,7 @@ useLandingMotion(root, ({ gsap }) => {
 </script>
 
 <template>
-  <section id="download" ref="root" aria-labelledby="cta-title" class="pt-24 pb-28 text-center text-white lg:pt-39 lg:pb-58">
+  <section id="download" ref="root" aria-labelledby="cta-title" class="pt-24 pb-28 text-center text-white lg:pt-39 lg:pb-36">
     <LContainer>
       <LEyebrow tone="white" class="text-sm!">ابدأ النهارده</LEyebrow>
       <LSplitHeading id="cta-title" :lines="['جاهز تمسك حسابات', 'محلّك بجد؟']" class="mt-3 text-h2" />

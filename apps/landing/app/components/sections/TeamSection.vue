@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { TEAM_FEATURES } from '~/data/features'
+import { TEAM_FEATURES, TEAM_PANELS } from '~/data/features'
 import { SHOTS } from '~/data/screens'
 
 const root = ref<HTMLElement | null>(null)
@@ -10,9 +10,9 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
   gsap.from('[data-line]', { yPercent: 110, duration: 1.1, stagger: 0.12, ease: 'expo.out', scrollTrigger: revealTrigger(el) })
   const panels = el.querySelector('[data-team-panels]')!
   gsap.from('[data-team-panel]', { autoAlpha: 0, y: 64, duration: 1.2, stagger: 0.14, ease: 'expo.out', scrollTrigger: revealTrigger(panels) })
-  gsap.to('[data-team-float]', { y: -10, duration: 3.2, repeat: -1, yoyo: true, ease: 'sine.inOut', stagger: 0.8 })
+  gsap.to('[data-team-float]', { y: -6, duration: 3.2, repeat: -1, yoyo: true, ease: 'sine.inOut', stagger: 0.8 })
   gsap.to('[data-team-panel] > [data-parallax]', {
-    yPercent: -6,
+    yPercent: -3,
     ease: 'none',
     scrollTrigger: { trigger: panels, start: 'top bottom', end: 'bottom top', scrub: 0.8 },
   })
@@ -26,7 +26,7 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
 </script>
 
 <template>
-  <section ref="root" aria-labelledby="team-title" class="pt-28 lg:pt-60">
+  <section ref="root" aria-labelledby="team-title" class="pt-28 lg:pt-36">
     <LContainer>
       <LEyebrow>مكان واحد. كل الفريق.</LEyebrow>
       <LSplitHeading
@@ -36,20 +36,24 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
       />
 
       <div data-team-panels class="mt-12 grid gap-6 md:grid-cols-2 md:gap-11 lg:mt-20">
-        <div data-team-panel class="panel-grad relative grid min-h-120 place-items-center overflow-hidden rounded-bar px-6 py-14 lg:h-194">
-          <div data-parallax class="w-full">
-            <div data-team-float><LAppShot :shot="SHOTS.analytics" :bleed="1.3" sizes="xs:130vw md:65vw lg:860px" /></div>
-          </div>
-        </div>
-        <div data-team-panel class="relative grid min-h-120 place-items-center overflow-hidden rounded-bar bg-panel-100 px-6 py-14 lg:h-194">
-          <span class="absolute inset-y-0 -inset-s-5.5 hidden w-px bg-ink/10 md:block" />
-          <div data-parallax class="w-full">
-            <div data-team-float><LAppShot :shot="SHOTS.roles" :bleed="1.3" sizes="xs:130vw md:65vw lg:860px" /></div>
+        <div
+          v-for="(panel, i) in TEAM_PANELS"
+          :key="panel.shot"
+          data-team-panel
+          class="relative flex flex-col overflow-hidden rounded-bar p-5 sm:p-7 lg:p-9"
+          :class="i === 0 ? 'panel-grad' : 'bg-panel-100'"
+        >
+          <span v-if="i > 0" class="absolute inset-y-0 -inset-s-5.5 hidden w-px bg-ink/10 md:block" />
+          <h3 class="font-display text-h3 text-ink">{{ panel.title }}</h3>
+          <p class="mt-2 max-w-110 text-base leading-relaxed text-ink-soft text-pretty">{{ panel.body }}</p>
+          <!-- Both crops share one ratio, so the panels end together with no empty band. -->
+          <div data-parallax class="mt-auto pt-8 lg:pt-10">
+            <div data-team-float><LAppShot :shot="SHOTS[panel.shot]" sizes="xs:92vw md:46vw lg:620px" /></div>
           </div>
         </div>
       </div>
 
-      <ul class="mt-24 grid border-ink/10 sm:grid-cols-6 lg:mt-39" aria-label="مزايا للفريق">
+      <ul class="mt-20 grid border-ink/10 sm:grid-cols-6 lg:mt-24" aria-label="مزايا للفريق">
         <li
           v-for="(f, i) in TEAM_FEATURES"
           :key="f.label"

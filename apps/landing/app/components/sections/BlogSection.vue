@@ -17,7 +17,7 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
 </script>
 
 <template>
-  <section id="blog" ref="root" aria-labelledby="blog-title" class="pt-28 pb-20 lg:pt-51 lg:pb-24">
+  <section id="blog" ref="root" aria-labelledby="blog-title" class="pt-28 pb-20 lg:pt-36 lg:pb-24">
     <LContainer>
       <div class="text-center">
         <LEyebrow>من المدونة</LEyebrow>

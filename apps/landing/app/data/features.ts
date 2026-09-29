@@ -33,10 +33,8 @@ export const TICKER: IconLabel[] = [
 ]
 
 export interface ProductCard {
-  /** The real screen crop shown on the card (data/screens.ts). */
-  shot: 'cart' | 'reorder' | 'health'
-  /** How much wider than the card the window is (1 = fits); wide crops bleed off the end edge. */
-  bleed: number
+  /** The real screen crop shown on the card (data/screens.ts); all three share one aspect ratio. */
+  shot: 'cart' | 'products' | 'health'
   title: string
   body: string
 }
@@ -45,19 +43,16 @@ export interface ProductCard {
 export const PRODUCT_CARDS: ProductCard[] = [
   {
     shot: 'cart',
-    bleed: 1,
     title: 'بيع بثقة.',
     body: 'فاتورة ضريبية في ثوانٍ، من الكاشير أو من المكتب، بضريبة محسوبة صح — دايمًا.',
   },
   {
-    shot: 'reorder',
-    bleed: 1.7,
+    shot: 'products',
     title: 'مخزونك تحت عينك.',
-    body: 'كل حركة صنف مسجّلة بمتوسط التكلفة، وتنبيه قبل ما الصنف يخلص.',
+    body: 'تكلفة كل صنف بمتوسط التكلفة، وهامش ربحه، والكمية في المخزن — قدامك في شاشة واحدة.',
   },
   {
     shot: 'health',
-    bleed: 1.7,
     title: 'قراراتك بالأرقام.',
     body: 'ربحيتك وسيولتك وتحصيلك في رقم واحد، و28 تقريرًا جاهزًا من غير إكسل.',
   },
@@ -145,6 +140,27 @@ export const TEAM_FEATURES: IconLabel[] = [
   { icon: History, label: 'سجل تدقيق كامل' },
   { icon: Network, label: 'مزامنة عبر الشبكة المحلية' },
   { icon: ShieldCheck, label: 'نسخ احتياطي مشفّر' },
+]
+
+export interface TeamPanel {
+  /** Real screen crop (data/screens.ts); both panels share one aspect ratio. */
+  shot: 'users' | 'roles'
+  title: string
+  body: string
+}
+
+/** S9 — the two team panels, each captioned with what the real screen shows. */
+export const TEAM_PANELS: TeamPanel[] = [
+  {
+    shot: 'users',
+    title: 'كل موظف بحدوده.',
+    body: 'حساب لكل واحد، بصلاحيته وأقصى خصم مسموح له وقائمة الأسعار اللي يبيع بيها.',
+  },
+  {
+    shot: 'roles',
+    title: 'مين يشوف إيه.',
+    body: 'الكاشير يبيع، أمين المخزن يستلم، والمحاسب يراجع — وإنت تحدد الباقي بنقرة.',
+  },
 ]
 
 /** S8 — roles shown in the honeycomb (real roles in the desktop app). */

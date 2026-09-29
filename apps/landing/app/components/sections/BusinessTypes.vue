@@ -53,7 +53,7 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
 </script>
 
 <template>
-  <section id="types" ref="root" aria-labelledby="types-title" class="pt-28 lg:pt-51">
+  <section id="types" ref="root" aria-labelledby="types-title" class="pt-28 lg:pt-36">
     <LContainer>
       <LEyebrow>لكل نشاط</LEyebrow>
       <LSplitHeading id="types-title" :lines="['يشتغل مع كل', 'أنواع المحلات.']" class="mt-3 text-h2 text-ink" />

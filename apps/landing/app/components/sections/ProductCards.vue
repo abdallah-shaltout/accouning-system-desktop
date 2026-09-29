@@ -14,7 +14,7 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
     onEnter: (els) => gsap.to(els, { autoAlpha: 1, y: 0, duration: 1.1, stagger: 0.12, ease: 'expo.out' }),
   })
   gsap.from('[data-product-rule]', { scaleY: 0, transformOrigin: 'top', duration: 1.2, stagger: 0.1, scrollTrigger: revealTrigger(root.value!.querySelector('[data-product-grid]')!) })
-  gsap.from('[data-product-shot]', { yPercent: 12, duration: 1.4, stagger: 0.12, delay: 0.2, ease: 'expo.out', scrollTrigger: revealTrigger(root.value!.querySelector('[data-product-grid]')!) })
+  gsap.from('[data-product-shot]', { y: 32, scale: 0.97, duration: 1.4, stagger: 0.12, delay: 0.2, ease: 'expo.out', scrollTrigger: revealTrigger(root.value!.querySelector('[data-product-grid]')!) })
 })
 </script>
 
@@ -37,19 +37,16 @@ useLandingMotion(root, ({ gsap, ScrollTrigger }) => {
           v-for="(card, i) in PRODUCT_CARDS"
           :key="card.shot"
           data-product-card
-          class="relative flex flex-col"
+          class="group relative flex flex-col"
         >
           <span v-if="i > 0" data-product-rule class="absolute inset-y-0 -inset-s-5.5 hidden w-px bg-white/25 md:block" />
-          <div class="grid flex-1 place-items-center overflow-hidden rounded-t-card bg-white/15 px-6 pt-12 pb-10 lg:min-h-121 lg:px-9 lg:pt-17">
-            <LAppShot
-              data-product-shot
-              :shot="SHOTS[card.shot]"
-              :bleed="card.bleed"
-              :sizes="card.bleed > 1 ? 'xs:170vw md:60vw lg:700px' : 'xs:80vw md:40vw lg:300px'"
-              :class="card.bleed > 1 ? '' : 'max-w-64'"
-            />
+          <!-- The media box is the shot's own ratio (all three crops share it), so the cards line up. -->
+          <div class="overflow-hidden rounded-t-card bg-white/15 p-3 sm:p-4 lg:p-5">
+            <div class="transition-transform duration-500 ease-out-expo group-hover:-translate-y-1">
+              <LAppShot data-product-shot :shot="SHOTS[card.shot]" sizes="xs:92vw md:31vw lg:420px" />
+            </div>
           </div>
-          <div class="rounded-b-card bg-cream px-6 pt-6 pb-7">
+          <div class="flex-1 rounded-b-card bg-cream px-6 pt-6 pb-7">
             <h3 class="text-h3 text-ink">{{ card.title }}</h3>
             <p class="mt-2 text-base leading-relaxed text-ink-soft text-pretty">{{ card.body }}</p>
           </div>

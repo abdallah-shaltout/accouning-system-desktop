@@ -28,13 +28,17 @@ SET_EGP = """() => {
 }"""
 
 
-def fill_cart(page: Page) -> None:
-    """A cashier mid-sale: a few items in the cart so the totals panel is live."""
-    for name, times in (('قميص رجالي قطن', 2), ('بنطال جينز رجالي', 1), ('حزام جلد طبيعي', 1), ('نظارة شمسية', 1)):
-        card = page.get_by_text(name, exact=False).first
-        for _ in range(times):
-            card.click()
-            time.sleep(0.25)
+def add_items(*items: tuple[str, int]) -> Callable[[Page], None]:
+    """Stage a cashier mid-sale by clicking product cards. The cart persists between visits."""
+
+    def prepare(page: Page) -> None:
+        for name, times in items:
+            card = page.get_by_text(name, exact=False).first
+            for _ in range(times):
+                card.click()
+                time.sleep(0.25)
+
+    return prepare
 
 
 Clip = dict[str, float]
@@ -48,25 +52,29 @@ class Shot:
 
 
 SCREENS: dict[str, Shot] = {
-    # Full screens — one per accordion feature (FeatureScene).
-    'pos': Shot('/pos', fill_cart),
+    # Product cards — one shared portrait ratio (~0.775) so the three card images line up exactly.
+    # Three items, and a window just tall enough that the totals sit right under them.
+    'crop-cart': Shot('/pos', add_items(('قميص رجالي قطن', 2), ('بنطال جينز رجالي', 1), ('حزام جلد طبيعي', 1)),
+                      {'x': 0, 'y': 48, 'width': 420, 'height': 542}, height=590),
+    'crop-products': Shot('/products', None, {'x': 0, 'y': 0, 'width': 656, 'height': 846}, width=900),
+    # 640 px wide: the report stacks into a portrait layout (sidebar collapses).
+    'crop-health': Shot('/reports/business-health', None, {'x': 0, 'y': 0, 'width': 640, 'height': 826}, width=640, height=900),
+    # Team panels — one shared landscape ratio (1.8).
+    'crop-users': Shot('/users', None, {'x': 16, 'y': 60, 'width': 1008, 'height': 560}),
+    'crop-roles': Shot('/settings/roles', None, {'x': 64, 'y': 178, 'width': 1120, 'height': 622}, width=1440),
+    # Full screens — one per accordion feature (FeatureScene). 'pos' adds a fourth item to the cart above.
+    'pos': Shot('/pos', add_items(('نظارة شمسية', 1))),
     'invoices': Shot('/invoices'),
     'stock': Shot('/products'),
     'purchases': Shot('/purchases'),
     'reports': Shot('/reports/profit-loss'),
-    # Crops — product cards and team panels.
-    # The cart kept from 'pos' above; a shorter window so the totals sit right under the items.
-    'crop-cart': Shot('/pos', None, {'x': 0, 'y': 48, 'width': 420, 'height': 712}, height=760),
-    'crop-reorder': Shot('/reports/stock-health', None, {'x': 16, 'y': 140, 'width': 1016, 'height': 330}),
-    'crop-health': Shot('/reports/business-health', None, {'x': 16, 'y': 238, 'width': 1016, 'height': 420}),
-    # Starts below the insight line: its text hard-codes "ر.س" whatever the store currency (app bug).
-    'crop-analytics': Shot('/analytics', None, {'x': 16, 'y': 294, 'width': 1016, 'height': 300}),
-    'crop-roles': Shot('/settings/roles', None, {'x': 24, 'y': 176, 'width': 1160, 'height': 640}, width=1440),
 }
 EXPLORE: dict[str, Shot] = {
     'dashboard': Shot('/'),
     'approvals': Shot('/approvals'),
     'shifts': Shot('/pos/shifts'),
+    # Its insight line hard-codes "ر.س" whatever the store currency (app bug), so it is not used.
+    'analytics': Shot('/analytics'),
     'backup': Shot('/settings/backup'),
 }
 

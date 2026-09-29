@@ -13,7 +13,7 @@ useLandingMotion(root, ({ gsap }) => {
 </script>
 
 <template>
-  <section id="faq" ref="root" aria-labelledby="faq-title" class="pt-28 lg:pt-44">
+  <section id="faq" ref="root" aria-labelledby="faq-title" class="pt-28 lg:pt-36">
     <LContainer>
       <LEyebrow>الأسئلة الشائعة</LEyebrow>
       <LSplitHeading id="faq-title" :lines="['أسئلة بتتسأل كتير.']" class="mt-3 text-h2 text-ink" />
