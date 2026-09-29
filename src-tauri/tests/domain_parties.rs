@@ -155,7 +155,7 @@ fn minimal_customer_input(name: &str) -> CustomerInput {
         name_en: None,
         group_id: None,
         tags: None,
-        active: Some(true),
+        active: true,
         phone: None,
         phones: None,
         email: None,
@@ -186,7 +186,7 @@ fn minimal_supplier_input(name: &str) -> SupplierInput {
         name_en: None,
         group_id: None,
         tags: None,
-        active: Some(true),
+        active: true,
         phone: None,
         phones: None,
         email: None,
@@ -303,7 +303,7 @@ async fn deactivating_a_customer_with_balance_is_refused() {
 
     // Zero balance (no ledger lines posted): deactivating is allowed.
     let mut deactivate = minimal_customer_input("عميل برصيد");
-    deactivate.active = Some(false);
+    deactivate.active = false;
     let id = created.id.to_string();
     let deactivated = with_tx(&db.state, TxOpts::default(), {
         let registry = registry.clone();

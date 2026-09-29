@@ -63,7 +63,13 @@ export const listRecentDocuments = wrap('diagnostics.listRecentDocuments', async
  * or debug mode was off the whole time and the ring already rotated past it. */
 export const getPostingTrace = wrap('diagnostics.getPostingTrace', async function getPostingTrace(entryId: string): Promise<PostingTrace | undefined> {
   // contract-ok: null→undefined at the switch line — the Rust command returns `Option<T>` as `T | null`.
-  if (usesRust('diagnostics')) return (await backendCall('diagnostics_get_posting_trace', { entryId })) ?? undefined;
+  // contract-ok: `lines` is Rust's `TraceLine` (`shared::ledger::trace`), not a full `JournalLine` —
+  // a trace is recorded BEFORE the journal entry/lines are persisted, so no line `id` exists yet
+  // and `branchId`/`currency` are always populated (never optional) at that point (see
+  // `diagnostics/types/contract.check.ts`'s `_PostingTrace` for the exact field-by-field reasoning).
+  // The debugger only ever reads these fields for display, never round-trips them as a real
+  // `JournalLine`, so the narrower Rust shape is safe to present as the mock's `PostingTrace` here.
+  if (usesRust('diagnostics')) return ((await backendCall('diagnostics_get_posting_trace', { entryId })) as PostingTrace | null) ?? undefined;
   await delay(30);
   return postingTraceFor(entryId) ?? recentPostingTraces().find((t) => t.docId === entryId);
 });

@@ -68,9 +68,9 @@ struct CommonInput {
     name_en: Option<String>,
     group_id: Option<String>,
     tags: Option<Vec<String>>,
-    active: Option<bool>,
+    active: bool,
     phone: Option<String>,
-    phones: Option<Vec<dto::PartyPhoneInput>>,
+    phones: Option<Vec<dto::PartyPhone>>,
     email: Option<String>,
     contacts: Option<Vec<PartyContact>>,
     address: Option<String>,
@@ -184,7 +184,7 @@ async fn save_party<C: ConnectionTrait>(
             .ok_or_else(|| AppError::not_found(texts.not_found))?;
 
         // 3. Deactivate-with-balance guard.
-        if input.active == Some(false) {
+        if !input.active {
             let balance = match texts.kind {
                 PartyKind::Customer => super::customer_computed(conn, id).await?.0,
                 PartyKind::Supplier => super::supplier_computed(conn, id).await?.0,
@@ -257,14 +257,10 @@ async fn save_party<C: ConnectionTrait>(
     // `type` is a required field on both `CustomerInput`/`SupplierInput` (always a key on the JS
     // object), so it's always reassigned — matches `Object.assign(found, data, ...)` (§3 step 4).
     active_model.r#type = Set(input.r#type.clone());
-    if is_create {
-        // `active` defaults to `true` on create when the form omits it (the mock's `...data` spread
-        // simply keeps whatever the object carries; every create form sends `active`, but the
-        // request DTO models it as optional for symmetry with the update path).
-        active_model.active = Set(input.active.unwrap_or(true));
-    } else if let Some(active) = input.active {
-        active_model.active = Set(active);
-    }
+    // §3.4: `CustomerInput`/`SupplierInput.active` is required (matches `Omit<Customer, …>`'s
+    // inherited `PartyCommon.active: boolean`, which is never optional) — always reassigned,
+    // matching `Object.assign(found, data, ...)` (§3 step 4) for both create and update.
+    active_model.active = Set(input.active);
 
     if let Some(group_id) = &input.group_id {
         active_model.group_id = Set(parse_optional_id(&Some(group_id.clone())));

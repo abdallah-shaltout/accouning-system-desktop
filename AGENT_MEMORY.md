@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **1227 files / 212,857 lines** (json 4, md 137, rust 377, ts 252, vue 457).
+Indexed: **1227 files / 213,178 lines** (json 4, md 137, rust 377, ts 252, vue 457).
 
 **Lookup order:** Where-to-find → Open diagnostics → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -93,23 +93,23 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 
 | Module | Files / lines | Layers (file count) | Routes | Palette |
 |---|---|---|---|---|
-| **accounting** | 13 / 3488 | commands 1, components 1, pages 7, routes 1, services 1, types 2 | 8 | yes |
+| **accounting** | 13 / 3496 | commands 1, components 1, pages 7, routes 1, services 1, types 2 | 8 | yes |
 | **analytics** | 9 / 499 | components 5, pages 1, routes 1, services 1, types 1 | 1 |  |
 | **approvals** | 6 / 286 | commands 1, pages 1, routes 1, services 1, types 2 | 1 | yes |
-| **core** | 353 / 20186 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 12, types 8 | 5 |  |
-| **diagnostics** | 21 / 2174 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 2 | 0 | yes |
-| **expenses** | 9 / 990 | pages 5, routes 1, services 1, types 2 | 5 |  |
-| **invoices** | 58 / 7714 | commands 1, components 36, controllers 3, helpers 3, pages 10, routes 1, services 2, types 2 | 11 | yes |
+| **core** | 353 / 20197 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 12, types 8 | 5 |  |
+| **diagnostics** | 21 / 2193 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 2 | 0 | yes |
+| **expenses** | 9 / 991 | pages 5, routes 1, services 1, types 2 | 5 |  |
+| **invoices** | 58 / 7718 | commands 1, components 36, controllers 3, helpers 3, pages 10, routes 1, services 2, types 2 | 11 | yes |
 | **parties** | 12 / 1921 | components 1, helpers 3, pages 3, routes 1, services 1, types 2, validators 1 | 8 |  |
 | **payments** | 7 / 921 | pages 3, routes 1, services 1, types 2 | 3 |  |
 | **products** | 33 / 5352 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 2, validators 1 | 16 |  |
 | **purchases** | 12 / 1803 | commands 1, components 1, pages 6, routes 1, services 1, types 2 | 7 | yes |
 | **reports** | 45 / 6391 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 2 | 28 | yes |
-| **settings** | 39 / 5668 | commands 1, components 6, controllers 4, helpers 2, pages 16, routes 1, services 4, types 5 | 19 | yes |
+| **settings** | 39 / 5667 | commands 1, components 6, controllers 4, helpers 2, pages 16, routes 1, services 4, types 5 | 19 | yes |
 | **setup** | 25 / 2551 | components 15, pages 3, routes 1, services 3, types 2, validators 1 | 3 |  |
 | **templates** | 5 / 969 | pages 2, services 1, types 2 | 0 |  |
 | **users** | 12 / 1013 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 2, validators 1 | 4 |  |
-| **vouchers** | 10 / 877 | commands 1, pages 5, routes 1, services 1, types 2 | 5 | yes |
+| **vouchers** | 10 / 879 | commands 1, pages 5, routes 1, services 1, types 2 | 5 | yes |
 
 ## Service API (the seam — pages call only these)
 
@@ -119,7 +119,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | analytics | `analyticsService` | `getSalesAnalytics`, `getProductAnalytics`, `getCustomerAnalytics` |
 | approvals | `approvalService` | `submitApprovalRequest`, `getApprovalRequests`, `getPendingApprovalCount`, `approveRequest`, `rejectRequest` |
 | core | `attachmentService` | `fetchAttachments`, `fetchAttachment`, `saveAttachment`, `removeAttachment`, `uid` |
-| core | `backend` | `usesRust`, `backendCall`, `initBackendBridge`, `getBackendStatus` |
+| core | `backend` | `usesRust`, `backendCall`, `initBackendBridge`, `getBackendStatus`, `ApiError` |
 | core | `backendMirror` | `mirrored`, `clearMirrors` |
 | core | `dashboardService` | `getInTransitTransfers`, `getPendingApprovalRequests`, `getLastBackupFailedAt`, `getJournalDraftCount`, `getStockValueSnapshot`, `hasAnyProducts`, `onLedgerChanged`, `getDashboardSummary`, `getLowStockProducts`, `getRecentInvoices`, `getRecentActivity`, `getHomeKpis`, `getTopProducts`, `getTopCustomers` |
 | core | `devToolsService` | `resetToEmpty`, `reloadDemoData` |
@@ -296,12 +296,12 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 
 | From | Imports from | Imported by (# modules) |
 |---|---|---|
-| **accounting** | core (108), users (6), mocks (4), parties (4), reports (3), settings (2), diagnostics (1), invoices (1) | 9 |
+| **accounting** | core (108), users (6), mocks (4), parties (4), reports (3), settings (2), diagnostics (1), invoices (1) | 10 |
 | **analytics** | core (18), diagnostics (1), mocks (1) | 1 |
 | **app** | core (16), settings (7), diagnostics (4), users (4), accounting (2), approvals (2), invoices (2), purchases (2), reports (2), setup (2), vouchers (2), analytics (1), expenses (1), mocks (1), parties (1), payments (1), products (1) | 1 |
 | **approvals** | core (14), mocks (2), diagnostics (1), users (1) | 5 |
 | **core** | mocks (20), users (20), products (14), invoices (13), settings (12), diagnostics (10), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), approvals (1), payments (1), reports (1), setup (1) | 18 |
-| **diagnostics** | core (31), mocks (5) | 18 |
+| **diagnostics** | core (31), mocks (5), accounting (1) | 18 |
 | **expenses** | core (61), accounting (3), users (3), mocks (2), parties (2), settings (2), diagnostics (1) | 2 |
 | **invoices** | core (222), products (11), settings (11), mocks (9), users (9), parties (8), reports (6), approvals (2), diagnostics (2), accounting (1), payments (1) | 10 |
 | **mocks** | core (14), invoices (9), accounting (8), products (8), settings (6), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), setup (2), users (1) | 18 |
@@ -310,7 +310,7 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **products** | core (211), mocks (14), users (13), settings (8), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
 | **purchases** | core (81), products (5), users (4), invoices (3), mocks (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
 | **reports** | core (165), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
-| **settings** | core (196), users (19), mocks (16), diagnostics (9), invoices (6), products (3), templates (2) | 12 |
+| **settings** | core (196), users (19), mocks (15), diagnostics (9), invoices (6), products (3), templates (2) | 12 |
 | **setup** | core (74), mocks (9), settings (4), diagnostics (3), accounting (2), products (2), parties (1), users (1) | 5 |
 | **templates** | core (18), diagnostics (1), mocks (1) | 3 |
 | **users** | core (40), mocks (5), products (3), diagnostics (2), setup (1) | 15 |
@@ -704,11 +704,9 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 
 ## Boundary report
 
-### Seam violations — value imports of `src/mocks` outside `services/` (1 new, 0 known)
+### Seam violations — value imports of `src/mocks` outside `services/` (0 new, 0 known)
 
-| File | Mock targets | Status |
-|---|---|---|
-| `src/modules/settings/pages/NetworkSettingsPage.vue` | `index.ts` | **NEW** |
+_none_
 
 ### Pages over 250 lines (CLAUDE.md rule 12)
 

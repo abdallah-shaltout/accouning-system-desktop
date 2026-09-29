@@ -2,8 +2,8 @@
 
 > **Status (2026-09-28):** Part 01 done (gate green). **Part 02 code complete** (phases A–F
 > written, workspace compiles clean); its final test pass is **paused** by the user and resumes
-> later (see the ⏸ note in `02-CORE-AND-SHARED-ARCHITECTURE.md`). **Next: Part 03 (domains)** —
-> see the "Next step" section of `00-MASTER-PLAN.md`.
+> later (see the ⏸ note in `02-CORE-AND-SHARED-ARCHITECTURE.md`). **Part 03 code complete** (306 commands, gates green, DB tests not yet run). Next: the
+> time-boxed test pass for Parts 02–03, then Part 04 (parity + per-domain cutover).
 
 The overview, rules, target layout, build order, definition of done and open decisions are all in
 [`00-MASTER-PLAN.md`](00-MASTER-PLAN.md). This README is only the entry point the `plans/`

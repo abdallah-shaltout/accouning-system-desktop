@@ -42,6 +42,7 @@ use support::TestDb;
 
 // --- Fixture -------------------------------------------------------------------------------------
 
+#[allow(dead_code)] // fields kept for tests still to be written
 struct Fixture {
     pub branch_id: Id,
     pub customer_id: Id,
@@ -760,7 +761,7 @@ async fn shift_open_close_exact_no_variance_entry() {
     assert!(second_open.is_err(), "opening a second shift on the same terminal must be refused");
 
     let registry3 = Arc::new(UndoRegistry::new());
-    let shift_id = shift.id;
+    let shift_id = shift.base.id;
     let closed = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let registry = registry3.clone();
         Box::pin(async move {
@@ -770,7 +771,7 @@ async fn shift_open_close_exact_no_variance_entry() {
     .await
     .unwrap();
 
-    assert_eq!(closed.variance, Some(Decimal::ZERO));
+    assert_eq!(closed.base.variance, Some(Decimal::ZERO));
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
 }
@@ -790,7 +791,7 @@ async fn shift_close_over_posts_cash_over_variance() {
     .unwrap();
 
     let registry2 = Arc::new(UndoRegistry::new());
-    let shift_id = shift.id;
+    let shift_id = shift.base.id;
     let closed = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let registry = registry2.clone();
         Box::pin(async move {
@@ -800,7 +801,7 @@ async fn shift_close_over_posts_cash_over_variance() {
     .await
     .unwrap();
 
-    assert_eq!(closed.variance, Some(dec!(5)));
+    assert_eq!(closed.base.variance, Some(dec!(5)));
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
 }

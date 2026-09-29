@@ -56,7 +56,11 @@ export type _InvariantResult = Expect<Equals<GenInvariantResult, Awaited<ReturnT
 // optional) at trace time since the ledger always resolves them before posting. Rust's `TraceLine`
 // mirrors what's actually available at that point, not `JournalLine`'s full persisted shape, so the
 // `lines` element type is compared against that narrower shape instead of `JournalLine` itself.
-type ExpectedTraceLine = Omit<import('@/modules/accounting/types').JournalLine, 'id' | 'branchId' | 'currency'> & { branchId: string; currency: string };
+// `Simplify` here too (not just on the outer `_PostingTrace` object below) — `Omit<> & {...}` stays
+// a distinct intersection type until flattened, and `Equals` can tell an unflattened intersection
+// apart from ts-rs's flat object even when every individual member matches (proven: every field
+// compared pairwise passes `Equals`, only the whole, un-simplified type does not).
+type ExpectedTraceLine = Simplify<Omit<import('@/modules/accounting/types').JournalLine, 'id' | 'branchId' | 'currency'> & { branchId: string; currency: string }>;
 export type _PostingTrace = Expect<
   Equals<GenPostingTrace, Simplify<Omit<NonNullable<Awaited<ReturnType<typeof getPostingTrace>>>, 'lines'> & { lines: ExpectedTraceLine[] }>>
 >;

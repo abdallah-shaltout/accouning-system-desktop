@@ -3334,7 +3334,7 @@
       "service": "backend",
       "name": "getBackendStatus",
       "file": "src/modules/core/services/backend.ts",
-      "line": 131,
+      "line": 136,
       "params": [],
       "returns": "Promise<BackendStatus>",
       "dtoTypes": [
@@ -5739,7 +5739,7 @@
       "service": "accountingDebugService",
       "name": "explainAccountBalance",
       "file": "src/modules/diagnostics/services/accountingDebugService.ts",
-      "line": 225,
+      "line": 231,
       "params": [
         {
           "name": "accountId",
@@ -5785,7 +5785,7 @@
       "service": "accountingDebugService",
       "name": "exportReproBundle",
       "file": "src/modules/diagnostics/services/accountingDebugService.ts",
-      "line": 280,
+      "line": 286,
       "params": [],
       "returns": "Promise<boolean>",
       "dtoTypes": [],
@@ -5931,7 +5931,7 @@
       "service": "accountingDebugService",
       "name": "getBalancesAround",
       "file": "src/modules/diagnostics/services/accountingDebugService.ts",
-      "line": 83,
+      "line": 89,
       "params": [
         {
           "name": "entryId",
@@ -5939,7 +5939,7 @@
           "optional": false
         }
       ],
-      "returns": "Promise<BalanceAround[]>",
+      "returns": "Promise<import(\"../types/gen/BalanceAround\").BalanceAround[]>",
       "dtoTypes": [],
       "serviceCalls": [],
       "closure": {
@@ -5973,7 +5973,7 @@
       "service": "accountingDebugService",
       "name": "getDriftReport",
       "file": "src/modules/diagnostics/services/accountingDebugService.ts",
-      "line": 133,
+      "line": 139,
       "params": [],
       "returns": "Promise<DriftRow[]>",
       "dtoTypes": [],
@@ -6028,7 +6028,7 @@
       "service": "accountingDebugService",
       "name": "getInvariantResults",
       "file": "src/modules/diagnostics/services/accountingDebugService.ts",
-      "line": 109,
+      "line": 115,
       "params": [],
       "returns": "Promise<InvariantResult[]>",
       "dtoTypes": [],
@@ -6172,7 +6172,7 @@
       "service": "accountingDebugService",
       "name": "getJournalEntryRaw",
       "file": "src/modules/diagnostics/services/accountingDebugService.ts",
-      "line": 71,
+      "line": 77,
       "params": [
         {
           "name": "id",
@@ -6180,8 +6180,10 @@
           "optional": false
         }
       ],
-      "returns": "Promise<any>",
-      "dtoTypes": [],
+      "returns": "Promise<import(\"../../accounting/types\").JournalEntry | undefined>",
+      "dtoTypes": [
+        "JournalEntry"
+      ],
       "serviceCalls": [],
       "closure": {
         "tables": [
@@ -6258,7 +6260,7 @@
       "service": "accountingDebugService",
       "name": "isReproRecording",
       "file": "src/modules/diagnostics/services/accountingDebugService.ts",
-      "line": 272,
+      "line": 278,
       "params": [],
       "returns": "Promise<boolean>",
       "dtoTypes": [],
@@ -6324,7 +6326,7 @@
       "service": "accountingDebugService",
       "name": "startReproRecording",
       "file": "src/modules/diagnostics/services/accountingDebugService.ts",
-      "line": 259,
+      "line": 265,
       "params": [],
       "returns": "Promise<void>",
       "dtoTypes": [],
@@ -6352,7 +6354,7 @@
       "service": "accountingDebugService",
       "name": "stopReproRecording",
       "file": "src/modules/diagnostics/services/accountingDebugService.ts",
-      "line": 267,
+      "line": 273,
       "params": [],
       "returns": "Promise<void>",
       "dtoTypes": [],
@@ -15767,7 +15769,7 @@
       "file": "src/modules/purchases/services/purchaseService.ts",
       "line": 164,
       "params": [],
-      "returns": "Promise<DebitNoteDraft[]>",
+      "returns": "Promise<import(\"@/modules/products/types\").DebitNoteDraft[]>",
       "dtoTypes": [
         "DebitNoteDraft"
       ],
@@ -19557,7 +19559,7 @@
           "optional": false
         }
       ],
-      "returns": "Promise<FcBalanceRow[]>",
+      "returns": "Promise<import(\"../types/gen/FcBalanceRow\").FcBalanceRow[]>",
       "dtoTypes": [
         "FcBalanceRow"
       ],
@@ -19945,8 +19947,10 @@
           "optional": false
         }
       ],
-      "returns": "Promise<any>",
-      "dtoTypes": [],
+      "returns": "Promise<import(\"../types/gen/RevaluationResult\").RevaluationResult>",
+      "dtoTypes": [
+        "RevaluationResult"
+      ],
       "serviceCalls": [],
       "closure": {
         "tables": [

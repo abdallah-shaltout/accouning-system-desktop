@@ -40,6 +40,7 @@ use support::TestDb;
 
 // --- Fixture -------------------------------------------------------------------------------------
 
+#[allow(dead_code)] // fields kept for tests still to be written
 struct Fixture {
     pub branch_id: Id,
     /// VAT-registered supplier (has a `vat_number`).

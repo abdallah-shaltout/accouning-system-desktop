@@ -5,16 +5,20 @@
 > Part 02's tests resume later as their own step). No domain is flipped to Rust here — flipping is
 > Part 04, per domain, after its parity cases pass (master §5).
 >
-> **▶ IN PROGRESS (2026-09-28).** Wave 0 (gaps) ✔ · Wave 1 (00 import, 01 settings, 03 users,
-> 15 templates, 16 diagnostics slice 1 — 56 cmds) ✔ `cargo check` clean · Wave 2 (02 setup, 04
-> approvals, 05 parties, 06/06b products, 11 expenses, 17 backup — ~108 cmds) ✔ `cargo check` clean
-> (manager added `core/grants.rs` G-P3, `SequenceLock::ProductCodes`, the P2-52 pre-migration backup
-> wiring) · **Wave 3 (07 purchases, 09 payments, 10 vouchers) running.** Then W4 = 08/08b invoices,
-> W5 = 12/12b accounting (build on the `domains/accounting` stub setup created), W6 = 13/13b/14/14b,
-> then 16 slices 2–3, then the frontend follow-ups batch (scratchpad `frontend-followups.md`:
-> router device-setup guard, authService `isFreshInstall`, mock type moves, `bun run bindings` +
-> `memory`). If interrupted: every finished domain is registered in `lib.rs`/`domains/mod.rs`;
-> relaunch cut-off implementers with "continue from the partial files on disk". Nothing committed.
+> **✅ CODE COMPLETE (2026-09-29) — tests not yet run.** All 23 domain files implemented (Waves 0–6):
+> **306 IPC commands** registered in `lib.rs` + `ipc_sig!` (`ipc_manifest_matches_handler` ✔), ts-rs
+> bindings generated into `src/modules/*/types/gen/` (~580 files) with `contract.check.ts` identity
+> checks. Gates green: `cargo check --workspace --all-targets` 0 errors / 0 warnings · `bun run build`
+> 0 errors · `check` ✔ · `verify:mocks` 128/0 · `verify:replay` ✔ (new ACC-0001/0002 cases) ·
+> `contract:check` ✔ · `memory:check` ✔ (0 seam violations) · `diag:check` ✔. Manager additions:
+> `core/grants.rs` (G-P3), `SequenceLock::ProductCodes`, P2-52 pre-migration backup wiring, the
+> repo-root `.cargo/config.toml` (cargo reads config from the run dir — `jobs = 4` and
+> `TS_RS_EXPORT_DIR` were silently not applied from `src-tauri/.cargo/`).
+> **Not done:** every `tests/domain_*.rs` DB test is written but **not run** (deferred, time-boxed
+> pass); parity cases → Part 04; `RUST_DOMAINS` stays empty (no domain flipped). **User decisions
+> pending:** G-25 (refund over-refunds VAT), G-31 (landed-cost split, non-stock receipt, draft
+> adjustment PIN) — ported as-is with `// G-25`/`// G-31` markers; accounting open questions in
+> 12b (VAT settled twice, reopen date, VAT reversal/cap); C-02, C-16.
 
 ## 1. Goal and scope
 
@@ -137,29 +141,29 @@ pass).
 
 | # | File | Domain / what | Depends on | Status |
 |---|---|---|---|---|
-| 00 | [`03-domains/00-import.md`](03-domains/00-import.md) | D10 snapshot importer (`infrastructure/import/`), demo data in desktop dev | Part 02 | planned |
-| 01 | [`03-domains/01-settings.md`](03-domains/01-settings.md) | settings (store settings, branches, currencies, taxes, payment methods, LAN toggle + server screen) | 00 | planned |
-| 02 | [`03-domains/02-setup.md`](03-domains/02-setup.md) | setup wizard (first-run role step, provisioning, pairing, party openings) | 01 | planned |
-| 03 | [`03-domains/03-users.md`](03-domains/03-users.md) | users, login/session, roles | 01 | planned |
-| 04 | [`03-domains/04-approvals.md`](03-domains/04-approvals.md) | approval requests | 03 | planned |
-| 05 | [`03-domains/05-parties.md`](03-domains/05-parties.md) | customers/suppliers, statements, credit limit | 01 | planned |
-| 06 | [`03-domains/06-products.md`](03-domains/06-products.md) | catalog, prices, inventory, adjustments, counts, transfers | 01 | planned |
-| 06b | [`03-domains/06b-inventory.md`](03-domains/06b-inventory.md) | inventory half of products: adjustments, movements, batches/expiry, counts, transfers (same domain, same implementer) | 06 | planned |
-| 07 | [`03-domains/07-purchases.md`](03-domains/07-purchases.md) | purchase orders/invoices/returns | 05, 06 | planned |
-| 08 | [`03-domains/08-invoices.md`](03-domains/08-invoices.md) | sales, POS, shifts, quotations, returns | 05, 06 | planned |
-| 08b | [`03-domains/08b-pos-shifts.md`](03-domains/08b-pos-shifts.md) | POS half of invoices: shifts, cash in/out, X/Z report, held sales (same domain, same implementer) | 08 | planned |
-| 09 | [`03-domains/09-payments.md`](03-domains/09-payments.md) | receipts/payments, allocations | 07, 08 | planned |
-| 10 | [`03-domains/10-vouchers.md`](03-domains/10-vouchers.md) | vouchers, card settlements | 09 | planned |
-| 11 | [`03-domains/11-expenses.md`](03-domains/11-expenses.md) | expenses and categories | 01 | planned |
-| 12 | [`03-domains/12-accounting.md`](03-domains/12-accounting.md) | chart of accounts, journal, drafts, recurring, the 4 accounting undo compensators | all writers | planned |
-| 12b | [`03-domains/12b-period-close.md`](03-domains/12b-period-close.md) | FY close/reopen, lock date, VAT settlement (same domain, same implementer; revaluation + openings live in 01-settings/02-setup) | 12 | planned |
-| 13 | [`03-domains/13-reports.md`](03-domains/13-reports.md) | reports engine (read-only) | all writers | planned |
-| 13b | [`03-domains/13b-reports-operational.md`](03-domains/13b-reports-operational.md) | operational reports: sales, purchases, stock, aging, shifts | 13 | planned |
-| 14 | [`03-domains/14-analytics.md`](03-domains/14-analytics.md) | analytics, dashboard, insights (read-only) | 13 | planned |
-| 14b | [`03-domains/14b-insights.md`](03-domains/14b-insights.md) | the 21 insight rules + product hints | 14 | planned |
-| 15 | [`03-domains/15-templates.md`](03-domains/15-templates.md) | print templates (D9) | 01 | planned |
-| 16 | [`03-domains/16-diagnostics.md`](03-domains/16-diagnostics.md) | the 3 production `port` fns + support bundle DB snapshot | 01 | planned |
-| 17 | [`03-domains/17-backup.md`](03-domains/17-backup.md) | backup/restore (`infrastructure/backup/`, P2-52) | 00 | planned |
+| 00 | [`03-domains/00-import.md`](03-domains/00-import.md) | D10 snapshot importer (`infrastructure/import/`), demo data in desktop dev | Part 02 | code complete |
+| 01 | [`03-domains/01-settings.md`](03-domains/01-settings.md) | settings (store settings, branches, currencies, taxes, payment methods, LAN toggle + server screen) | 00 | code complete |
+| 02 | [`03-domains/02-setup.md`](03-domains/02-setup.md) | setup wizard (first-run role step, provisioning, pairing, party openings) | 01 | code complete |
+| 03 | [`03-domains/03-users.md`](03-domains/03-users.md) | users, login/session, roles | 01 | code complete |
+| 04 | [`03-domains/04-approvals.md`](03-domains/04-approvals.md) | approval requests | 03 | code complete |
+| 05 | [`03-domains/05-parties.md`](03-domains/05-parties.md) | customers/suppliers, statements, credit limit | 01 | code complete |
+| 06 | [`03-domains/06-products.md`](03-domains/06-products.md) | catalog, prices, inventory, adjustments, counts, transfers | 01 | code complete |
+| 06b | [`03-domains/06b-inventory.md`](03-domains/06b-inventory.md) | inventory half of products: adjustments, movements, batches/expiry, counts, transfers (same domain, same implementer) | 06 | code complete |
+| 07 | [`03-domains/07-purchases.md`](03-domains/07-purchases.md) | purchase orders/invoices/returns | 05, 06 | code complete |
+| 08 | [`03-domains/08-invoices.md`](03-domains/08-invoices.md) | sales, POS, shifts, quotations, returns | 05, 06 | code complete |
+| 08b | [`03-domains/08b-pos-shifts.md`](03-domains/08b-pos-shifts.md) | POS half of invoices: shifts, cash in/out, X/Z report, held sales (same domain, same implementer) | 08 | code complete |
+| 09 | [`03-domains/09-payments.md`](03-domains/09-payments.md) | receipts/payments, allocations | 07, 08 | code complete |
+| 10 | [`03-domains/10-vouchers.md`](03-domains/10-vouchers.md) | vouchers, card settlements | 09 | code complete |
+| 11 | [`03-domains/11-expenses.md`](03-domains/11-expenses.md) | expenses and categories | 01 | code complete |
+| 12 | [`03-domains/12-accounting.md`](03-domains/12-accounting.md) | chart of accounts, journal, drafts, recurring, the 4 accounting undo compensators | all writers | code complete |
+| 12b | [`03-domains/12b-period-close.md`](03-domains/12b-period-close.md) | FY close/reopen, lock date, VAT settlement (same domain, same implementer; revaluation + openings live in 01-settings/02-setup) | 12 | code complete |
+| 13 | [`03-domains/13-reports.md`](03-domains/13-reports.md) | reports engine (read-only) | all writers | code complete |
+| 13b | [`03-domains/13b-reports-operational.md`](03-domains/13b-reports-operational.md) | operational reports: sales, purchases, stock, aging, shifts | 13 | code complete |
+| 14 | [`03-domains/14-analytics.md`](03-domains/14-analytics.md) | analytics, dashboard, insights (read-only) | 13 | code complete |
+| 14b | [`03-domains/14b-insights.md`](03-domains/14b-insights.md) | the 21 insight rules + product hints | 14 | code complete |
+| 15 | [`03-domains/15-templates.md`](03-domains/15-templates.md) | print templates (D9) | 01 | code complete |
+| 16 | [`03-domains/16-diagnostics.md`](03-domains/16-diagnostics.md) | the 3 production `port` fns + support bundle DB snapshot | 01 | code complete |
+| 17 | [`03-domains/17-backup.md`](03-domains/17-backup.md) | backup/restore (`infrastructure/backup/`, P2-52) | 00 | code complete |
 
 **Implementation waves** (parallel Sonnet implementers, disjoint files, manager in between):
 W1 = 00 · 01 · 03 · 15 · 16 → W2 = 02 · 04 · 05 · 06 · 11 · 17 → W3 = 07 · 09 · 10 → W4 = 08

@@ -121,6 +121,7 @@ async fn seed_plain_account<C: ConnectionTrait>(
     id
 }
 
+#[allow(dead_code)] // fields kept for tests still to be written
 struct Fixture {
     pub cash_id: Id,
     pub bank_id: Id,

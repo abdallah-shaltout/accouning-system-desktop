@@ -619,7 +619,7 @@ async fn delete_payment_method_refuses_when_can_delete_is_false() {
 // --- branches --------------------------------------------------------------------------------------
 
 fn branch_input(name: &str, code: &str) -> BranchInput {
-    BranchInput { name: name.to_string(), code: code.to_string(), address: None, national_address: None, phone: None, receipt_header: None, bank_account_id: None, default_price_list_id: None, active: Some(true) }
+    BranchInput { name: name.to_string(), code: code.to_string(), address: None, national_address: None, phone: None, receipt_header: None, bank_account_id: None, default_price_list_id: None, active: true }
 }
 
 #[tokio::test]
@@ -747,7 +747,7 @@ async fn delete_cost_center_refuses_branch_cost_center() {
                 tx,
                 cx,
                 &registry,
-                CostCenterInput { name: "عام".to_string(), code: "CC-GEN".to_string(), kind: CostCenterType::Other, parent_id: None, manager_user_id: None, active: Some(true), budgets: None },
+                CostCenterInput { name: "عام".to_string(), code: "CC-GEN".to_string(), kind: CostCenterType::Other, parent_id: None, manager_user_id: None, active: true, budgets: None },
             )
             .await
         }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::settings::dto::CostCenter>>

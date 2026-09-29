@@ -10,7 +10,7 @@
 | [`clearDismissal`](../../../src/modules/core/services/insightEngine.ts#L108) | `userId: string \| undefined, insightId: string` | `void` | **frontend** — webview/plugin only (localStorage) |  |  |  |  |
 | [`dismissInsight`](../../../src/modules/core/services/insightEngine.ts#L90) | `userId: string \| undefined, insightId: string` | `void` | **frontend** — webview/plugin only (localStorage) |  |  |  |  |
 | [`forceRefresh`](../../../src/modules/core/services/insightEngine.ts#L279) |  | `void` | **frontend** — pure computation, no data access |  |  |  |  |
-| [`getBackendStatus`](../../../src/modules/core/services/backend.ts#L131) |  | `Promise<BackendStatus>` | **frontend** — webview/plugin only (@tauri-apps/api) |  |  |  | BackendStatus |
+| [`getBackendStatus`](../../../src/modules/core/services/backend.ts#L136) |  | `Promise<BackendStatus>` | **frontend** — webview/plugin only (@tauri-apps/api) |  |  |  | BackendStatus |
 | [`getDashboardSummary`](../../../src/modules/core/services/dashboardService.ts#L24) |  | `Promise<DashboardSummary>` | **port** — reads backend data |  | accounts, invoices, journalEntries, products, refunds |  | DashboardSummary |
 | [`getHomeKpis`](../../../src/modules/core/services/dashboardService.ts#L190) | `period?: HomePeriod` | `Promise<HomeKpis>` | **port** — reads backend data |  | accounts, invoices, journalEntries, refunds |  |  |
 | [`getInsights`](../../../src/modules/core/services/insightEngine.ts#L174) | `opts: GetInsightsOptions` | `Insight[]` | **port** — reads backend data |  | settings |  |  |

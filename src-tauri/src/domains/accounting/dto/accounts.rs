@@ -133,6 +133,6 @@ pub struct AccountingDeleteAccountArgs {
 pub struct AccountingReparentAccountArgs {
     #[ts(type = "string")]
     pub id: Id,
-    #[ts(type = "string")]
+    #[ts(type = "string | null")]
     pub new_parent_id: Option<Id>,
 }

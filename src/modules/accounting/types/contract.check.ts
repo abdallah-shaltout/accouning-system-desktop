@@ -51,7 +51,12 @@ export type _JournalTemplateInput = Expect<Equals<GenJournalTemplateInput, Journ
 export type _AccountWithBalance = Expect<Equals<GenAccountWithBalance, Simplify<AccountWithBalance>>>;
 export type _JournalRow = Expect<Equals<GenJournalRow, Simplify<JournalRow>>>;
 export type _LinkedJournalEntry = Expect<Equals<GenLinkedJournalEntry, LinkedJournalEntry>>;
-export type _JournalEntryDetail = Expect<Equals<GenJournalEntryDetail, Simplify<Awaited<ReturnType<typeof getJournalEntry>>>>>;
+// `getJournalEntry`'s own `related: JournalRow[]` field embeds the same intersection `JournalRow`
+// as `_JournalRow` above, which defeats `Equals` even under the outer `Simplify` (it only flattens
+// the outer object's own members, not a member's own type) — that one field is pre-simplified too.
+export type _JournalEntryDetail = Expect<
+  Equals<GenJournalEntryDetail, Simplify<Omit<Awaited<ReturnType<typeof getJournalEntry>>, 'related'> & { related: Simplify<JournalRow>[] }>>
+>;
 
 // 12b-period-close.md §2 (5 entries).
 export type _FiscalYear = Expect<Equals<GenFiscalYear, FiscalYear>>;

@@ -552,12 +552,11 @@ pub struct CustomerInput {
     pub group_id: Option<String>,
     #[ts(optional)]
     pub tags: Option<Vec<String>>,
-    #[ts(optional)]
-    pub active: Option<bool>,
+    pub active: bool,
     #[ts(optional)]
     pub phone: Option<String>,
     #[ts(optional)]
-    pub phones: Option<Vec<PartyPhoneInput>>,
+    pub phones: Option<Vec<PartyPhone>>,
     #[ts(optional)]
     pub email: Option<String>,
     #[ts(optional)]
@@ -613,12 +612,11 @@ pub struct SupplierInput {
     pub group_id: Option<String>,
     #[ts(optional)]
     pub tags: Option<Vec<String>>,
-    #[ts(optional)]
-    pub active: Option<bool>,
+    pub active: bool,
     #[ts(optional)]
     pub phone: Option<String>,
     #[ts(optional)]
-    pub phones: Option<Vec<PartyPhoneInput>>,
+    pub phones: Option<Vec<PartyPhone>>,
     #[ts(optional)]
     pub email: Option<String>,
     #[ts(optional)]

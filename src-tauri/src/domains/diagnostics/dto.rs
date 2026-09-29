@@ -268,9 +268,10 @@ pub type PostingTraceStepDetail = serde_json::Value;
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "diagnostics/types/gen/")]
 pub struct PostingTraceStepDto {
+    #[ts(type = "'lineDiscount' | 'invoiceDiscount' | 'vat' | 'accountResolution' | 'cost' | 'fx' | 'note'")]
     pub kind: String,
     pub label: String,
-    #[ts(type = "unknown")]
+    #[ts(type = "Record<string, unknown>")]
     pub detail: PostingTraceStepDetail,
 }
 
