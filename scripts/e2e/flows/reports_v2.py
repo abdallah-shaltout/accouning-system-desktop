@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import finish, add_common_args, collect_console_errors, login_as, make_check, safe_print  # noqa: E402
+from common import open_page, finish, add_common_args, collect_console_errors, expect_saved_file, login_as, make_check, safe_print  # noqa: E402
 
 from playwright.sync_api import sync_playwright
 
@@ -22,8 +22,7 @@ def run(base: str, shots_dir: Path) -> int:
     check = make_check()
     errors: list[str] = []
     with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        browser, page = open_page(p, {"width": 1440, "height": 900})
         collect_console_errors(page, errors)
 
         safe_print("reports_v2: hub")
@@ -82,9 +81,7 @@ def run(base: str, shots_dir: Path) -> int:
         safe_print("reports_v2: Excel export downloads")
         page.goto(f"{base}/reports/trial-balance")
         page.wait_for_timeout(1000)
-        with page.expect_download(timeout=15000) as dl_info:
-            page.click("button:has-text('Excel')")
-        download = dl_info.value
+        download = expect_saved_file(page, lambda: page.click("button:has-text('Excel')"), ".xlsx", timeout_ms=15000)
         check(download.suggested_filename.endswith(".xlsx"), f"Excel export downloads an .xlsx file ({download.suggested_filename})")
 
         safe_print("reports_v2: branch/cost-center/currency filters follow feature switches")

@@ -4,6 +4,20 @@ Discovers and runs every `scripts/e2e/flows/<area>.py`, or just one with `--only
     python scripts/e2e/run.py [<shots_dir>] [--only area] [--base URL]
     python scripts/e2e/run.py --update-baseline    # accept current durations as the new perf baseline
 
+Plan 21 Part 04 phase D (D-5, P4-10): `--target {browser,tauri}` (default `browser`) picks which
+target every flow's `open_page()` (scripts/e2e/common.py) attaches to — `browser` launches a
+throwaway Chromium as before, `tauri` attaches to the real, already-running Tauri window over CDP
+(`bun run desktop:e2e`). Under `bun run desktop:e2e` (`tauri dev`), the window loads the dev URL, so
+`--base` stays the default `http://localhost:1420/#` and `page.goto` navigates inside the Tauri
+window; a *built* exe instead serves `http://tauri.localhost/#`, which must be passed explicitly
+with `--base` for that case. `--list` prints the discovered areas plus the effective target/base and
+exits without touching a browser or the app — use it to confirm which base is in effect, or as the
+static gate's "the 21 areas are discovered" check for both targets.
+
+    python scripts/e2e/run.py --target tauri --list
+    python scripts/e2e/run.py --target tauri                      # bun run desktop:e2e must be running
+    python scripts/e2e/run.py --target tauri --base "http://tauri.localhost/#"   # a built exe
+
 Flows run in a fixed, dependency-aware order (cashier-pos creates the invoice that role-gating
 and refund-payment then look at; reports runs last so it sees everything posted before it). Each
 flow's `run(base, shots_dir)` returns 0/1; this exits non-zero on the first failure, printing which
@@ -36,7 +50,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import safe_print  # noqa: E402
+from common import E2E_TARGET_ENV, safe_print  # noqa: E402
 
 FLOWS_DIR = Path(__file__).resolve().parent / "flows"
 ROOT = Path(__file__).resolve().parents[2]
@@ -173,13 +187,24 @@ def build_e2e_findings(run_dir: Path, area: str, flow_failed: bool) -> list[dict
     return findings
 
 
-def build_perf_findings(area: str, duration_ms: int, baseline: dict, update: bool) -> tuple[list[dict], bool]:
+def baseline_key(area: str, target: str) -> str:
+    """D-6: Rust (Tauri target) timings are not comparable to the mock baseline (different backend
+    entirely — comparing them would open false `PERF-` issues, per phase D's "why"). Each target gets
+    its own key in `docs/diagnostics/perf-baseline.json`'s `flows` map: the browser target keeps the
+    existing bare `<area>` key (no baseline-file migration needed), the Tauri target uses
+    `"tauri:<area>"`. The first Tauri run records its own baseline instead of comparing against
+    whatever the browser target already recorded for that area."""
+    return area if target == "browser" else f"{target}:{area}"
+
+
+def build_perf_findings(area: str, duration_ms: int, baseline: dict, update: bool, target: str = "browser") -> tuple[list[dict], bool]:
     flows = baseline.setdefault("flows", {})
-    prior = flows.get(area)
+    key = baseline_key(area, target)
+    prior = flows.get(key)
     findings: list[dict] = []
     changed = False
     if update or prior is None:
-        flows[area] = duration_ms
+        flows[key] = duration_ms
         changed = True
         return findings, changed
 
@@ -187,20 +212,24 @@ def build_perf_findings(area: str, duration_ms: int, baseline: dict, update: boo
         pct = round((duration_ms - prior) / prior * 100)
         findings.append({
             "kind": "perf",
-            "fingerprint": f"perf:{area}:duration",
+            "fingerprint": f"perf:{key}:duration",
             "area": area,
-            "title": f"{area} flow ran {pct}% slower than baseline",
+            "title": f"{area} flow ({target} target) ran {pct}% slower than baseline",
             "body": (
                 f"Baseline: {prior} ms. Actual: {duration_ms} ms. Threshold: "
                 f"{int(PERF_REGRESSION_THRESHOLD * 100)}%.\n\n"
-                f"المصدر: `scripts/e2e/flows/{area.replace('-', '_')}.py`\n\n"
+                f"المصدر: `scripts/e2e/flows/{area.replace('-', '_')}.py` (target: {target})\n\n"
                 "لتحديث الأساس بعد تحسين متعمد: `python scripts/e2e/run.py --update-baseline`."
             ),
         })
     return findings, changed
 
 
-def build_bundle_size_finding(baseline: dict, update: bool) -> tuple[list[dict], bool]:
+def build_bundle_size_finding(baseline: dict, update: bool, target: str = "browser") -> tuple[list[dict], bool]:
+    # D-6: the bundle-size check is about the browser dev/e2e build (`dist/`) — the Tauri target
+    # doesn't produce a comparable `dist/` of its own in this flow, so it never runs there.
+    if target != "browser":
+        return [], False
     size = dist_size_bytes()
     if size is None:
         return [], False
@@ -248,9 +277,18 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("shots_dir", nargs="?", default="shots", help="directory to write screenshots into")
     parser.add_argument("--only", help="run a single area (e.g. cashier-pos)")
+    parser.add_argument(
+        "--target", choices=["browser", "tauri"], default="browser",
+        help="'browser' launches a throwaway Chromium (default, matches `bun run dev`). 'tauri' "
+             "attaches to the real Tauri window over CDP (`bun run desktop:e2e`) — see "
+             "scripts/e2e/common.py's module docstring for the full setup.",
+    )
     parser.add_argument("--base", default="http://localhost:1420/#", help="app base URL incl. hash route prefix")
     parser.add_argument("--update-baseline", action="store_true", help="record current durations/bundle size as the new perf baseline instead of comparing")
+    parser.add_argument("--list", action="store_true", help="print the discovered areas (and the effective target/base) and exit — no browser/app interaction")
     args = parser.parse_args()
+
+    os.environ[E2E_TARGET_ENV] = args.target
 
     modules = discover()
     if args.only:
@@ -259,6 +297,13 @@ def main() -> int:
             print(f"unknown area '{args.only}' — known: {', '.join(area_name(m) for m in modules)}")
             return 1
         modules = [wanted]
+
+    if args.list:
+        print(f"target: {args.target}")
+        print(f"base:   {args.base}")
+        for module_name in modules:
+            print(area_name(module_name))
+        return 0
 
     run_ts = time.strftime("%Y%m%dT%H%M%S")
     run_dir = DIAGNOSTICS_RUNS_DIR / run_ts
@@ -303,7 +348,7 @@ def main() -> int:
             })
         else:
             all_findings += build_e2e_findings(run_dir, area, flow_failed=bool(rc))
-        perf_findings, changed = build_perf_findings(area, duration_ms, baseline, args.update_baseline)
+        perf_findings, changed = build_perf_findings(area, duration_ms, baseline, args.update_baseline, target=args.target)
         all_findings += perf_findings
         baseline_changed = baseline_changed or changed
 
@@ -313,7 +358,7 @@ def main() -> int:
         else:
             print(f"=== {area}: ok ({duration_ms} ms) ===\n")
 
-    bundle_findings, bundle_changed = build_bundle_size_finding(baseline, args.update_baseline)
+    bundle_findings, bundle_changed = build_bundle_size_finding(baseline, args.update_baseline, target=args.target)
     all_findings += bundle_findings
     baseline_changed = baseline_changed or bundle_changed
 

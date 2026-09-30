@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import finish, add_common_args, collect_console_errors, make_check, safe_print, shot  # noqa: E402
+from common import open_page, finish, add_common_args, collect_console_errors, make_check, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import Page, sync_playwright
 
@@ -44,8 +44,7 @@ def run(base: str, shots_dir: Path) -> int:
     shots_dir.mkdir(parents=True, exist_ok=True)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1440, "height": 900})
+        browser, page = open_page(p, {"width": 1440, "height": 900})
         collect_console_errors(page, errors)
 
         safe_print("fresh company: welcome screen -> setup wizard")

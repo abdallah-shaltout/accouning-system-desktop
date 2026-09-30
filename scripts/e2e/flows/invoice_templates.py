@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import finish, add_common_args, collect_console_errors, login_as, make_check, safe_print, shot  # noqa: E402
+from common import open_page, finish, add_common_args, collect_console_errors, expect_saved_file, login_as, make_check, safe_print, shot  # noqa: E402
 
 from playwright.sync_api import Page, sync_playwright
 
@@ -46,8 +46,7 @@ def run(base: str, shots_dir: Path) -> int:
     check = make_check()
     errors: list[str] = []
     with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1440, "height": 900}, accept_downloads=True)
+        browser, page = open_page(p, {"width": 1440, "height": 900}, accept_downloads=True)
         collect_console_errors(page, errors)
         login_as(page, base, "admin")
 
@@ -69,9 +68,7 @@ def run(base: str, shots_dir: Path) -> int:
         pick_all(page, check, IMAGE, "image")
         page.locator("[data-template-option=instapay]").click()
         page.wait_for_timeout(400)
-        with page.expect_download(timeout=20000) as dl_info:
-            page.get_by_role("button", name="حفظ كصورة").click()
-        download = dl_info.value
+        download = expect_saved_file(page, lambda: page.get_by_role("button", name="حفظ كصورة").click(), ".png", timeout_ms=20000)
         check(download.suggested_filename.endswith(".png"), f"the image downloads as a .png ({download.suggested_filename})")
         saved = shots_dir / "invoice_templates_export.png"
         download.save_as(saved)
