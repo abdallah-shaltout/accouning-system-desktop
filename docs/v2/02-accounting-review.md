@@ -73,7 +73,9 @@ A customer then returns 1 unit that was sold at cost 50.
 - **Sale**: COGS = round2(qty × avgCost). When the sale empties the stock, COGS = the remaining
   `stockValue`, so nothing is left over.
 - **Purchase return**: value −= qty × purchase price. If that would leave a negative value, or a
-  non-zero value with zero quantity, the difference goes to *inventory variance* (5110).
+  non-zero value with zero quantity, the difference goes to *inventory variance* (5110): a
+  **credit** when the price removes more than the stock is carried at (the supplier owes back more
+  than the books hold — a gain), a **debit** in the opposite case (ACC-0011).
 - New invariant: `GL(inventory) = Σ product.stockValue`, exactly.
 
 ### A3 — every stock-in credited to capital (❌)
@@ -192,7 +194,9 @@ arrives. The recommendations engine warns about clearing balances older than 3 d
   is added to the cost, with a warning.
 - **Discounts:** line and invoice discounts on purchases use the same math as sales.
 - **Landed costs:** optional freight, customs and clearing lines are spread over stock lines by
-  value, or by quantity, and become part of inventory cost.
+  value, or by quantity, and become part of inventory cost. Each line's share is rounded to 2
+  decimals and the rounding remainder goes to the largest line (ties → the first), so the shares add
+  up exactly to the landed cost (ACC-0004).
 
 ### F1–F4 — chart of accounts
 
@@ -210,9 +214,9 @@ stored on the line too (see [10](10-branches-currencies-cost-centers.md)).
 | **Sale / tax invoice** | each tender's method account; `receivable[p]` for the unpaid part | revenue per line (product → category → `sales`/`serviceRevenue`), net of discounts; VAT output per tax account |
 | ↳ cost | `cogs` | `inventory` (stock value moved) |
 | **Credit note (sales return)** | `salesReturns` (net); VAT output | `receivable[p]` up to what's outstanding, then the refund method account *or* `receivable[p]` as credit |
-| ↳ cost | `inventory` (original line cost, re-averaged) | `cogs` |
-| **Purchase invoice** | `inventory` (stock lines + landed cost); the purchase account for services/expenses; `vatInput` (recoverable only) | `payable[p]` |
-| **Debit note (purchase return)** | `payable[p]` up to what's outstanding, then the refund method account | `inventory` at purchase price (with the variance guard); service accounts; `vatInput` |
+| ↳ cost | `inventory` (original line cost × returned qty in base units — `qty × unitFactor`, ACC-0032 — re-averaged); `inventoryWriteOff` instead for a line not restocked | `cogs` |
+| **Purchase invoice** | `inventory` (stock lines + landed cost); the purchase account for services/expenses; `vatInput` (recoverable only) | `payable[p]`; `payable[shipper]` per landed cost billed by another supplier — backed by that supplier's own RECEIVED purchase order with no stock lines (ACC-0012) |
+| **Debit note (purchase return)** | `payable[p]` up to what's outstanding, then the refund method account; `inventoryVariance` for a guard loss | `inventory` at purchase price (with the variance guard); service accounts; `vatInput`; `inventoryVariance` for a guard gain (ACC-0011) |
 | **Customer receipt** | method account | `receivable[p]` (± `fxGain`/`fxLoss` on settlement) |
 | **Supplier payment** | `payable[p]` | method account (± FX) |
 | **Card settlement** | `bank`, `cardFees` | `cardClearing` |

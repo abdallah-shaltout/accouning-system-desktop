@@ -14,5 +14,5 @@ convention requires.
 | [`00-MASTER-PLAN.md`](00-MASTER-PLAN.md) | Index: rules, layout, order, decisions D1–D10 | S | done |
 | [`01-FRONTEND-ANALYSIS.md`](01-FRONTEND-ANALYSIS.md) (+ [`01-frontend-analysis/`](01-frontend-analysis/TEMPLATE.md)) | Contract from code: generator, per-module review, spec fixes, cross-cutting | L | done |
 | [`02-CORE-AND-SHARED-ARCHITECTURE.md`](02-CORE-AND-SHARED-ARCHITECTURE.md) (+ [`02-core-and-shared/`](02-core-and-shared/phase-a-foundation.md)) | Foundation (implemented), bundled MariaDB (D11), entities, ledger, stock, invariants, activity/undo, IPC bridge | L | Code complete; test pass paused |
-| `03-DOMAINS-IMPLEMENTATION.md` (+ `03-domains/`) | One file per domain, then the reports/analytics engine | XL | pending |
-| `04-INTEGRATION-AND-AUDIT.md` (+ `04-integration-and-audit/`) | Contract tests, parity harness, Rust invariants, Tauri e2e, cutover | L | pending |
+| [`03-DOMAINS-IMPLEMENTATION.md`](03-DOMAINS-IMPLEMENTATION.md) (+ [`03-domains/`](03-domains/00-import.md)) | One file per domain, then the reports/analytics engine | XL | Code complete; DB tests not run |
+| [`04-INTEGRATION-AND-AUDIT.md`](04-INTEGRATION-AND-AUDIT.md) (+ [`04-integration-and-audit/`](04-integration-and-audit/phase-a-contract-checks.md)) | Static contract checks, parity harness + 5 parallel case lanes, Rust invariants on every test DB, Tauri e2e path, single cutover + final audit | L | planned |

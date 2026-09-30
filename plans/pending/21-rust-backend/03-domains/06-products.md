@@ -312,6 +312,13 @@ assignable to `void`). `isLowStock` and `onCatalogChanged` are not touched.
   kept at parity; see open question O-1).
 - D-P5 `suggestSku` stays a plain read (no reservation); the create path's lock + unique key is the guard.
 - D-P6 Product `image` (data URL) and `imageIds` are stored as today (C-16 still open).
+- D-P7 (Part 04 Wave 2) `ProductUnitPrice.unitId` is the product's own `ProductUnit.id` (or
+  `'__base__'` for the implicit base unit — `PriceMatrix.vue`, `PosPage`'s `x.unitId === unit.id`), a
+  free string like `ProductUnit.id` itself, **not** a `units` row id: entity + DTO field is `String`,
+  the importer copies it verbatim. The earlier `Id` decoded a `pu-*` id into a hashed stand-in that
+  read back as a different string, so every per-unit list price was silently lost on Rust (and the
+  importer dropped every seeded one). Units presets carry `allowsDecimals` only where the mock's preset
+  sets it (`كيلو/جرام/لتر`), absent elsewhere (was `false`).
 
 **Open questions for the user:** O-1 add audit rows to the ten catalog master-data writes (analysis §9,
 recommends yes)? O-2 should `findByCode` also match unit barcodes (POS scan of a carton barcode)?

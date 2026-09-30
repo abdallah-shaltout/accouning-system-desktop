@@ -268,10 +268,11 @@ counters; PG-7):
 12. Insert `refunds` (`credited_to_account` only when > 0) + `refund_lines` (position = i, `restock` as
     sent); update the invoice: `refunded_amount = round2(refunded + grand)`, `status = REFUNDED` when final,
     `payment_status = payment_status_for(grand_total − refunded_new, paid_amount)` (:469-474).
-13. Restock loop (:479-495), line order, skipping free text / non-product lines: `value = round2(qty ×
-    cost_price)`; `restock == Some(false)` → `write_off += value`; else `restock += value` and
-    `apply_change(+qty, value, "refund", StockRef { refund.id, refund.number }, &date, None)` (default
-    branch — Q-4).
+13. Restock loop (:479-495), line order, skipping free text / non-product lines: `bq = base_qty(qty,
+    line.unit_factor)` (ACC-0032 — the line's qty is in its own unit, stock/`cost_price` per base unit),
+    `value = round2(bq × cost_price)`; `restock == Some(false)` → `write_off += value`; else `restock +=
+    value` and `apply_change(+bq, value, "refund", StockRef { refund.id, refund.number }, &date, None)`
+    (default branch — Q-4).
 14. Settlement lines (:502-508): `credited > 0` → one `Role(Receivable)` credit `round2(settled + credited)`
     party customer; else `Role(Receivable)` credit `settled` (party when set) + `Id(settlement_account_for(
     cash|card|bank_transfer, AccountCtx::default()))` credit `paid_out`. Post (:510-524) with description
@@ -318,14 +319,14 @@ counters; PG-7):
   from sales, Q-6); totals with `Pct(discount_rate)` when `> 0`; `number = next_number(Quotation)`; insert
   `status DRAFT`, `date = now`, `salesperson_id = actor`, `expiry_date` (PG-2c), lines at `position = i`:
   `product_id` = parsed `Id` or `NULL` (D-I2), `name ?? product.name ?? '—'`, `cost_price = product.cost_price
-  ?? 0`, `discount ?? 0`, tax fields, `net`, `vat` (no `is_free_text`, no unit/batch — as the mock). No
-  audit, no events (Q-2).
+  ?? 0`, `discount ?? 0`, tax fields, `net`, `vat`, `unit_id`/`unit_factor` as sent (ACC-0033; no
+  `is_free_text`, no batch — as the mock). No audit, no events (Q-2).
 - **`set_quotation_status`** (:446-452): lock `FOR UPDATE`; `NOT_FOUND` `عرض السعر غير موجود`; any status →
   any status; returns `Quotation` (not the row). No audit (Q-2).
 - **`convert_quotation_to_invoice`** (:455-475): lock the quotation `FOR UPDATE` (document, first);
   `NOT_FOUND` `عرض السعر غير موجود`; `converted_invoice_id` set → `CONFLICT`
   `تم تحويل عرض السعر إلى فاتورة بالفعل`; build `SaleInput { customer_id, lines: [{ product_id (UUID text,
-  or "freetext" for NULL), qty, price, discount, tax_id }], discount_rate, note, terms, po_reference, source
+  or "freetext" for NULL), qty, price, discount, tax_id, unit_id, unit_factor (ACC-0033) }], discount_rate, note, terms, po_reference, source
   DESK, …payment }` and call **`create_sale`** (full body, credit check included) in the same transaction;
   then `status = ACCEPTED`, `converted_invoice_id = invoice.id`. Return the invoice.
 
@@ -432,9 +433,15 @@ body below stays unchanged; `isOverdue` is untouched.
 - D-I8 Joined-name searches (`customerName`) filter in Rust after SQL narrows; `invoices.search_normalized`
   stays `NULL` (a party rename would make a stored name stale).
 - D-I9 `InvoiceDetail.customer`/`PrintData.customer` use 05-parties' `Customer` builder (ledger balance);
-  the mock returns the raw row whose `balance` column is never maintained (05 D-1). Parity ignores
-  `customer.balance`/`customer.unallocatedCredit` in these two DTOs.
+  the mock returned the raw row whose `balance` column is never maintained (05 D-1). **Superseded
+  (Part 04 Wave 2, L3):** the mock's `getInvoice`/`getInvoicePrintData` now embed the same computed
+  customer (`partyService.withComputed`), so parity compares `customer.balance`/`unallocatedCredit`
+  exactly — no allow entry.
 - D-I10 Terminal identity never comes from the client (cross-cutting §2); see 08b D-S1.
+- D-I11 The test-print sample (`getInvoicePrintData('sample')`) is never saved; its `invoice.id` is a fresh
+  UUID (`Invoice.id` is a typed `Id`) where the mock writes the literal `'sample'`. Only the id differs —
+  the parity harness pairs `'sample'` with that UUID, so the `PrintData.sample: true` key (same on both
+  sides) reads as a "mapped id used literally as a key"; `invoices/print-sample` allows exactly that path.
 
 ## 8. Tests
 

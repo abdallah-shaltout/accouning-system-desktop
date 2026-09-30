@@ -337,7 +337,12 @@ bun run stop                  # free ports 1420/1421 when done
   command changed, and a real `bun run desktop` check. Fresh clone: run `node scripts/fetch-webview2.js`
   and `node scripts/fetch-mariadb.js` once before a bare `cargo build` (tauri-build checks that
   bundled resources exist). Cargo is throttled on purpose (`.cargo/config.toml` at the repo root, `jobs = 4`,
-  light dev debug info) — don't raise it, and never run two cargo commands at once.
+  `rust-lld` linker, light dev debug info) — don't raise it. Run cargo only through
+  `powershell -NoProfile -File scripts/cargo-safe.ps1 <log> <cargo args>`: a machine-wide lock makes a
+  second cargo wait for the first, at below-normal priority, logging to `.diagnostics/cargo/`.
+  Integration tests link into three binaries (`autotests = false`): `all` (every `tests/*.rs` suite,
+  listed in `tests/all/main.rs` — add a new suite there) plus the two bundled-server suites; run one
+  suite with `--test all <suite>::`.
 - e2e selectors: prefer `get_by_role` / accessible names over tag or class selectors; use
   `safe_print()` (not `print()`) in flow files — the Windows console can't encode Arabic.
 

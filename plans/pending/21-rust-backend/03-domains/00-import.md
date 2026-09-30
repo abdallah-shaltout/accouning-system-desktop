@@ -301,6 +301,17 @@ parity case (D-8). Q-3 credential keys are matched case-sensitively, like the mo
 - D-11 The legacy IndexedDB snapshot is never deleted (zero data loss); `equal.legacyImportedAt` only
   hides the offer.
 - D-12 Device fields are merged into `device-settings.json` only where the file has no value.
+- D-13 (Part 04 Wave 2, L1) A boolean flag absent from a snapshot row (`active`, `canDelete`,
+  `allowManual`, `showInPos`, `showInPayments`) imports as `false`: the mock reads every one of them
+  truthily (`if (!user.active)`, `.filter((b) => b.active)`, `if (!method.canDelete)` — never
+  `!== false`), so an absent key already behaves as `false` there. The column is `NOT NULL`, so the
+  Rust DTO then shows `false` where the mock row had no key at all — same behaviour, different
+  representation. (Was `default_true`, which let the `edge` fixture's key-less admin log in on Rust
+  while the mock refused.)
+- D-14 (Part 04 Wave 2, L1) Empty/absent `settings.currency` imports as `EGP` (§3 step 8, 02 §9 handoff:
+  `countryProfile(DEFAULT_COUNTRY)`), where the mock keeps the stored `''`; `settings.theme` is dropped
+  (C-14). Both are representation differences of the `edge` fixture only (`import/import-edge` allows
+  exactly these two paths); app-produced snapshots always carry a currency.
 
 ## 8. Tests
 
@@ -316,10 +327,12 @@ parity case (D-8). Q-3 credential keys are matched case-sensitively, like the mo
 - Second import into the now non-empty DB → exact `CONFLICT` text; `replace_existing` in a debug test
   build wipes and re-imports; (release behaviour covered by a unit test on the guard fn).
 - Credentials: `admin`'s hash verifies `admin123` via `core::auth::verify_password`; stored hash starts `$argon2id$`.
-- Small hand-written fixture `tests/fixtures/mock-snapshot-edge.json` (checked in): `freetext-1` line →
+- Small hand-written fixture `tests/fixtures/mock-snapshot-edge.json` (checked in): `freetext-0` line (the mock's own `freetext-<index>`; was `freetext-1`, Wave 2) →
   `product_id NULL`; `'onboarding'` source → `ONBOARDING_SOURCE_ID`; one `'pos-1'` shift with
   `adopt_terminal` → that terminal id; without → a fresh id shared by its held sale; empty
-  `settings.currency` → `EGP`; `theme` ignored; audit row `is_undoable = false`; JSON `cart.productId` remapped.
+  `settings.currency` → `EGP`; `theme` ignored; audit row `is_undoable = false`; the held sale's `lines` (TS
+  `HeldSale.lines`) stored in the `cart` JSON column with `productId` remapped (Wave 2: the reader used to look for a
+  `cart` key no mock held sale has, dropping every parked line).
 - Dangling `invoice.customerId` → `VALIDATION` text naming `invoices`, nothing committed.
 - A snapshot whose GL does not tie (hand-broken journal line) → invariant `VALIDATION`, nothing committed.
 - Two branches + templates, no `template_branch_id` → the branch-picker `VALIDATION`; with it → rows on that branch.

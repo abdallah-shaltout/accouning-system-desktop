@@ -242,12 +242,13 @@ the form switch (no closing entry). Q8 the payment description names the Saudi a
 date strings are refused (`تاريخ القفل غير صالح` / `التاريخ غير صالح`); the pickers only send valid keys. P-D3
 `closingEntryId`/`closedAt`/`closedBy` in `saveFiscalYear`'s input are ignored (server-owned).
 
-**Open questions for the user** (from analysis §9; Part 03 keeps mock behaviour until answered):
-1. D-A6 — guard against double VAT settlement? Needs a settled-periods record (a new table), so it is a
-   scope change, not a Part 03 detail. Recommendation: yes, `CONFLICT` on overlap, in a later small plan.
-2. D-A2 — date reopen's mirror at the year's end date instead of "now"?
-3. D-A3 — a purpose-built VAT-settlement reversal? (Recommendation from analysis: no.)
-4. D-A7 — cap VAT payment at the payable balance? (Recommendation from analysis: no.)
+**Answered (2026-09-29 — the user delegated these decisions; applied in both backends):**
+1. D-A6 — **yes**: settling a VAT period that overlaps a non-reversed settlement is refused with
+   `CONFLICT` (Q5 fixed). No new table: settled periods are read from the posted `VAT_SETTLEMENT`
+   entries' descriptions; `submit_vat_settlement` locks the settings row first. ACC-0007.
+2. D-A2 — **yes**: reopen's mirror is dated at the closing entry's own date (Q4 fixed). ACC-0008.
+3. D-A3 — **no** purpose-built VAT-settlement reversal (kept).
+4. D-A7 — **no** cap on VAT payment (kept).
 
 **Needs from manager:** none beyond 12 §7 (this file uses `entry_dto`, `RouteRef`, `SystemRole` from there),
 plus 10-vouchers must expose its payment-voucher helper as a `pub` service function taking `(conn, cx, undo, input)`.

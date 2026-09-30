@@ -340,6 +340,15 @@ posted totals until a later task moves it onto `settingsService` data — the se
 - D-U5 PO row lock for every status/quantity guard (analysis §5).
 - D-U6 Backorder number allocated before the receipt's journal (counter order); number values unchanged.
 - D-U7 Received batches keep `supplier_id` NULL (mock parity; 06b Q-I8).
+- D-U8 (Part 04 Wave 2) `supplier_invoice_date` is a calendar day: a `DATE` column, read back as
+  `YYYY-MM-DD`. Input accepts a date key or an ISO instant (`PurchaseFormPage` sends
+  `dateKeyToIso(key)`, which stamps the clock's time of day) and keeps its business day
+  (`service::parse_supplier_invoice_date`; the importer does the same through `parse_doc_date`). The
+  mock echoes the raw string, so a parity diff "instant vs its own business day" on
+  `supplierInvoiceDate` is this representation gap, not a behaviour one: every reader uses only the day
+  (`toDateKey`, `missingSupplierInvoice`). Decoding the field straight into `NaiveDate` had refused
+  every instant at the IPC boundary (`INTERNAL`), and the importer's `%Y-%m-%d`-only parse had dropped
+  the seed's instants (→ `missingSupplierInvoice: true`).
 
 **Open questions for the user:** O-U1 multi-currency purchase orders in scope (real `to_base` on
 receipt/return)? O-U2 fix Q-U1 with the largest-remainder spread (`shared::totals`'s
