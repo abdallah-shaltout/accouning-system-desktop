@@ -52,7 +52,9 @@ struct BaseInvoice {
 }
 
 struct BaseInvoiceLine {
-    id: Id,
+    /// The line's public id — the same `<invoiceId>-l<position+1>` the invoice DTO exposes
+    /// (`invoices::service::common::line_to_dto`), i.e. the mock's `InvoiceLine.id`.
+    id: String,
     name: String,
     tax_category: Option<String>,
     tax_rate: Option<Decimal>,
@@ -82,7 +84,7 @@ async fn load_base_invoices<C: ConnectionTrait>(conn: &C, range: &DateRange) -> 
         let base_lines = lines
             .into_iter()
             .map(|l| BaseInvoiceLine {
-                id: l.id,
+                id: format!("{}-l{}", l.invoice_id, l.position + 1),
                 name: l.name,
                 tax_category: l.tax_category,
                 tax_rate: l.tax_rate,

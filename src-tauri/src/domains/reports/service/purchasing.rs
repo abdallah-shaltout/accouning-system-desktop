@@ -82,7 +82,9 @@ pub async fn shifts_report<C: ConnectionTrait>(conn: &C, range: &DateRangeInput)
         let closed_key = s.closed_at().map(|d| d.key()).unwrap_or_else(|| opened_key.clone());
         let sales_total = common::sum2(all_invoices.iter().filter(|i| {
             i.status != invoices::InvoiceStatus::Draft && i.cashier_id == s.opened_by && {
-                let k = i.date().key();
+                // The mock's `inDateRange(i.date, …)` compares the invoice's local **day key**
+                // (`localDateKey`), not its instant, against the shift's raw instant strings (Q-1).
+                let k = i.date_day.format("%Y-%m-%d").to_string();
                 !(k.as_str() < opened_key.as_str()) && !(k.as_str() > closed_key.as_str())
             }
         }).map(|i| i.grand_total));

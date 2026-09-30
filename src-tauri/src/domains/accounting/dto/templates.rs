@@ -23,6 +23,7 @@ pub struct JournalTemplateLine {
     #[ts(type = "string")]
     pub account_id: Id,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -31,8 +32,10 @@ pub struct JournalTemplateLine {
     #[ts(type = "number")]
     pub credit: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub party_kind: Option<PartyKind>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub party_id: Option<Id>,
 }
 
@@ -89,6 +92,7 @@ pub struct JournalTemplate {
     pub description: String,
     pub lines: Vec<JournalTemplateLine>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recurrence: Option<JournalTemplateRecurrence>,
     #[ts(type = "string")]
     pub created_at: String,
@@ -127,6 +131,7 @@ pub struct JournalTemplateInput {
     pub description: String,
     pub lines: Vec<JournalTemplateLine>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recurrence: Option<JournalTemplateRecurrence>,
 }
 
@@ -147,6 +152,7 @@ pub struct AccountingCreateOrUpdateJournalTemplateArgs {
     pub input: JournalTemplateInput,
     #[serde(default)]
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Id>,
 }
 

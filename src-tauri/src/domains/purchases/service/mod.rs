@@ -47,6 +47,16 @@ pub(crate) fn purchase_outstanding(po: &PurchaseOrder) -> Decimal {
     round2(po.grand_total - po.returned_amount - po.paid_amount).max(Decimal::ZERO)
 }
 
+/// The supplier invoice date as the UI sends it — a date key `YYYY-MM-DD` or an ISO instant
+/// (`PurchaseFormPage` sends `dateKeyToIso(key)`) — resolved to the business day. Blank → `None`.
+/// (Decoding it straight into a `NaiveDate` refused every instant as an IPC decode error →
+/// `INTERNAL`, Part 04 parity.)
+pub(crate) fn parse_supplier_invoice_date(raw: Option<&str>, clock: &crate::utils::dates::BusinessClock) -> TxResult<Option<chrono::NaiveDate>> {
+    let Some(raw) = raw.map(str::trim).filter(|s| !s.is_empty()) else { return Ok(None) };
+    let parsed = crate::utils::dates::RawDocDate::parse(raw).map_err(|_| AppError::validation("تاريخ غير صالح"))?;
+    Ok(Some(parsed.resolve(clock).day))
+}
+
 /// `missingSupplierInvoice` (`purchases.ts:79-81`): RECEIVED and blank number or no date.
 pub(crate) fn missing_supplier_invoice(po: &PurchaseOrder) -> bool {
     matches!(po.status, super::dto::PurchaseStatus::Received)
@@ -69,15 +79,17 @@ pub(crate) async fn duplicate_supplier_invoice<C: ConnectionTrait>(
     let mut query = PoEntity::find()
         .filter(PoColumn::SupplierId.eq(supplier_id))
         .filter(PoColumn::Status.eq(crate::entities::purchases::purchase_orders::PurchaseStatus::Received))
-        .filter(PoColumn::SupplierInvoiceNo.eq(no))
+        .filter(PoColumn::SupplierInvoiceNo.is_not_null())
         .order_by_asc(PoColumn::CreatedAt)
         .order_by_asc(PoColumn::Id);
     if let Some(exclude) = exclude_po_id {
         query = query.filter(PoColumn::Id.ne(exclude));
     }
     let rows = query.all(conn).await.map_err(AppError::from)?;
-    // The trim happens app-side (SQL equality above compares the stored value verbatim, which is
-    // already trimmed on write) — re-check with `trim()` defensively for any legacy/imported row.
+    // The comparison is app-side, like the mock's `p.supplierInvoiceNo?.trim() === no`: the number
+    // is stored as sent (`' INV-1 '` stays padded, `purchases.ts:137`), a SQL `=` would miss a
+    // leading space and — under the `_ci` collation — ignore case, neither of which the mock does
+    // (Part 04 parity, `purchases/p-p9-list-search-detail`).
     Ok(rows.into_iter().find(|p| p.supplier_invoice_no.as_deref().map(str::trim) == Some(no)))
 }
 

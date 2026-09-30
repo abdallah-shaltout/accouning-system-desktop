@@ -167,6 +167,24 @@ fn build_opening_lines(input: &OpeningEntryInput) -> Vec<PostingLine> {
     lines
 }
 
+/// `closeSourceId` (`opening.ts`, ACC-0030): the source id a 3900 closing entry is filed under. A
+/// source names ONE document with one active entry (`one-active-entry`, docs/v2/02 §4.7) — but the
+/// wizard re-closes 3900 after opening stock (or a changed opening entry) moves it again, and that
+/// second closing is a separate posting, not a replacement of the first. The first close keeps the
+/// fixed `ONBOARDING_CLOSE_SOURCE_ID` (what imports map `'onboarding-close'` to); each re-close gets
+/// its own id.
+async fn close_source_id<C: ConnectionTrait>(conn: &C) -> TxResult<Id> {
+    use crate::entities::journal::journal_entries::Column as EntryColumn;
+    let first_done = JournalEntryEntity::find()
+        .filter(EntryColumn::SourceKind.eq("opening"))
+        .filter(EntryColumn::SourceId.eq(ONBOARDING_CLOSE_SOURCE_ID))
+        .count(conn)
+        .await
+        .map_err(TxError::from)?
+        > 0;
+    Ok(if first_done { Id::new() } else { ONBOARDING_CLOSE_SOURCE_ID })
+}
+
 /// `closeOpeningBalanceEquity` (`:148-168`): moves 3900's balance to `capital`/`ownerCurrent`.
 /// `None` when `|net| < 0.01` (nothing to close).
 async fn close_opening_balance_equity<C: ConnectionTrait>(
@@ -210,7 +228,7 @@ async fn close_opening_balance_equity<C: ConnectionTrait>(
             date,
             description: format!("إقفال حساب الأرصدة الافتتاحية (3900) إلى {target_label}"),
             entry_type: JournalEntryType::Closing,
-            source: Some(crate::shared::ledger::post::SourceRef { kind: "opening".to_string(), id: ONBOARDING_CLOSE_SOURCE_ID, number: Some("OPENING-CLOSE".to_string()) }),
+            source: Some(crate::shared::ledger::post::SourceRef { kind: "opening".to_string(), id: close_source_id(conn).await?, number: Some("OPENING-CLOSE".to_string()) }),
             lines,
             allow_closed_period: true,
             attachment_ids: Vec::new(),

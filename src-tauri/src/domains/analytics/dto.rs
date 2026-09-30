@@ -111,6 +111,7 @@ pub struct SalesAnalytics {
 #[ts(export_to = "analytics/types/gen/")]
 pub struct AnalyticsGetSalesAnalyticsArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub days: Option<i32>,
     pub date_style: DateStyle,
     pub numerals: Numerals,
@@ -154,8 +155,10 @@ pub struct ProductAnalytics {
 #[ts(export_to = "analytics/types/gen/")]
 pub struct AnalyticsGetProductAnalyticsArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub days: Option<i32>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
 }
 
@@ -192,7 +195,9 @@ pub struct CustomerAnalytics {
 #[ts(export_to = "analytics/types/gen/")]
 pub struct AnalyticsGetCustomerAnalyticsArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub days: Option<i32>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
 }

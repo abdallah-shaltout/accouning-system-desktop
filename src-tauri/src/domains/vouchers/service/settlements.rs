@@ -72,6 +72,19 @@ pub async fn unsettled_tender_groups<C: ConnectionTrait>(conn: &C) -> TxResult<V
 
     let tenders = TenderEntity::find().filter(TenderColumn::InvoiceId.is_in(invoice_ids)).all(conn).await.map_err(TxError::from)?;
 
+    // ACC-0016: a foreign-currency invoice's tenders posted their BASE amounts to the clearing
+    // account (`sale_tender_bases`, the sale's own rule) — the settlement clears those same amounts.
+    let mut base_by_tender: BTreeMap<Id, Decimal> = BTreeMap::new();
+    for inv in invoices.iter().filter(|i| i.currency.is_some()) {
+        let Some(rate) = inv.exchange_rate else { continue };
+        let mut own: Vec<&crate::entities::sales::invoice_tenders::Model> = tenders.iter().filter(|t| t.invoice_id == inv.id).collect();
+        own.sort_by_key(|t| t.position);
+        let amounts: Vec<Decimal> = own.iter().map(|t| t.amount).collect();
+        for (t, base) in own.iter().zip(crate::shared::currency::sale_tender_bases(&amounts, inv.grand_total, rate, None)) {
+            base_by_tender.insert(t.id, base);
+        }
+    }
+
     let mut totals: BTreeMap<(chrono::NaiveDate, Id), UnsettledTenderGroup> = BTreeMap::new();
     for t in tenders {
         let Some(method) = method_by_id.get(&t.payment_method_id) else { continue };
@@ -81,10 +94,11 @@ pub async fn unsettled_tender_groups<C: ConnectionTrait>(conn: &C) -> TxResult<V
             continue;
         }
         let role = ClearingRole::from_account_role_str(&method.account_role).expect("filtered to clearing roles above");
+        let amount = base_by_tender.get(&t.id).copied().unwrap_or(t.amount);
         totals
             .entry(key)
             .and_modify(|g| {
-                g.total = round2(g.total + t.amount);
+                g.total = round2(g.total + amount);
                 g.tender_count += 1;
             })
             .or_insert(UnsettledTenderGroup {
@@ -92,7 +106,7 @@ pub async fn unsettled_tender_groups<C: ConnectionTrait>(conn: &C) -> TxResult<V
                 payment_method_id: method.id,
                 payment_method_name: method.name.clone(),
                 account_role: role,
-                total: round2(t.amount),
+                total: round2(amount),
                 tender_count: 1,
             });
     }
@@ -142,9 +156,9 @@ pub async fn create_card_settlement<C: ConnectionTrait>(
     if input.groups.is_empty() {
         return Err(TxError::App(AppError::validation("اختر يوماً واحداً على الأقل للتسوية")));
     }
-    if !(input.deposit_amount >= Decimal::ZERO) {
+    let Some(input_deposit) = input.deposit_amount.filter(|d| *d >= Decimal::ZERO) else {
         return Err(TxError::App(AppError::validation("أدخل مبلغ الإيداع البنكي")));
-    }
+    };
 
     let available = unsettled_tender_groups(conn).await?;
     let available_by_key: BTreeMap<(String, Id), &UnsettledTenderGroup> =
@@ -164,7 +178,7 @@ pub async fn create_card_settlement<C: ConnectionTrait>(
     }
 
     let gross_amount = round2(selected.iter().fold(Decimal::ZERO, |a, s| a + s.amount));
-    let fee_amount = round2(gross_amount - input.deposit_amount);
+    let fee_amount = round2(gross_amount - input_deposit);
     if fee_amount < Decimal::new(-5, 3) {
         // < -0.005
         return Err(TxError::App(AppError::validation("مبلغ الإيداع أكبر من إجمالي العمليات المختارة")));
@@ -177,7 +191,7 @@ pub async fn create_card_settlement<C: ConnectionTrait>(
     let created_by = cx.actor.as_ref().ok_or_else(|| AppError::unauthorized("سجّل الدخول أولاً"))?.id;
     let now = cx.clock.now;
     let id = Id::new();
-    let deposit_amount = round2(input.deposit_amount);
+    let deposit_amount = round2(input_deposit);
 
     let settlement_model = SettlementActiveModel {
         id: Set(id),

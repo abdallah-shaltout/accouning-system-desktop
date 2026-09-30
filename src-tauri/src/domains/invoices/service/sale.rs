@@ -16,7 +16,7 @@ use crate::entities::sales::invoice_lines::ActiveModel as LineActiveModel;
 use crate::entities::sales::invoice_tenders::ActiveModel as TenderActiveModel;
 use crate::entities::sales::invoices::{ActiveModel as InvoiceActiveModel, Entity as InvoiceEntity};
 use crate::shared::activity;
-use crate::shared::currency::{convert_lines_to_base, is_base_currency, require_rate, to_base};
+use crate::shared::currency::{convert_lines_to_base, is_base_currency, require_rate, sale_tender_bases, to_base};
 use crate::shared::defaults::branch_prefix;
 use crate::shared::ledger::accounts::{resolve_account, AccountCtx, SystemRole};
 use crate::shared::ledger::period::assert_open_period;
@@ -72,6 +72,9 @@ pub struct PreparedSale {
     pub cost_center_id: Option<Id>,
     pub receivable_base: Decimal,
     pub line_taxes: Vec<common::LineTax>,
+    /// ACC-0016: each tender's amount in base currency, same order as `tenders` (= the tender's own
+    /// amount on a base-currency sale).
+    pub tender_bases: Vec<Decimal>,
 }
 
 /// `prepare_sale(conn, cx, input, products)` (08 §3.2). `products` must contain every non-free-text
@@ -248,18 +251,29 @@ pub async fn prepare_sale<C: ConnectionTrait>(
     let dim = (Some(branch_id), cost_center_id);
 
     // 12. Tender lines (without branch context — same as posting, per §3.2 step 12 "resolved
-    // without branch context, like accountFor(role)").
+    // without branch context, like accountFor(role)"). ACC-0016: a tender is in the sale's currency;
+    // on a foreign-currency sale each posts its base amount at the sale's rate
+    // (`sale_tender_bases`), tagged with its FC amount like a payment's settlement line, to the
+    // method's account for that currency when one exists (the line's `currency` feeds
+    // `resolve_account`'s context, as `create_payment`'s settlement account does).
+    let tender_amounts: Vec<Decimal> = resolved_tenders.iter().map(|t| t.amount).collect();
+    let tender_bases = if currency.is_some() { sale_tender_bases(&tender_amounts, grand_total, rate, None) } else { tender_amounts.clone() };
     let mut tender_lines: Vec<PostingLine> = Vec::new();
-    for t in resolved_tenders.iter().filter(|t| t.amount > Decimal::ZERO) {
+    for (t, base) in resolved_tenders.iter().zip(tender_bases.iter()).filter(|(t, _)| t.amount > Decimal::ZERO) {
         let role = SystemRole::from_str(&t.account_role).map_err(crate::core::tx::TxError::App)?;
         let description = match &t.reference {
             Some(r) => Some(format!("{} — {r}", payment_method_by_id(conn, t.payment_method_id).await?.name)),
             None => Some(payment_method_by_id(conn, t.payment_method_id).await?.name),
         };
-        let mut l = PostingLine::debit(AccountRef::Role(role), t.amount);
+        let mut l = PostingLine::debit(AccountRef::Role(role), *base);
         l.description = description;
         l.branch_id = dim.0;
         l.cost_center_id = dim.1;
+        if let Some(cur) = &currency {
+            l.currency = Some(cur.clone());
+            l.amount_fc = Some(t.amount);
+            l.rate = Some(rate);
+        }
         tender_lines.push(l);
     }
 
@@ -349,6 +363,7 @@ pub async fn prepare_sale<C: ConnectionTrait>(
         cost_center_id,
         receivable_base,
         line_taxes,
+        tender_bases,
     })
 }
 
@@ -515,7 +530,7 @@ pub async fn create_sale<C: ConnectionTrait>(
                 Some(pid),
                 product.name.clone(),
                 product.cost_price,
-                line.unit_id,
+                line.unit_id.clone(),
                 line.unit_factor,
                 line.list_price,
                 line.price_override_reason.clone(),
@@ -604,7 +619,7 @@ pub async fn create_sale<C: ConnectionTrait>(
     .await?;
 
     // 12. Drawer movement.
-    let cash_method_ids: std::collections::HashSet<Id> = crate::entities::org::payment_methods::Entity::find()
+    let cash_method_ids: std::collections::HashSet<Id> = <crate::entities::org::payment_methods::Entity as crate::entities::soft_delete::SoftDelete>::find_including_deleted()
         .filter(crate::entities::org::payment_methods::Column::AccountRole.eq("cash"))
         .all(conn)
         .await
@@ -612,7 +627,15 @@ pub async fn create_sale<C: ConnectionTrait>(
         .into_iter()
         .map(|m| m.id)
         .collect();
-    let cash_tendered = round2(prepared.tenders.iter().filter(|t| cash_method_ids.contains(&t.payment_method_id)).fold(Decimal::ZERO, |a, t| a + t.amount));
+    // The drawer counts base currency: an FC sale's cash tender records its base amount (ACC-0016).
+    let cash_tendered = round2(
+        prepared
+            .tenders
+            .iter()
+            .zip(prepared.tender_bases.iter())
+            .filter(|(t, _)| cash_method_ids.contains(&t.payment_method_id))
+            .fold(Decimal::ZERO, |a, (_, base)| a + *base),
+    );
     if input.shift_id.is_some() && cash_tendered > Decimal::ZERO {
         if let Some(shift) = &locked_shift {
             super::shifts::record_shift_movement(conn, cx, shift, crate::domains::invoices::dto::ShiftMovementKind::SaleCash, cash_tendered, None, Some(id), Some(number.clone()), date).await?;

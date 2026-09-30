@@ -56,20 +56,27 @@ impl TS for Money {
 #[ts(export_to = "setup/types/gen/")]
 pub struct OnboardingProgress {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub business_type: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub go_live_date: Option<String>,
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_step: Option<i32>,
     pub skipped: Vec<String>,
     pub done: Vec<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finished_at: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub opening_entry_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closing_entry_id: Option<Id>,
     #[ts(optional, type = "import('@/mocks/fixtures/accounts').AccountTemplate")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub coa_template: Option<String>,
 }
 
@@ -80,22 +87,31 @@ pub struct OnboardingProgress {
 #[ts(export_to = "setup/types/gen/")]
 pub struct OnboardingProgressPatch {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub business_type: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub go_live_date: Option<String>,
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_step: Option<i32>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub skipped: Option<Vec<String>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub done: Option<Vec<String>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finished_at: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub opening_entry_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closing_entry_id: Option<Id>,
     #[ts(optional, type = "import('@/mocks/fixtures/accounts').AccountTemplate")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub coa_template: Option<String>,
 }
 
@@ -109,6 +125,7 @@ pub struct CountryTaxInput {
     pub country: String,
     pub currency: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vat_registered: Option<bool>,
     pub prices_include_tax: bool,
     pub extra_currencies: Vec<ExtraCurrency>,
@@ -132,6 +149,7 @@ pub struct WizardBranchInput {
     pub name: String,
     pub code: String,
     #[ts(optional, type = "import('@/modules/core/types/address').Address")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<v::Address>,
 }
 
@@ -159,12 +177,15 @@ pub struct OpeningCashLine {
     #[serde(with = "serde_number")]
     pub amount: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount_fc: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<Decimal>,
 }
 
@@ -209,6 +230,7 @@ pub struct OpeningOtherLine {
     #[serde(with = "serde_number")]
     pub amount: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
 
@@ -247,8 +269,10 @@ pub struct OpeningStockLine {
     #[serde(with = "serde_number")]
     pub unit_cost: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_no: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiry_date: Option<String>,
 }
 
@@ -259,6 +283,7 @@ pub struct PostOpeningBalancesResult {
     #[ts(type = "string")]
     pub opening_entry_id: Id,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closing_entry_id: Option<Id>,
 }
 

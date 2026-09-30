@@ -249,7 +249,13 @@ pub async fn get_drift_report<C: ConnectionTrait>(conn: &C) -> TxResult<Vec<Drif
             |a, i| {
                 let refunded_to_ar: Decimal =
                     all_refunds.iter().filter(|r| r.invoice_id == i.id).fold(Decimal::ZERO, |b, r| b + r.settled_to_receivable);
-                a + (i.grand_total - refunded_to_ar - i.paid_amount)
+                // ACC-0009: an FC invoice's outstanding is in its own currency — compared to the
+                // (base) ledger at the invoice's rate, like `open_invoices_for`.
+                let fc = i.grand_total - refunded_to_ar - i.paid_amount;
+                a + match (&i.currency, i.exchange_rate) {
+                    (Some(_), Some(rate)) => round2(fc * rate),
+                    _ => fc,
+                }
             },
         ));
         let credit = unallocated_credit_for(conn, LinePartyKind::Customer, c.id).await.map_err(crate::core::tx::TxError::App)?;

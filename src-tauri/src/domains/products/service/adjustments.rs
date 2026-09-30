@@ -420,8 +420,15 @@ pub async fn record_stock_adjustment<C: ConnectionTrait>(
 
 // --- C-A2 complete_adjustment -------------------------------------------------------------------
 
-/// **C-A2 `complete_adjustment(id)`** (`:259-282`).
-pub async fn complete_adjustment<C: ConnectionTrait>(conn: &C, cx: &TxCtx, registry: &activity::UndoRegistry, id: Id) -> TxResult<StockAdjustment> {
+/// **C-A2 `complete_adjustment(id, approved_by, approval)`** (`:259-282`).
+pub async fn complete_adjustment<C: ConnectionTrait>(
+    conn: &C,
+    cx: &TxCtx,
+    registry: &activity::UndoRegistry,
+    id: Id,
+    approved_by: Option<Id>,
+    approval: ApprovalCheck,
+) -> TxResult<StockAdjustment> {
     lock::for_update_by_id(conn, "stock_adjustments", &id.to_string()).await.map_err(AppError::from)?;
     let adj = AdjustmentEntity::find_by_id(id).one(conn).await.map_err(AppError::from)?.ok_or_else(|| AppError::not_found("التسوية غير موجودة"))?;
     if parse_status(&adj.status) != StockAdjustmentStatus::Draft {
@@ -445,8 +452,9 @@ pub async fn complete_adjustment<C: ConnectionTrait>(conn: &C, cx: &TxCtx, regis
             expiry_date: l.expiry_date,
         })
         .collect();
-    // S-3/S-4 are NOT re-run here (Q-I1) — only S-2 over the snapshot.
     let built_lines = build_lines(ty, &line_inputs, &locked, Some(&snapshot))?;
+    // Rule (ACC-0006): completing a draft posts it, so it passes the same S-4 approval threshold / manager-PIN check as a direct adjustment.
+    assert_approval(conn, ty, &built_lines, approved_by, &approval).await?;
 
     LineEntity::delete_many().filter(LineColumn::StockAdjustmentId.eq(id)).exec(conn).await.map_err(AppError::from)?;
     for (i, line) in built_lines.iter().enumerate() {
@@ -473,6 +481,10 @@ pub async fn complete_adjustment<C: ConnectionTrait>(conn: &C, cx: &TxCtx, regis
     am.date_instant = Set(date.instant);
     am.date_key = Set(date.key());
     am.status = Set(status_as_str(StockAdjustmentStatus::Completed).to_string());
+    if approved_by.is_some() {
+        am.approved_by = Set(approved_by);
+        am.approved_at = Set(Some(now));
+    }
     am.updated_at = Set(now);
     let updated = am.update(conn).await.map_err(AppError::from)?;
 

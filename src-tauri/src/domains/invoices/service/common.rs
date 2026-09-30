@@ -148,13 +148,19 @@ fn tender_to_dto(t: &TenderModel) -> Tender {
     Tender { payment_method_id: t.payment_method_id, amount: t.amount, reference: t.reference.clone() }
 }
 
+/// An invoice line's DTO id, `{invoiceId}-l{position+1}` (the mock's `inv-635-l1` shape). The
+/// refund input and `Refund.lines[].invoiceLineId` / `InvoiceDetail.returnedQty` use this same id.
+pub fn line_display_id(invoice_id: Id, position: i16) -> String {
+    format!("{}-l{}", invoice_id, position + 1)
+}
+
 fn line_to_dto(l: &LineModel) -> InvoiceLine {
     let product_id = match l.product_id {
         Some(id) => id.to_string(),
         None => format!("freetext-{}", l.position),
     };
     InvoiceLine {
-        id: format!("{}-l{}", l.invoice_id, l.position + 1),
+        id: line_display_id(l.invoice_id, l.position),
         product_id,
         name: l.name.clone(),
         qty: l.qty,
@@ -166,7 +172,7 @@ fn line_to_dto(l: &LineModel) -> InvoiceLine {
         tax_rate: l.tax_rate,
         net: l.net,
         vat: l.vat,
-        unit_id: l.unit_id,
+        unit_id: l.unit_id.clone(),
         unit_factor: l.unit_factor,
         list_price: l.list_price,
         price_override_reason: l.price_override_reason.clone(),

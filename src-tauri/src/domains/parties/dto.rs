@@ -110,10 +110,13 @@ pub struct PartyContact {
     pub id: String,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub role: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
 }
 
@@ -136,10 +139,13 @@ impl From<&PartyContact> for EntityPartyContact {
 #[ts(export_to = "parties/types/gen/")]
 pub struct PartyBankInfo {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub iban: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_name: Option<String>,
 }
 
@@ -164,15 +170,20 @@ impl From<&PartyBankInfo> for EntityPartyBankInfo {
 pub struct OpeningBalanceStub {
     #[serde(default, with = "serde_number::option")]
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<Decimal>,
     /// `'debit' | 'credit'`.
     #[ts(optional, type = "'debit' | 'credit'")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub side: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub as_of_date: Option<chrono::NaiveDate>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub journal_entry_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub locked: Option<bool>,
 }
 
@@ -278,63 +289,89 @@ pub struct Customer {
     pub r#type: String,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_en: Option<String>,
     pub code: String,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     pub active: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phones: Option<Vec<PartyPhone>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub contacts: Option<Vec<PartyContact>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_address: Option<NationalAddressDto>,
     #[ts(optional, type = "import('@/modules/core/types/address').Address")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub structured_address: Option<Address>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vat_number: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cr_number: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub price_list_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_terms_days: Option<i32>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub salesperson_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank: Option<PartyBankInfo>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub opening_balance: Option<OpeningBalanceStub>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub linked_party_id: Option<Id>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
     pub balance: Decimal,
     #[serde(default, with = "serde_number::option")]
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unallocated_credit: Option<Decimal>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<String>,
     #[serde(default, with = "serde_number::option")]
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub credit_limit: Option<Decimal>,
 }
 
@@ -350,64 +387,91 @@ pub struct Supplier {
     pub r#type: String,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_en: Option<String>,
     pub code: String,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     pub active: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phones: Option<Vec<PartyPhone>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub contacts: Option<Vec<PartyContact>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_address: Option<NationalAddressDto>,
     #[ts(optional, type = "import('@/modules/core/types/address').Address")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub structured_address: Option<Address>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vat_number: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cr_number: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub price_list_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_terms_days: Option<i32>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub salesperson_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank: Option<PartyBankInfo>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub opening_balance: Option<OpeningBalanceStub>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub linked_party_id: Option<Id>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
     pub balance: Decimal,
     #[serde(default, with = "serde_number::option")]
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unallocated_credit: Option<Decimal>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub contact_person: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_expense_account_id: Option<Id>,
 }
 
@@ -419,22 +483,31 @@ pub struct Supplier {
 #[ts(export_to = "parties/types/gen/")]
 pub struct NationalAddressDto {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub district: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub street: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub building_no: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_no: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_no: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub short_address: Option<String>,
 }
 
@@ -547,53 +620,76 @@ pub struct CustomerInput {
     pub r#type: String,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_en: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     pub active: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phones: Option<Vec<PartyPhone>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub contacts: Option<Vec<PartyContact>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_address: Option<NationalAddressDto>,
     #[ts(optional, type = "import('@/modules/core/types/address').Address")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub structured_address: Option<Address>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vat_number: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cr_number: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub price_list_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_terms_days: Option<i32>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub salesperson_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank: Option<PartyBankInfo>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub opening_balance: Option<OpeningBalanceStub>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
     /// Accepted but always ignored (D-3).
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub linked_party_id: Option<String>,
     #[serde(default, with = "serde_number::option")]
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub credit_limit: Option<Decimal>,
 }
 
@@ -607,53 +703,77 @@ pub struct SupplierInput {
     pub r#type: String,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_en: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     pub active: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phones: Option<Vec<PartyPhone>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub contacts: Option<Vec<PartyContact>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_address: Option<NationalAddressDto>,
     #[ts(optional, type = "import('@/modules/core/types/address').Address")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub structured_address: Option<Address>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vat_number: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cr_number: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub price_list_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_terms_days: Option<i32>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub salesperson_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank: Option<PartyBankInfo>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub opening_balance: Option<OpeningBalanceStub>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub linked_party_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub contact_person: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_expense_account_id: Option<String>,
 }
 
@@ -682,11 +802,14 @@ pub struct PartyGroup {
     pub kind: PartyKind,
     pub name: String,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub price_list_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_terms_days: Option<i32>,
     #[serde(default, with = "serde_number::option")]
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub discount_percent: Option<Decimal>,
 }
 
@@ -757,6 +880,7 @@ pub struct AgingDocument {
     pub number: String,
     pub date: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub due_date: Option<String>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -809,14 +933,19 @@ pub fn to_party_history_entry(m: &party_history::Model) -> PartyHistoryEntry {
 #[ts(export_to = "parties/types/gen/")]
 pub struct PartyFilter {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub search: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub include_inactive: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub with_balance_only: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub over_limit_only: Option<bool>,
 }
 
@@ -840,8 +969,10 @@ pub struct DuplicateWarning {
 #[ts(export_to = "parties/types/gen/")]
 pub struct DuplicateCheckInput {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vat_number: Option<String>,
 }
 
@@ -853,6 +984,7 @@ pub struct DuplicateCheckInput {
 pub struct PartiesCheckDuplicatesArgs {
     pub input: DuplicateCheckInput,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exclude_id: Option<String>,
 }
 
@@ -869,6 +1001,7 @@ pub struct PartiesGetPartyGroupsArgs {
 #[ts(export_to = "parties/types/gen/")]
 pub struct PartiesGetCustomersArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<PartyFilter>,
 }
 
@@ -886,6 +1019,7 @@ pub struct PartiesGetCustomerArgs {
 pub struct PartiesSaveCustomerArgs {
     pub input: CustomerInput,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 }
 
@@ -902,6 +1036,7 @@ pub struct PartiesGetCustomerStatementArgs {
 #[ts(export_to = "parties/types/gen/")]
 pub struct PartiesGetSuppliersArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<PartyFilter>,
 }
 
@@ -919,6 +1054,7 @@ pub struct PartiesGetSupplierArgs {
 pub struct PartiesSaveSupplierArgs {
     pub input: SupplierInput,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 }
 
@@ -951,8 +1087,10 @@ pub struct PartiesUnlinkPartyRecordArgs {
 #[ts(export_to = "parties/types/gen/")]
 pub struct PartiesGetLinkedNetBalanceArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_id: Option<String>,
 }
 

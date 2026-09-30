@@ -65,8 +65,8 @@ pub struct ProductUnit {
 pub struct ProductUnitPrice {
     #[ts(type = "string")]
     pub price_list_id: Id,
-    #[ts(type = "string")]
-    pub unit_id: Id,
+    /// The product's `ProductUnit.id` (or `'__base__'`), not a `units` row id — see the entity.
+    pub unit_id: String,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
     pub value: Decimal,
@@ -121,16 +121,21 @@ pub struct Product {
     pub id: Id,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_en: Option<String>,
     pub sku: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub barcode: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub category_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_id: Option<Id>,
     pub r#type: ProductType,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stock_mode: Option<StockMode>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -143,63 +148,89 @@ pub struct Product {
     pub stock_qty: Decimal,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub min_stock: Option<Decimal>,
     pub active: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prices: Option<Vec<ProductPrice>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub purchase_account_id: Option<Id>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
     pub stock_value: Decimal,
     #[ts(optional, type = "Record<string, import('./BranchStock').BranchStock>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stock_by_branch: Option<BTreeMap<String, BranchStock>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub brand: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub image_ids: Option<Vec<String>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub units: Option<Vec<ProductUnit>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_prices: Option<Vec<ProductUnitPrice>>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub min_price: Option<Decimal>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sale_tax_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub purchase_tax_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub revenue_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cogs_account_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub allow_negative_stock: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub shelf_location: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub preferred_supplier_id: Option<Id>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reorder_qty: Option<Decimal>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub track_batches: Option<bool>,
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiry_alert_days: Option<i32>,
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub warranty_months: Option<i32>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub warranty_provider: Option<WarrantyProvider>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub weight: Option<Decimal>,
     #[ts(optional, type = "Record<string, string | number | boolean | undefined>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_fields: Option<BTreeMap<String, serde_json::Value>>,
 }
 
@@ -211,16 +242,21 @@ pub struct Product {
 pub struct ProductInput {
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_en: Option<String>,
     pub sku: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub barcode: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub category_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_id: Option<Id>,
     pub r#type: ProductType,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stock_mode: Option<StockMode>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -230,64 +266,91 @@ pub struct ProductInput {
     pub price: Decimal,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub min_stock: Option<Decimal>,
     pub active: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub image: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prices: Option<Vec<ProductPriceInput>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub purchase_account_id: Option<Id>,
     #[ts(optional, type = "Record<string, import('./BranchStock').BranchStock>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stock_by_branch: Option<BTreeMap<String, BranchStock>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub brand: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub image_ids: Option<Vec<String>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub units: Option<Vec<ProductUnit>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_prices: Option<Vec<ProductUnitPrice>>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub min_price: Option<Decimal>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sale_tax_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub purchase_tax_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub revenue_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cogs_account_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub allow_negative_stock: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub shelf_location: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub preferred_supplier_id: Option<Id>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reorder_qty: Option<Decimal>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub track_batches: Option<bool>,
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiry_alert_days: Option<i32>,
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub warranty_months: Option<i32>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub warranty_provider: Option<WarrantyProvider>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub weight: Option<Decimal>,
     #[ts(optional, type = "Record<string, string | number | boolean | undefined>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_fields: Option<BTreeMap<String, serde_json::Value>>,
     /// Only honored on create — becomes an opening STOCK_IN adjustment (06 C-7).
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub opening_qty: Option<Decimal>,
 }
 
@@ -297,14 +360,19 @@ pub struct ProductInput {
 #[ts(export_to = "products/types/gen/")]
 pub struct ProductFilter {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub search: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub category_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub r#type: Option<ProductType>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub low_stock_only: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub include_inactive: Option<bool>,
 }
 
@@ -319,14 +387,19 @@ pub struct Category {
     pub id: Id,
     pub name: String,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub purchase_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub revenue_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cogs_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sale_tax_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub purchase_tax_id: Option<Id>,
 }
 
@@ -336,14 +409,19 @@ pub struct Category {
 #[ts(export_to = "products/types/gen/")]
 pub struct CategoryDefaults {
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub purchase_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub revenue_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cogs_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sale_tax_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub purchase_tax_id: Option<Id>,
 }
 
@@ -360,14 +438,19 @@ pub struct CategoryWithCount {
     pub id: Id,
     pub name: String,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub purchase_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub revenue_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cogs_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sale_tax_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub purchase_tax_id: Option<Id>,
     #[ts(type = "number")]
     pub product_count: u32,
@@ -397,8 +480,10 @@ pub struct Unit {
     pub id: Id,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub symbol: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub allows_decimals: Option<bool>,
 }
 
@@ -408,8 +493,10 @@ pub struct Unit {
 #[ts(export_to = "products/types/gen/")]
 pub struct UnitExtra {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub symbol: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub allows_decimals: Option<bool>,
 }
 
@@ -424,8 +511,10 @@ pub struct UnitWithCount {
     pub id: Id,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub symbol: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub allows_decimals: Option<bool>,
     #[ts(type = "number")]
     pub product_count: u32,
@@ -456,6 +545,7 @@ pub struct PriceList {
     pub name: String,
     pub active: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
 }
 
@@ -488,6 +578,7 @@ pub struct CustomFieldDef {
     pub name: String,
     pub r#type: CustomFieldType,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<Vec<String>>,
     pub active: bool,
     #[ts(type = "number")]
@@ -502,6 +593,7 @@ pub struct CustomFieldDefInput {
     pub name: String,
     pub r#type: CustomFieldType,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<Vec<String>>,
     pub active: bool,
 }
@@ -514,6 +606,7 @@ pub struct CustomFieldDefInput {
 pub struct ProductsGetProductsArgs {
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<ProductFilter>,
 }
 
@@ -560,9 +653,11 @@ pub struct ProductsSaveCategoryArgs {
     pub name: String,
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub defaults: Option<CategoryDefaults>,
 }
 
@@ -580,9 +675,11 @@ pub struct ProductsSaveUnitArgs {
     pub name: String,
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub extra: Option<UnitExtra>,
 }
 
@@ -607,6 +704,7 @@ pub struct ProductsSavePriceListArgs {
     pub input: PriceListInput,
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 }
 
@@ -657,6 +755,7 @@ pub struct ProductsSaveCustomFieldDefArgs {
     pub input: CustomFieldDefInput,
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 }
 

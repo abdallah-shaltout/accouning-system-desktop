@@ -25,19 +25,24 @@ pub struct User {
     pub username: String,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     pub role: Role,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
     pub max_discount: Decimal,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub price_list_id: Option<Id>,
     pub active: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_branches: Option<Vec<String>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub home_branch: Option<Id>,
 }
 
@@ -52,20 +57,25 @@ pub struct UserInput {
     pub username: String,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     pub role: Role,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
     pub max_discount: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub price_list_id: Option<String>,
     pub active: bool,
     /// Only sent when creating a user or changing the password.
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_branches: Option<Vec<String>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub home_branch: Option<String>,
 }
 

@@ -27,12 +27,15 @@ pub struct FiscalYearInput {
     pub is_closed: bool,
     #[serde(default)]
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closing_entry_id: Option<Id>,
     #[serde(default)]
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closed_at: Option<String>,
     #[serde(default)]
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closed_by: Option<Id>,
 }
 
@@ -66,6 +69,7 @@ pub struct CloseYearResult {
     pub fiscal_year: FiscalYear,
     pub closing_entry: JournalEntry,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub next_year: Option<FiscalYear>,
 }
 
@@ -94,6 +98,7 @@ pub struct AccountingSaveFiscalYearArgs {
     pub input: FiscalYearInput,
     #[serde(default)]
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Id>,
 }
 
@@ -103,6 +108,7 @@ pub struct AccountingSaveFiscalYearArgs {
 pub struct AccountingSaveLockDateArgs {
     #[serde(default)]
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lock_date: Option<String>,
 }
 

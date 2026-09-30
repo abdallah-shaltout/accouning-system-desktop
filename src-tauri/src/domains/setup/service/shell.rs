@@ -139,7 +139,7 @@ pub async fn seed_company_shell<C: ConnectionTrait>(conn: &C, cx: &TxCtx) -> TxR
             system_role: Set(r.role.map(|role| role.as_str().to_string())),
             currency: Set(None),
             branch_id: Set(None),
-            requires_party: Set(Some(r.requires_party)),
+            requires_party: Set(r.requires_party.then_some(true)) /* mock: `requiresParty` is set only when true, else absent */,
             allow_manual: Set(r.allow_manual),
             requires_cost_center: Set(None),
             active: Set(true),

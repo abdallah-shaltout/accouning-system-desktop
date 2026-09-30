@@ -156,6 +156,19 @@ fn parse_expense_date(raw: &str, clock: &BusinessClock) -> TxResult<DocDate> {
     Ok(parsed.resolve(clock))
 }
 
+/// ACC-0024 (`expensePayoutRole`, `expenses.ts`): the account an expense paid with a payment method
+/// is credited to. Card and wallet methods carry a CLEARING role — money customers paid by
+/// card/wallet that the acquirer hasn't deposited yet (docs/v2/02 C3); only customer tenders go in
+/// and only a card settlement takes them out. Money the business itself pays with its card leaves
+/// the bank, so it is credited there, the same way `settlement_account_for` settles every non-cash
+/// payment. Payment vouchers (`create_payment_voucher`, ACC-0031) pay out by the same rule.
+pub fn expense_payout_role(role: SystemRole) -> SystemRole {
+    match role {
+        SystemRole::CardClearing | SystemRole::WalletClearing => SystemRole::Bank,
+        other => other,
+    }
+}
+
 /// **3.6 `record_expense`** — the shared body of `create_expense`/`post_due_recurring_expense`,
 /// porting `recordExpense` (`expenses.ts:66-117`).
 pub async fn record_expense<C: ConnectionTrait>(
@@ -230,7 +243,7 @@ pub async fn record_expense<C: ConnectionTrait>(
         (PaidFromKind::Method, Some(method_id), _) => {
             let method = PaymentMethodEntity::find_by_id(method_id).one(conn).await.map_err(TxError::from)?.ok_or_else(|| AppError::validation("اختر طريقة الدفع"))?;
             let role = method.account_role.parse::<SystemRole>().map_err(TxError::App)?;
-            lines.push(PostingLine::credit(AccountRef::Role(role), round2(input.amount)));
+            lines.push(PostingLine::credit(AccountRef::Role(expense_payout_role(role)), round2(input.amount)));
         }
         (PaidFromKind::Credit, _, Some(supplier_id)) => {
             let mut line = PostingLine::credit(AccountRef::Role(SystemRole::Payable), round2(input.amount));
@@ -289,4 +302,18 @@ pub async fn record_expense<C: ConnectionTrait>(
 /// **3.7 `create_expense(input)`** = `record_expense(…, input, None)`.
 pub async fn create_expense<C: ConnectionTrait>(conn: &C, cx: &TxCtx, registry: &activity::undo::UndoRegistry, input: ExpenseInput) -> TxResult<Expense> {
     record_expense(conn, cx, registry, input, None).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn card_and_wallet_expenses_pay_out_of_the_bank_not_the_clearing_account() {
+        // ACC-0024: clearing accounts hold only customer tenders awaiting settlement.
+        assert_eq!(expense_payout_role(SystemRole::CardClearing), SystemRole::Bank);
+        assert_eq!(expense_payout_role(SystemRole::WalletClearing), SystemRole::Bank);
+        assert_eq!(expense_payout_role(SystemRole::Cash), SystemRole::Cash);
+        assert_eq!(expense_payout_role(SystemRole::Bank), SystemRole::Bank);
+    }
 }

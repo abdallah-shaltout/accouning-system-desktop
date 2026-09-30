@@ -138,6 +138,11 @@ pub async fn get_invoice<C: ConnectionTrait>(conn: &C, id: Id) -> TxResult<Invoi
     let model = InvoiceEntity::find_by_id(id).one(conn).await.map_err(AppError::from)?.ok_or_else(|| AppError::not_found("الفاتورة غير موجودة"))?;
     let row = invoice_row(conn, &model).await?;
 
+    let invoice_lines = crate::entities::sales::invoice_lines::Entity::find()
+        .filter(crate::entities::sales::invoice_lines::Column::InvoiceId.eq(id))
+        .all(conn)
+        .await
+        .map_err(AppError::from)?;
     let refunds_models = crate::entities::sales::refunds::Entity::find()
         .filter(crate::entities::sales::refunds::Column::InvoiceId.eq(id))
         .order_by_asc(crate::entities::sales::refunds::Column::CreatedAt)
@@ -153,7 +158,7 @@ pub async fn get_invoice<C: ConnectionTrait>(conn: &C, id: Id) -> TxResult<Invoi
             .all(conn)
             .await
             .map_err(AppError::from)?;
-        refunds.push(super::refund::refund_to_dto(r, &lines));
+        refunds.push(super::refund::refund_to_dto(r, &lines, &invoice_lines));
     }
 
     let payments = crate::domains::payments::service::read::payments_for_invoice(conn, id).await?;
@@ -171,7 +176,7 @@ pub async fn get_invoice<C: ConnectionTrait>(conn: &C, id: Id) -> TxResult<Invoi
     let journal_entries: Vec<JournalRef> = journal_entries_models.iter().map(|e| JournalRef { id: e.id, number: e.number.clone(), description: e.description.clone() }).collect();
 
     let returned_qty_map = super::refund::returned_qty_by_line(conn, id).await?;
-    let returned_qty: BTreeMap<String, Decimal> = returned_qty_map.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+    let returned_qty: BTreeMap<String, Decimal> = returned_qty_map.into_iter().map(|(k, v)| (super::refund::invoice_line_display_id(&invoice_lines, k), v)).collect();
 
     let customer = match model.customer_id {
         Some(cid) => crate::domains::parties::service::read::get_customer(conn, cid).await.ok(),
@@ -190,7 +195,12 @@ pub async fn get_refund<C: ConnectionTrait>(conn: &C, id: Id) -> TxResult<Refund
         .all(conn)
         .await
         .map_err(AppError::from)?;
-    Ok(super::refund::refund_to_dto(&model, &lines))
+    let invoice_lines = crate::entities::sales::invoice_lines::Entity::find()
+        .filter(crate::entities::sales::invoice_lines::Column::InvoiceId.eq(model.invoice_id))
+        .all(conn)
+        .await
+        .map_err(AppError::from)?;
+    Ok(super::refund::refund_to_dto(&model, &lines, &invoice_lines))
 }
 
 /// **`get_invoice_print_data(id)`** (`invoiceService.ts:203-247`). `id == "sample"` builds the

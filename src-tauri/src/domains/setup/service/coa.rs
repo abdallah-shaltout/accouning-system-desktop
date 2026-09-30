@@ -415,7 +415,7 @@ pub async fn apply<C: sea_orm::ConnectionTrait>(
             model.subtype = Set(r.subtype.as_str().to_string());
             model.normal_side = Set(r.normal_side.as_str().to_string());
             model.system_role = Set(r.role.map(|role| role.as_str().to_string()));
-            model.requires_party = Set(Some(r.requires_party));
+            model.requires_party = Set(r.requires_party.then_some(true)) /* mock: `requiresParty` is set only when true, else absent */;
             model.allow_manual = Set(r.allow_manual);
             model.can_delete = Set(r.can_delete);
             model.created_at = Set(created_at);
@@ -436,7 +436,7 @@ pub async fn apply<C: sea_orm::ConnectionTrait>(
                 system_role: Set(r.role.map(|role| role.as_str().to_string())),
                 currency: Set(None),
                 branch_id: Set(None),
-                requires_party: Set(Some(r.requires_party)),
+                requires_party: Set(r.requires_party.then_some(true)) /* mock: `requiresParty` is set only when true, else absent */,
                 allow_manual: Set(r.allow_manual),
                 requires_cost_center: Set(None),
                 active: Set(true),

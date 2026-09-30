@@ -97,20 +97,16 @@ pub(crate) fn refund_method_as_entity(m: RefundMethod) -> crate::entities::purch
 // `LandedCostLine` already derives `Serialize`/`Deserialize` (camelCase, matching the mock's own
 // `LandedCostLine` JSON shape byte-for-byte) — round-trip through it directly rather than poking at
 // a `serde_json::Value` by hand.
+//
+// Absent vs `[]` is kept exactly like the mock (Part 04 parity): every order `savePurchase` writes
+// carries `landedCosts: [...]` (possibly empty, `purchases.ts:136`), while an imported seed row or an
+// other-supplier bill has none — so the column is `NULL` only for "absent" and `[]` round-trips as `[]`.
 fn landed_costs_from_json(v: &Option<serde_json::Value>) -> Option<Vec<LandedCostLine>> {
     let v = v.as_ref()?;
-    let lines: Vec<LandedCostLine> = serde_json::from_value(v.clone()).ok()?;
-    if lines.is_empty() {
-        None
-    } else {
-        Some(lines)
-    }
+    serde_json::from_value(v.clone()).ok()
 }
 
 fn landed_costs_to_json(lines: &[LandedCostLine]) -> Option<serde_json::Value> {
-    if lines.is_empty() {
-        return None;
-    }
     serde_json::to_value(lines).ok()
 }
 
@@ -127,7 +123,7 @@ fn line_to_dto(l: &crate::entities::purchases::purchase_order_lines::Model) -> P
         product_id: l.product_id,
         qty: l.qty,
         cost_price: l.cost_price,
-        unit_id: l.unit_id,
+        unit_id: l.unit_id.clone(),
         unit_factor: l.unit_factor,
         discount: l.discount,
         discount_is_pct: l.discount_is_pct,

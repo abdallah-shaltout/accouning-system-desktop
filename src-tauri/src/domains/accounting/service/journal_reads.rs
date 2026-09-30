@@ -119,13 +119,8 @@ pub async fn load_journal<C: ConnectionTrait>(conn: &C, filter: &JournalFilter) 
     let settings = crate::core::settings::load(conn).await.map_err(TxError::App)?;
     let base_currency = settings.currency.clone();
 
-    let mut entries = Vec::with_capacity(posted.len() + drafts.len());
-    for p in &posted {
-        entries.push(rows::entry_dto(conn, p).await?);
-    }
-    for d in &drafts {
-        entries.push(rows::draft_dto(conn, d, &base_currency).await?);
-    }
+    let mut entries = rows::entry_dtos(conn, &posted).await?;
+    entries.extend(rows::draft_dtos(conn, &drafts, &base_currency).await?);
 
     let descendants = match filter.account_id {
         Some(id) => Some(descendant_set(conn, id).await?),
@@ -194,8 +189,12 @@ fn sort_key_number(row: &JournalRow, key: &str) -> Option<Decimal> {
 pub async fn get_journal_entries_paged<C: ConnectionTrait>(conn: &C, query: PagedQuery<JournalFilter>) -> TxResult<crate::core::dto::PagedResult<JournalRow>> {
     let filter = query.filters.clone().unwrap_or_default();
     let mut entries = load_journal(conn, &filter).await?;
-    // Default order (no `sort`): `get_journal_entries`'s date/number desc.
-    entries.sort_by(|a, b| b.date.cmp(&a.date).then_with(|| b.number.cmp(&a.number)));
+    // Default order (no `sort`): `get_journal_entries`'s date/number desc. With a `sort`, the mock
+    // sorts the unsorted list (posted in insertion order, then drafts), so ties — and an unknown
+    // key, where every row ties — keep `load_journal`'s order, not date/number desc.
+    if query.sort.is_none() {
+        entries.sort_by(|a, b| b.date.cmp(&a.date).then_with(|| b.number.cmp(&a.number)));
+    }
 
     let ctx = RowContext::build(conn, &entries).await?;
     let mut rows: Vec<JournalRow> = entries.into_iter().map(|e| rows::to_row(e, &ctx)).collect();
@@ -233,12 +232,16 @@ pub async fn get_journal_entries_paged<C: ConnectionTrait>(conn: &C, query: Page
 
 /// **`get_journal_entry(id)`** (:260-275).
 pub async fn get_journal_entry<C: ConnectionTrait>(conn: &C, id: Id) -> TxResult<JournalEntryDetail> {
-    let filter = JournalFilter::default();
-    let entries = load_journal(conn, &filter).await?;
-    let entry = entries
-        .into_iter()
-        .find(|e| e.id == id)
-        .ok_or_else(|| crate::core::error::AppError::not_found("القيد غير موجود"))?;
+    // `allEntriesAndDrafts().find(id)`: the posted entry, else the draft — loaded by id, not by
+    // mapping the whole journal (the unfiltered `load_journal` matches every row anyway).
+    let entry = if let Some(m) = EntryEntity::find_by_id(id).one(conn).await.map_err(TxError::from)? {
+        rows::entry_dto(conn, &m).await?
+    } else if let Some(d) = crate::entities::journal::journal_drafts::Entity::find_by_id(id).one(conn).await.map_err(TxError::from)? {
+        let settings = crate::core::settings::load(conn).await.map_err(TxError::App)?;
+        rows::draft_dto(conn, &d, &settings.currency).await?
+    } else {
+        return Err(crate::core::error::AppError::not_found("القيد غير موجود").into());
+    };
 
     let reversal = EntryEntity::find().filter(EntryColumn::ReversalOfId.eq(id)).one(conn).await.map_err(TxError::from)?;
 

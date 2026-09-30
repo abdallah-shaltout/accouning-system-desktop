@@ -95,6 +95,7 @@ pub async fn settings_get_taxes(state: State<'_, AppState>) -> CmdResult<Vec<Tax
 pub struct SettingsSaveTaxArgs {
     pub input: TaxInput,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Id>,
 }
 
@@ -152,6 +153,7 @@ pub async fn settings_get_payment_methods(state: State<'_, AppState>) -> CmdResu
 pub struct SettingsSavePaymentMethodArgs {
     pub input: PaymentMethodInput,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Id>,
 }
 
@@ -410,6 +412,7 @@ pub async fn settings_get_currencies(state: State<'_, AppState>) -> CmdResult<Ve
 #[ts(export_to = "settings/types/gen/")]
 pub struct SettingsGetExchangeRatesArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
 }
 
@@ -435,7 +438,7 @@ pub async fn settings_create_currency(state: State<'_, AppState>, args: Settings
         let input = args.input.clone();
         Box::pin(async move {
             cx.require(tx, Area::Settings, Access::Write).await?;
-            service::currency::create(tx, input).await
+            service::currency::create(tx, cx, input).await
         }) as BoxFuture<'_, TxResult<Currency>>
     })
     .await
@@ -457,7 +460,7 @@ pub async fn settings_update_currency(state: State<'_, AppState>, args: Settings
         let code = args.code.clone();
         Box::pin(async move {
             cx.require(tx, Area::Settings, Access::Write).await?;
-            service::currency::update(tx, code, patch).await
+            service::currency::update(tx, cx, code, patch).await
         }) as BoxFuture<'_, TxResult<Currency>>
     })
     .await
@@ -597,7 +600,8 @@ pub async fn settings_get_lan_sharing_status(state: State<'_, AppState>) -> CmdR
 }
 
 #[tauri::command]
-pub async fn settings_enable_lan_sharing(app: tauri::AppHandle, state: State<'_, AppState>) -> CmdResult<PairingInfo> {
+pub async fn settings_enable_lan_sharing<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppState>) -> CmdResult<PairingInfo> {
+    let app = crate::wry_handle(&app).map_err(ApiErrorPayload::from)?;
     let actor = state.session.read().unwrap().clone();
     let role = state.device.read().unwrap().role;
     with_read(&state, move |conn| {
@@ -606,7 +610,7 @@ pub async fn settings_enable_lan_sharing(app: tauri::AppHandle, state: State<'_,
     .await
     .map_err(ApiErrorPayload::from)?;
 
-    let info = service::network::enable(&app, &state).await.map_err(ApiErrorPayload::from)?;
+    let info = service::network::enable(app, &state).await.map_err(ApiErrorPayload::from)?;
 
     let undo = state.undo.clone();
     with_tx(&state, TxOpts::default(), move |tx, cx| {
@@ -639,7 +643,8 @@ pub struct SettingsDisableLanSharingArgs {
 }
 
 #[tauri::command]
-pub async fn settings_disable_lan_sharing(app: tauri::AppHandle, state: State<'_, AppState>, args: SettingsDisableLanSharingArgs) -> CmdResult<LanSharingStatus> {
+pub async fn settings_disable_lan_sharing<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppState>, args: SettingsDisableLanSharingArgs) -> CmdResult<LanSharingStatus> {
+    let app = crate::wry_handle(&app).map_err(ApiErrorPayload::from)?;
     let actor = state.session.read().unwrap().clone();
     let role = state.device.read().unwrap().role;
     with_read(&state, move |conn| {
@@ -648,7 +653,7 @@ pub async fn settings_disable_lan_sharing(app: tauri::AppHandle, state: State<'_
     .await
     .map_err(ApiErrorPayload::from)?;
 
-    let status = service::network::disable(&app, &state, args.confirm_disconnect).await.map_err(ApiErrorPayload::from)?;
+    let status = service::network::disable(app, &state, args.confirm_disconnect).await.map_err(ApiErrorPayload::from)?;
 
     let undo = state.undo.clone();
     with_tx(&state, TxOpts::default(), move |tx, cx| {
@@ -709,8 +714,9 @@ pub async fn settings_rotate_pairing_code(state: State<'_, AppState>) -> CmdResu
 }
 
 #[tauri::command]
-pub async fn settings_reconnect_backend(app: tauri::AppHandle, state: State<'_, AppState>) -> CmdResult<()> {
-    service::network::reconnect(&app, &state).await.map_err(ApiErrorPayload::from)
+pub async fn settings_reconnect_backend<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppState>) -> CmdResult<()> {
+    let app = crate::wry_handle(&app).map_err(ApiErrorPayload::from)?;
+    service::network::reconnect(app, &state).await.map_err(ApiErrorPayload::from)
 }
 
 // --- ipc_signatures --------------------------------------------------------------------------------

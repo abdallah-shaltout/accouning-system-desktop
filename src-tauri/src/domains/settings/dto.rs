@@ -39,9 +39,11 @@ pub enum PrinterConnectionType {
 #[ts(export_to = "settings/types/gen/")]
 pub struct ThermalPrinterSettings {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub printer_name: Option<String>,
     pub connection: PrinterConnectionType,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
     pub dpi: i32,
     pub cut: bool,
@@ -58,15 +60,20 @@ pub struct PrinterSettings {
     #[ts(type = "58 | 80")]
     pub thermal_width_mm: i32,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub thermal: Option<ThermalPrinterSettings>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub a4_printer_name: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub label_printer_name: Option<String>,
     /// Plan 22 union, not enumerated in Rust — stored/transmitted as a plain string.
     #[ts(optional, type = "import('@/modules/invoices/helpers/invoiceTemplates').A4TemplateId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub a4_template: Option<String>,
     #[ts(optional, type = "import('@/modules/invoices/helpers/invoiceTemplates').ImageTemplateId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub image_template: Option<String>,
 }
 
@@ -79,18 +86,25 @@ pub struct PrinterSettings {
 #[ts(export_to = "settings/types/gen/")]
 pub struct PrinterPatch {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mode: Option<PrinterMode>,
     #[ts(optional, type = "58 | 80")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub thermal_width_mm: Option<i32>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub thermal: Option<ThermalPrinterSettings>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub a4_printer_name: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub label_printer_name: Option<String>,
     #[ts(optional, type = "import('@/modules/invoices/helpers/invoiceTemplates').A4TemplateId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub a4_template: Option<String>,
     #[ts(optional, type = "import('@/modules/invoices/helpers/invoiceTemplates').ImageTemplateId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub image_template: Option<String>,
 }
 
@@ -100,8 +114,10 @@ pub struct PrinterPatch {
 #[ts(export_to = "settings/types/gen/")]
 pub struct AccountingPolicy {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub lock_date: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_purchase_account_id: Option<Id>,
 }
 
@@ -111,17 +127,23 @@ pub struct AccountingPolicy {
 #[ts(export_to = "settings/types/gen/")]
 pub struct PosPolicy {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub override_price: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sell_below_cost: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub require_open_shift: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub foreign_cash_enabled: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub foreign_currency: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub foreign_currency_rate: Option<Decimal>,
 }
 
@@ -131,6 +153,7 @@ pub struct PosPolicy {
 #[ts(export_to = "settings/types/gen/")]
 pub struct SalesPolicy {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_without_receipt: Option<bool>,
 }
 
@@ -140,10 +163,13 @@ pub struct SalesPolicy {
 #[ts(export_to = "settings/types/gen/")]
 pub struct FeatureFlags {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branches: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currencies: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_centers: Option<bool>,
 }
 
@@ -153,24 +179,33 @@ pub struct FeatureFlags {
 #[ts(export_to = "settings/types/gen/")]
 pub struct OnboardingState {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub business_type: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub go_live_date: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub completed_step: Option<i32>,
     #[serde(default)]
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub skipped: Option<Vec<String>>,
     #[serde(default)]
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub done: Option<Vec<String>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub finished_at: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub opening_entry_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closing_entry_id: Option<Id>,
     #[ts(optional, type = "'basic' | 'standard' | 'detailed'")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub coa_template: Option<String>,
 }
 
@@ -180,50 +215,71 @@ pub struct OnboardingState {
 pub struct StoreSettings {
     pub store_name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub logo: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stamp: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
     pub currency: String,
     #[ts(optional, type = "import('@/modules/core/helpers/countryProfiles').CountryCode")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vat_number: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_tax_id: Option<Id>,
     pub invoice_number_prefix: String,
     pub printer: PrinterSettings,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prices_include_tax: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     #[ts(optional, type = "import('@/modules/core/types/address').Address")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_address: Option<v::Address>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub commercial_register: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub receipt_footer: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub accounting: Option<AccountingPolicy>,
     #[ts(optional, type = "import('./BackupSettings').BackupSettings")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub backup: Option<serde_json::Value>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inventory_approval_threshold: Option<Decimal>,
     #[ts(optional, type = "import('@/modules/users/helpers/permissions').RoleAccessOverrides")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub role_access_overrides: Option<v::RoleAccessOverrides>,
     #[ts(optional, type = "Partial<import('@/modules/core/services/insightTypes').InsightThresholds>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub insight_thresholds: Option<BTreeMap<String, crate::entities::values::JsonDecimal>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pos: Option<PosPolicy>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sales: Option<SalesPolicy>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub features: Option<FeatureFlags>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub onboarding: Option<OnboardingState>,
 }
 
@@ -235,55 +291,80 @@ pub struct StoreSettings {
 #[ts(export_to = "settings/types/gen/")]
 pub struct StoreSettingsPatch {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub store_name: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub logo: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub stamp: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "import('@/modules/core/helpers/countryProfiles').CountryCode")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vat_number: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_tax_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice_number_prefix: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub printer: Option<PrinterPatch>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prices_include_tax: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     #[ts(optional, type = "import('@/modules/core/types/address').Address")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_address: Option<v::Address>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub commercial_register: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub receipt_footer: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub accounting: Option<AccountingPolicy>,
     #[ts(optional, type = "import('./BackupSettings').BackupSettings")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub backup: Option<serde_json::Value>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inventory_approval_threshold: Option<Decimal>,
     #[ts(optional, type = "import('@/modules/users/helpers/permissions').RoleAccessOverrides")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub role_access_overrides: Option<v::RoleAccessOverrides>,
     #[ts(optional, type = "Partial<import('@/modules/core/services/insightTypes').InsightThresholds>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub insight_thresholds: Option<BTreeMap<String, crate::entities::values::JsonDecimal>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pos: Option<PosPolicy>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sales: Option<SalesPolicy>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub features: Option<FeatureFlags>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub onboarding: Option<OnboardingState>,
 }
 
@@ -341,8 +422,10 @@ pub struct Tax {
     pub category: TaxCategory,
     pub direction: TaxDirection,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exemption_reason: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_role: Option<TaxAccountRole>,
 }
 
@@ -390,8 +473,10 @@ pub struct TaxInput {
     pub category: TaxCategory,
     pub direction: TaxDirection,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exemption_reason: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_role: Option<TaxAccountRole>,
 }
 
@@ -489,18 +574,21 @@ pub struct PaymentMethod {
     #[serde(rename = "type")]
     pub kind: PaymentMethodType,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
     pub account_role: PaymentMethodAccountRole,
     #[ts(type = "number")]
     #[serde(with = "serde_number")]
     pub fee_pct: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub requires_reference: Option<bool>,
     pub show_in_pos: bool,
     pub show_in_payments: bool,
     #[ts(type = "number")]
     pub sort_order: i32,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_overrides: Option<Vec<BranchAccountOverride>>,
     pub active: bool,
     pub can_delete: bool,
@@ -536,18 +624,21 @@ pub struct PaymentMethodInput {
     #[serde(rename = "type")]
     pub kind: PaymentMethodType,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
     pub account_role: PaymentMethodAccountRole,
     #[ts(type = "number")]
     #[serde(with = "serde_number")]
     pub fee_pct: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub requires_reference: Option<bool>,
     pub show_in_pos: bool,
     pub show_in_payments: bool,
     #[ts(type = "number")]
     pub sort_order: i32,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_overrides: Option<Vec<BranchAccountOverride>>,
     pub active: bool,
 }
@@ -564,24 +655,33 @@ pub struct Branch {
     pub name: String,
     pub code: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     #[ts(optional, type = "import('@/modules/core/types/address').Address")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_address: Option<v::Address>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub receipt_header: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cash_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_price_list_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     pub active: bool,
     pub can_delete: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
 }
 
@@ -613,16 +713,22 @@ pub struct BranchInput {
     pub name: String,
     pub code: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     #[ts(optional, type = "import('@/modules/core/types/address').Address")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_address: Option<v::Address>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub receipt_header: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_price_list_id: Option<Id>,
     pub active: bool,
 }
@@ -633,22 +739,31 @@ pub struct BranchInput {
 #[ts(export_to = "settings/types/gen/")]
 pub struct BranchPatch {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     #[ts(optional, type = "import('@/modules/core/types/address').Address")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub national_address: Option<v::Address>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub receipt_header: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub bank_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_price_list_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub active: Option<bool>,
 }
 
@@ -708,14 +823,18 @@ pub struct CostCenter {
     #[serde(rename = "type")]
     pub kind: CostCenterType,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub manager_user_id: Option<Id>,
     pub active: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub budgets: Option<Vec<CostCenterBudget>>,
     pub can_delete: bool,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
 }
 
@@ -749,11 +868,14 @@ pub struct CostCenterInput {
     #[serde(rename = "type")]
     pub kind: CostCenterType,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub manager_user_id: Option<Id>,
     pub active: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub budgets: Option<Vec<CostCenterBudget>>,
 }
 
@@ -763,18 +885,25 @@ pub struct CostCenterInput {
 #[ts(export_to = "settings/types/gen/")]
 pub struct CostCenterPatch {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<CostCenterType>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub manager_user_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub active: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub budgets: Option<Vec<CostCenterBudget>>,
 }
 
@@ -792,9 +921,11 @@ pub struct Currency {
     pub decimals: i32,
     pub active: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fixed: Option<bool>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fixed_rate: Option<Decimal>,
 }
 
@@ -810,17 +941,23 @@ impl Currency {
 #[ts(export_to = "settings/types/gen/")]
 pub struct CurrencyPatch {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_ar: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub symbol: Option<String>,
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub decimals: Option<i32>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub active: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fixed: Option<bool>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fixed_rate: Option<Decimal>,
 }
 
@@ -852,9 +989,11 @@ pub struct ExchangeRateInput {
     pub date: String,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub inverse_rate: Option<Decimal>,
 }
 
@@ -980,8 +1119,10 @@ pub struct LanSharingStatus {
     #[ts(type = "number")]
     pub connected_terminals: u32,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pairing: Option<PairingInfo>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub main_host: Option<String>,
 }
 

@@ -81,8 +81,11 @@ fn assert_category_name_ok(name: &str) -> TxResult<String> {
     Ok(trimmed)
 }
 
+/// Exact, case-sensitive match (the mock's `x.name.trim() === trimmed`): filtered on the
+/// `utf8mb4_bin` `name_live` column (m0016 G-28a), not `name` (`utf8mb4_unicode_ci`, which would
+/// refuse "food" next to "Food").
 async fn assert_category_name_free<C: ConnectionTrait>(conn: &C, trimmed: &str, except_id: Option<Id>) -> TxResult<()> {
-    let mut query = CategoryEntity::find_live().filter(CategoryColumn::Name.eq(trimmed.to_string()));
+    let mut query = CategoryEntity::find_live().filter(CategoryColumn::NameLive.eq(trimmed.to_string()));
     if let Some(except) = except_id {
         query = query.filter(CategoryColumn::Id.ne(except));
     }
@@ -168,7 +171,7 @@ pub async fn delete_category<C: ConnectionTrait>(conn: &C, cx: &TxCtx, id: Id) -
 // --- Units ----------------------------------------------------------------------------------------
 
 async fn assert_unit_name_free<C: ConnectionTrait>(conn: &C, trimmed: &str, except_id: Option<Id>) -> TxResult<()> {
-    let mut query = UnitEntity::find_live().filter(UnitColumn::Name.eq(trimmed.to_string()));
+    let mut query = UnitEntity::find_live().filter(UnitColumn::NameLive.eq(trimmed.to_string()));
     if let Some(except) = except_id {
         query = query.filter(UnitColumn::Id.ne(except));
     }
@@ -245,29 +248,31 @@ pub async fn delete_unit<C: ConnectionTrait>(conn: &C, cx: &TxCtx, id: Id) -> Tx
 struct PresetUnit {
     name: &'static str,
     symbol: &'static str,
-    allows_decimals: bool,
+    /// `None` = the preset carries no `allowsDecimals` key at all (`catalogService.ts` `UNIT_PRESETS`),
+    /// so the unit reads back without one, exactly like the mock's.
+    allows_decimals: Option<bool>,
 }
 
 fn unit_presets(kind: UnitPresetKind) -> &'static [PresetUnit] {
     match kind {
         UnitPresetKind::Pharmacy => &[
-            PresetUnit { name: "علبة", symbol: "box", allows_decimals: false },
-            PresetUnit { name: "شريط", symbol: "strip", allows_decimals: false },
-            PresetUnit { name: "قرص", symbol: "tab", allows_decimals: false },
-            PresetUnit { name: "زجاجة", symbol: "btl", allows_decimals: false },
-            PresetUnit { name: "أمبول", symbol: "amp", allows_decimals: false },
+            PresetUnit { name: "علبة", symbol: "box", allows_decimals: None },
+            PresetUnit { name: "شريط", symbol: "strip", allows_decimals: None },
+            PresetUnit { name: "قرص", symbol: "tab", allows_decimals: None },
+            PresetUnit { name: "زجاجة", symbol: "btl", allows_decimals: None },
+            PresetUnit { name: "أمبول", symbol: "amp", allows_decimals: None },
         ],
         UnitPresetKind::Clothing => &[
-            PresetUnit { name: "قطعة", symbol: "pc", allows_decimals: false },
-            PresetUnit { name: "طقم", symbol: "set", allows_decimals: false },
-            PresetUnit { name: "درزن", symbol: "dz", allows_decimals: false },
+            PresetUnit { name: "قطعة", symbol: "pc", allows_decimals: None },
+            PresetUnit { name: "طقم", symbol: "set", allows_decimals: None },
+            PresetUnit { name: "درزن", symbol: "dz", allows_decimals: None },
         ],
         UnitPresetKind::Supermarket => &[
-            PresetUnit { name: "حبة", symbol: "pc", allows_decimals: false },
-            PresetUnit { name: "كرتون", symbol: "ctn", allows_decimals: false },
-            PresetUnit { name: "كيلو", symbol: "kg", allows_decimals: true },
-            PresetUnit { name: "جرام", symbol: "g", allows_decimals: true },
-            PresetUnit { name: "لتر", symbol: "l", allows_decimals: true },
+            PresetUnit { name: "حبة", symbol: "pc", allows_decimals: None },
+            PresetUnit { name: "كرتون", symbol: "ctn", allows_decimals: None },
+            PresetUnit { name: "كيلو", symbol: "kg", allows_decimals: Some(true) },
+            PresetUnit { name: "جرام", symbol: "g", allows_decimals: Some(true) },
+            PresetUnit { name: "لتر", symbol: "l", allows_decimals: Some(true) },
         ],
     }
 }
@@ -286,7 +291,7 @@ pub async fn apply_unit_preset<C: ConnectionTrait>(conn: &C, cx: &TxCtx, kind: U
             id: Set(Id::new()),
             name: Set(preset.name.to_string()),
             symbol: Set(Some(preset.symbol.to_string())),
-            allows_decimals: Set(Some(preset.allows_decimals)),
+            allows_decimals: Set(preset.allows_decimals),
             created_at: Set(now),
             updated_at: Set(now),
             deleted_at: Set(None),
@@ -305,7 +310,7 @@ pub async fn apply_unit_preset<C: ConnectionTrait>(conn: &C, cx: &TxCtx, kind: U
 // --- Price lists ------------------------------------------------------------------------------
 
 async fn assert_price_list_name_free<C: ConnectionTrait>(conn: &C, trimmed: &str, except_id: Option<Id>) -> TxResult<()> {
-    let mut query = PriceListEntity::find_live().filter(PriceListColumn::Name.eq(trimmed.to_string()));
+    let mut query = PriceListEntity::find_live().filter(PriceListColumn::NameLive.eq(trimmed.to_string()));
     if let Some(except) = except_id {
         query = query.filter(PriceListColumn::Id.ne(except));
     }

@@ -32,6 +32,33 @@ pub async fn draft_dto<C: ConnectionTrait>(conn: &C, m: &DraftModel, base_curren
     Ok(JournalEntry::from_draft_model(m, &lines, base_currency))
 }
 
+/// `entry_dto` for many entries with one lines query (not one per entry) — `load_journal` maps the
+/// whole journal, and ~900 per-entry round trips made the journal reads time out.
+pub async fn entry_dtos<C: ConnectionTrait>(conn: &C, models: &[EntryModel]) -> TxResult<Vec<JournalEntry>> {
+    let mut by_entry: BTreeMap<Id, Vec<crate::entities::journal::journal_lines::Model>> = BTreeMap::new();
+    for chunk in models.chunks(500) {
+        let ids: Vec<Id> = chunk.iter().map(|m| m.id).collect();
+        let lines = LineEntity::find().filter(LineColumn::JournalEntryId.is_in(ids)).order_by_asc(LineColumn::Position).all(conn).await.map_err(TxError::from)?;
+        for l in lines {
+            by_entry.entry(l.journal_entry_id).or_default().push(l);
+        }
+    }
+    Ok(models.iter().map(|m| JournalEntry::from_model(m, by_entry.get(&m.id).map(Vec::as_slice).unwrap_or(&[]))).collect())
+}
+
+/// `draft_dto` for many drafts with one lines query (see `entry_dtos`).
+pub async fn draft_dtos<C: ConnectionTrait>(conn: &C, models: &[DraftModel], base_currency: &str) -> TxResult<Vec<JournalEntry>> {
+    let mut by_draft: BTreeMap<Id, Vec<crate::entities::journal::journal_draft_lines::Model>> = BTreeMap::new();
+    for chunk in models.chunks(500) {
+        let ids: Vec<Id> = chunk.iter().map(|m| m.id).collect();
+        let lines = DraftLineEntity::find().filter(DraftLineColumn::JournalDraftId.is_in(ids)).order_by_asc(DraftLineColumn::Position).all(conn).await.map_err(TxError::from)?;
+        for l in lines {
+            by_draft.entry(l.journal_draft_id).or_default().push(l);
+        }
+    }
+    Ok(models.iter().map(|m| JournalEntry::from_draft_model(m, by_draft.get(&m.id).map(Vec::as_slice).unwrap_or(&[]), base_currency)).collect())
+}
+
 /// Loads several posted entries (with lines) by id, in the given order is NOT guaranteed — callers
 /// that need a specific order sort the returned `Vec` themselves. Used by journal-list readers that
 /// already have a filtered id set.

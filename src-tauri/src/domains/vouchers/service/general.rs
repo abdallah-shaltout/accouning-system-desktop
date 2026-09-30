@@ -270,7 +270,8 @@ pub async fn create_payment_voucher<C: ConnectionTrait>(
 
     let lines = vec![
         PostingLine { cost_center_id: input.cost_center_id, ..PostingLine::debit(AccountRef::Id(debit_account.id), input.amount) },
-        PostingLine::credit(AccountRef::Role(method_system_role), input.amount),
+        // ACC-0031: a card/wallet payout leaves the bank, not the clearing account (ACC-0024's rule).
+        PostingLine::credit(AccountRef::Role(crate::domains::expenses::service::expenses::expense_payout_role(method_system_role)), input.amount),
     ];
     let attachment_ids = parse_attachment_ids(&input.attachment_ids)?;
     post::post(

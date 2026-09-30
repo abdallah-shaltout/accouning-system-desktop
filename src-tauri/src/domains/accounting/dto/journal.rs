@@ -140,6 +140,7 @@ pub struct JournalSourceRef {
     #[ts(type = "string")]
     pub id: Id,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub number: Option<String>,
 }
 
@@ -154,6 +155,7 @@ pub struct JournalLine {
     #[ts(type = "string")]
     pub account_id: Id,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -162,20 +164,27 @@ pub struct JournalLine {
     #[ts(type = "number")]
     pub credit: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub party_kind: Option<PartyKind>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub party_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[serde(default, with = "serde_number::option")]
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount_fc: Option<Decimal>,
     #[serde(default, with = "serde_number::option")]
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<Decimal>,
 }
 
@@ -226,6 +235,7 @@ pub struct JournalEntry {
     pub kind: JournalEntryType,
     pub status: JournalEntryStatus,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source_ref: Option<JournalSourceRef>,
     pub lines: Vec<JournalLine>,
     #[serde(with = "serde_number")]
@@ -235,22 +245,29 @@ pub struct JournalEntry {
     #[ts(type = "number")]
     pub total_credit: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reversed: Option<bool>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reversal_of_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reversal_reason: Option<String>,
     #[ts(type = "string")]
     pub created_by: Id,
     #[ts(type = "string")]
     pub created_at: String,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub posted_by: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub posted_at: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub template_id: Option<Id>,
 }
 
@@ -345,6 +362,7 @@ pub struct JournalEntryInputLine {
     #[ts(type = "string")]
     pub account_id: Id,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -353,12 +371,16 @@ pub struct JournalEntryInputLine {
     #[ts(type = "number")]
     pub credit: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub party_kind: Option<PartyKind>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub party_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
 }
 
@@ -372,13 +394,17 @@ pub struct JournalEntryInput {
     pub date: String,
     pub description: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     pub lines: Vec<JournalEntryInputLine>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub as_draft: Option<bool>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub template_id: Option<Id>,
 }
 
@@ -389,32 +415,45 @@ pub struct JournalEntryInput {
 #[ts(export_to = "accounting/types/gen/")]
 pub struct JournalFilter {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub r#type: Option<JournalEntryType>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub search: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub party_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<JournalEntryStatus>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub has_attachments: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reversed: Option<bool>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<Id>,
     #[serde(default, with = "serde_number::option")]
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub min_amount: Option<Decimal>,
     #[serde(default, with = "serde_number::option")]
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub max_amount: Option<Decimal>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source_kind: Option<JournalSourceKind>,
 }
 
@@ -434,6 +473,7 @@ pub struct JournalRow {
     pub kind: JournalEntryType,
     pub status: JournalEntryStatus,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source_ref: Option<JournalSourceRef>,
     pub lines: Vec<JournalLine>,
     #[serde(with = "serde_number")]
@@ -443,27 +483,36 @@ pub struct JournalRow {
     #[ts(type = "number")]
     pub total_credit: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reversed: Option<bool>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reversal_of_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reversal_reason: Option<String>,
     #[ts(type = "string")]
     pub created_by: Id,
     #[ts(type = "string")]
     pub created_at: String,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub posted_by: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub posted_at: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub template_id: Option<Id>,
     pub created_by_name: String,
     #[ts(optional, type = "import('@/modules/core/types/route').AppRoute")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source_link: Option<RouteRef>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source_label: Option<String>,
     pub attachment_count: u32,
 }
@@ -509,8 +558,10 @@ pub struct JournalEntryDetail {
     #[serde(flatten)]
     pub row: JournalRow,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reversed_by_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reversed_by_number: Option<String>,
     pub related: Vec<JournalRow>,
 }
@@ -534,6 +585,7 @@ pub struct LinkedJournalEntry {
 #[ts(export_to = "accounting/types/gen/")]
 pub struct AccountingGetJournalEntriesArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<JournalFilter>,
 }
 

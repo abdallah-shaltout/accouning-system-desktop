@@ -24,17 +24,23 @@ use crate::utils::money::serde_number;
 #[ts(export_to = "diagnostics/types/gen/")]
 pub struct AuditFilter {
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<crate::utils::id::Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub entity: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub action: Option<crate::core::dto::AuditAction>,
     /// `YYYY-MM-DD`, compared against the UTC slice of `AuditEntry.at` (Q-1, kept quirk).
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub search: Option<String>,
 }
 
@@ -43,6 +49,7 @@ pub struct AuditFilter {
 #[ts(export_to = "diagnostics/types/gen/")]
 pub struct DiagnosticsGetAuditEntriesArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<AuditFilter>,
 }
 
@@ -51,6 +58,7 @@ pub struct DiagnosticsGetAuditEntriesArgs {
 #[ts(export_to = "diagnostics/types/gen/")]
 pub struct DiagnosticsExportSupportBundleArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub include_db_snapshot: Option<bool>,
 }
 
@@ -64,13 +72,17 @@ pub struct DiagnosticsExportSupportBundleArgs {
 pub struct ServerDiagnosticsDto {
     pub state: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub port: Option<u16>,
     pub lan_sharing: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_failure: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_log_tail: Option<String>,
 }
 
@@ -101,8 +113,10 @@ pub struct SupportSnapshot {
     /// Settings:Write) — every table via `infrastructure::backup::dataset`, excluding `credentials`,
     /// redacted (spec §3 step 5, D-3).
     #[ts(optional, type = "unknown")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub db_snapshot: Option<serde_json::Value>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub server: Option<ServerDiagnosticsDto>,
 }
 
@@ -132,6 +146,7 @@ pub struct AccountingDocSummary {
     #[ts(type = "number")]
     pub total_credit: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source_kind: Option<String>,
     pub has_trace: bool,
 }
@@ -146,6 +161,7 @@ pub struct BalanceAround {
     pub account_id: Id,
     pub account_name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub account_code: Option<String>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -186,8 +202,10 @@ pub struct DriftRow {
     #[ts(type = "number")]
     pub diff: Decimal,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub first_diverging_doc_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub first_diverging_doc_number: Option<String>,
 }
 
@@ -202,8 +220,10 @@ pub struct ExplainLine {
     pub doc_number: String,
     pub doc_date: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source_kind: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -249,6 +269,7 @@ pub struct InvariantResultDto {
     pub passed: bool,
     pub message: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub diff: Option<InvariantDiffDto>,
 }
 
@@ -290,6 +311,7 @@ pub struct TraceLineDto {
     #[ts(type = "string")]
     pub account_id: Id,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -298,19 +320,24 @@ pub struct TraceLineDto {
     #[ts(type = "number")]
     pub credit: Decimal,
     #[ts(optional, type = "'customer' | 'supplier'")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub party_kind: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub party_id: Option<Id>,
     #[ts(type = "string")]
     pub branch_id: Id,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     pub currency: String,
     #[serde(default, with = "serde_number::option")]
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount_fc: Option<Decimal>,
     #[serde(default, with = "serde_number::option")]
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<Decimal>,
 }
 
@@ -362,6 +389,7 @@ pub struct PostingTraceDto {
     #[ts(type = "string")]
     pub doc_id: Id,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub correlation_id: Option<Id>,
     pub steps: Vec<PostingTraceStepDto>,
     pub lines: Vec<TraceLineDto>,
@@ -393,6 +421,7 @@ impl From<&crate::shared::ledger::trace::PostingTrace> for PostingTraceDto {
 #[ts(export_to = "diagnostics/types/gen/")]
 pub struct DiagnosticsListRecentDocumentsArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<u32>,
 }
 
@@ -427,5 +456,6 @@ pub struct DiagnosticsExplainAccountBalanceArgs {
     #[ts(type = "string")]
     pub account_id: Id,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub party_id: Option<Id>,
 }

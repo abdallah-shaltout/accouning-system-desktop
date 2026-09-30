@@ -81,26 +81,35 @@ pub struct PurchaseLine {
     #[ts(type = "number")]
     pub cost_price: Decimal,
     #[ts(optional, type = "string")]
-    pub unit_id: Option<Id>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit_id: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_factor: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub discount: Option<Decimal>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub discount_is_pct: Option<bool>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_id: Option<Id>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub received_qty: Option<Decimal>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_no: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiry_date: Option<chrono::NaiveDate>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub landed_cost_share: Option<Decimal>,
 }
 
@@ -116,6 +125,7 @@ pub struct LandedCostLine {
     #[ts(type = "number")]
     pub amount: Decimal,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_id: Option<Id>,
     pub spread_by: LandedCostSpread,
 }
@@ -131,6 +141,7 @@ pub struct LandedCostLineInput {
     #[ts(type = "number")]
     pub amount: Decimal,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_id: Option<Id>,
     pub spread_by: LandedCostSpread,
 }
@@ -144,9 +155,11 @@ pub struct LandedCostLineInput {
 pub struct InvoiceDiscount {
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pct: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount: Option<Decimal>,
 }
 
@@ -187,34 +200,48 @@ pub struct PurchaseOrder {
     #[ts(type = "number")]
     pub returned_amount: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice_discount: Option<InvoiceDiscount>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub landed_costs: Option<Vec<LandedCostLine>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_invoice_no: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_invoice_date: Option<chrono::NaiveDate>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vat_not_recoverable: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sent_at: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub backorder_of_id: Option<Id>,
     /// `DocDate` key string — set once received.
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub received_date: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exchange_rate: Option<Decimal>,
 }
 
@@ -233,16 +260,21 @@ pub struct PurchaseLineInput {
     #[ts(type = "number")]
     pub cost_price: Decimal,
     #[ts(optional, type = "string")]
-    pub unit_id: Option<Id>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit_id: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_factor: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub discount: Option<Decimal>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub discount_is_pct: Option<bool>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_id: Option<Id>,
 }
 
@@ -258,25 +290,35 @@ pub struct PurchaseOrderInput {
     pub date: String,
     pub lines: Vec<PurchaseLineInput>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice_discount: Option<InvoiceDiscount>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub landed_costs: Option<Vec<LandedCostLineInput>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_invoice_no: Option<String>,
     #[ts(optional, type = "string")]
-    pub supplier_invoice_date: Option<chrono::NaiveDate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supplier_invoice_date: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exchange_rate: Option<Decimal>,
     pub confirm: bool,
 }
@@ -291,6 +333,7 @@ pub struct PurchaseOrderInput {
 pub struct ReceiveBatchInput {
     pub batch_no: String,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiry_date: Option<chrono::NaiveDate>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -309,6 +352,7 @@ pub struct ReceiveLineInput {
     #[ts(type = "number")]
     pub received_qty: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batches: Option<Vec<ReceiveBatchInput>>,
 }
 
@@ -321,14 +365,19 @@ pub struct ReceivePurchaseInput {
     pub date: String,
     pub lines: Vec<ReceiveLineInput>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_invoice_no: Option<String>,
     #[ts(optional, type = "string")]
-    pub supplier_invoice_date: Option<chrono::NaiveDate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub supplier_invoice_date: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vat_not_recoverable: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub landed_costs: Option<Vec<LandedCostLineInput>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub create_backorder: Option<bool>,
 }
 
@@ -342,16 +391,22 @@ pub struct ReceivePurchaseInput {
 #[ts(export_to = "purchases/types/gen/")]
 pub struct PurchaseListFilter {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub search: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<PurchaseStatus>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_status: Option<PaymentStatus>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
 }
 
@@ -372,6 +427,7 @@ pub struct DebitNoteLine {
     #[ts(type = "number")]
     pub cost_price: Decimal,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_id: Option<Id>,
 }
 
@@ -392,6 +448,7 @@ pub struct PurchaseReturn {
     /// `DocDate` key string.
     pub date: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
     pub lines: Vec<DebitNoteLine>,
     #[serde(with = "serde_number")]
@@ -411,6 +468,7 @@ pub struct PurchaseReturn {
     pub cash_back: Decimal,
     pub refund_method: RefundMethod,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from_draft_id: Option<Id>,
 }
 
@@ -423,11 +481,14 @@ pub struct PurchaseReturnInput {
     #[ts(type = "string")]
     pub purchase_order_id: Id,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_method: Option<RefundMethod>,
     pub lines: Vec<PurchaseReturnInputLine>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from_draft_id: Option<Id>,
 }
 
@@ -443,6 +504,7 @@ pub struct PurchaseReturnInputLine {
     #[ts(type = "number")]
     pub qty: Decimal,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_id: Option<Id>,
 }
 
@@ -484,33 +546,47 @@ pub struct PurchaseRow {
     #[ts(type = "number")]
     pub returned_amount: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice_discount: Option<InvoiceDiscount>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub landed_costs: Option<Vec<LandedCostLine>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_invoice_no: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_invoice_date: Option<chrono::NaiveDate>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vat_not_recoverable: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sent_at: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub backorder_of_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub received_date: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exchange_rate: Option<Decimal>,
     pub supplier_name: String,
     #[serde(with = "serde_number")]
@@ -569,6 +645,7 @@ pub struct PurchaseProductInfo {
     pub stock_qty: Decimal,
     pub r#type: ProductType,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub track_batches: Option<bool>,
 }
 
@@ -618,33 +695,47 @@ pub struct PurchaseDetail {
     #[ts(type = "number")]
     pub returned_amount: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub invoice_discount: Option<InvoiceDiscount>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub landed_costs: Option<Vec<LandedCostLine>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_invoice_no: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_invoice_date: Option<chrono::NaiveDate>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub vat_not_recoverable: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sent_at: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub backorder_of_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub received_date: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exchange_rate: Option<Decimal>,
     pub supplier_name: String,
     #[serde(with = "serde_number")]
@@ -652,6 +743,7 @@ pub struct PurchaseDetail {
     pub outstanding: Decimal,
     pub missing_supplier_invoice: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier: Option<Supplier>,
     #[ts(type = "Record<string, import('./PurchaseProductInfo').PurchaseProductInfo>")]
     pub products: BTreeMap<String, PurchaseProductInfo>,
@@ -659,8 +751,10 @@ pub struct PurchaseDetail {
     pub payments: Vec<Payment>,
     pub journal_entries: Vec<PurchaseJournalRef>,
     #[ts(type = "Record<string, number>")]
+    #[serde(with = "crate::core::dto::totals_map::required")]
     pub returned_qty: BTreeMap<String, Decimal>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub duplicate_invoice_warning: Option<String>,
 }
 
@@ -725,6 +819,7 @@ impl PurchaseDetail {
 #[ts(export_to = "purchases/types/gen/")]
 pub struct PurchasesGetPurchaseOrdersArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<PurchaseListFilter>,
 }
 
@@ -742,6 +837,7 @@ pub struct PurchasesGetPurchaseOrderArgs {
 pub struct PurchasesSavePurchaseOrderArgs {
     pub input: PurchaseOrderInput,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 }
 
@@ -802,6 +898,7 @@ pub struct PurchasesGetActiveBatchesArgs {
 pub struct PurchasesPostDebitNoteDraftArgs {
     pub draft_id: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_method: Option<RefundMethod>,
 }
 

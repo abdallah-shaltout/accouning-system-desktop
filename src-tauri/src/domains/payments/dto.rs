@@ -238,9 +238,11 @@ pub struct PaymentAllocation {
     pub date: String,
     #[ts(optional, type = "number")]
     #[serde(with = "serde_number::option", default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount_fc: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(with = "serde_number::option", default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fx_gain_loss: Option<Decimal>,
 }
 
@@ -259,28 +261,36 @@ pub struct Payment {
     #[ts(type = "string")]
     pub target_id: Id,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target_ref: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target_ref_number: Option<String>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
     pub amount: Decimal,
     pub method: PaymentTenderKind,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     pub allocations: Vec<PaymentAllocation>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(with = "serde_number::option", default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount_fc: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(with = "serde_number::option", default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(with = "serde_number::option", default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fx_gain_loss: Option<Decimal>,
 }
 
@@ -331,18 +341,24 @@ pub struct PaymentInput {
     pub amount: Decimal,
     pub method: PaymentTenderKind,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub allocations: Option<Vec<PaymentAllocationInput>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(with = "serde_number::option", default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub amount_fc: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(with = "serde_number::option", default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<Decimal>,
 }
 
@@ -354,19 +370,26 @@ pub struct PaymentInput {
 #[ts(export_to = "payments/types/gen/")]
 pub struct PaymentFilter {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub r#type: Option<PaymentTypeDto>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub method: Option<PaymentTenderKind>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     /* route-ok: PaymentFilter.to is a plain date-range bound, not a route (01.B §2) */
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub search: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unallocated_only: Option<bool>,
 }
 
@@ -382,6 +405,7 @@ pub struct OpenDocument {
     pub number: String,
     pub date: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub due_date: Option<String>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -390,12 +414,15 @@ pub struct OpenDocument {
     #[ts(type = "number")]
     pub outstanding: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(with = "serde_number::option", default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fc_outstanding: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(with = "serde_number::option", default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rate: Option<Decimal>,
 }
 
@@ -406,7 +433,7 @@ impl From<BalancesOpenDocument> for OpenDocument {
             kind: d.kind.into(),
             number: d.number,
             date: d.date.key(),
-            due_date: d.due_date.map(|d| d.format("%Y-%m-%d").to_string()),
+            due_date: d.due_date_key,
             total: d.total,
             outstanding: d.outstanding,
             currency: d.currency,
@@ -423,6 +450,7 @@ impl From<BalancesOpenDocument> for OpenDocument {
 #[ts(export_to = "payments/types/gen/")]
 pub struct PaymentsGetPaymentsArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<PaymentFilter>,
 }
 

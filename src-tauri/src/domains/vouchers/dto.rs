@@ -67,10 +67,13 @@ pub struct VoucherBaseFields {
     pub amount: Decimal,
     pub description: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     #[ts(type = "string")]
     pub created_by: Id,
@@ -182,10 +185,13 @@ pub struct ReceiptVoucherInput {
     pub amount: Decimal,
     pub description: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     #[ts(type = "string")]
     pub payment_method_id: Id,
@@ -204,10 +210,13 @@ pub struct PaymentVoucherInput {
     pub amount: Decimal,
     pub description: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     #[ts(type = "string")]
     pub payment_method_id: Id,
@@ -226,10 +235,13 @@ pub struct TransferVoucherInput {
     pub amount: Decimal,
     pub description: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     #[ts(type = "string")]
     pub source_account_id: Id,
@@ -237,8 +249,10 @@ pub struct TransferVoucherInput {
     pub destination_account_id: Id,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fee_amount: Option<Decimal>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fee_account_id: Option<Id>,
 }
 
@@ -253,10 +267,13 @@ pub struct OwnerVoucherInput {
     pub amount: Decimal,
     pub description: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     pub direction: OwnerDirection,
     #[ts(type = "string")]
@@ -270,12 +287,16 @@ pub struct OwnerVoucherInput {
 #[ts(export_to = "vouchers/types/gen/")]
 pub struct VoucherFilter {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<VoucherKind>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub search: Option<String>,
 }
 
@@ -342,10 +363,15 @@ pub struct CardSettlementGroupRef {
 pub struct CardSettlementInput {
     pub date: String,
     pub groups: Vec<CardSettlementGroupRef>,
-    #[serde(with = "serde_number")]
+    // A required `number` on the wire; `None` when the form sent no number (an empty field is `NaN`,
+    // which JSON carries as `null`) — refused with the mock's `أدخل مبلغ الإيداع البنكي`, never a
+    // decode error (`settlements.ts:65` `!(depositAmount >= 0)`). No `serde(default)`: the key is
+    // always sent, and ts-rs would otherwise emit it as optional.
+    #[serde(with = "serde_number::option")]
     #[ts(type = "number")]
-    pub deposit_amount: Decimal,
+    pub deposit_amount: Option<Decimal>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 }
 
@@ -384,6 +410,7 @@ pub struct CardSettlement {
     #[ts(type = "number")]
     pub fee_amount: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(type = "string")]
     pub created_by: Id,
@@ -432,6 +459,7 @@ pub struct VouchersCreateOwnerVoucherArgs {
 #[ts(export_to = "vouchers/types/gen/")]
 pub struct VouchersGetVouchersArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<VoucherFilter>,
 }
 

@@ -232,10 +232,14 @@ pub async fn record_purchase_return<C: ConnectionTrait>(
     } else {
         posting_lines.push(PostingLine::credit(AccountRef::Role(SystemRole::VatInput), totals.tax_amount));
     }
+    // Rule (ACC-0011): the supplier's side is always qty × purchase price (Dr payable/refund); the
+    // inventory side is what's actually on the books (`value_out`). A positive variance means the
+    // supplier owes back MORE than the removed stock was carried at, so the difference is a CREDIT
+    // to inventoryVariance (a gain); a negative one is a DEBIT (a loss). Balanced by construction.
     if variance > Decimal::ZERO {
-        posting_lines.push(PostingLine::debit(AccountRef::Role(SystemRole::InventoryVariance), variance));
+        posting_lines.push(PostingLine::credit(AccountRef::Role(SystemRole::InventoryVariance), variance));
     } else if variance < Decimal::ZERO {
-        posting_lines.push(PostingLine::credit(AccountRef::Role(SystemRole::InventoryVariance), -variance));
+        posting_lines.push(PostingLine::debit(AccountRef::Role(SystemRole::InventoryVariance), -variance));
     }
 
     // 8. Post.

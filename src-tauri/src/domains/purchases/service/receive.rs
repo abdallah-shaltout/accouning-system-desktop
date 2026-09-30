@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 
 use rust_decimal::Decimal;
-use sea_orm::{ActiveModelTrait, ConnectionTrait, EntityTrait, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, Set};
 
 use crate::core::error::AppError;
 use crate::core::lock;
@@ -28,28 +28,36 @@ use super::read::{landed_costs_to_json_value, po_lines, to_order_dto};
 use super::{base_unit_cost, line_remaining, purchase_line_account};
 use crate::domains::products::service::stock_lines::lock_line_products;
 
-/// A stock-only line's value at order price, for `allocate_landed_costs`'s weighting pass
-/// (`receivedValued.filter((r) => !r.isService)`, `purchases.ts:256`).
+/// A stock-tracked line's value at order price, for `allocate_landed_costs`'s weighting pass
+/// (`receivedValued.filter((r) => !r.isService)`, `purchases.ts`).
 struct ReceivedStockLine {
     product_id: Id,
     qty: Decimal,
     value: Decimal,
 }
 
+/// A landed-cost line billed by a supplier other than the PO's own (a shipper, a customs broker).
+struct OtherSupplierLine {
+    supplier_id: Id,
+    label: String,
+    amount: Decimal,
+}
+
 struct AllocationResult {
     share_by_product: BTreeMap<Id, Decimal>,
     own_supplier_total: Decimal,
-    other_supplier_lines: Vec<(Id, Decimal)>,
+    other_supplier_lines: Vec<OtherSupplierLine>,
 }
 
 /// **`allocate_landed_costs(supplier_id, landed, received)`** (`purchases.ts:187-213`): spreads each
 /// landed-cost line's `amount` over the stock-only receiving lines by `value` or `qty` weight,
 /// simultaneously bucketing it into `own_supplier_total` (added to this PO's own AP) or
-/// `other_supplier_lines` (a separate AP credit per other supplier).
+/// `other_supplier_lines` (a separate AP credit per other supplier). The per-line shares always
+/// sum exactly to the landed cost (the `round2` remainder goes to the largest-weight line).
 fn allocate_landed_costs(po_supplier_id: Id, landed: &[LandedCostLine], received: &[ReceivedStockLine]) -> AllocationResult {
     let mut share_by_product: BTreeMap<Id, Decimal> = BTreeMap::new();
     let mut own_supplier_total = Decimal::ZERO;
-    let mut other_supplier_lines: Vec<(Id, Decimal)> = Vec::new();
+    let mut other_supplier_lines: Vec<OtherSupplierLine> = Vec::new();
 
     let stock_lines: Vec<&ReceivedStockLine> = received.iter().filter(|r| r.qty > Decimal::ZERO).collect();
     let total_value: Decimal = stock_lines.iter().fold(Decimal::ZERO, |a, r| a + r.value);
@@ -60,7 +68,7 @@ fn allocate_landed_costs(po_supplier_id: Id, landed: &[LandedCostLine], received
             continue;
         }
         match lc.supplier_id {
-            Some(sid) if sid != po_supplier_id => other_supplier_lines.push((sid, round2(lc.amount))),
+            Some(sid) if sid != po_supplier_id => other_supplier_lines.push(OtherSupplierLine { supplier_id: sid, label: lc.label.clone(), amount: round2(lc.amount) }),
             _ => own_supplier_total = round2(own_supplier_total + lc.amount),
         }
 
@@ -74,12 +82,21 @@ fn allocate_landed_costs(po_supplier_id: Id, landed: &[LandedCostLine], received
         if !(base > Decimal::ZERO) {
             continue;
         }
-        for r in &stock_lines {
-            let weight = match lc.spread_by {
-                LandedCostSpread::Qty => r.qty,
-                LandedCostSpread::Value => r.value,
-            };
-            let share = round2((lc.amount * weight) / base);
+        let weight = |r: &ReceivedStockLine| match lc.spread_by {
+            LandedCostSpread::Qty => r.qty,
+            LandedCostSpread::Value => r.value,
+        };
+        // Rule (ACC-0004): each share is round2'd and the rounding remainder goes to the largest-weight line (ties → first), so the shares sum exactly to the landed cost.
+        let mut shares: Vec<Decimal> = stock_lines.iter().map(|r| round2((lc.amount * weight(*r)) / base)).collect();
+        let mut largest = 0;
+        for (i, r) in stock_lines.iter().enumerate() {
+            if weight(*r) > weight(stock_lines[largest]) {
+                largest = i;
+            }
+        }
+        let allocated = shares.iter().fold(Decimal::ZERO, |a, s| a + *s);
+        shares[largest] = round2(shares[largest] + round2(round2(lc.amount) - allocated));
+        for (r, share) in stock_lines.iter().zip(shares) {
             let entry = share_by_product.entry(r.product_id).or_insert(Decimal::ZERO);
             *entry = round2(*entry + share);
         }
@@ -153,6 +170,7 @@ pub async fn receive_purchase<C: ConnectionTrait>(
         product_id: Id,
         qty: Decimal,
         value: Decimal,
+        /// Not stock-tracked (service, or `stockMode 'none'`) — expensed, never inventory.
         is_service: bool,
     }
     let mut received_valued: Vec<ReceivedValued> = Vec::new();
@@ -164,15 +182,32 @@ pub async fn receive_purchase<C: ConnectionTrait>(
             product_id: l.product_id,
             qty: l.received_qty,
             value: round2(l.received_qty * unit_cost),
-            is_service: product.model.r#type == "service",
+            // Rule (ACC-0005): a non-stock line (service, or a product with stockMode 'none') is expensed to its purchase account, never debited to inventory.
+            is_service: product.is_untracked(),
         });
     }
 
-    // 6. Landed-cost spread over stock-only lines.
+    // 6. Landed-cost spread over stock-tracked lines.
     let stock_only: Vec<ReceivedStockLine> = received_valued.iter().filter(|r| !r.is_service).map(|r| ReceivedStockLine { product_id: r.product_id, qty: r.qty, value: r.value }).collect();
     let allocation = allocate_landed_costs(po.supplier_id, &landed, &stock_only);
 
-    // 7. Post per line: service -> service_by_account; else stock + landed share -> apply_change (+
+    // 6b. Rule (ACC-0012): each other-supplier landed cost becomes that supplier's own open payable
+    // document (step 14b), so the supplier has to exist. Same refusal point as the mock's
+    // `planReceipt` (right after the spread, before anything is written).
+    let mut other_supplier_names: Vec<String> = Vec::with_capacity(allocation.other_supplier_lines.len());
+    for other in &allocation.other_supplier_lines {
+        let party = crate::entities::parties::parties::Entity::find_by_id(other.supplier_id)
+            .filter(crate::entities::parties::parties::Column::Kind.eq("supplier"))
+            .one(conn)
+            .await
+            .map_err(AppError::from)?;
+        let Some(party) = party else {
+            return Err(AppError::validation("مورد التكلفة الإضافية غير موجود").into());
+        };
+        other_supplier_names.push(party.name);
+    }
+
+    // 7. Post per line: non-stock -> service_by_account; else stock + landed share -> apply_change (+
     // batches).
     let date = RawDocDate::parse(&input.date).map_err(|_| AppError::validation("تاريخ غير صالح"))?.resolve(&cx.clock);
     let mut inventory_value = Decimal::ZERO;
@@ -284,12 +319,20 @@ pub async fn receive_purchase<C: ConnectionTrait>(
         l.cost_center_id = dim_cost_center;
         lines.push(l);
     }
-    for (other_supplier_id, amount) in &allocation.other_supplier_lines {
-        let mut l = PostingLine::credit(AccountRef::Role(SystemRole::Payable), *amount);
-        l.party = Some(PartyRef { kind: crate::entities::journal::journal_lines::PartyKind::Supplier, id: *other_supplier_id });
+    // ACC-0012: each other-supplier line's payable document number is drawn here — before step 12's
+    // backorder number and step 13's journal counter (D-U6's fixed domain -> journal order, and the
+    // mock's own draw order) — and named on its `Cr payable` line.
+    let mut other_supplier_bills: Vec<(Id, String)> = Vec::with_capacity(allocation.other_supplier_lines.len());
+    for other in &allocation.other_supplier_lines {
+        let prefix = crate::shared::defaults::branch_prefix(conn, Some(branch_id)).await?;
+        let number = format!("{prefix}{}", crate::shared::numbering::next_number(conn, crate::shared::numbering::DocumentKind::PurchaseOrder).await?);
+        let mut l = PostingLine::credit(AccountRef::Role(SystemRole::Payable), other.amount);
+        l.description = Some(format!("تكلفة إضافية \"{}\" — {}", other.label, number));
+        l.party = Some(PartyRef { kind: crate::entities::journal::journal_lines::PartyKind::Supplier, id: other.supplier_id });
         l.branch_id = dim_branch;
         l.cost_center_id = dim_cost_center;
         lines.push(l);
+        other_supplier_bills.push((Id::new(), number));
     }
 
     // 11. PO update: totals shrink to the received portion, VAT, flags, invoice no/date only when
@@ -303,10 +346,11 @@ pub async fn receive_purchase<C: ConnectionTrait>(
     if let Some(no) = &input.supplier_invoice_no {
         po_am.supplier_invoice_no = Set(Some(no.clone()));
     }
-    if let Some(d) = input.supplier_invoice_date {
+    if let Some(d) = super::parse_supplier_invoice_date(input.supplier_invoice_date.as_deref(), &cx.clock)? {
         po_am.supplier_invoice_date = Set(Some(d));
     }
-    let had_no_landed_costs = po.landed_costs.is_none();
+    // `!po.landedCosts?.length` (`purchases.ts:425`): absent or empty.
+    let had_no_landed_costs = super::read::json_to_landed_costs(&po.landed_costs).map_or(true, |l| l.is_empty());
     if !landed.is_empty() && had_no_landed_costs {
         po_am.landed_costs = Set(landed_costs_to_json_value(&landed));
     }
@@ -367,7 +411,7 @@ pub async fn receive_purchase<C: ConnectionTrait>(
         None
     };
 
-    // 13. Post (an unbalanced landed-cost spread is refused here exactly as in the mock, Q-U1).
+    // 13. Post (balanced by construction: landed-cost shares sum to the landed cost, ACC-0004).
     post::post(
         conn,
         cx,
@@ -396,6 +440,65 @@ pub async fn receive_purchase<C: ConnectionTrait>(
         Some(RouteRef::detail("purchase", updated_po.id.to_string())),
     )
     .await?;
+
+    // 14b. Rule (ACC-0012): the other suppliers' payable documents — a RECEIVED purchase order with no
+    // stock lines whose total is the landed amount, so each shipper's `Cr payable` above has an open
+    // document behind it (open documents, payment allocation, `supplier-allocation`). Its cost is
+    // already inside this receipt's inventory posting; the document carries only the liability.
+    for ((other, (bill_id, bill_number)), supplier_name) in allocation.other_supplier_lines.iter().zip(other_supplier_bills).zip(other_supplier_names) {
+        let bill = PoActiveModel {
+            id: Set(bill_id),
+            number: Set(bill_number.clone()),
+            supplier_id: Set(other.supplier_id),
+            date_day: Set(date.day),
+            date_instant: Set(date.instant),
+            status: Set(S::Received),
+            sub_total: Set(other.amount),
+            tax_rate: Set(Decimal::ZERO),
+            tax_amount: Set(Decimal::ZERO),
+            grand_total: Set(other.amount),
+            payment_status: Set(crate::entities::purchases::purchase_orders::PaymentStatus::Unpaid),
+            paid_amount: Set(Decimal::ZERO),
+            returned_amount: Set(Decimal::ZERO),
+            note: Set(Some(format!("تكلفة إضافية \"{}\" على أمر الشراء {}", other.label, updated_po.number))),
+            invoice_discount_pct: Set(None),
+            invoice_discount_amount: Set(None),
+            landed_costs: Set(None),
+            supplier_invoice_no: Set(None),
+            supplier_invoice_date: Set(None),
+            vat_not_recoverable: Set(None),
+            sent_at: Set(None),
+            backorder_of_id: Set(None),
+            received_date_day: Set(Some(date.day)),
+            received_date_instant: Set(date.instant),
+            attachment_ids: Set(None),
+            cost_center_id: Set(updated_po.cost_center_id),
+            branch_id: Set(Some(branch_id)),
+            currency: Set(None),
+            exchange_rate: Set(None),
+            created_at: Set(now),
+            updated_at: Set(now),
+            deleted_at: Set(None),
+            sync_status: Set(crate::entities::purchases::purchase_orders::SyncStatus::Local),
+        };
+        bill.insert(conn).await.map_err(AppError::from)?;
+        activity::log(
+            conn,
+            cx,
+            registry,
+            ActivityKind::Purchase,
+            format!(
+                "مستحق {} لـ {} بقيمة {} — تكلفة إضافية على أمر الشراء {}",
+                bill_number,
+                supplier_name,
+                crate::domains::products::service::stock_lines::to_fixed2(other.amount),
+                updated_po.number
+            ),
+            Some(date),
+            Some(RouteRef::detail("purchase", bill_id.to_string())),
+        )
+        .await?;
+    }
 
     // 15. Short-delivery backorder — the DRAFT row itself, using the number already allocated above.
     if let Some(number) = backorder_number {

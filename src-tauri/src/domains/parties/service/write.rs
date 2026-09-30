@@ -386,8 +386,12 @@ pub async fn save_customer<C: ConnectionTrait>(conn: &C, cx: &TxCtx, registry: &
     // whenever present; done as a follow-up update here only because Rust splits common/kind-only
     // fields into two structs.
     let saved = if input.credit_limit.is_some() {
+        let updated_at = saved.updated_at;
         let mut am: PartyActiveModel = saved.into();
         am.credit_limit = Set(input.credit_limit.map(crate::utils::money::round2));
+        // Part of the same save: pin `updated_at` to what `save_party` wrote, so `ON UPDATE
+        // CURRENT_TIMESTAMP(3)` can't move it past `created_at` on a create (→ a spurious `updatedAt`).
+        am.updated_at = Set(updated_at);
         am.update(conn).await.map_err(AppError::from)?
     } else {
         saved
@@ -406,7 +410,9 @@ pub async fn save_supplier<C: ConnectionTrait>(conn: &C, cx: &TxCtx, registry: &
     let contact_person = input.contact_person.as_deref().map(|s| s.trim()).filter(|s| !s.is_empty()).map(|s| s.to_string());
     let needs_update = input.contact_person.is_some() || input.default_expense_account_id.is_some();
     let saved = if needs_update {
+        let updated_at = saved.updated_at;
         let mut am: PartyActiveModel = saved.into();
+        am.updated_at = Set(updated_at); // same as `save_customer`'s follow-up update.
         if input.contact_person.is_some() {
             am.contact_person = Set(contact_person);
         }

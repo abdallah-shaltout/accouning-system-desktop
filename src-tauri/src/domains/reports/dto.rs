@@ -26,8 +26,10 @@ use crate::utils::route::RouteRef;
 #[ts(export_to = "reports/types/gen/")]
 pub struct DateRangeInput {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
 }
 
@@ -37,10 +39,13 @@ pub struct DateRangeInput {
 #[ts(export_to = "reports/types/gen/")]
 pub struct DimensionFilter {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
 }
 
@@ -52,14 +57,19 @@ pub struct DimensionFilter {
 #[ts(export_to = "reports/types/gen/")]
 pub struct ReportRangeFilter {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
 }
 
@@ -269,6 +279,7 @@ pub struct LedgerRow {
 pub struct AccountLedger {
     pub title: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub subtitle: Option<String>,
     pub normal_side: NormalSide,
     #[serde(with = "serde_number")]
@@ -851,9 +862,11 @@ pub struct ShiftReportRow {
     pub terminal_id: Id,
     pub opened_at: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closed_at: Option<String>,
     pub opened_by: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closed_by: Option<String>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -909,6 +922,7 @@ pub struct DeadStockRow {
     #[ts(type = "number")]
     pub cost_value: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_sale_date: Option<String>,
     /// Holds `9007199254740991` (`Number.MAX_SAFE_INTEGER`) for "never sold" (R-10) — exact as a
     /// JSON number.
@@ -1116,9 +1130,11 @@ pub struct OverdueRow {
     pub party_id: Id,
     pub party_name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     pub date: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub due_date: Option<String>,
     #[ts(type = "number")]
     pub days_overdue: i64,
@@ -1174,6 +1190,7 @@ pub struct ReportsGetCostCenterBudgetVsActualArgs {
 pub struct ReportsGetBalanceSheetArgs {
     pub as_of: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub dim: Option<DimensionFilter>,
 }
 
@@ -1287,6 +1304,7 @@ pub struct ReportsGetShiftsReportArgs {
 #[ts(export_to = "reports/types/gen/")]
 pub struct ReportsGetDeadStockReportArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub days: Option<i32>,
 }
 
@@ -1296,6 +1314,7 @@ pub struct ReportsGetDeadStockReportArgs {
 #[ts(export_to = "reports/types/gen/")]
 pub struct ReportsGetStocktakeVariancesArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub count_id: Option<String>,
 }
 

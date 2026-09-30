@@ -42,6 +42,64 @@ async fn lock_target_documents<C: ConnectionTrait>(conn: &C, inputs: &[PaymentAl
     Ok(())
 }
 
+/// The rate an FC allocation's target document was booked at (its AR/AP rate).
+async fn document_rate<C: ConnectionTrait>(conn: &C, alloc: &super::super::dto::PaymentAllocation) -> TxResult<Option<Decimal>> {
+    use super::super::dto::AllocationTargetKind;
+    Ok(match alloc.target_kind {
+        AllocationTargetKind::Invoice => crate::entities::sales::invoices::Entity::find_by_id(alloc.target_id).one(conn).await.map_err(TxError::from)?.and_then(|i| i.exchange_rate),
+        AllocationTargetKind::PurchaseOrder => crate::entities::purchases::purchase_orders::Entity::find_by_id(alloc.target_id).one(conn).await.map_err(TxError::from)?.and_then(|p| p.exchange_rate),
+        AllocationTargetKind::Opening => None,
+    })
+}
+
+/// **ACC-0015** — `allocationFxLines` (`payments.ts`): the entry an "allocate later" realizes FX
+/// with. The payment's own entry posted this money as unallocated — base cash against the control
+/// account with no FC tag. Allocating it to an FC document now (a) releases that untagged cash from
+/// the control account (Dr AR / Cr AP), (b) settles the document at ITS OWN rate, FC-tagged (Cr AR /
+/// Dr AP `amount`, `amount_fc` at the document's rate) — so the party's FC balance goes down by the
+/// FC settled and every tagged line converts at its own rate (`fx-conversion`) — and (c) books the
+/// gap to `FxGain`/`FxLoss` (`fx_gain_loss`, + = gain for either direction). Same net GL effect as
+/// the old two-line entry (control ± FX); only the tagging is right.
+async fn allocation_fx_lines<C: ConnectionTrait>(
+    conn: &C,
+    payment: &crate::entities::payments::payments::Model,
+    rows: &[&super::super::dto::PaymentAllocation],
+    fx: Decimal,
+) -> TxResult<Vec<PostingLine>> {
+    use crate::entities::journal::journal_lines::PartyKind as LinePartyKind;
+    let received = matches!(payment.r#type, crate::entities::payments::payments::PaymentType::Received);
+    let (role, party_kind) = if received { (SystemRole::Receivable, LinePartyKind::Customer) } else { (SystemRole::Payable, LinePartyKind::Supplier) };
+    let party = Some(PartyRef { kind: party_kind, id: payment.target_id });
+    let branch_id = payment.branch_id;
+
+    // Base cash each row consumed: RECEIVED cash = AR + gain, PAID cash = AP - gain.
+    let cash = round2(rows.iter().fold(Decimal::ZERO, |a, r| {
+        let f = r.fx_gain_loss.unwrap_or(Decimal::ZERO);
+        a + if received { r.amount + f } else { r.amount - f }
+    }));
+    let release = if received { PostingLine::debit(AccountRef::Role(role), cash) } else { PostingLine::credit(AccountRef::Role(role), cash) };
+    let mut lines = vec![PostingLine { party, branch_id, ..release }];
+
+    for r in rows {
+        let base = if received { PostingLine::credit(AccountRef::Role(role), r.amount) } else { PostingLine::debit(AccountRef::Role(role), r.amount) };
+        let mut l = PostingLine { party, branch_id, ..base };
+        if let (Some(cur), Some(rate), Some(fc)) = (&payment.currency, document_rate(conn, r).await?, r.amount_fc) {
+            l.currency = Some(cur.clone());
+            l.amount_fc = Some(fc);
+            l.rate = Some(rate);
+        }
+        lines.push(l);
+    }
+
+    let description = Some("فرق عملة محقق (تخصيص لاحق)".to_string());
+    lines.push(if fx > Decimal::ZERO {
+        PostingLine { branch_id, description, ..PostingLine::credit(AccountRef::Role(SystemRole::FxGain), fx) }
+    } else {
+        PostingLine { branch_id, description, ..PostingLine::debit(AccountRef::Role(SystemRole::FxLoss), -fx) }
+    });
+    Ok(lines)
+}
+
 /// **§3.3 `allocate_existing_payment(conn, cx, reg, payment_id, inputs)`**, porting `allocatePayment`
 /// (`payments.ts:314-369`) in this exact order.
 pub async fn allocate_existing_payment<C: ConnectionTrait>(
@@ -91,54 +149,15 @@ pub async fn allocate_existing_payment<C: ConnectionTrait>(
         target_ref_changed = true;
     }
 
-    // 5. Realized FX on "allocate later".
-    let new_fx = round2(new_rows.iter().fold(Decimal::ZERO, |a, r| a + r.fx_gain_loss.unwrap_or(Decimal::ZERO)));
+    // 5. Realized FX on "allocate later" — ACC-0015 (`allocationFxLines`, payments.ts). Only rows that
+    //    realized FX post; a zero-FX allocation still posts nothing (§3.3).
+    let fx_rows: Vec<&super::super::dto::PaymentAllocation> = new_rows.iter().filter(|r| r.fx_gain_loss.is_some_and(|f| f != Decimal::ZERO)).collect();
+    let new_fx = round2(fx_rows.iter().fold(Decimal::ZERO, |a, r| a + r.fx_gain_loss.unwrap_or(Decimal::ZERO)));
     let now_date = DocDate { day: cx.clock.today(), instant: Some(cx.clock.now) };
     if new_fx != Decimal::ZERO {
         let updated_fx = round2(payment.fx_gain_loss.unwrap_or(Decimal::ZERO) + new_fx);
         payment_model.fx_gain_loss = Set(Some(updated_fx));
-
-        let new_fc = {
-            let sum = round2(new_rows.iter().fold(Decimal::ZERO, |a, r| a + r.amount_fc.unwrap_or(Decimal::ZERO)));
-            if sum != Decimal::ZERO {
-                Some(sum)
-            } else {
-                None
-            }
-        };
-        let fc_tag: (Option<String>, Option<Decimal>, Option<Decimal>) = match (new_fc, &payment.currency) {
-            (Some(fc), Some(cur)) => (Some(cur.clone()), Some(fc), payment.rate),
-            _ => (None, None, None),
-        };
-        let dim_branch = payment.branch_id;
-
-        let control_line = match payment.r#type {
-            crate::entities::payments::payments::PaymentType::Received => PostingLine {
-                party: Some(PartyRef { kind: crate::entities::journal::journal_lines::PartyKind::Customer, id: payment.target_id }),
-                branch_id: dim_branch,
-                currency: fc_tag.0.clone(),
-                amount_fc: fc_tag.1,
-                rate: fc_tag.2,
-                debit: if new_fx > Decimal::ZERO { new_fx } else { Decimal::ZERO },
-                credit: if new_fx < Decimal::ZERO { -new_fx } else { Decimal::ZERO },
-                ..PostingLine::debit(AccountRef::Role(SystemRole::Receivable), Decimal::ZERO)
-            },
-            crate::entities::payments::payments::PaymentType::Paid => PostingLine {
-                party: Some(PartyRef { kind: crate::entities::journal::journal_lines::PartyKind::Supplier, id: payment.target_id }),
-                branch_id: dim_branch,
-                currency: fc_tag.0.clone(),
-                amount_fc: fc_tag.1,
-                rate: fc_tag.2,
-                debit: if new_fx < Decimal::ZERO { -new_fx } else { Decimal::ZERO },
-                credit: if new_fx > Decimal::ZERO { new_fx } else { Decimal::ZERO },
-                ..PostingLine::debit(AccountRef::Role(SystemRole::Payable), Decimal::ZERO)
-            },
-        };
-        let fx_line = if new_fx > Decimal::ZERO {
-            PostingLine { branch_id: dim_branch, description: Some("فرق عملة محقق (تخصيص لاحق)".to_string()), ..PostingLine::credit(AccountRef::Role(SystemRole::FxGain), new_fx) }
-        } else {
-            PostingLine { branch_id: dim_branch, description: Some("فرق عملة محقق (تخصيص لاحق)".to_string()), ..PostingLine::debit(AccountRef::Role(SystemRole::FxLoss), -new_fx) }
-        };
+        let lines = allocation_fx_lines(conn, &payment, &fx_rows, new_fx).await?;
 
         post::post(
             conn,
@@ -148,7 +167,7 @@ pub async fn allocate_existing_payment<C: ConnectionTrait>(
                 description: format!("فرق عملة محقق — تخصيص لاحق على سند {}", payment.number),
                 entry_type: crate::entities::journal::journal_entries::JournalEntryType::System,
                 source: Some(SourceRef { kind: "payment".to_string(), id: payment_id, number: Some(payment.number.clone()) }),
-                lines: vec![control_line, fx_line],
+                lines,
                 allow_closed_period: false,
                 attachment_ids: Vec::new(),
                 template_id: None,

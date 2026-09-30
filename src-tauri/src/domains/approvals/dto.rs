@@ -88,6 +88,7 @@ pub struct ApprovalRequest {
     #[ts(type = "number")]
     pub value: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub request_note: Option<String>,
     #[ts(type = "string")]
     pub requested_by: Id,
@@ -95,14 +96,19 @@ pub struct ApprovalRequest {
     pub requested_at: String,
     pub status: ApprovalStatus,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub decided_by: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub decided_by_name: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub decided_at: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub decision_comment: Option<String>,
     #[ts(optional, type = "import('@/modules/core/types/route').AppRoute")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub link: Option<RouteRef>,
 }
 
@@ -138,8 +144,10 @@ pub struct ApprovalRequestInput {
     #[ts(type = "number")]
     pub value: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub request_note: Option<String>,
     #[ts(optional, type = "import('@/modules/core/types/route').AppRoute")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub link: Option<RouteRef>,
 }
 
@@ -149,6 +157,7 @@ pub struct ApprovalRequestInput {
 #[ts(export_to = "approvals/types/gen/")]
 pub struct ApprovalDecisionInput {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
 }
 
@@ -158,6 +167,7 @@ pub struct ApprovalDecisionInput {
 #[ts(export_to = "approvals/types/gen/")]
 pub struct ApprovalListFilter {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<ApprovalStatus>,
 }
 
@@ -175,6 +185,7 @@ pub struct ApprovalsSubmitApprovalRequestArgs {
 #[ts(export_to = "approvals/types/gen/")]
 pub struct ApprovalsGetApprovalRequestsArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<ApprovalListFilter>,
 }
 
@@ -184,6 +195,7 @@ pub struct ApprovalsGetApprovalRequestsArgs {
 pub struct ApprovalsApproveRequestArgs {
     pub id: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<ApprovalDecisionInput>,
 }
 

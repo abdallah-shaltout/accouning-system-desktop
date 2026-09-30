@@ -87,13 +87,19 @@ pub(crate) async fn insert_or_update_po<C: ConnectionTrait>(
     let totals = compute_purchase_totals(conn, &totals_lines, input.invoice_discount.as_ref(), tax_rate).await?;
 
     let date = RawDocDate::parse(&input.date).map_err(|_| AppError::validation("تاريخ غير صالح"))?.resolve(&cx.clock);
+    let supplier_invoice_date = super::parse_supplier_invoice_date(input.supplier_invoice_date.as_deref(), &cx.clock)?;
     let now = cx.clock.now;
 
-    let landed_costs_json = input.landed_costs.as_ref().map(|list| {
-        list.iter()
+    // `(input.landedCosts ?? []).map(...)` (`purchases.ts:136`): always an array on a saved order.
+    let landed_costs_json = Some(
+        input
+            .landed_costs
+            .as_deref()
+            .unwrap_or_default()
+            .iter()
             .map(|l| super::super::dto::LandedCostLine { id: Id::new().to_string(), label: l.label.clone(), amount: l.amount, supplier_id: l.supplier_id, spread_by: l.spread_by })
-            .collect::<Vec<_>>()
-    });
+            .collect::<Vec<_>>(),
+    );
 
     let po: PoModel = if let Some(id) = existing_id {
         lock::for_update_by_id(conn, "purchase_orders", &id.to_string()).await.map_err(AppError::from)?;
@@ -115,7 +121,7 @@ pub(crate) async fn insert_or_update_po<C: ConnectionTrait>(
         am.invoice_discount_amount = Set(input.invoice_discount.as_ref().and_then(|d| d.amount));
         am.landed_costs = Set(landed_costs_json.as_ref().map(|l| landed_costs_to_json_value(l)).flatten());
         am.supplier_invoice_no = Set(input.supplier_invoice_no.clone());
-        am.supplier_invoice_date = Set(input.supplier_invoice_date);
+        am.supplier_invoice_date = Set(supplier_invoice_date);
         am.attachment_ids = Set(input.attachment_ids.clone().map(crate::entities::values::StringList));
         am.cost_center_id = Set(cost_center_id);
         am.sub_total = Set(totals.sub_total);
@@ -154,7 +160,7 @@ pub(crate) async fn insert_or_update_po<C: ConnectionTrait>(
             invoice_discount_amount: Set(input.invoice_discount.as_ref().and_then(|d| d.amount)),
             landed_costs: Set(landed_costs_json.as_ref().map(|l| landed_costs_to_json_value(l)).flatten()),
             supplier_invoice_no: Set(input.supplier_invoice_no.clone()),
-            supplier_invoice_date: Set(input.supplier_invoice_date),
+            supplier_invoice_date: Set(supplier_invoice_date),
             vat_not_recoverable: Set(None),
             sent_at: Set(None),
             backorder_of_id: Set(None),
@@ -203,7 +209,7 @@ async fn insert_lines<C: ConnectionTrait>(conn: &C, po_id: Id, lines: &[Purchase
             product_id: Set(l.product_id),
             qty: Set(l.qty),
             cost_price: Set(l.cost_price),
-            unit_id: Set(l.unit_id),
+            unit_id: Set(l.unit_id.clone()),
             unit_factor: Set(l.unit_factor),
             discount: Set(l.discount),
             discount_is_pct: Set(l.discount_is_pct),

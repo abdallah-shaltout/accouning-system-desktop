@@ -87,6 +87,10 @@ fn validate_account(input: &AccountInput, account_by_id: &BTreeMap<Id, AccountMo
     if input.name.trim().is_empty() {
         return Err(AppError::validation("اسم الحساب مطلوب"));
     }
+    // Code clash comes before the parent checks (`validateAccount`'s order — the first rule wins).
+    if account_by_id.values().any(|a| Some(a.id) != except_id && a.code == input.code) {
+        return Err(AppError::conflict("رمز الحساب مستخدم من قبل"));
+    }
     if let Some(parent_id) = input.parent_id {
         if Some(parent_id) == except_id {
             return Err(AppError::validation("لا يمكن أن يكون الحساب أباً لنفسه"));
@@ -114,12 +118,8 @@ pub async fn save_account<C: ConnectionTrait>(conn: &C, cx: &TxCtx, input: Accou
     // way the mock's `db.accounts.find(...)` in-memory scan does.
     let all = Entity::find_live().all(conn).await.map_err(TxError::from)?;
     let by_id: BTreeMap<Id, AccountModel> = all.iter().map(|a| (a.id, a.clone())).collect();
+    // Includes the code-clash pre-check (defensive; the DB's `uq_accounts_code_live` is the real gate, §4).
     validate_account(&input, &by_id, id)?;
-
-    // Code-clash pre-check (defensive; the DB's `uq_accounts_code_live` is the real gate, §4).
-    if all.iter().any(|a| Some(a.id) != id && a.code == input.code) {
-        return Err(TxError::App(AppError::conflict("رمز الحساب مستخدم من قبل")));
-    }
 
     let name = input.name.trim().to_string();
 

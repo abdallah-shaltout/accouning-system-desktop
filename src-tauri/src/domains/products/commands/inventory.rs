@@ -89,11 +89,14 @@ pub async fn products_create_stock_adjustment(state: State<'_, AppState>, args: 
 pub async fn products_complete_adjustment(state: State<'_, AppState>, args: ProductsCompleteAdjustmentArgs) -> CmdResult<StockAdjustment> {
     let id = parse_id(&args.id)?;
     let undo = state.undo.clone();
+    let approved_by = args.approved_by;
+    let approval = approval_check(&state, approved_by);
     with_tx(&state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
+        let approval = ApprovalCheck { granted: approval.granted };
         Box::pin(async move {
             cx.require(tx, Area::Inventory, Access::Write).await?;
-            adjustments::complete_adjustment(tx, cx, &undo, id).await
+            adjustments::complete_adjustment(tx, cx, &undo, id, approved_by, approval).await
         }) as BoxFuture<'_, TxResult<StockAdjustment>>
     })
     .await

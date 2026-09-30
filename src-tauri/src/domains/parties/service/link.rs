@@ -37,10 +37,15 @@ pub async fn link<C: ConnectionTrait>(conn: &C, cx: &TxCtx, registry: &UndoRegis
 
     let mut customer_am: PartyActiveModel = customer.clone().into();
     customer_am.linked_party_id = Set(Some(supplier.id));
+    // The mock's link never touches `updatedAt`; keep the column as is so `ON UPDATE
+    // CURRENT_TIMESTAMP(3)` can't bump it (the DTO shows `updatedAt` only when it differs from
+    // `createdAt`, 05 §DTO).
+    customer_am.updated_at = Set(customer.updated_at);
     customer_am.update(conn).await.map_err(AppError::from)?;
 
     let mut supplier_am: PartyActiveModel = supplier.clone().into();
     supplier_am.linked_party_id = Set(Some(customer.id));
+    supplier_am.updated_at = Set(supplier.updated_at);
     supplier_am.update(conn).await.map_err(AppError::from)?;
 
     activity::log(
@@ -84,11 +89,13 @@ pub async fn unlink<C: ConnectionTrait>(conn: &C, cx: &TxCtx, registry: &UndoReg
 
     let mut p_am: PartyActiveModel = p.clone().into();
     p_am.linked_party_id = Set(None);
+    p_am.updated_at = Set(p.updated_at); // unlink never touches `updatedAt` either (see `link`).
     p_am.update(conn).await.map_err(AppError::from)?;
 
     if let Some(counterpart) = &counterpart {
         let mut c_am: PartyActiveModel = counterpart.clone().into();
         c_am.linked_party_id = Set(None);
+        c_am.updated_at = Set(counterpart.updated_at);
         c_am.update(conn).await.map_err(AppError::from)?;
     }
 

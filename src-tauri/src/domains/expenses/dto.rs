@@ -20,12 +20,15 @@ pub struct ExpenseCategory {
     pub id: Id,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
     #[ts(type = "string")]
     pub account_id: Id,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_tax_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_cost_center_id: Option<Id>,
     pub active: bool,
     pub can_delete: bool,
@@ -53,12 +56,15 @@ pub fn category_to_dto(m: &expense_categories::Model) -> ExpenseCategory {
 pub struct ExpenseCategoryInput {
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
     #[ts(type = "string")]
     pub account_id: Id,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_tax_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub default_cost_center_id: Option<Id>,
     pub active: bool,
 }
@@ -100,6 +106,7 @@ pub struct Expense {
     pub amount: Decimal,
     pub is_tax_invoice: bool,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_id: Option<Id>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -108,22 +115,29 @@ pub struct Expense {
     #[ts(type = "number")]
     pub tax_amount: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_vat_number: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_invoice_no: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     pub paid_from: ExpensePaidFrom,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     pub repeat_monthly: bool,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring_template_id: Option<Id>,
     #[ts(type = "string")]
     pub created_by: Id,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
 }
 
@@ -206,6 +220,7 @@ pub struct ExpenseRow {
     pub amount: Decimal,
     pub is_tax_invoice: bool,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_id: Option<Id>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -214,22 +229,29 @@ pub struct ExpenseRow {
     #[ts(type = "number")]
     pub tax_amount: Decimal,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_vat_number: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_invoice_no: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     pub paid_from: ExpensePaidFrom,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     pub repeat_monthly: bool,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring_template_id: Option<Id>,
     #[ts(type = "string")]
     pub created_by: Id,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     pub category_name: String,
 }
@@ -275,21 +297,29 @@ pub struct ExpenseInput {
     pub amount: Decimal,
     pub is_tax_invoice: bool,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_vat_number: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_invoice_no: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_center_id: Option<Id>,
     pub paid_from: ExpensePaidFrom,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub attachment_ids: Option<Vec<String>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub repeat_monthly: Option<bool>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recurring_template_id: Option<Id>,
 }
 
@@ -300,12 +330,16 @@ pub struct ExpenseInput {
 #[ts(export_to = "expenses/types/gen/")]
 pub struct ExpenseFilter {
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub category_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub search: Option<String>,
 }
 
@@ -325,9 +359,11 @@ pub struct RecurringExpense {
     pub amount: Decimal,
     pub is_tax_invoice: bool,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_id: Option<Id>,
     pub paid_from: ExpensePaidFrom,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub day: i32,
     pub next_date: chrono::NaiveDate,
@@ -367,9 +403,11 @@ pub struct RecurringExpenseInput {
     pub amount: Decimal,
     pub is_tax_invoice: bool,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_id: Option<Id>,
     pub paid_from: ExpensePaidFrom,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub day: i32,
     pub next_date: String,
@@ -385,6 +423,7 @@ pub struct RecurringExpenseInput {
 pub struct ExpensesSaveExpenseCategoryArgs {
     pub input: ExpenseCategoryInput,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Id>,
 }
 
@@ -401,6 +440,7 @@ pub struct ExpensesDeleteExpenseCategoryArgs {
 #[ts(export_to = "expenses/types/gen/")]
 pub struct ExpensesGetExpensesArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<ExpenseFilter>,
 }
 
@@ -425,6 +465,7 @@ pub struct ExpensesCreateExpenseArgs {
 pub struct ExpensesSaveRecurringExpenseArgs {
     pub input: RecurringExpenseInput,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Id>,
 }
 

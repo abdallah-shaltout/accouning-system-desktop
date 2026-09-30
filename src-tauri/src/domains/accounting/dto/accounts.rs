@@ -26,23 +26,30 @@ pub struct AccountWithBalance {
     pub code: String,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_en: Option<String>,
     #[ts(type = "string | null")]
+    #[serialize_always] // `null` for a root account, as the TS type says (not absent)
     pub parent_id: Option<Id>,
     pub is_group: bool,
     pub kind: super::AccountKind,
     pub subtype: super::AccountSubtype,
     pub normal_side: super::NormalSide,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub system_role: Option<crate::shared::ledger::accounts::SystemRole>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub requires_party: Option<bool>,
     pub allow_manual: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub requires_cost_center: Option<bool>,
     pub active: bool,
     pub can_delete: bool,
@@ -93,8 +100,10 @@ impl AccountWithBalance {
 #[ts(export_to = "accounting/types/gen/")]
 pub struct DateRange {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
 }
 
@@ -106,6 +115,7 @@ pub struct DateRange {
 #[ts(export_to = "accounting/types/gen/")]
 pub struct AccountingGetAccountsArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub range: Option<DateRange>,
 }
 
@@ -116,6 +126,7 @@ pub struct AccountingSaveAccountArgs {
     pub input: AccountInput,
     #[serde(default)]
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Id>,
 }
 

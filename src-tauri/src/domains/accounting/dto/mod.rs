@@ -42,10 +42,13 @@ pub struct FiscalYear {
     pub end_date: String,
     pub is_closed: bool,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closing_entry_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closed_at: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub closed_by: Option<Id>,
 }
 
@@ -222,23 +225,30 @@ pub struct Account {
     pub code: String,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_en: Option<String>,
     #[ts(type = "string | null")]
+    #[serialize_always] // `null` for a root account, as the TS type says (not absent)
     pub parent_id: Option<Id>,
     pub is_group: bool,
     pub kind: AccountKind,
     pub subtype: AccountSubtype,
     pub normal_side: NormalSide,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub system_role: Option<SystemRole>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub requires_party: Option<bool>,
     pub allow_manual: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub requires_cost_center: Option<bool>,
     pub active: bool,
     pub can_delete: bool,
@@ -280,15 +290,18 @@ pub struct AccountInput {
     pub code: String,
     pub name: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_en: Option<String>,
     #[serde(default)]
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<Id>,
     pub is_group: bool,
     pub kind: AccountKind,
     pub subtype: AccountSubtype,
     pub normal_side: NormalSide,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub requires_party: Option<bool>,
     pub allow_manual: bool,
     pub active: bool,

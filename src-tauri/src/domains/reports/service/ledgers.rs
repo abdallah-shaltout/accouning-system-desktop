@@ -13,6 +13,7 @@ use crate::entities::org::{branches, cost_centers, currencies};
 use crate::entities::parties::parties;
 use crate::entities::soft_delete::SoftDelete;
 use crate::shared::balances;
+use crate::utils::dates::BusinessClock;
 use crate::utils::id::Id;
 use crate::utils::money::round2;
 use crate::utils::route::RouteRef;
@@ -87,7 +88,7 @@ pub async fn account_ledger<C: ConnectionTrait>(conn: &C, account_id: Id, range:
 
 /// **`reports_get_party_ledger`** (13 §3.8): delegates to `shared::balances::customer_statement`/
 /// `supplier_statement` — never re-derived here.
-pub async fn party_ledger<C: ConnectionTrait>(conn: &C, kind: PartyKindArg, party_id: Id, range: &DateRangeInput) -> TxResult<AccountLedger> {
+pub async fn party_ledger<C: ConnectionTrait>(conn: &C, kind: PartyKindArg, party_id: Id, range: &DateRangeInput, clock: &BusinessClock) -> TxResult<AccountLedger> {
     let kind_str = match kind {
         PartyKindArg::Customer => "customer",
         PartyKindArg::Supplier => "supplier",
@@ -106,18 +107,11 @@ pub async fn party_ledger<C: ConnectionTrait>(conn: &C, kind: PartyKindArg, part
     };
 
     let date_range = DateRange::parse(range)?;
-    let from_key = date_range.from.map(|d| d.format("%Y-%m-%d").to_string());
-    let to_key = date_range.to.map(|d| d.format("%Y-%m-%d").to_string());
-    let before: Vec<&balances::PartyStatementRow> = all.iter().filter(|r| from_key.as_deref().is_some_and(|f| r.date_key.as_str() < f)).collect();
-    let in_range: Vec<&balances::PartyStatementRow> = all
-        .iter()
-        .filter(|r| {
-            let key = r.date_key.as_str();
-            let from_ok = from_key.as_deref().map(|f| key >= f).unwrap_or(true);
-            let to_ok = to_key.as_deref().map(|t| key <= t).unwrap_or(true);
-            from_ok && to_ok
-        })
-        .collect();
+    // The mock compares each row's **local business day** (`localDateKey(r.date)` /
+    // `inDateRange(r.date, …)`), not its raw key: an instant key (`2026-06-30T09:00:01.000Z`) is
+    // byte-greater than a `to` of `2026-06-30` and would wrongly fall out of the range.
+    let before: Vec<&balances::PartyStatementRow> = all.iter().filter(|r| date_range.from.is_some_and(|f| common::day_of_key(&r.date_key, clock) < f)).collect();
+    let in_range: Vec<&balances::PartyStatementRow> = all.iter().filter(|r| common::in_range(common::day_of_key(&r.date_key, clock), &date_range)).collect();
 
     let opening = before.last().map(|r| r.balance).unwrap_or(Decimal::ZERO);
 

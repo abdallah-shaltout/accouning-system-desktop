@@ -257,7 +257,11 @@ pub async fn validate_allocations<C: ConnectionTrait>(
             if ar_amount > doc.outstanding + tol_1 {
                 return Err(AppError::validation(format!("المبلغ المخصص لـ {} أكبر من المتبقي عليه ({:.2})", doc.number, doc.outstanding)).into());
             }
-            let fx_gain_loss = round2(cash_amount - ar_amount);
+            // + = gain. A receipt gains when more base cash came in than the receivable carried; a
+            // supplier payment gains when less base cash went out than the payable carried — the
+            // sign flips for it (ACC-0015; the old `cash − ar` booked a PAID loss as a gain and left
+            // the entry unbalanced).
+            let fx_gain_loss = if matches!(target_type, PartyKind::Customer) { round2(cash_amount - ar_amount) } else { round2(ar_amount - cash_amount) };
             remaining = round2(remaining - cash_amount);
             rows.push(PaymentAllocation {
                 id: Id::new(),

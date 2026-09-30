@@ -46,7 +46,7 @@ fn line_to_dto(l: &TransferLineModel) -> StockTransferLine {
     StockTransferLine {
         product_id: l.product_id,
         qty: l.qty,
-        unit_id: l.unit_id,
+        unit_id: l.unit_id.clone(),
         unit_factor: l.unit_factor,
         batch_id: l.batch_id,
         batch_no: l.batch_no.clone(),
@@ -89,14 +89,21 @@ fn base_qty(qty: Decimal, unit_factor: Option<Decimal>) -> Decimal {
 }
 
 /// D-I4: the receive/reject journal source id — the transfer id's 16 bytes with the version nibble
-/// set to 8, deterministic and never equal to any v7 id (mirrors the mock's `${transfer.id}-recv`
-/// suffix, which can't be a UUID here). `pub` for 00-import to map `<mockId>-recv` the same way.
+/// set to 8 and the variant bits set to `110x`, deterministic and never equal to any v7 id (mirrors
+/// the mock's `${transfer.id}-recv` suffix, which can't be a UUID here). `pub` for 00-import to map
+/// `<mockId>-recv` the same way.
+///
+/// Why the variant too: MariaDB 11.4's `UUID` type refuses a version-8+ value whose byte 8 is in
+/// `0x01..=0x80` (`1292 Incorrect uuid value`) — with the RFC variant (`10xx`) kept, that is the
+/// ~1/64 of transfer ids whose byte 8 is exactly `0x80` (found by the Part 04 parity run: reject
+/// failed with INTERNAL). `0xC0..=0xDF` is always accepted.
 /// `Id` has no `into_bytes`/`from_bytes` of its own (it's a thin `Uuid` newtype, `utils/id.rs`), so
 /// this goes through `Uuid::into_bytes`/`Uuid::from_bytes` via `Id`'s `From<Uuid>`/`Into<Uuid>`.
 pub fn receipt_source_id(transfer_id: Id) -> Id {
     let uuid: uuid::Uuid = transfer_id.into();
     let mut bytes = uuid.into_bytes();
     bytes[6] = (bytes[6] & 0x0F) | 0x80;
+    bytes[8] = (bytes[8] & 0x1F) | 0xC0;
     Id::from(uuid::Uuid::from_bytes(bytes))
 }
 
@@ -188,7 +195,7 @@ pub async fn create_transfer<C: ConnectionTrait>(conn: &C, cx: &TxCtx, registry:
             position: Set(i as i16),
             product_id: Set(line.product_id),
             qty: Set(line.qty),
-            unit_id: Set(line.unit_id),
+            unit_id: Set(line.unit_id.clone()),
             unit_factor: Set(line.unit_factor),
             batch_id: Set(line.batch_id),
             batch_no: Set(line.batch_no.clone()),
@@ -583,4 +590,24 @@ pub async fn reject_transfer<C: ConnectionTrait>(conn: &C, cx: &TxCtx, registry:
     cx.touch(crate::core::events::ChangeCategory::Catalog);
 
     to_dto(conn, &updated).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// MariaDB 11.4 refuses a v8 UUID whose byte 8 is `0x01..=0x80`; the derived id must always
+    /// land in `0xC0..=0xDF` (variant `110x`) and keep the version nibble 8 (never a v7 id).
+    #[test]
+    fn receipt_source_id_is_always_a_mariadb_valid_v8() {
+        for b8 in [0x00u8, 0x3F, 0x80, 0x8F, 0xBF, 0xC0, 0xFF] {
+            let mut bytes = [0x01u8, 0xA0, 0xF0, 0x57, 0x0B, 0xFF, 0x75, 0xD2, b8, 0xCC, 0xEE, 0x28, 0xBD, 0xD3, 0xC8, 0x21];
+            bytes[8] = b8;
+            let derived: uuid::Uuid = receipt_source_id(Id::from(uuid::Uuid::from_bytes(bytes))).into();
+            let out = derived.into_bytes();
+            assert_eq!(out[6] >> 4, 8, "version nibble");
+            assert!((0xC0..=0xDF).contains(&out[8]), "byte 8 {:#x} from {b8:#x}", out[8]);
+            assert_eq!(receipt_source_id(Id::from(uuid::Uuid::from_bytes(bytes))), Id::from(derived), "deterministic");
+        }
+    }
 }

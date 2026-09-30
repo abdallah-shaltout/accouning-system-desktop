@@ -220,7 +220,7 @@ pub async fn shift_summary<C: ConnectionTrait>(conn: &C, shift: &ShiftModel) -> 
         let methods: std::collections::BTreeMap<Id, String> = if method_ids.is_empty() {
             std::collections::BTreeMap::new()
         } else {
-            crate::entities::org::payment_methods::Entity::find()
+            <crate::entities::org::payment_methods::Entity as crate::entities::soft_delete::SoftDelete>::find_including_deleted()
                 .filter(crate::entities::org::payment_methods::Column::Id.is_in(method_ids))
                 .all(conn)
                 .await

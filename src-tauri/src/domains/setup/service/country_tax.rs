@@ -80,7 +80,7 @@ pub async fn apply<C: ConnectionTrait>(conn: &C, cx: &TxCtx, registry: &UndoRegi
             fixed: Some(false),
             fixed_rate: Some(extra.rate),
         };
-        currency::create(conn, dto).await?;
+        currency::create(conn, cx, dto).await?;
         any_created = true;
     }
 

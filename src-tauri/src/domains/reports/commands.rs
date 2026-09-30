@@ -131,7 +131,7 @@ pub async fn reports_get_party_ledger(state: State<'_, AppState>, args: ReportsG
         let range = args.range.clone();
         Box::pin(async move {
             ctx.require(tx, Area::Reports, Access::Read).await?;
-            ledgers::party_ledger(tx, kind, party_id, &range).await
+            ledgers::party_ledger(tx, kind, party_id, &range, &ctx.clock).await
         }) as BoxFuture<'_, TxResult<AccountLedger>>
     })
     .await

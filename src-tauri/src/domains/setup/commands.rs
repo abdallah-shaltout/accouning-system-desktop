@@ -20,13 +20,15 @@ type CmdResult<T> = Result<T, ApiErrorPayload>;
 // --- Device (§3.1) ---------------------------------------------------------------------------------
 
 #[tauri::command]
-pub async fn setup_get_device_setup_state(app: tauri::AppHandle, state: State<'_, AppState>) -> CmdResult<DeviceSetupState> {
-    service::device::get_device_setup_state(&app, &state).await.map_err(ApiErrorPayload::from)
+pub async fn setup_get_device_setup_state<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppState>) -> CmdResult<DeviceSetupState> {
+    let app = crate::wry_handle(&app).map_err(ApiErrorPayload::from)?;
+    service::device::get_device_setup_state(app, &state).await.map_err(ApiErrorPayload::from)
 }
 
 #[tauri::command]
-pub async fn setup_provision_main(app: tauri::AppHandle, state: State<'_, AppState>) -> CmdResult<DeviceSetupState> {
-    service::device::provision_main(&app, &state).await.map_err(ApiErrorPayload::from)
+pub async fn setup_provision_main<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppState>) -> CmdResult<DeviceSetupState> {
+    let app = crate::wry_handle(&app).map_err(ApiErrorPayload::from)?;
+    service::device::provision_main(app, &state).await.map_err(ApiErrorPayload::from)
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]
@@ -40,9 +42,10 @@ pub struct SetupPairTerminalArgs {
 }
 
 #[tauri::command]
-pub async fn setup_pair_terminal(app: tauri::AppHandle, state: State<'_, AppState>, args: SetupPairTerminalArgs) -> CmdResult<DeviceSetupState> {
+pub async fn setup_pair_terminal<R: tauri::Runtime>(app: tauri::AppHandle<R>, state: State<'_, AppState>, args: SetupPairTerminalArgs) -> CmdResult<DeviceSetupState> {
+    let app = crate::wry_handle(&app).map_err(ApiErrorPayload::from)?;
     let input = PairTerminalInput { host: args.host, port: args.port, code: args.code };
-    service::device::pair_terminal(&app, &state, input).await.map_err(ApiErrorPayload::from)
+    service::device::pair_terminal(app, &state, input).await.map_err(ApiErrorPayload::from)
 }
 
 // --- Onboarding progress (§3.3/§3.4) ----------------------------------------------------------------
@@ -105,6 +108,7 @@ pub async fn setup_save_onboarding_progress(state: State<'_, AppState>, args: Se
 pub struct SetupMarkStepDoneArgs {
     pub key: String,
     #[ts(optional, type = "number")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub step_index: Option<i32>,
 }
 
@@ -258,8 +262,10 @@ pub struct SetupApplyCoaTemplateArgs {
     #[ts(type = "import('@/mocks/fixtures/accounts').AccountTemplate")]
     pub template: String,
     #[ts(optional, type = "import('@/modules/core/helpers/countryProfiles').CountryCode")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub business_type: Option<String>,
 }
 
@@ -380,6 +386,7 @@ pub async fn setup_post_opening_stock(state: State<'_, AppState>, args: SetupPos
 pub struct SetupRecloseOpeningBalanceEquityArgs {
     pub date: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<CloseTarget>,
 }
 

@@ -163,6 +163,7 @@ pub struct HomeKpis {
 #[ts(export_to = "core/types/gen/")]
 pub struct DashboardGetHomeKpisArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub period: Option<HomePeriod>,
 }
 
@@ -171,6 +172,7 @@ pub struct DashboardGetHomeKpisArgs {
 #[ts(export_to = "core/types/gen/")]
 pub struct DashboardGetLowStockProductsArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
 }
 
@@ -179,6 +181,7 @@ pub struct DashboardGetLowStockProductsArgs {
 #[ts(export_to = "core/types/gen/")]
 pub struct DashboardGetRecentInvoicesArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
 }
 
@@ -187,6 +190,7 @@ pub struct DashboardGetRecentInvoicesArgs {
 #[ts(export_to = "core/types/gen/")]
 pub struct DashboardGetRecentActivityArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
 }
 
@@ -195,8 +199,10 @@ pub struct DashboardGetRecentActivityArgs {
 #[ts(export_to = "core/types/gen/")]
 pub struct DashboardGetTopProductsArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub period: Option<HomePeriod>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
 }
 
@@ -205,8 +211,10 @@ pub struct DashboardGetTopProductsArgs {
 #[ts(export_to = "core/types/gen/")]
 pub struct DashboardGetTopCustomersArgs {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub period: Option<HomePeriod>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i32>,
 }
 
@@ -247,6 +255,7 @@ pub struct RecentInvoice {
     #[ts(flatten)]
     pub invoice: crate::domains::invoices::dto::Invoice,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_name: Option<String>,
 }
 
@@ -260,6 +269,7 @@ pub struct RecentActivityEntry {
     #[ts(flatten)]
     pub entry: crate::core::dto::ActivityEntry,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_name: Option<String>,
 }
 
@@ -275,6 +285,7 @@ pub struct DecimalValue(#[serde(with = "serde_number")] #[ts(type = "number")] p
 #[ts(export_to = "core/types/gen/")]
 pub struct DashboardGetInTransitTransfersArgs {
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub home_branch: Option<Id>,
 }
 
@@ -329,6 +340,7 @@ pub struct InsightDto {
     pub severity: InsightSeverity,
     pub message: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub metric: Option<String>,
     pub action_label: String,
     #[ts(type = "import('@/modules/core/types/route').AppRoute")]

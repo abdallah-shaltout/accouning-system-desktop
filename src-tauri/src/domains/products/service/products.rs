@@ -105,11 +105,11 @@ fn from_dto_unit(u: &DtoProductUnit) -> products::ProductUnit {
 }
 
 fn to_dto_unit_price(p: &products::ProductUnitPrice) -> DtoProductUnitPrice {
-    DtoProductUnitPrice { price_list_id: p.price_list_id, unit_id: p.unit_id, value: p.value }
+    DtoProductUnitPrice { price_list_id: p.price_list_id, unit_id: p.unit_id.clone(), value: p.value }
 }
 
 fn from_dto_unit_price(p: &DtoProductUnitPrice) -> products::ProductUnitPrice {
-    products::ProductUnitPrice { price_list_id: p.price_list_id, unit_id: p.unit_id, value: p.value }
+    products::ProductUnitPrice { price_list_id: p.price_list_id, unit_id: p.unit_id.clone(), value: p.value }
 }
 
 /// Assembles the `Product` DTO for one row: `prices` from `product_prices` (unit_id NULL,
@@ -605,8 +605,8 @@ pub async fn create_product<C: ConnectionTrait>(
     let now = cx.clock.now;
     let mut am = ProductActiveModel {
         id: Set(id),
-        stock_qty: Set(Decimal::ZERO),
-        stock_value: Set(Decimal::ZERO),
+        // stock_qty/stock_value are left to their column DEFAULT 0 (m0005): only shared::stock
+        // writes them (D-5).
         cost_price: Set(normalized.cost_price),
         created_at: Set(now),
         updated_at: Set(now),

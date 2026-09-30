@@ -107,13 +107,17 @@ pub async fn movements<C: ConnectionTrait>(conn: &C, range: &DateRange, dim: Opt
     // read fully first since we still need each line's account/branch/cost-center/currency).
     if let Some(dim) = dim {
         if let Some(branch_id) = dim.branch_id.as_deref().filter(|s| !s.is_empty()) {
-            if let Ok(id) = branch_id.parse::<Id>() {
-                query = query.filter(journal_lines::Column::BranchId.eq(id));
+            // The mock's `line.branchId === dim.branchId` matches nothing for an id that is not a
+            // branch (a stale filter), so an unparseable id yields no rows — never "no filter".
+            match branch_id.parse::<Id>() {
+                Ok(id) => query = query.filter(journal_lines::Column::BranchId.eq(id)),
+                Err(_) => return Ok(HashMap::new()),
             }
         }
         if let Some(cc_id) = dim.cost_center_id.as_deref().filter(|s| !s.is_empty()) {
-            if let Ok(id) = cc_id.parse::<Id>() {
-                query = query.filter(journal_lines::Column::CostCenterId.eq(id));
+            match cc_id.parse::<Id>() {
+                Ok(id) => query = query.filter(journal_lines::Column::CostCenterId.eq(id)),
+                Err(_) => return Ok(HashMap::new()),
             }
         }
         if let Some(currency) = dim.currency.as_deref().filter(|s| !s.is_empty()) {

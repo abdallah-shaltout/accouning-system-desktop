@@ -14,9 +14,11 @@ use super::dto::{
 };
 use super::service;
 
+/// A non-UUID id (`'usr-does-not-exist'`) maps to a never-stored id (`Id::unknown_from_text`, plan 21
+/// Part 04 Wave 2) so the service answers it with its own `NOT_FOUND` refusal, as the mock does,
+/// instead of a generic `VALIDATION` "معرّف غير صالح".
 fn parse_id(raw: &str) -> Result<Id, ApiErrorPayload> {
-    raw.parse::<Id>()
-        .map_err(|_| crate::core::error::AppError::validation("معرّف غير صالح").into())
+    Ok(raw.parse::<Id>().unwrap_or_else(|_| Id::unknown_from_text(raw)))
 }
 
 /// D-2: authorised by the area of the action being approved, not `Approvals:Write` — cashiers

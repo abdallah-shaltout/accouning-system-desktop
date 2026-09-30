@@ -42,19 +42,24 @@ pub struct StockAdjustmentLine {
     pub product_id: Id,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub system_qty: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub counted_qty: Option<Decimal>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
     pub qty_change: Decimal,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_cost: Option<Decimal>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_no: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiry_date: Option<chrono::NaiveDate>,
 }
 
@@ -79,14 +84,19 @@ pub struct StockAdjustment {
     pub status: StockAdjustmentStatus,
     pub lines: Vec<StockAdjustmentLine>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<StockInReason>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub offset_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub approved_by: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub approved_at: Option<String>,
 }
 
@@ -105,16 +115,22 @@ pub struct StockAdjustmentDetail {
     pub status: StockAdjustmentStatus,
     pub lines: Vec<StockAdjustmentLine>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<StockInReason>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub offset_account_id: Option<Id>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub approved_by: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub approved_at: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub journal_entry_id: Option<Id>,
 }
 
@@ -146,13 +162,17 @@ pub struct StockAdjustmentLineInput {
     pub product_id: Id,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub qty_change: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub counted_qty: Option<Decimal>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_no: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiry_date: Option<chrono::NaiveDate>,
 }
 
@@ -164,13 +184,17 @@ pub struct StockAdjustmentInput {
     pub r#type: StockAdjustmentType,
     pub date: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<StockInReason>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub offset_account_id: Option<Id>,
     pub lines: Vec<StockAdjustmentLineInput>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub approved_by: Option<Id>,
 }
 
@@ -180,12 +204,16 @@ pub struct StockAdjustmentInput {
 #[ts(export_to = "products/types/gen/")]
 pub struct AdjustmentFilter {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub r#type: Option<StockAdjustmentType>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<StockAdjustmentStatus>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
 }
 
@@ -243,12 +271,16 @@ impl StockMovementReason {
 #[ts(export_to = "products/types/gen/")]
 pub struct MovementFilter {
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<StockMovementReason>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub to: Option<String>,
 }
 
@@ -272,11 +304,14 @@ pub struct StockMovement {
     #[ts(type = "string")]
     pub ref_id: Id,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ref_number: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub balance_after: Option<Decimal>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_id: Option<Id>,
 }
 
@@ -301,14 +336,18 @@ pub struct StockMovementRow {
     #[ts(type = "string")]
     pub ref_id: Id,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ref_number: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub balance_after: Option<Decimal>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_id: Option<Id>,
     pub product_name: String,
     #[ts(optional, type = "import('@/modules/core/types/route').AppRoute")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ref_link: Option<RouteRef>,
 }
 
@@ -344,6 +383,7 @@ pub struct ProductBatch {
     pub product_id: Id,
     pub batch_no: String,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub expiry_date: Option<chrono::NaiveDate>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -352,11 +392,14 @@ pub struct ProductBatch {
     #[ts(type = "number")]
     pub unit_cost: Decimal,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub supplier_id: Option<Id>,
     pub received_date: String,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source_ref_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source_ref_number: Option<String>,
 }
 
@@ -453,6 +496,7 @@ pub struct DebitNoteDraft {
     pub status: DebitNoteDraftStatus,
     pub lines: Vec<DebitNoteDraftLine>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 }
 
@@ -488,6 +532,7 @@ pub struct StockCountLine {
     pub system_qty: Decimal,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub counted_qty: Option<Decimal>,
     #[serde(with = "serde_number")]
     #[ts(type = "number")]
@@ -505,8 +550,10 @@ pub struct StockCount {
     pub status: StockCountStatus,
     pub scope: StockCountScope,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub category_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
     pub blind: bool,
     pub started_at: String,
@@ -514,8 +561,10 @@ pub struct StockCount {
     pub started_by: Id,
     pub lines: Vec<StockCountLine>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub adjustment_id: Option<Id>,
 }
 
@@ -526,11 +575,14 @@ pub struct StockCount {
 pub struct StockCountInput {
     pub scope: StockCountScope,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub category_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
     pub blind: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 }
 
@@ -557,19 +609,25 @@ pub struct StockTransferLine {
     #[ts(type = "number")]
     pub qty: Decimal,
     #[ts(optional, type = "string")]
-    pub unit_id: Option<Id>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit_id: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_factor: Option<Decimal>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_no: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub received_qty: Option<Decimal>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_cost: Option<Decimal>,
 }
 
@@ -589,23 +647,32 @@ pub struct StockTransfer {
     pub date: String,
     pub lines: Vec<StockTransferLine>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sent_at: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sent_by: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub received_at: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub received_by: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rejected_at: Option<String>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rejected_by: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reject_reason: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub shortage_value: Option<Decimal>,
 }
 
@@ -620,13 +687,17 @@ pub struct StockTransferLineInput {
     #[ts(type = "number")]
     pub qty: Decimal,
     #[ts(optional, type = "string")]
-    pub unit_id: Option<Id>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit_id: Option<String>,
     #[ts(optional, type = "number")]
     #[serde(default, with = "serde_number::option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub unit_factor: Option<Decimal>,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_id: Option<Id>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_no: Option<String>,
 }
 
@@ -641,6 +712,7 @@ pub struct StockTransferInput {
     pub to_branch_id: Id,
     pub date: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     pub lines: Vec<StockTransferLineInput>,
 }
@@ -656,6 +728,7 @@ pub struct ReceiveTransferLineInput {
     #[ts(type = "number")]
     pub received_qty: Decimal,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_id: Option<Id>,
 }
 
@@ -674,6 +747,7 @@ pub struct ReceiveTransferInput {
 pub struct ProductsGetStockAdjustmentsArgs {
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<AdjustmentFilter>,
 }
 
@@ -691,6 +765,7 @@ pub struct ProductsCreateStockAdjustmentArgs {
     pub input: StockAdjustmentInput,
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub as_draft: Option<bool>,
 }
 
@@ -699,6 +774,12 @@ pub struct ProductsCreateStockAdjustmentArgs {
 #[ts(export_to = "products/types/gen/")]
 pub struct ProductsCompleteAdjustmentArgs {
     pub id: String,
+    // The approving manager for an above-threshold draft (ACC-0006) — re-checked server-side
+    // against `AppState.approval_grants`, never trusted as sent.
+    #[ts(optional, type = "string")]
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub approved_by: Option<Id>,
 }
 
 #[derive(Debug, Clone, Deserialize, TS)]
@@ -714,6 +795,7 @@ pub struct ProductsDeleteDraftAdjustmentArgs {
 pub struct ProductsGetStockMovementsArgs {
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filter: Option<MovementFilter>,
 }
 
@@ -738,6 +820,7 @@ pub struct ProductsWriteOffExpiredBatchesArgs {
     pub batch_ids: Vec<String>,
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 }
 
@@ -749,6 +832,7 @@ pub struct ProductsReturnBatchesToSupplierArgs {
     pub lines: Vec<DebitNoteDraftLineInput>,
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 }
 
@@ -793,6 +877,7 @@ pub struct ProductsUpdateStockCountLineArgs {
     pub qty: Decimal,
     #[ts(optional)]
     #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub delta: Option<bool>,
 }
 

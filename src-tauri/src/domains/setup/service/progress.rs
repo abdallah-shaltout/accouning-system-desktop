@@ -46,7 +46,13 @@ fn to_dto(state: Option<&OnboardingState>) -> OnboardingProgress {
 /// session steps live in `commands.rs` (they need `AppState`, not just a connection).
 pub async fn get<C: ConnectionTrait>(conn: &C) -> TxResult<OnboardingProgress> {
     let settings = SettingsEntity::find().one(conn).await.map_err(TxError::from)?;
-    Ok(to_dto(settings.as_ref().and_then(|s| s.onboarding.as_ref())))
+    // The mock projects exactly six keys (`setupService.ts:62-67`); the opening/closing entry ids
+    // and the COA template stay in `settings.onboarding`, not in this read.
+    let mut dto = to_dto(settings.as_ref().and_then(|s| s.onboarding.as_ref()));
+    dto.opening_entry_id = None;
+    dto.closing_entry_id = None;
+    dto.coa_template = None;
+    Ok(dto)
 }
 
 /// `saveOnboardingProgress` (`:67-72`): shallow-merges present keys into `onboarding`.

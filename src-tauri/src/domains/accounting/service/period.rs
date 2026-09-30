@@ -388,7 +388,9 @@ pub async fn close_year<C: ConnectionTrait>(conn: &C, cx: &TxCtx, undo: &activit
                 .collect::<String>()
                 .parse::<u64>()
                 .map(|n| (n + 1).to_string())
-                .unwrap_or_else(|_| (start.year() + 1).to_string());
+                // No digits in the name → the closed year's own start year + 1 (`core.ts`:
+                // `new Date(fy.startDate).getFullYear() + 1`), not the new year's.
+                .unwrap_or_else(|_| (fy.start_date.year() + 1).to_string());
             let now = cx.clock.now;
             let model = FiscalYearActiveModel {
                 id: Set(Id::new()),
@@ -411,7 +413,8 @@ pub async fn close_year<C: ConnectionTrait>(conn: &C, cx: &TxCtx, undo: &activit
     Ok(CloseYearResult { fiscal_year: FiscalYear::from_model(saved_fy), closing_entry: closing_entry_dto, next_year })
 }
 
-/// **`reopen_year(id)`** (`accountingService.ts:392-396`, `core.ts:640-677`).
+/// **`reopen_year(id)`** (`accountingService.ts:392-396`, `core.ts:635-677`). The mirror is dated
+/// at the closing entry's date (D-A2).
 pub async fn reopen_year<C: ConnectionTrait>(conn: &C, cx: &TxCtx, undo: &activity::UndoRegistry, fiscal_year_id: Id) -> TxResult<(FiscalYear, Id)> {
     use crate::entities::journal::journal_entries::Entity as EntryEntity;
 
@@ -438,7 +441,11 @@ pub async fn reopen_year<C: ConnectionTrait>(conn: &C, cx: &TxCtx, undo: &activi
                     cx,
                     ReverseRequest {
                         original_id: closing.id,
-                        date: DocDate { day: cx.clock.today(), instant: Some(cx.clock.now) },
+                        // D-A2: dated at the closing entry's own date (the year's end), not "now" —
+                        // the mirror must land inside the reopened year so its revenue/expense
+                        // balances come back (and it can be closed again), without touching the
+                        // following year.
+                        date: closing.date(),
                         description: format!("عكس قيد إقفال السنة المالية {}", fy.name),
                         entry_type: crate::entities::journal::journal_entries::JournalEntryType::Closing,
                         allow_closed_period: true,

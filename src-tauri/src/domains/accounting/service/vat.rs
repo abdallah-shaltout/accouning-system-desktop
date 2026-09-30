@@ -1,7 +1,7 @@
 //! VAT settlement (12b-period-close.md §3.4), porting `journal.ts:234-305`.
 
 use rust_decimal::Decimal;
-use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter};
+use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, QueryOrder};
 
 use crate::core::error::AppError;
 use crate::core::tx::{TxCtx, TxError, TxResult};
@@ -19,6 +19,60 @@ use super::super::dto::{JournalEntry, VatPeriodTotals};
 
 fn parse_ymd(s: &str) -> Result<chrono::NaiveDate, AppError> {
     chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|_| AppError::validation("التاريخ غير صالح"))
+}
+
+/// The settlement entry's description — also the stored record of the period it settled (D-A6).
+/// Kept identical to `vatSettlementDescription` (`journal.ts`).
+fn settlement_description(from: &str, to: &str) -> String {
+    format!("تسوية ضريبة القيمة المضافة — من {from} إلى {to}")
+}
+
+/// Reads `من {from} إلى {to}` back out of a settlement description — the mock's
+/// `/من (\d{4}-\d{2}-\d{2}) إلى (\d{4}-\d{2}-\d{2})$/`: two strict `YYYY-MM-DD` keys, `to` last.
+fn settled_period_from_description(description: &str) -> Option<(chrono::NaiveDate, chrono::NaiveDate)> {
+    fn strict_ymd(s: &str) -> Option<chrono::NaiveDate> {
+        let b = s.as_bytes();
+        let shape = b.len() == 10 && b[4] == b'-' && b[7] == b'-' && b.iter().enumerate().all(|(i, c)| i == 4 || i == 7 || c.is_ascii_digit());
+        if !shape {
+            return None;
+        }
+        chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()
+    }
+    let (head, to) = description.rsplit_once(" إلى ")?;
+    let (_, from) = head.rsplit_once("من ")?;
+    Some((strict_ymd(from)?, strict_ymd(to)?))
+}
+
+/// One period already closed by a live VAT settlement (D-A6).
+struct SettledVatPeriod {
+    number: String,
+    from: chrono::NaiveDate,
+    to: chrono::NaiveDate,
+}
+
+/// **D-A6** (`settledVatPeriods`, `journal.ts`): the periods already closed by a live VAT
+/// settlement, derived from the settlement entries themselves — a posted `VAT_SETTLEMENT` entry
+/// dated `to` whose immutable description carries `من {from} إلى {to}`; an unparsable description
+/// falls back to the entry's own day. Reversed settlements and reversal entries don't count, so
+/// voiding a settlement frees its period. Insertion order (`created_at, id`), like the mock's array.
+async fn settled_vat_periods<C: ConnectionTrait>(conn: &C) -> TxResult<Vec<SettledVatPeriod>> {
+    let entries = EntryEntity::find()
+        .filter(EntryColumn::Type.eq(JournalEntryType::VatSettlement))
+        .filter(EntryColumn::Reversed.eq(false))
+        .filter(EntryColumn::ReversalOfId.is_null())
+        .filter(EntryColumn::DeletedAt.is_null())
+        .order_by_asc(EntryColumn::CreatedAt)
+        .order_by_asc(EntryColumn::Id)
+        .all(conn)
+        .await
+        .map_err(TxError::from)?;
+    Ok(entries
+        .into_iter()
+        .map(|e| {
+            let (from, to) = settled_period_from_description(&e.description).unwrap_or((e.date_day, e.date_day));
+            SettledVatPeriod { number: e.number, from, to }
+        })
+        .collect())
 }
 
 /// **`vat_totals(from, to)`** (`journal.ts:234-250`) — over posted lines with `date_day BETWEEN
@@ -57,8 +111,27 @@ pub async fn vat_totals<C: ConnectionTrait>(conn: &C, from: &str, to: &str) -> T
     Ok(VatPeriodTotals { output_vat, input_vat, net: round2(output_vat - input_vat) })
 }
 
-/// **`submit_vat_settlement(from, to)`** (`journal.ts:256-279`).
+/// **`submit_vat_settlement(from, to)`** (`journal.ts` `postVatSettlement`). Refuses (`CONFLICT`)
+/// a period overlapping one already settled (D-A6) — `vat_totals` reads the GL, so a second
+/// settlement over the same days would close the same VAT movement into `vatPayable` twice.
 pub async fn submit_vat_settlement<C: ConnectionTrait>(conn: &C, cx: &TxCtx, from: &str, to: &str) -> TxResult<JournalEntry> {
+    let from_day = parse_ymd(from).map_err(TxError::App)?;
+    let to_day = parse_ymd(to).map_err(TxError::App)?;
+
+    // Settings X — serialises every VAT settlement so two terminals cannot both pass the overlap
+    // check below and settle the same days (settings is first in the global lock order).
+    crate::core::settings::load_shared_locked(conn).await.map_err(TxError::App)?;
+
+    let settled = settled_vat_periods(conn).await?;
+    if let Some(overlap) = settled.iter().find(|p| from_day <= p.to && to_day >= p.from) {
+        return Err(TxError::App(AppError::conflict(format!(
+            "الفترة تتداخل مع تسوية ضريبة سابقة {} (من {} إلى {}) — لا يمكن تسوية نفس الحركة الضريبية مرتين",
+            overlap.number,
+            overlap.from.format("%Y-%m-%d"),
+            overlap.to.format("%Y-%m-%d"),
+        ))));
+    }
+
     let totals = vat_totals(conn, from, to).await?;
     if totals.output_vat == Decimal::ZERO && totals.input_vat == Decimal::ZERO {
         return Err(TxError::App(AppError::validation("لا توجد حركة ضريبية في هذه الفترة")));
@@ -81,14 +154,13 @@ pub async fn submit_vat_settlement<C: ConnectionTrait>(conn: &C, cx: &TxCtx, fro
         lines.push(PostingLine { description: Some("صافي الضريبة القابلة للاسترداد".to_string()), ..PostingLine::debit(AccountRef::Id(payable_account.id), -totals.net) });
     }
 
-    let to_day = parse_ymd(to).map_err(TxError::App)?;
     let is_admin = super::is_admin(cx);
     let entry = post::post(
         conn,
         cx,
         PostJournal {
             date: DocDate::from(to_day),
-            description: format!("تسوية ضريبة القيمة المضافة — من {from} إلى {to}"),
+            description: settlement_description(from, to),
             entry_type: JournalEntryType::VatSettlement,
             source: None,
             lines,
