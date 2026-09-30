@@ -26,7 +26,9 @@ pub struct Model {
     pub tax_rate: Option<Decimal>,
     pub net: Option<Decimal>,
     pub vat: Option<Decimal>,
-    pub unit_id: Option<Id>,
+    /// The product's own `ProductUnit.id` (a free string such as `pu-panadol-box`), not a `units`
+    /// row id — `VARCHAR(64)`, no FK (m0020).
+    pub unit_id: Option<String>,
     pub unit_factor: Option<Decimal>,
     pub list_price: Option<Decimal>,
     #[sea_orm(column_type = "Text", nullable)]

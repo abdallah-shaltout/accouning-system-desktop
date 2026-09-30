@@ -15,7 +15,9 @@ pub struct Model {
     pub product_id: Id,
     pub qty: Decimal,
     pub cost_price: Decimal,
-    pub unit_id: Option<Id>,
+    /// The product's own `ProductUnit.id` (a free string such as `pu-panadol-box`), not a `units`
+    /// row id — `VARCHAR(64)`, no FK (m0020).
+    pub unit_id: Option<String>,
     pub unit_factor: Option<Decimal>,
     pub discount: Option<Decimal>,
     pub discount_is_pct: Option<bool>,

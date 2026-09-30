@@ -15,7 +15,9 @@ pub struct Model {
     pub product_id: Id,
     #[sea_orm(column_type = "Decimal(Some((19, 4)))")]
     pub qty: Decimal,
-    pub unit_id: Option<Id>,
+    /// The product's own `ProductUnit.id` (a free string such as `pu-panadol-box`), not a `units`
+    /// row id — `VARCHAR(64)`, no FK (m0020).
+    pub unit_id: Option<String>,
     #[sea_orm(column_type = "Decimal(Some((19, 6)))", nullable)]
     pub unit_factor: Option<Decimal>,
     pub batch_id: Option<Id>,

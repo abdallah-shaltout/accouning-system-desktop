@@ -48,7 +48,19 @@ impl Related<super::branches::Entity> for Entity {
     }
 }
 
-impl ActiveModelBehavior for ActiveModel {}
+#[async_trait::async_trait]
+impl ActiveModelBehavior for ActiveModel {
+    /// `code_live` is a MariaDB `GENERATED ALWAYS … STORED` column —
+    /// read-only. An explicit value in an `INSERT`/`UPDATE` is rejected (error 1906, strict mode),
+    /// so whatever a caller put there is dropped before every save.
+    async fn before_save<C>(mut self, _db: &C, _insert: bool) -> Result<Self, sea_orm::DbErr>
+    where
+        C: sea_orm::ConnectionTrait,
+    {
+        self.code_live = sea_orm::ActiveValue::NotSet;
+        Ok(self)
+    }
+}
 
 impl SoftDelete for Entity {
     fn id_column() -> Self::Column {

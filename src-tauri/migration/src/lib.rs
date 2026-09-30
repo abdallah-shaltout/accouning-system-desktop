@@ -24,6 +24,10 @@ mod m0013_platform;
 mod m0014_templates;
 mod m0015_foreign_keys;
 mod m0016_part03_schema;
+mod m0017_attachments;
+mod m0018_signed_small_ints;
+mod m0019_drop_settings_currency_fk;
+mod m0020_line_unit_ids;
 
 pub struct Migrator;
 
@@ -47,6 +51,10 @@ impl MigratorTrait for Migrator {
             Box::new(m0014_templates::Migration),
             Box::new(m0015_foreign_keys::Migration),
             Box::new(m0016_part03_schema::Migration),
+            Box::new(m0017_attachments::Migration),
+            Box::new(m0018_signed_small_ints::Migration),
+            Box::new(m0019_drop_settings_currency_fk::Migration),
+            Box::new(m0020_line_unit_ids::Migration),
         ]
     }
 }

@@ -81,4 +81,19 @@ impl Related<super::stock_transfer_lines::Entity> for Entity {
     }
 }
 
-impl ActiveModelBehavior for ActiveModel {}
+#[async_trait::async_trait]
+impl ActiveModelBehavior for ActiveModel {
+    /// `date_key`, `sent_at_key`, `received_at_key`, `rejected_at_key` are MariaDB `GENERATED ALWAYS … STORED` columns —
+    /// read-only. An explicit value in an `INSERT`/`UPDATE` is rejected (error 1906, strict mode),
+    /// so whatever a caller put there is dropped before every save.
+    async fn before_save<C>(mut self, _db: &C, _insert: bool) -> Result<Self, sea_orm::DbErr>
+    where
+        C: sea_orm::ConnectionTrait,
+    {
+        self.date_key = sea_orm::ActiveValue::NotSet;
+        self.sent_at_key = sea_orm::ActiveValue::NotSet;
+        self.received_at_key = sea_orm::ActiveValue::NotSet;
+        self.rejected_at_key = sea_orm::ActiveValue::NotSet;
+        Ok(self)
+    }
+}

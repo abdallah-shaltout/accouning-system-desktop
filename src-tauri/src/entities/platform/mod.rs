@@ -4,10 +4,12 @@
 
 pub mod activity;
 pub mod approval_requests;
+pub mod attachments;
 pub mod audit;
 pub mod print_templates;
 
 pub use activity::Entity as Activity;
 pub use approval_requests::Entity as ApprovalRequests;
+pub use attachments::Entity as Attachments;
 pub use audit::Entity as Audit;
 pub use print_templates::Entity as PrintTemplates;

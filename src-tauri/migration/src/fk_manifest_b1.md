@@ -22,7 +22,7 @@ file, so create order never matters). Format: `table.column → referenced_table
 | `exchange_rates.currency` | `currencies(code)` | RESTRICT | |
 | `settings.default_tax_id` | `taxes(id)` | RESTRICT | |
 | `settings.default_branch_id` | `branches(id)` | RESTRICT | P2-20: every settings row must resolve to a real branch |
-| `settings.currency` | `currencies(code)` | RESTRICT | base currency must be an enabled currency row (confirm with B2/master plan whether base currency is *required* to also exist in `currencies` — if not, drop this one) |
+| `settings.currency` | `currencies(code)` | RESTRICT | base currency must be an enabled currency row (confirm with B2/master plan whether base currency is *required* to also exist in `currencies` — if not, drop this one) — **dropped by m0019**: the base currency is never a `currencies` row (mock `seedEmptyCompany` keeps `currencies = []`) |
 
 ## m0003_accounts
 
@@ -91,7 +91,7 @@ file, so create order never matters). Format: `table.column → referenced_table
 | `stock_transfers.rejected_by` | `users(id)` | RESTRICT | |
 | `stock_transfer_lines.stock_transfer_id` | `stock_transfers(id)` | CASCADE | child row |
 | `stock_transfer_lines.product_id` | `products(id)` | RESTRICT | |
-| `stock_transfer_lines.unit_id` | `units(id)` | RESTRICT | |
+| ~~`stock_transfer_lines.unit_id`~~ | ~~`units(id)`~~ | — | **Dropped by m0020** (with the `invoice_lines`/`quotation_lines`/`purchase_order_lines` twins): a line's `unitId` is the product's own `ProductUnit.id` (free string in `products.units` JSON), not a `units` row — now `VARCHAR(64) NULL`, no FK. |
 | `stock_transfer_lines.batch_id` | `product_batches(id)` | RESTRICT | |
 
 ## m0007_parties

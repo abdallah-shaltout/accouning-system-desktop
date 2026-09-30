@@ -39,7 +39,11 @@ pub struct ProductUnits(pub Vec<ProductUnit>);
 #[serde(rename_all = "camelCase")]
 pub struct ProductUnitPrice {
     pub price_list_id: Id,
-    pub unit_id: Id,
+    /// The product's own `ProductUnit.id` (`PriceMatrix.vue` keys a cell by `u.id`, `PosPage` looks
+    /// it up with `x.unitId === unit.id`; `'__base__'` for the implicit base unit) — a free string,
+    /// not a `units` row id. (Was `Id`: a non-UUID `pu-*` id decoded to a hashed stand-in and read
+    /// back as a different string, so per-unit prices never matched again — Part 04 parity, L2.)
+    pub unit_id: String,
     #[serde(with = "crate::utils::money::serde_number")]
     pub value: Decimal,
 }
@@ -184,20 +188,29 @@ impl Related<super::product_batches::Entity> for Entity {
 impl ActiveModelBehavior for ActiveModel {
     /// B-6/B-7 (P2-38): recomputes `search_normalized` whenever any of the searched fields
     /// (`name`, `sku`, `barcode` — the exact set `ProductListPage.vue`'s `matchesSearch([p.name,
-    /// p.sku, p.barcode], search.value)` uses today) is `Set`. A field left `Unchanged`/`NotSet`
-    /// on a partial update is read from `self` via `try_as_ref()` (works for both `Set` and
-    /// `Unchanged`), so the haystack always reflects the row's current values, not just the ones
-    /// this particular update touched — the strict "recompute from full row state" choice, not
-    /// "only recompute when literally every field is present".
-    async fn before_save<C>(mut self, _db: &C, _insert: bool) -> Result<Self, sea_orm::DbErr>
+    /// p.sku, p.barcode], search.value)` uses today) is `Set`. A field left `Unchanged` is read from `self`; one left `NotSet` on a partial update
+    /// is read from the stored row (one `find_by_id`), so the haystack always reflects the row's
+    /// full current state, not just the fields this update touched.
+    async fn before_save<C>(mut self, db: &C, insert: bool) -> Result<Self, sea_orm::DbErr>
     where
         C: sea_orm::ConnectionTrait,
     {
+        // `sku_live`/`barcode_live` are `GENERATED ALWAYS … STORED` (read-only; an explicit value is
+        // rejected with error 1906) — drop whatever a caller put there.
+        self.sku_live = sea_orm::ActiveValue::NotSet;
+        self.barcode_live = sea_orm::ActiveValue::NotSet;
         let touched = self.name.is_set() || self.sku.is_set() || self.barcode.is_set();
         if touched {
-            let name = self.name.try_as_ref().map(|s| s.as_str());
-            let sku = self.sku.try_as_ref().map(|s| s.as_str());
-            let barcode = self.barcode.try_as_ref().and_then(|o| o.as_deref());
+            let stored = match self.id.try_as_ref() {
+                Some(id) if !insert && (self.name.is_not_set() || self.sku.is_not_set() || self.barcode.is_not_set()) => Entity::find_by_id(*id).one(db).await?,
+                _ => None,
+            };
+            let name = self.name.try_as_ref().map(|s| s.as_str()).or(stored.as_ref().map(|m| m.name.as_str()));
+            let sku = self.sku.try_as_ref().map(|s| s.as_str()).or(stored.as_ref().map(|m| m.sku.as_str()));
+            let barcode = match self.barcode.try_as_ref() {
+                Some(v) => v.as_deref(),
+                None => stored.as_ref().and_then(|m| m.barcode.as_deref()),
+            };
             self.search_normalized = sea_orm::ActiveValue::Set(Some(crate::utils::text::search_haystack(&[name, sku, barcode])));
         }
         Ok(self)

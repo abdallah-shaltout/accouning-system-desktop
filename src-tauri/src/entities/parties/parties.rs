@@ -158,27 +158,37 @@ impl ActiveModelBehavior for ActiveModel {
     /// s.contactPerson, s.vatNumber], ...)` (`src/modules/parties/services/partyService.ts`) —
     /// since both kinds share this one table (P2-15), `contact_person` is simply `NULL` on a
     /// customer row and contributes nothing to its haystack. Recomputed whenever any of these
-    /// fields is `Set`; unchanged fields are read from `self` (`Set`/`Unchanged` both readable via
-    /// `try_as_ref()`), so a partial update still reflects the row's full current state.
-    async fn before_save<C>(mut self, _db: &C, _insert: bool) -> Result<Self, sea_orm::DbErr>
+    /// fields is `Set`; `Unchanged` fields are read from `self`, `NotSet` ones on a partial update from the
+    /// stored row (one `find_by_id`), so a partial update still reflects the row's full state.
+    async fn before_save<C>(mut self, db: &C, insert: bool) -> Result<Self, sea_orm::DbErr>
     where
         C: sea_orm::ConnectionTrait,
     {
-        let touched = self.name.is_set()
-            || self.name_en.is_set()
-            || self.code.is_set()
-            || self.phone.is_set()
-            || self.vat_number.is_set()
-            || self.contact_person.is_set();
+        let touched = self.name.is_set() || self.name_en.is_set() || self.code.is_set() || self.phone.is_set() || self.vat_number.is_set() || self.contact_person.is_set();
         if touched {
-            let name = self.name.try_as_ref().map(|s| s.as_str());
-            let name_en = self.name_en.try_as_ref().and_then(|o| o.as_deref());
-            let code = self.code.try_as_ref().map(|s| s.as_str());
-            let phone = self.phone.try_as_ref().and_then(|o| o.as_deref());
-            let vat_number = self.vat_number.try_as_ref().and_then(|o| o.as_deref());
-            let contact_person = self.contact_person.try_as_ref().and_then(|o| o.as_deref());
-            self.search_normalized =
-                sea_orm::ActiveValue::Set(Some(crate::utils::text::search_haystack(&[name, name_en, code, phone, vat_number, contact_person])));
+            let stored = match self.id.try_as_ref() {
+                Some(id) if !insert && (self.name.is_not_set() || self.name_en.is_not_set() || self.code.is_not_set() || self.phone.is_not_set() || self.vat_number.is_not_set() || self.contact_person.is_not_set()) => Entity::find_by_id(*id).one(db).await?,
+                _ => None,
+            };
+            let name = self.name.try_as_ref().map(|s| s.as_str()).or(stored.as_ref().map(|m| m.name.as_str()));
+            let name_en = match self.name_en.try_as_ref() {
+                Some(v) => v.as_deref(),
+                None => stored.as_ref().and_then(|m| m.name_en.as_deref()),
+            };
+            let code = self.code.try_as_ref().map(|s| s.as_str()).or(stored.as_ref().map(|m| m.code.as_str()));
+            let phone = match self.phone.try_as_ref() {
+                Some(v) => v.as_deref(),
+                None => stored.as_ref().and_then(|m| m.phone.as_deref()),
+            };
+            let vat_number = match self.vat_number.try_as_ref() {
+                Some(v) => v.as_deref(),
+                None => stored.as_ref().and_then(|m| m.vat_number.as_deref()),
+            };
+            let contact_person = match self.contact_person.try_as_ref() {
+                Some(v) => v.as_deref(),
+                None => stored.as_ref().and_then(|m| m.contact_person.as_deref()),
+            };
+            self.search_normalized = sea_orm::ActiveValue::Set(Some(crate::utils::text::search_haystack(&[name, name_en, code, phone, vat_number, contact_person])));
         }
         Ok(self)
     }

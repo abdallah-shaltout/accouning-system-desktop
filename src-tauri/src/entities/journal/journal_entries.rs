@@ -107,17 +107,24 @@ impl ActiveModelBehavior for ActiveModel {
     /// filter.search)` uses (`src/modules/accounting/services/accountingService.ts`) — the
     /// `JournalListPage.vue` search box's placeholder ("رقم القيد، البيان، أو المستند": entry
     /// number, description, or document) confirms the same three fields. Recomputed whenever any
-    /// of them is `Set`; a field left `Unchanged`/`NotSet` on a partial update is read back from
-    /// `self` via `try_as_ref()`, so the haystack always reflects the row's full current state.
-    async fn before_save<C>(mut self, _db: &C, _insert: bool) -> Result<Self, sea_orm::DbErr>
+    /// of them is `Set`; a field left `Unchanged` is read from `self`, one left `NotSet` on a partial
+    /// update from the stored row (one `find_by_id`), so the haystack reflects the full row state.
+    async fn before_save<C>(mut self, db: &C, insert: bool) -> Result<Self, sea_orm::DbErr>
     where
         C: sea_orm::ConnectionTrait,
     {
         let touched = self.number.is_set() || self.description.is_set() || self.source_number.is_set();
         if touched {
-            let number = self.number.try_as_ref().map(|s| s.as_str());
-            let description = self.description.try_as_ref().map(|s| s.as_str());
-            let source_number = self.source_number.try_as_ref().and_then(|o| o.as_deref());
+            let stored = match self.id.try_as_ref() {
+                Some(id) if !insert && (self.number.is_not_set() || self.description.is_not_set() || self.source_number.is_not_set()) => Entity::find_by_id(*id).one(db).await?,
+                _ => None,
+            };
+            let number = self.number.try_as_ref().map(|s| s.as_str()).or(stored.as_ref().map(|m| m.number.as_str()));
+            let description = self.description.try_as_ref().map(|s| s.as_str()).or(stored.as_ref().map(|m| m.description.as_str()));
+            let source_number = match self.source_number.try_as_ref() {
+                Some(v) => v.as_deref(),
+                None => stored.as_ref().and_then(|m| m.source_number.as_deref()),
+            };
             self.search_normalized = sea_orm::ActiveValue::Set(Some(crate::utils::text::search_haystack(&[number, description, source_number])));
         }
         Ok(self)

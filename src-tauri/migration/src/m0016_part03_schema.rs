@@ -115,8 +115,8 @@ impl MigrationTrait for Migration {
         // --- G-22 (reverse: back to plain DATE + NOT NULL product_id) ---
         revert_doc_date_to_plain_date(db, "invoices", "due_date").await?;
         revert_doc_date_to_plain_date(db, "quotations", "expiry_date").await?;
-        db.execute_unprepared("ALTER TABLE `invoice_lines` MODIFY COLUMN `product_id` CHAR(36) NOT NULL").await?;
-        db.execute_unprepared("ALTER TABLE `quotation_lines` MODIFY COLUMN `product_id` CHAR(36) NOT NULL").await?;
+        db.execute_unprepared("ALTER TABLE `invoice_lines` MODIFY COLUMN `product_id` UUID NOT NULL").await?;
+        db.execute_unprepared("ALTER TABLE `quotation_lines` MODIFY COLUMN `product_id` UUID NOT NULL").await?;
 
         // --- G-17 (reverse) ---
         db.execute_unprepared("ALTER TABLE `accounts` DROP INDEX `uq_accounts_code_live`, DROP COLUMN `code_live`").await?;
@@ -145,8 +145,8 @@ async fn g17_accounts_code_unique<C: sea_orm::ConnectionTrait>(db: &C) -> Result
 /// `DATE` column 1:1 (no existing row carries a time part, since the column was never wider than a
 /// date) and leave `_instant` NULL, which is exactly what a plain `DATE` write would have meant.
 async fn g22_invoice_quotation_lines_and_dates<C: sea_orm::ConnectionTrait>(db: &C) -> Result<(), DbErr> {
-    db.execute_unprepared("ALTER TABLE `invoice_lines` MODIFY COLUMN `product_id` CHAR(36) NULL").await?;
-    db.execute_unprepared("ALTER TABLE `quotation_lines` MODIFY COLUMN `product_id` CHAR(36) NULL").await?;
+    db.execute_unprepared("ALTER TABLE `invoice_lines` MODIFY COLUMN `product_id` UUID NULL").await?;
+    db.execute_unprepared("ALTER TABLE `quotation_lines` MODIFY COLUMN `product_id` UUID NULL").await?;
 
     convert_plain_date_to_doc_date(db, "invoices", "due_date").await?;
     convert_plain_date_to_doc_date(db, "quotations", "expiry_date").await?;
