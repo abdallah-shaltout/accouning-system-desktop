@@ -6,6 +6,7 @@
 pub mod accounting;
 pub mod analytics;
 pub mod approvals;
+pub mod attachments;
 pub mod dashboard;
 pub mod diagnostics;
 pub mod expenses;
@@ -47,6 +48,7 @@ pub fn all_ipc_signatures() -> Vec<IpcSig> {
     sigs.extend(reports::ipc_signatures());
     sigs.extend(analytics::ipc_signatures());
     sigs.extend(dashboard::ipc_signatures());
+    sigs.extend(attachments::ipc_signatures());
     sigs
 }
 
@@ -198,4 +200,5 @@ pub fn export_bindings(cfg: &ts_rs::Config) {
     reports::export_bindings(cfg);
     analytics::export_bindings(cfg);
     dashboard::export_bindings(cfg);
+    attachments::export_bindings(cfg);
 }

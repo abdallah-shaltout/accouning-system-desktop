@@ -65,6 +65,7 @@ async fn main() {
     }
 
     let state = state_file::load(&paths.server_json()).ok().flatten().expect("server.json must exist after a successful start");
+    dev_speed_settings(state.port).await;
     println!("[db_dev_server] ready.");
     println!("EQUAL_TEST_DATABASE_URL=mysql://root:equal-dev@127.0.0.1:{}", state.port);
     println!("[db_dev_server] press Ctrl+C to stop cleanly.");
@@ -73,6 +74,31 @@ async fn main() {
     println!("[db_dev_server] shutting down...");
     server.shutdown(std::time::Duration::from_secs(30)).await;
     println!("[db_dev_server] stopped.");
+}
+
+/// Dev/test-only speed-ups for this throwaway server (user request 2026-09-29: the test pass was
+/// too slow). Every test creates and migrates its own database, so disk syncs dominate: don't
+/// fsync the redo log on each commit, and keep new tables in the shared system tablespace instead
+/// of creating one `.ibd` file per table. `SET GLOBAL` lasts until this server stops and never
+/// touches `my.ini`, so production servers (A2's supervisor) keep their durable settings.
+#[cfg(windows)]
+async fn dev_speed_settings(port: u16) {
+    use sea_orm::{ConnectionTrait, Database};
+
+    let url = format!("mysql://root:equal-dev@127.0.0.1:{port}");
+    let conn = match Database::connect(url).await {
+        Ok(conn) => conn,
+        Err(e) => {
+            eprintln!("[db_dev_server] could not apply dev speed settings: {e}");
+            return;
+        }
+    };
+    for sql in ["SET GLOBAL innodb_flush_log_at_trx_commit = 0", "SET GLOBAL innodb_file_per_table = 0"] {
+        if let Err(e) = conn.execute_unprepared(sql).await {
+            eprintln!("[db_dev_server] `{sql}` failed: {e}");
+        }
+    }
+    let _ = conn.close().await;
 }
 
 #[cfg(not(windows))]
