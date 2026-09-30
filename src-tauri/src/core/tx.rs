@@ -193,6 +193,26 @@ where
     T: Send,
     F: for<'c> Fn(&'c DatabaseTransaction, &'c TxCtx) -> BoxFuture<'c, TxResult<T>>,
 {
+    with_tx_inner(state, opts, None, f).await
+}
+
+/// [`with_tx`] for a system-initiated write that may run while nobody is logged in (17-backup D-6:
+/// the auto-backup timer at the login screen / the close hook): with no session, `fallback_actor`
+/// becomes the transaction's actor, so the audit/activity rows the write records stay attributed
+/// (and FK-safe) instead of failing. A logged-in session always wins over the fallback.
+pub async fn with_tx_attributed<T, F>(state: &AppState, fallback_actor: Option<AuthenticatedUser>, f: F) -> AppResult<T>
+where
+    T: Send,
+    F: for<'c> Fn(&'c DatabaseTransaction, &'c TxCtx) -> BoxFuture<'c, TxResult<T>>,
+{
+    with_tx_inner(state, TxOpts { require_user: false }, fallback_actor, f).await
+}
+
+async fn with_tx_inner<T, F>(state: &AppState, opts: TxOpts, fallback_actor: Option<AuthenticatedUser>, f: F) -> AppResult<T>
+where
+    T: Send,
+    F: for<'c> Fn(&'c DatabaseTransaction, &'c TxCtx) -> BoxFuture<'c, TxResult<T>>,
+{
     if opts.require_user && state.session.read().unwrap().is_none() {
         return Err(AppError::unauthorized("سجّل الدخول أولاً"));
     }
@@ -216,7 +236,7 @@ where
             Ok(c) => c,
             Err(e) => return Err(AppError::from(e)),
         };
-        let actor = state.session.read().unwrap().clone();
+        let actor = state.session.read().unwrap().clone().or_else(|| fallback_actor.clone());
         let ctx = TxCtx::new(actor, state.terminal.terminal_id, clock);
 
         let result = f(&txn, &ctx).await;

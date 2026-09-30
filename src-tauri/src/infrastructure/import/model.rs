@@ -66,9 +66,12 @@ pub mod decimal_field {
     }
 }
 
-fn default_true() -> bool {
-    true
-}
+// No `default_true`: every boolean flag below (`active`, `canDelete`, `allowManual`, `showInPos`,
+// `showInPayments`) is read *truthily* by the mock (`if (!user.active)`, `.filter((b) => b.active)`,
+// `if (!method.canDelete)` — never `!== false`), so a snapshot row that omits the key behaves as
+// `false` there, and the importer must store `false` too (plan 21 Part 04 Wave 2, L1
+// `import/import-edge` `login-inactive-admin`: the edge fixture's admin has no `active` key, the
+// mock refuses the login, Rust used to import it as active and let it in).
 
 /// Parses an ISO-8601 instant string (`createdAt`/`updatedAt`, always a full instant in the mock,
 /// never a bare date) into a UTC `DateTime` — `None` on any parse failure, so callers can fall back
@@ -84,7 +87,7 @@ pub fn parse_instant(raw: &str) -> Option<chrono::DateTime<chrono::Utc>> {
 #[derive(Debug, Clone, Deserialize)]
 pub struct SnapshotV1Envelope {
     pub version: i64,
-    #[serde(default)]
+    #[serde(default, rename = "savedAt")]
     pub saved_at: Option<String>,
     pub data: MockDbV1,
 }
@@ -262,7 +265,7 @@ pub struct UserV1 {
     pub max_discount: Decimal,
     #[serde(default)]
     pub price_list_id: Option<String>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
     #[serde(default)]
     pub avatar: Option<String>,
@@ -301,13 +304,13 @@ pub struct AccountV1 {
     pub branch_id: Option<String>,
     #[serde(default)]
     pub requires_party: Option<bool>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub allow_manual: bool,
     #[serde(default)]
     pub requires_cost_center: Option<bool>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub can_delete: bool,
     #[serde(default)]
     pub created_at: Option<String>,
@@ -479,7 +482,7 @@ pub struct UnitV1 {
 pub struct PriceListV1 {
     pub id: String,
     pub name: String,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
     #[serde(default)]
     pub currency: Option<String>,
@@ -489,6 +492,15 @@ pub struct PriceListV1 {
     pub created_at: Option<String>,
     #[serde(default)]
     pub updated_at: Option<String>,
+}
+
+/// One entry of TS `Product.prices` (`{ priceListId, value }`).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProductPriceV1 {
+    pub price_list_id: String,
+    #[serde(with = "decimal_field")]
+    pub value: Decimal,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -519,7 +531,7 @@ pub struct ProductUnitV1 {
     pub default_for_sale: bool,
     #[serde(default)]
     pub default_for_purchase: bool,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
 }
 
@@ -567,7 +579,7 @@ pub struct ProductV1 {
     pub stock_qty: Decimal,
     #[serde(default, with = "decimal_field::option")]
     pub min_stock: Option<Decimal>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
     #[serde(default)]
     pub image: Option<String>,
@@ -589,6 +601,11 @@ pub struct ProductV1 {
     pub units: Option<Vec<ProductUnitV1>>,
     #[serde(default)]
     pub unit_prices: Option<Vec<ProductUnitPriceV1>>,
+    /// TS `Product.prices` — the base-unit price per price list (`products/types/index.ts`);
+    /// becomes `product_prices` rows with `unit_id = NULL` (the TS `PriceList` itself carries no
+    /// values).
+    #[serde(default)]
+    pub prices: Option<Vec<ProductPriceV1>>,
     #[serde(default, with = "decimal_field::option")]
     pub min_price: Option<Decimal>,
     #[serde(default)]
@@ -634,7 +651,7 @@ pub struct CustomFieldDefV1 {
     pub kind: String,
     #[serde(default)]
     pub options: Option<Vec<String>>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
     #[serde(default)]
     pub sort_order: i16,
@@ -901,7 +918,7 @@ pub struct PartyV1 {
     pub group_id: Option<String>,
     #[serde(default)]
     pub tags: Option<Vec<String>>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
     #[serde(default)]
     pub phone: Option<String>,
@@ -1213,8 +1230,11 @@ pub struct HeldSaleV1 {
     pub discount_is_pct: bool,
     #[serde(default)]
     pub note: Option<String>,
+    /// The parked lines — `HeldSale.lines` in the TS type (`invoices/types/index.ts`), stored in the
+    /// `held_sales.cart` JSON column (the column name, not a snapshot key). Part 04 Wave 2 (L1): this
+    /// used to read a `cart` key no mock `HeldSale` ever had, so every imported held sale lost its lines.
     #[serde(default)]
-    pub cart: Value,
+    pub lines: Value,
     #[serde(default)]
     pub created_at: Option<String>,
     #[serde(default)]
@@ -1483,7 +1503,7 @@ pub struct TaxV1 {
     pub kind: String,
     #[serde(default)]
     pub is_default: bool,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
     #[serde(default)]
     pub category: Option<String>,
@@ -1513,16 +1533,19 @@ pub struct PaymentMethodV1 {
     pub fee_pct: Decimal,
     #[serde(default)]
     pub requires_reference: Option<bool>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub show_in_pos: bool,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub show_in_payments: bool,
     #[serde(default)]
     pub sort_order: i16,
     #[serde(default)]
     pub branch_overrides: Option<Value>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
+    /// TS `PaymentMethod.canDelete` — `false` on the seeded built-ins (cash, mada, …).
+    #[serde(default)]
+    pub can_delete: bool,
     #[serde(default)]
     pub created_at: Option<String>,
     #[serde(default)]
@@ -1607,9 +1630,9 @@ pub struct ExpenseCategoryV1 {
     pub default_tax_id: Option<String>,
     #[serde(default)]
     pub default_cost_center_id: Option<String>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub can_delete: bool,
     #[serde(default)]
     pub created_at: Option<String>,
@@ -1685,7 +1708,7 @@ pub struct RecurringExpenseV1 {
     pub next_date: String,
     #[serde(default)]
     pub auto_post: bool,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
     #[serde(default)]
     pub created_at: Option<String>,
@@ -1792,9 +1815,9 @@ pub struct BranchV1 {
     pub default_price_list_id: Option<String>,
     #[serde(default)]
     pub cost_center_id: Option<String>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub can_delete: bool,
     #[serde(default)]
     pub created_at: Option<String>,
@@ -1820,14 +1843,16 @@ pub struct CostCenterV1 {
     pub id: String,
     pub code: String,
     pub name: String,
+    /// TS `CostCenter.type` (`settings/types/dimensions.ts`).
+    #[serde(rename = "type")]
     pub kind: String,
     #[serde(default)]
     pub parent_id: Option<String>,
     #[serde(default)]
     pub manager_user_id: Option<String>,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub can_delete: bool,
     #[serde(default)]
     pub branch_id: Option<String>,
@@ -1846,7 +1871,7 @@ pub struct CurrencyV1 {
     pub name_ar: String,
     pub symbol: String,
     pub decimals: i32,
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub active: bool,
     #[serde(default)]
     pub fixed: Option<bool>,

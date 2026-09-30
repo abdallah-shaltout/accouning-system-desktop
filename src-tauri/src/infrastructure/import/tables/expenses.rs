@@ -10,7 +10,7 @@ use crate::entities::expenses::recurring_expenses::{ActiveModel as RecurringExpe
 use crate::entities::values::StringList;
 use crate::infrastructure::import::idmap::IdMap;
 use crate::infrastructure::import::model::{ExpenseCategoryV1, ExpenseV1, RecurringExpenseV1};
-use crate::infrastructure::import::tables::{parse_doc_date, resolve_created_at};
+use crate::infrastructure::import::tables::{lenient_ref, parse_doc_date, resolve_created_at, strict_ref};
 use crate::utils::money::round2;
 
 /// G-20: `expense_categories.name_live` is unique (`m0011`'s `uq_expense_categories_name_live`) —
@@ -52,8 +52,8 @@ pub async fn insert_expense_categories<C: ConnectionTrait>(
             name: Set(deduped_names[i].clone()),
             icon: Set(row.icon.clone()),
             account_id: Set(account_id),
-            default_tax_id: Set(row.default_tax_id.as_deref().and_then(|old| id_map.resolve(old))),
-            default_cost_center_id: Set(row.default_cost_center_id.as_deref().and_then(|old| id_map.resolve(old))),
+            default_tax_id: Set(strict_ref(id_map, row.default_tax_id.as_deref(), "expense_categories")?),
+            default_cost_center_id: Set(lenient_ref(id_map, row.default_cost_center_id.as_deref())),
             active: Set(row.active),
             can_delete: Set(row.can_delete),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
@@ -99,21 +99,21 @@ pub async fn insert_expenses<C: ConnectionTrait>(
             category_id: Set(category_id),
             amount: Set(amount),
             is_tax_invoice: Set(row.is_tax_invoice),
-            tax_id: Set(row.tax_id.as_deref().and_then(|old| id_map.resolve(old))),
+            tax_id: Set(strict_ref(id_map, row.tax_id.as_deref(), "expenses")?),
             net_amount: Set(net_amount),
             tax_amount: Set(tax_amount),
             supplier_vat_number: Set(row.supplier_vat_number.clone()),
             supplier_invoice_no: Set(row.supplier_invoice_no.clone()),
-            cost_center_id: Set(row.cost_center_id.as_deref().and_then(|old| id_map.resolve(old))),
+            cost_center_id: Set(lenient_ref(id_map, row.cost_center_id.as_deref())),
             paid_from_kind: Set(paid_from_kind),
-            paid_from_payment_method_id: Set(row.paid_from.payment_method_id.as_deref().and_then(|old| id_map.resolve(old))),
-            paid_from_supplier_id: Set(row.paid_from.supplier_id.as_deref().and_then(|old| id_map.resolve(old))),
+            paid_from_payment_method_id: Set(strict_ref(id_map, row.paid_from.payment_method_id.as_deref(), "expenses")?),
+            paid_from_supplier_id: Set(strict_ref(id_map, row.paid_from.supplier_id.as_deref(), "expenses")?),
             description: Set(row.description.clone()),
             attachment_ids: Set(row.attachment_ids.clone().map(StringList)),
             repeat_monthly: Set(row.repeat_monthly),
-            recurring_template_id: Set(row.recurring_template_id.as_deref().and_then(|old| id_map.resolve(old))),
+            recurring_template_id: Set(None), // DEFERRED (forward ref) — set in run.rs phase B.
             created_by: Set(created_by),
-            branch_id: Set(row.branch_id.as_deref().and_then(|old| id_map.resolve(old))),
+            branch_id: Set(strict_ref(id_map, row.branch_id.as_deref(), "expenses")?),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
             deleted_at: Set(None),
@@ -150,10 +150,10 @@ pub async fn insert_recurring_expenses<C: ConnectionTrait>(
             category_id: Set(category_id),
             amount: Set(amount),
             is_tax_invoice: Set(row.is_tax_invoice),
-            tax_id: Set(row.tax_id.as_deref().and_then(|old| id_map.resolve(old))),
+            tax_id: Set(strict_ref(id_map, row.tax_id.as_deref(), "recurring_expenses")?),
             paid_from_kind: Set(paid_from_kind),
-            paid_from_payment_method_id: Set(row.paid_from.payment_method_id.as_deref().and_then(|old| id_map.resolve(old))),
-            paid_from_supplier_id: Set(row.paid_from.supplier_id.as_deref().and_then(|old| id_map.resolve(old))),
+            paid_from_payment_method_id: Set(strict_ref(id_map, row.paid_from.payment_method_id.as_deref(), "recurring_expenses")?),
+            paid_from_supplier_id: Set(strict_ref(id_map, row.paid_from.supplier_id.as_deref(), "recurring_expenses")?),
             description: Set(row.description.clone()),
             day: Set(row.day),
             next_date: Set(next_date),

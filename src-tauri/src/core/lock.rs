@@ -44,3 +44,14 @@ pub async fn share_lock_by_id(conn: &impl ConnectionTrait, table: &str, id: &str
     conn.query_all(stmt).await?;
     Ok(())
 }
+
+/// [`share_lock_by_id`] that also returns the row: `SELECT * ... LOCK IN SHARE MODE` decoded as
+/// `E::Model`. Use it whenever a caller *decides* on the locked row's values — a locking read
+/// always sees the latest committed version, while a plain `SELECT` inside a REPEATABLE READ
+/// transaction keeps returning the snapshot from its first read (so a value committed by the
+/// transaction the lock just waited for — e.g. `close_year` setting `is_closed` — would be missed).
+pub async fn find_share_locked<E: sea_orm::EntityTrait>(conn: &impl ConnectionTrait, table: &str, id: &str) -> Result<Option<E::Model>, DbErr> {
+    let sql = format!("SELECT * FROM `{table}` WHERE id = ? LOCK IN SHARE MODE");
+    let stmt = Statement::from_sql_and_values(conn.get_database_backend(), &sql, [id.into()]);
+    E::find().from_raw_sql(stmt).one(conn).await
+}

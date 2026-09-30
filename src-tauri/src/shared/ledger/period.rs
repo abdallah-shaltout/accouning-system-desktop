@@ -27,10 +27,13 @@ pub async fn assert_open_period<C: ConnectionTrait>(
 ) -> TxResult<()> {
     // Settings is a `ck_settings_singleton` table — lock its one row by id via a plain SELECT ...
     // LOCK IN SHARE MODE keyed on whatever id that row has.
-    let settings = SettingsEntity::find().one(conn).await.map_err(AppError::from)?;
-    if let Some(settings) = &settings {
-        lock::share_lock_by_id(conn, "settings", &settings.id.to_string()).await?;
-    }
+    // The row's values are re-read *by* the locking read (`find_share_locked`): after waiting on a
+    // concurrent writer's X lock (a lock-date change, `close_year`), a plain REPEATABLE READ select
+    // would still return the pre-commit snapshot and let the poster through.
+    let settings = match SettingsEntity::find().one(conn).await.map_err(AppError::from)? {
+        Some(s) => lock::find_share_locked::<SettingsEntity>(conn, "settings", &s.id.to_string()).await?,
+        None => None,
+    };
 
     let fiscal_year = FiscalYearEntity::find()
         .filter(FiscalYearColumn::StartDate.lte(*date))
@@ -40,9 +43,10 @@ pub async fn assert_open_period<C: ConnectionTrait>(
         .one(conn)
         .await
         .map_err(AppError::from)?;
-    if let Some(fy) = &fiscal_year {
-        lock::share_lock_by_id(conn, "fiscal_years", &fy.id.to_string()).await?;
-    }
+    let fiscal_year = match fiscal_year {
+        Some(fy) => lock::find_share_locked::<FiscalYearEntity>(conn, "fiscal_years", &fy.id.to_string()).await?,
+        None => None,
+    };
 
     if allow_closed_period {
         return Ok(());

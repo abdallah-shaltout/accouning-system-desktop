@@ -7,7 +7,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_opener::OpenerExt;
 
 const CHANNELS: [&str; 5] = ["error", "perf", "debug", "audit", "accounting"];
@@ -30,7 +30,7 @@ fn is_valid_day_file(name: &str) -> bool {
         && bytes.iter().enumerate().all(|(i, b)| (i == 4 || i == 7) || b.is_ascii_digit())
 }
 
-fn logs_dir(app: &AppHandle, channel: &str) -> Result<PathBuf, String> {
+fn logs_dir<R: Runtime>(app: &AppHandle<R>, channel: &str) -> Result<PathBuf, String> {
     if !is_valid_channel(channel) {
         return Err(format!("unknown diagnostics channel: {channel}"));
     }
@@ -50,7 +50,7 @@ fn today_file(dir: &std::path::Path) -> PathBuf {
 /// today's file for `channel`. Rotates to `YYYY-MM-DD-2.jsonl` etc. once the active file passes
 /// `MAX_FILE_BYTES`, so a runaway logging burst can't grow one file forever.
 #[tauri::command]
-pub fn diag_append(app: AppHandle, channel: String, lines: Vec<String>) -> Result<(), String> {
+pub fn diag_append<R: Runtime>(app: AppHandle<R>, channel: String, lines: Vec<String>) -> Result<(), String> {
     if lines.is_empty() {
         return Ok(());
     }
@@ -86,7 +86,7 @@ pub fn diag_append(app: AppHandle, channel: String, lines: Vec<String>) -> Resul
 /// zero-padded), concatenated in filename order. Returns raw lines; parsing/filtering is done in
 /// TypeScript.
 #[tauri::command]
-pub fn diag_read(app: AppHandle, channel: String, from: String, to: String) -> Result<Vec<String>, String> {
+pub fn diag_read<R: Runtime>(app: AppHandle<R>, channel: String, from: String, to: String) -> Result<Vec<String>, String> {
     let dir = logs_dir(&app, &channel)?;
     let mut files: Vec<PathBuf> = fs::read_dir(&dir)
         .map_err(|e| e.to_string())?
@@ -112,7 +112,7 @@ pub fn diag_read(app: AppHandle, channel: String, from: String, to: String) -> R
 /// Deletes every stored line for `channel`, or every channel when `channel` is `None` — used by
 /// the diagnostics page's "مسح السجلات" action.
 #[tauri::command]
-pub fn diag_clear(app: AppHandle, channel: Option<String>) -> Result<(), String> {
+pub fn diag_clear<R: Runtime>(app: AppHandle<R>, channel: Option<String>) -> Result<(), String> {
     let base = app.path().app_log_dir().map_err(|e| e.to_string())?.join("logs");
     let targets: Vec<String> = match channel {
         Some(c) if is_valid_channel(&c) => vec![c],
@@ -130,7 +130,7 @@ pub fn diag_clear(app: AppHandle, channel: Option<String>) -> Result<(), String>
 
 /// Opens the log folder in the OS file explorer (Settings → حول → "فتح مجلد السجلات").
 #[tauri::command]
-pub fn diag_open_folder(app: AppHandle) -> Result<(), String> {
+pub fn diag_open_folder<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
     let base = app.path().app_log_dir().map_err(|e| e.to_string())?.join("logs");
     fs::create_dir_all(&base).map_err(|e| e.to_string())?;
     app.opener()
@@ -144,7 +144,7 @@ pub fn diag_open_folder(app: AppHandle) -> Result<(), String> {
 /// `error`, which the caller passes its own longer retention for — called once on startup by
 /// `diagnosticsService.ts`.
 #[tauri::command]
-pub fn diag_rotate(app: AppHandle, retention_days: u32, error_retention_days: u32) -> Result<(), String> {
+pub fn diag_rotate<R: Runtime>(app: AppHandle<R>, retention_days: u32, error_retention_days: u32) -> Result<(), String> {
     let now = time::OffsetDateTime::now_utc().date();
     for channel in CHANNELS {
         let keep_days = if channel == "error" { error_retention_days } else { retention_days };

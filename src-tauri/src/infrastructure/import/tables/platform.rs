@@ -11,17 +11,21 @@ use crate::entities::platform::audit::{ActiveModel as AuditActiveModel, AuditAct
 use crate::entities::values::RouteRefValue;
 use crate::infrastructure::import::idmap::IdMap;
 use crate::infrastructure::import::model::{ActivityEntryV1, ApprovalRequestV1, AuditEntryV1};
-use crate::infrastructure::import::tables::{parse_doc_date, resolve_created_at};
+use crate::infrastructure::import::tables::{parse_doc_date, resolve_created_at, strict_ref};
 use crate::utils::money::round2;
 use crate::utils::route::RouteRef;
 
 fn remap_link(id_map: &IdMap, link: Option<&serde_json::Value>) -> Option<RouteRefValue> {
     let link = link?;
     let mut route: RouteRef = serde_json::from_value(link.clone()).ok()?;
-    if let Some(params) = &mut route.params {
-        if let Some(id) = params.get_mut("id") {
-            if let Some(new_id) = id_map.resolve(id) {
-                *id = new_id.to_string();
+    // Every param/query value that is a known snapshot id is remapped — not only `params.id`: the
+    // mock's payment/receipt audit links are `{ name: 'payments', query: { highlight: 'pay-135' } }`
+    // (G-13/PG-5), and a verbatim `pay-135` points at no row once payments are UUIDs (found by the
+    // parity diff, plan 21 Part 04 P4-13). Non-id values (tabs, labels) never match a key.
+    for values in [&mut route.params, &mut route.query].into_iter().flatten() {
+        for value in values.values_mut() {
+            if let Some(new_id) = id_map.resolve(value) {
+                *value = new_id.to_string();
             }
         }
     }
@@ -77,7 +81,7 @@ pub async fn insert_approval_requests<C: ConnectionTrait>(
             requested_at_day: Set(requested_day),
             requested_at_instant: Set(requested_instant),
             status: Set(parse_approval_status(&row.status)),
-            decided_by: Set(row.decided_by.as_deref().and_then(|old| id_map.resolve(old))),
+            decided_by: Set(strict_ref(id_map, row.decided_by.as_deref(), "approval_requests")?),
             decided_by_name: Set(row.decided_by_name.clone()),
             decided_at_day: Set(decided.map(|(d, _)| d)),
             decided_at_instant: Set(decided.and_then(|(_, i)| i)),
@@ -143,7 +147,7 @@ pub async fn insert_audit<C: ConnectionTrait>(
             before: Set(before),
             after: Set(after),
             user_id: Set(user_id),
-            branch_id: Set(row.branch_id.as_deref().and_then(|old| id_map.resolve(old))),
+            branch_id: Set(strict_ref(id_map, row.branch_id.as_deref(), "audit")?),
             at_day: Set(at_day),
             at_instant: Set(at_instant),
             reason: Set(row.reason.clone()),
@@ -203,7 +207,7 @@ pub async fn insert_activity<C: ConnectionTrait>(
             kind: Set(kind),
             message: Set(row.message.clone()),
             link: Set(remap_link(id_map, row.link.as_ref())),
-            audit_id: Set(row.audit_id.as_deref().and_then(|old| id_map.resolve(old))),
+            audit_id: Set(strict_ref(id_map, row.audit_id.as_deref(), "activity")?),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
         };
         model.insert(conn).await.map_err(TxError::from)?;

@@ -6,6 +6,8 @@
 //! `infrastructure::import`).
 //!
 //! - [`archive`]: the zip/crypto/checksum format, byte-compatible with the TS helper.
+//! - [`attachments`]: C-16 — packs/restores the `attachments` table as `attachments/<id>.*` zip
+//!   entries (kept out of `dataset`'s generic dump because its blob columns are `LONGBLOB`).
 //! - [`crypto`]: PBKDF2 + AES-256-GCM, byte-compatible with `backupCrypto.ts`.
 //! - [`dataset`]: the schema-agnostic table dump/load (`DataSetV1`, topological order, wipe/load).
 //! - [`counts`]: the fixed-order `tableCounts` parity list.
@@ -17,6 +19,7 @@
 //! - [`commands`]: the 8 `settings_*` IPC commands.
 
 pub mod archive;
+pub mod attachments;
 pub mod auto;
 pub mod commands;
 pub mod counts;

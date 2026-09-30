@@ -110,8 +110,9 @@ async fn count_parties<C: ConnectionTrait>(conn: &C, kind: &str) -> Result<i64, 
 }
 
 /// `settings_preview_backup_counts` / the manifest's `counts` field: one `SELECT COUNT(*)` per fixed
-/// key, in that exact order, then `attachments: 0` (D-5 — Rust archives never carry attachment blobs
-/// while C-16 is open).
+/// key, in that exact order, then a real `attachments` count (C-16 resolved: attachment blobs now
+/// live in MariaDB's `attachments` table, not the browser's IndexedDB, so this is a real
+/// `SELECT COUNT(*)` like every other key here — no soft-delete filter, `attachments` has none).
 pub async fn table_counts<C: ConnectionTrait>(conn: &C) -> TxResult<OrderedCounts> {
     let mut counts = OrderedCounts::default();
     for key in COUNT_KEYS {
@@ -122,7 +123,8 @@ pub async fn table_counts<C: ConnectionTrait>(conn: &C) -> TxResult<OrderedCount
         }?;
         counts.push(*key, n);
     }
-    counts.push("attachments", 0);
+    let attachments_n = count_table(conn, "attachments").await?;
+    counts.push("attachments", attachments_n);
     Ok(counts)
 }
 
@@ -140,8 +142,9 @@ mod tests {
 
     #[test]
     fn count_keys_match_the_spec_order_and_length() {
-        // 42 real keys (§3.6's list) + attachments pushed separately by table_counts.
-        assert_eq!(COUNT_KEYS.len(), 42);
+        // 43 real keys (every array table of the mock's `blankDb()`, in order) + attachments pushed
+        // separately by table_counts.
+        assert_eq!(COUNT_KEYS.len(), 43);
         assert_eq!(COUNT_KEYS.first(), Some(&"users"));
         assert_eq!(COUNT_KEYS.last(), Some(&"audit"));
     }

@@ -18,7 +18,7 @@ use crate::entities::sales::shifts::{ActiveModel as ShiftActiveModel, HandoverMo
 use crate::entities::values::StringList;
 use crate::infrastructure::import::idmap::{is_freetext_product_id, IdMap};
 use crate::infrastructure::import::model::{HeldSaleV1, InvoiceLineV1, InvoiceV1, QuotationV1, RefundV1, ShiftV1};
-use crate::infrastructure::import::tables::{parse_doc_date, resolve_created_at};
+use crate::infrastructure::import::tables::{lenient_ref, parse_doc_date, resolve_created_at, strict_ref};
 use crate::utils::id::Id;
 use crate::utils::money::{round2, round4, round_qty};
 
@@ -105,7 +105,7 @@ pub async fn insert_invoices<C: ConnectionTrait>(
             number: Set(row.number.clone()),
             date_day: Set(day),
             date_instant: Set(instant),
-            customer_id: Set(row.customer_id.as_deref().and_then(|old| id_map.resolve(old))),
+            customer_id: Set(strict_ref(id_map, row.customer_id.as_deref(), "invoices")?),
             cashier_id: Set(cashier_id),
             status: Set(parse_invoice_status(&row.status)),
             payment_status: Set(parse_payment_status(&row.payment_status)),
@@ -126,8 +126,8 @@ pub async fn insert_invoices<C: ConnectionTrait>(
                 "DESK" => InvoiceSource::Desk,
                 _ => InvoiceSource::Pos,
             })),
-            shift_id: Set(row.shift_id.as_deref().and_then(|old| id_map.resolve(old))),
-            branch_id: Set(row.branch_id.as_deref().and_then(|old| id_map.resolve(old))),
+            shift_id: Set(None), // DEFERRED (forward ref into shifts) — set in run.rs phase B.
+            branch_id: Set(strict_ref(id_map, row.branch_id.as_deref(), "invoices")?),
             invoice_type: Set(row.invoice_type.as_deref().map(|s| match s {
                 "SIMPLIFIED" => InvoiceType::Simplified,
                 _ => InvoiceType::Standard,
@@ -137,7 +137,7 @@ pub async fn insert_invoices<C: ConnectionTrait>(
             attachment_ids: Set(row.attachment_ids.clone().map(StringList)),
             currency: Set(row.currency.clone().map(|c| c.to_uppercase())),
             exchange_rate: Set(row.exchange_rate.map(round4)),
-            cost_center_id: Set(row.cost_center_id.as_deref().and_then(|old| id_map.resolve(old))),
+            cost_center_id: Set(lenient_ref(id_map, row.cost_center_id.as_deref())),
             search_normalized: sea_orm::ActiveValue::NotSet,
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
@@ -159,19 +159,21 @@ pub async fn insert_invoices<C: ConnectionTrait>(
                 price: Set(price),
                 cost_price: Set(cost_price),
                 discount: Set(discount),
-                tax_id: Set(line.tax_id.as_deref().and_then(|old| id_map.resolve(old))),
+                tax_id: Set(strict_ref(id_map, line.tax_id.as_deref(), "invoice_lines")?),
                 tax_category: Set(line.tax_category.clone()),
                 tax_rate: Set(line.tax_rate),
                 net: Set(line.net.map(round2)),
                 vat: Set(line.vat.map(round2)),
-                unit_id: Set(line.unit_id.as_deref().and_then(|old| id_map.resolve(old))),
+                // The product's own `ProductUnit.id` (a free string kept verbatim in `products.units`),
+                // never an id-map key — copied as is (m0020).
+                unit_id: Set(line.unit_id.clone()),
                 unit_factor: Set(line.unit_factor.map(round4)),
                 list_price: Set(line.list_price.map(round2)),
                 price_override_reason: Set(line.price_override_reason.clone()),
-                batch_id: Set(line.batch_id.as_deref().and_then(|old| id_map.resolve(old))),
+                batch_id: Set(strict_ref(id_map, line.batch_id.as_deref(), "invoice_lines")?),
                 batch_no: Set(line.batch_no.clone()),
                 is_free_text: Set(line.is_free_text || line.product_id.as_deref().is_some_and(is_freetext_product_id)),
-                revenue_account_id: Set(line.revenue_account_id.as_deref().and_then(|old| id_map.resolve(old))),
+                revenue_account_id: Set(strict_ref(id_map, line.revenue_account_id.as_deref(), "invoice_lines")?),
             };
             line_model.insert(conn).await.map_err(TxError::from)?;
         }
@@ -305,7 +307,7 @@ pub async fn insert_quotations<C: ConnectionTrait>(
             date_instant: Set(instant),
             expiry_date_day: Set(expiry.map(|(d, _)| d)),
             expiry_date_instant: Set(expiry.and_then(|(_, i)| i)),
-            customer_id: Set(row.customer_id.as_deref().and_then(|old| id_map.resolve(old))),
+            customer_id: Set(strict_ref(id_map, row.customer_id.as_deref(), "quotations")?),
             salesperson_id: Set(salesperson_id),
             status: Set(status),
             discount_rate: Set(round4(row.discount_rate)),
@@ -317,7 +319,7 @@ pub async fn insert_quotations<C: ConnectionTrait>(
             terms: Set(row.terms.clone()),
             po_reference: Set(row.po_reference.clone()),
             attachment_ids: Set(row.attachment_ids.clone().map(StringList)),
-            converted_invoice_id: Set(row.converted_invoice_id.as_deref().and_then(|old| id_map.resolve(old))),
+            converted_invoice_id: Set(strict_ref(id_map, row.converted_invoice_id.as_deref(), "quotations")?),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
             deleted_at: Set(None),
@@ -337,19 +339,21 @@ pub async fn insert_quotations<C: ConnectionTrait>(
                 price: Set(price),
                 cost_price: Set(cost_price),
                 discount: Set(discount),
-                tax_id: Set(line.tax_id.as_deref().and_then(|old| id_map.resolve(old))),
+                tax_id: Set(strict_ref(id_map, line.tax_id.as_deref(), "quotation_lines")?),
                 tax_category: Set(line.tax_category.clone()),
                 tax_rate: Set(line.tax_rate),
                 net: Set(line.net.map(round2)),
                 vat: Set(line.vat.map(round2)),
-                unit_id: Set(line.unit_id.as_deref().and_then(|old| id_map.resolve(old))),
+                // The product's own `ProductUnit.id` (a free string kept verbatim in `products.units`),
+                // never an id-map key — copied as is (m0020).
+                unit_id: Set(line.unit_id.clone()),
                 unit_factor: Set(line.unit_factor.map(round4)),
                 list_price: Set(line.list_price.map(round2)),
                 price_override_reason: Set(line.price_override_reason.clone()),
-                batch_id: Set(line.batch_id.as_deref().and_then(|old| id_map.resolve(old))),
+                batch_id: Set(strict_ref(id_map, line.batch_id.as_deref(), "quotation_lines")?),
                 batch_no: Set(line.batch_no.clone()),
                 is_free_text: Set(line.is_free_text || line.product_id.as_deref().is_some_and(is_freetext_product_id)),
-                revenue_account_id: Set(line.revenue_account_id.as_deref().and_then(|old| id_map.resolve(old))),
+                revenue_account_id: Set(strict_ref(id_map, line.revenue_account_id.as_deref(), "quotation_lines")?),
             };
             line_model.insert(conn).await.map_err(TxError::from)?;
         }
@@ -408,7 +412,9 @@ pub async fn insert_held_sales<C: ConnectionTrait>(
             *rounded += 1;
         }
 
-        let mut cart = row.cart.clone();
+        // `HeldSale.lines` → the `cart` column (what `held.rs` writes and reads back); a row with no
+        // lines array stores `[]`, never `null`.
+        let mut cart = if row.lines.is_array() { row.lines.clone() } else { serde_json::Value::Array(Vec::new()) };
         id_map.remap_json(&mut cart);
 
         let model = HeldSaleActiveModel {
@@ -418,7 +424,7 @@ pub async fn insert_held_sales<C: ConnectionTrait>(
             held_at_day: Set(day),
             held_at_instant: Set(instant),
             held_by: Set(held_by),
-            customer_id: Set(row.customer_id.as_deref().and_then(|old| id_map.resolve(old))),
+            customer_id: Set(strict_ref(id_map, row.customer_id.as_deref(), "held_sales")?),
             discount_rate: Set(discount_rate),
             discount_is_pct: Set(row.discount_is_pct),
             note: Set(row.note.clone()),
@@ -464,14 +470,14 @@ pub async fn insert_shifts<C: ConnectionTrait>(
             id: Set(id),
             number: Set(row.number.clone()),
             terminal_id: Set(terminal_id),
-            branch_id: Set(row.branch_id.as_deref().and_then(|old| id_map.resolve(old))),
+            branch_id: Set(strict_ref(id_map, row.branch_id.as_deref(), "shifts")?),
             status: Set(status),
             opened_by: Set(opened_by),
             opened_at_day: Set(opened_day),
             opened_at_instant: Set(opened_instant),
             opening_float: Set(opening_float),
             opening_denominations: Set(row.opening_denominations.clone()),
-            closed_by: Set(row.closed_by.as_deref().and_then(|old| id_map.resolve(old))),
+            closed_by: Set(strict_ref(id_map, row.closed_by.as_deref(), "shifts")?),
             closed_at_day: Set(closed.map(|(d, _)| d)),
             closed_at_instant: Set(closed.and_then(|(_, i)| i)),
             counted_cash: Set(row.counted_cash.map(round2)),
@@ -479,7 +485,7 @@ pub async fn insert_shifts<C: ConnectionTrait>(
             expected_cash: Set(row.expected_cash.map(round2)),
             variance: Set(row.variance.map(round2)),
             handover_mode: Set(handover_mode),
-            force_closed_by: Set(row.force_closed_by.as_deref().and_then(|old| id_map.resolve(old))),
+            force_closed_by: Set(strict_ref(id_map, row.force_closed_by.as_deref(), "shifts")?),
             note: Set(row.note.clone()),
             open_key: sea_orm::ActiveValue::NotSet,
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),

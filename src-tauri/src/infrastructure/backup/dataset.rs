@@ -16,7 +16,15 @@ use crate::core::tx::{TxError, TxResult};
 /// already on this schema version) and `change_versions` (C-11: per-branch mechanics, bumped after a
 /// restore instead of restored verbatim). `document_counters` **is** dumped (numbering continues
 /// correctly after a restore).
-const EXCLUDED_TABLES: &[&str] = &["seaql_migrations", "change_versions"];
+///
+/// `attachments` (C-16) is excluded too: its `blob`/`thumbnail` columns are `LONGBLOB`, and every
+/// other column here is dumped as `CAST(... AS CHAR)` text (`dump_table` below) — a `BLOB` column
+/// anywhere is treated as `INTERNAL` (never reachable for any other table in this schema; the test
+/// suite pins that). The archive builder (`infrastructure::backup::auto`/`restore`) packs/restores
+/// `attachments`' rows itself, as `attachments/<id>.{blob,json,thumb}` zip entries — the same layout
+/// `backupArchive.ts` already uses for its IndexedDB store — instead of going through this generic
+/// dumper.
+const EXCLUDED_TABLES: &[&str] = &["seaql_migrations", "change_versions", "attachments"];
 
 const MAX_ROWS_PER_INSERT: usize = 200;
 

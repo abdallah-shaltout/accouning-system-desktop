@@ -90,6 +90,15 @@ pub const DEFERRED: &[(&str, &str)] = &[
     ("fiscal_years", "closed_by"),
     ("users", "price_list_id"),
     ("journal_entries", "reversal_of_id"),
+    // Forward refs / self-refs the §8a coverage test found on the migrated schema (m0015): each
+    // target table is inserted later in IMPORT_ORDER (or is the same table, where a row may point at
+    // a later row — a customer linked to a supplier inserted after all customers).
+    ("journal_entries", "template_id"),
+    ("journal_drafts", "template_id"),
+    ("parties", "linked_party_id"),
+    ("invoices", "shift_id"),
+    ("purchase_orders", "backorder_of_id"),
+    ("expenses", "recurring_template_id"),
 ];
 
 /// True if `(table, column)` is one of the [`DEFERRED`] pairs — phase A must write `NULL` for it

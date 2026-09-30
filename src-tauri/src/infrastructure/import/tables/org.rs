@@ -21,7 +21,7 @@ use crate::entities::org::users::ActiveModel as UserActiveModel;
 use crate::entities::values::StringList;
 use crate::infrastructure::import::idmap::IdMap;
 use crate::infrastructure::import::model::{AccountV1, BranchV1, CostCenterV1, CurrencyV1, ExchangeRateV1, FiscalYearV1, PaymentMethodV1, TaxV1, UserV1};
-use crate::infrastructure::import::tables::resolve_created_at;
+use crate::infrastructure::import::tables::{resolve_created_at, strict_ref};
 use crate::utils::id::Id;
 use crate::utils::money::{round2, round4};
 
@@ -178,7 +178,7 @@ pub async fn insert_accounts<C: ConnectionTrait>(
             normal_side: Set(row.normal_side.clone()),
             system_role: Set(row.system_role.clone()),
             currency: Set(row.currency.clone().map(|c| c.to_uppercase())),
-            branch_id: Set(row.branch_id.as_deref().and_then(|old| id_map.resolve(old))),
+            branch_id: Set(strict_ref(id_map, row.branch_id.as_deref(), "accounts")?),
             requires_party: Set(row.requires_party),
             allow_manual: Set(row.allow_manual),
             requires_cost_center: Set(row.requires_cost_center),
@@ -214,7 +214,7 @@ pub async fn insert_cost_centers<C: ConnectionTrait>(
             manager_user_id: Set(None),
             active: Set(row.active),
             can_delete: Set(row.can_delete),
-            branch_id: Set(row.branch_id.as_deref().and_then(|old| id_map.resolve(old))),
+            branch_id: Set(strict_ref(id_map, row.branch_id.as_deref(), "cost_centers")?),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
             deleted_at: Set(None),
@@ -247,7 +247,8 @@ pub async fn insert_fiscal_years<C: ConnectionTrait>(
             // Deferred (forward ref into journal_entries).
             closing_entry_id: Set(None),
             closed_at: Set(row.closed_at.as_deref().and_then(crate::infrastructure::import::model::parse_instant)),
-            closed_by: Set(row.closed_by.as_deref().and_then(|old| id_map.resolve(old))),
+            // Deferred (forward ref into users, inserted later) — run.rs phase B.
+            closed_by: Set(None),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
         };
@@ -336,7 +337,7 @@ pub async fn insert_payment_methods<C: ConnectionTrait>(
             sort_order: Set(row.sort_order),
             branch_overrides: Set(branch_overrides),
             active: Set(row.active),
-            can_delete: Set(true),
+            can_delete: Set(row.can_delete),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
             deleted_at: Set(None),
@@ -365,7 +366,7 @@ pub async fn insert_users<C: ConnectionTrait>(conn: &C, rows: &[UserV1], id_map:
             active: Set(row.active),
             avatar: Set(row.avatar.clone()),
             allowed_branches: Set(allowed_branches),
-            home_branch: Set(row.home_branch.as_deref().and_then(|old| id_map.resolve(old))),
+            home_branch: Set(strict_ref(id_map, row.home_branch.as_deref(), "users")?),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
             deleted_at: Set(None),

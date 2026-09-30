@@ -15,7 +15,7 @@ use crate::entities::inventory::stock_transfer_lines::ActiveModel as StockTransf
 use crate::entities::inventory::stock_transfers::ActiveModel as StockTransferActiveModel;
 use crate::infrastructure::import::idmap::{is_freetext_product_id, IdMap};
 use crate::infrastructure::import::model::{DebitNoteDraftV1, StockAdjustmentV1, StockCountV1, StockMovementV1, StockTransferV1};
-use crate::infrastructure::import::tables::{parse_doc_date, resolve_created_at};
+use crate::infrastructure::import::tables::{parse_doc_date, resolve_created_at, strict_ref};
 use crate::utils::id::Id;
 use crate::utils::money::{round2, round4, round_qty};
 
@@ -49,8 +49,8 @@ pub async fn insert_stock_adjustments<C: ConnectionTrait>(
             status: Set(row.status.clone()),
             note: Set(row.note.clone()),
             reason: Set(row.reason.clone()),
-            offset_account_id: Set(row.offset_account_id.as_deref().and_then(|old| id_map.resolve(old))),
-            approved_by: Set(row.approved_by.as_deref().and_then(|old| id_map.resolve(old))),
+            offset_account_id: Set(strict_ref(id_map, row.offset_account_id.as_deref(), "stock_adjustments")?),
+            approved_by: Set(strict_ref(id_map, row.approved_by.as_deref(), "stock_adjustments")?),
             approved_at: Set(row.approved_at.as_deref().and_then(crate::infrastructure::import::model::parse_instant)),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
@@ -105,13 +105,13 @@ pub async fn insert_stock_counts<C: ConnectionTrait>(
             number: Set(row.number.clone()),
             status: Set(row.status.clone()),
             scope: Set(row.scope.clone()),
-            category_id: Set(row.category_id.as_deref().and_then(|old| id_map.resolve(old))),
+            category_id: Set(strict_ref(id_map, row.category_id.as_deref(), "stock_counts")?),
             location: Set(row.location.clone()),
             blind: Set(row.blind),
             started_at: Set(started_at),
             started_by: Set(started_by),
             note: Set(row.note.clone()),
-            adjustment_id: Set(row.adjustment_id.as_deref().and_then(|old| id_map.resolve(old))),
+            adjustment_id: Set(strict_ref(id_map, row.adjustment_id.as_deref(), "stock_counts")?),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
         };
@@ -176,9 +176,9 @@ pub async fn insert_stock_transfers<C: ConnectionTrait>(
             rejected_at_instant: Set(rejected_at.and_then(|(_, i)| i)),
             rejected_at_key: sea_orm::ActiveValue::NotSet,
             note: Set(row.note.clone()),
-            sent_by: Set(row.sent_by.as_deref().and_then(|old| id_map.resolve(old))),
-            received_by: Set(row.received_by.as_deref().and_then(|old| id_map.resolve(old))),
-            rejected_by: Set(row.rejected_by.as_deref().and_then(|old| id_map.resolve(old))),
+            sent_by: Set(strict_ref(id_map, row.sent_by.as_deref(), "stock_transfers")?),
+            received_by: Set(strict_ref(id_map, row.received_by.as_deref(), "stock_transfers")?),
+            rejected_by: Set(strict_ref(id_map, row.rejected_by.as_deref(), "stock_transfers")?),
             reject_reason: Set(row.reject_reason.clone()),
             shortage_value: Set(row.shortage_value.map(round2)),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
@@ -199,9 +199,11 @@ pub async fn insert_stock_transfers<C: ConnectionTrait>(
                 position: Set(li as i16),
                 product_id: Set(product_id),
                 qty: Set(qty),
-                unit_id: Set(line.unit_id.as_deref().and_then(|old| id_map.resolve(old))),
+                // The product's own `ProductUnit.id` (a free string kept verbatim in `products.units`),
+                // never an id-map key — copied as is (m0020).
+                unit_id: Set(line.unit_id.clone()),
                 unit_factor: Set(line.unit_factor.map(round4)),
-                batch_id: Set(line.batch_id.as_deref().and_then(|old| id_map.resolve(old))),
+                batch_id: Set(strict_ref(id_map, line.batch_id.as_deref(), "stock_transfer_lines")?),
                 batch_no: Set(line.batch_no.clone()),
                 received_qty: Set(line.received_qty.map(round_qty)),
                 unit_cost: Set(line.unit_cost.map(round4)),
@@ -247,7 +249,7 @@ pub async fn insert_stock_movements<C: ConnectionTrait>(
             ref_id: Set(id_map.resolve_or_mint(&row.ref_id)),
             ref_number: Set(row.ref_number.clone()),
             balance_after: Set(row.balance_after.map(round_qty)),
-            batch_id: Set(row.batch_id.as_deref().and_then(|old| id_map.resolve(old))),
+            batch_id: Set(strict_ref(id_map, row.batch_id.as_deref(), "stock_movements")?),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
         };
         model.insert(conn).await.map_err(TxError::from)?;

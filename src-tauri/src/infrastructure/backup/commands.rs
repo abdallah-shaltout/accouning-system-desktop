@@ -13,7 +13,7 @@ use crate::core::state::AppState;
 use crate::core::tx::{with_read, with_read_ctx, with_tx, BoxFuture, TxError, TxOpts, TxResult};
 use crate::ipc_sig;
 
-use super::auto::{backup_settings, build_and_write_or_read_archive, record_backup_saved, run_auto_backup_if_due, save_backup_settings};
+use super::auto::{backup_settings, build_archive_at, record_backup_saved, run_auto_backup_if_due, save_backup_settings};
 use super::counts::table_counts;
 use super::dto::{
     BackupArchive, BackupSettings, RestorePreview, SettingsBuildBackupArchiveArgs, SettingsPreviewRestoreArgs, SettingsRecordBackupSavedArgs,
@@ -39,19 +39,33 @@ pub async fn settings_backup_settings(state: State<'_, AppState>) -> CmdResult<B
 #[tauri::command]
 pub async fn settings_save_backup_settings(state: State<'_, AppState>, args: SettingsSaveBackupSettingsArgs) -> CmdResult<BackupSettings> {
     let device = state.device.read().unwrap().clone();
+    let old_device = device.clone();
     let undo = state.undo.clone();
-    with_tx(&state, TxOpts::default(), move |tx, cx| {
+    let (next, delta) = with_tx(&state, TxOpts::default(), move |tx, cx| {
         let patch = args.patch.clone();
         let device = device.clone();
         let undo = undo.clone();
         Box::pin(async move {
             cx.require(tx, Area::Settings, Access::Write).await?;
-            let (next, _delta) = save_backup_settings(tx, cx, &undo, &device, patch).await?;
-            Ok(next)
-        }) as BoxFuture<'_, TxResult<BackupSettings>>
+            save_backup_settings(tx, cx, &undo, &device, patch).await
+        }) as BoxFuture<'_, TxResult<(BackupSettings, crate::domains::settings::service::store::DeviceDelta)>>
     })
     .await
-    .map_err(ApiErrorPayload::from)
+    .map_err(ApiErrorPayload::from)?;
+
+    // `folder` is device-owned: like `settings_update_settings` (01-settings D-6), the delta is applied
+    // to AppState/device-settings.json only after a successful commit. It used to be dropped here, so
+    // a folder chosen on the backup page was echoed back once and then lost — the auto backup always
+    // skipped with `NoFolder` (Part 04 Wave 2, L1 `backup/backup-auto-run`).
+    if !delta.is_empty() {
+        let mut new_device = old_device;
+        delta.apply(&mut new_device);
+        if let Err(e) = crate::core::device::save(&state.app_data_dir, &new_device) {
+            log::error!("failed to save device-settings.json after settings_save_backup_settings: {e}");
+        }
+        *state.device.write().unwrap() = new_device;
+    }
+    Ok(next)
 }
 
 #[tauri::command]
@@ -68,13 +82,12 @@ pub async fn settings_preview_backup_counts(state: State<'_, AppState>) -> CmdRe
 
 #[tauri::command]
 pub async fn settings_build_backup_archive(state: State<'_, AppState>, args: SettingsBuildBackupArchiveArgs) -> CmdResult<BackupArchive> {
-    let actor = state.session.read().unwrap().clone();
     let kind = args.kind;
     let password = args.password.clone();
-    with_read(&state, move |conn| {
+    with_read_ctx(&state, move |conn, cx| {
         Box::pin(async move {
-            crate::core::settings::require(conn, actor.as_ref(), Area::Settings, Access::Write).await.map_err(TxError::App)?;
-            build_and_write_or_read_archive(conn, kind, password.as_deref()).await.map_err(TxError::App)
+            cx.require(conn, Area::Settings, Access::Write).await?;
+            build_archive_at(conn, cx.clock.now, kind, password.as_deref()).await.map_err(TxError::App)
         }) as BoxFuture<'_, TxResult<BackupArchive>>
     })
     .await

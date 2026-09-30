@@ -51,6 +51,13 @@ pub struct ServerHandle {
     pub state: RwLock<ServerRuntime>,
     pub intentional_stop: AtomicBool,
     child: RwLock<Option<Child>>,
+    /// The pid of the server this handle currently manages — set both when it spawns one
+    /// (`start_and_wait`) and when it adopts one already running (`ensure_running` step 3, e.g. the
+    /// server `provision_main` leaves running, or one that outlived a previous app process).
+    /// `shutdown()` stops *this* pid: keying it only off `child` made `shutdown()` a silent no-op
+    /// for an adopted server, so the next `ensure_running` re-adopted it unchanged — which is how
+    /// A3's LAN toggle never actually rebound the server to `0.0.0.0`.
+    running_pid: RwLock<Option<u32>>,
     restart_attempts: RwLock<Vec<std::time::Instant>>,
 }
 
@@ -61,6 +68,7 @@ impl ServerHandle {
             state: RwLock::new(ServerRuntime { phase: ServerPhase::Stopped, version: None, port: None, root_password: None }),
             intentional_stop: AtomicBool::new(false),
             child: RwLock::new(None),
+            running_pid: RwLock::new(None),
             restart_attempts: RwLock::new(Vec::new()),
         })
     }
@@ -71,6 +79,7 @@ impl ServerHandle {
             state: RwLock::new(ServerRuntime { phase: ServerPhase::Stopped, version: None, port: None, root_password: None }),
             intentional_stop: AtomicBool::new(false),
             child: RwLock::new(None),
+            running_pid: RwLock::new(None),
             restart_attempts: RwLock::new(Vec::new()),
         })
     }
@@ -115,7 +124,16 @@ impl ServerHandle {
 
         self.set_phase(ServerPhase::Starting).await;
 
-        // Step 2: adopt. If a pid file exists, names a live process whose image path is our
+        // Step 2: version gate — before adopting anything. A server still running from a previous
+        // app version must never be adopted across a version change: a downgrade/series mismatch
+        // is refused (data untouched), a patch upgrade stops it and upgrades below.
+        let transition = upgrade::plan_transition(payload_version(payload), &state);
+        if let Some(failure) = transition.as_failure() {
+            self.fail(failure).await;
+            return Err(failure);
+        }
+
+        // Step 3: adopt. If a pid file exists, names a live process whose image path is our
         // `server-bin\current\bin\mariadbd.exe`, and a root `SELECT @@datadir` matches our data
         // dir, reuse it without restarting (P2-58's guarantee makes this safe: nobody else could
         // have started a second, different server against this same data directory).
@@ -123,7 +141,11 @@ impl ServerHandle {
             let expected_exe = self.paths.mariadbd_exe();
             if process::is_running(pid, &expected_exe) {
                 let root_secret = creds.get_root_secret(state.data_dir_id).map_err(|_| ServerFailure::CredentialsUnrecoverable)?;
-                if verify_adopted_datadir(state.port, &root_secret, &self.paths.data()).await {
+                if !matches!(transition, Transition::Same) {
+                    // Patch upgrade: the data directory is about to be cold-copied, so the old
+                    // server (not our child — `shutdown()` can't see it) must be fully stopped.
+                    stop_running_server(state.port, &root_secret, pid).await;
+                } else if verify_adopted_datadir(state.port, &root_secret, &self.paths.data()).await {
                     self.set_phase(ServerPhase::Running).await;
                     {
                         let mut guard = self.state.write().await;
@@ -131,18 +153,14 @@ impl ServerHandle {
                         guard.port = Some(state.port);
                         guard.root_password = Some(root_secret.clone());
                     }
+                    *self.running_pid.write().await = Some(pid);
                     self.spawn_watcher(pid);
                     return Ok(());
                 }
             }
         }
 
-        // Step 3: version transition, then start fresh.
-        let transition = upgrade::plan_transition(payload_version(payload), &state);
-        if let Some(failure) = transition.as_failure() {
-            self.fail(failure).await;
-            return Err(failure);
-        }
+        // Step 4: start fresh (after the patch upgrade when there is one).
 
         rotate_log_if_large(&self.paths);
 
@@ -245,6 +263,7 @@ impl ServerHandle {
             }
             if super::admin::probe_ready(port, "root", root_password).await {
                 *self.child.write().await = Some(child);
+                *self.running_pid.write().await = Some(pid);
                 self.set_phase(ServerPhase::Running).await;
                 {
                     let mut guard = self.state.write().await;
@@ -307,17 +326,22 @@ impl ServerHandle {
     /// Clean stop: sets `intentional_stop`, issues a root `SHUTDOWN`, waits for the process to
     /// exit, and on timeout falls back to `terminate` (InnoDB will run crash recovery on the next
     /// start, which is safe — just slower).
+    /// Stops the managed server whether this handle spawned it or adopted it (`running_pid`).
     pub async fn shutdown(self: &Arc<Self>, timeout: Duration) {
-        self.intentional_stop.store(true, Ordering::SeqCst);
-
         let child_pid = {
             let guard = self.child.read().await;
             guard.as_ref().and_then(|c| c.id())
         };
-        let Some(pid) = child_pid else {
+        let managed_pid = child_pid.or(*self.running_pid.read().await);
+        let Some(pid) = managed_pid.filter(|pid| process::is_running(*pid, &self.paths.mariadbd_exe())) else {
+            // Nothing of ours is running: leave `intentional_stop` unset, since no watcher will
+            // consume it and a later genuine crash must not be mistaken for a requested stop.
+            *self.child.write().await = None;
+            *self.running_pid.write().await = None;
             self.set_phase(ServerPhase::Stopped).await;
             return;
         };
+        self.intentional_stop.store(true, Ordering::SeqCst);
 
         let port = self.state.read().await.port;
         if let (Some(port), Some(root_password)) = (port, self.cached_root_password().await) {
@@ -329,9 +353,13 @@ impl ServerHandle {
         let waited = tokio::time::timeout(timeout, process::wait_exit(pid)).await;
         if waited.is_err() {
             log::error!(target: "infrastructure::database", "clean shutdown timed out after {timeout:?}; terminating");
-            process::terminate(pid);
+            // Re-check the image path: never terminate a pid that has since been reused.
+            if process::is_running(pid, &self.paths.mariadbd_exe()) {
+                process::terminate(pid);
+            }
         }
         *self.child.write().await = None;
+        *self.running_pid.write().await = None;
         self.set_phase(ServerPhase::Stopped).await;
     }
 
@@ -350,6 +378,18 @@ fn bind_mode_for(state: &ServerStateFile) -> BindMode {
         BindMode::Lan
     } else {
         BindMode::Loopback
+    }
+}
+
+/// Stops a server this handle did not spawn (found through the pid file): a clean root
+/// `SHUTDOWN`, then terminate if it hasn't exited within 60 s.
+async fn stop_running_server(port: u16, root_secret: &str, pid: u32) {
+    if let Ok(db) = super::admin::connect_root(port, "root", root_secret, None).await {
+        let _ = super::admin::shutdown(&db).await;
+    }
+    if tokio::time::timeout(Duration::from_secs(60), process::wait_exit(pid)).await.is_err() {
+        log::error!(target: "infrastructure::database", "old server did not stop within 60s before upgrade; terminating");
+        process::terminate(pid);
     }
 }
 

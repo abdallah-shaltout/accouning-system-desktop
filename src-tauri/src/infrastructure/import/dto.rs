@@ -120,6 +120,7 @@ pub struct SetupInspectLegacySnapshotArgs {
     pub snapshot_json: String,
     #[serde(default)]
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub templates_json: Option<String>,
 }
 
@@ -131,10 +132,12 @@ pub struct SetupImportSnapshotArgs {
     pub snapshot_json: String,
     #[serde(default)]
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub templates_json: Option<String>,
     /// A **snapshot** id (pre-remap) — remapped through the importer's own id map before use.
     #[serde(default)]
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub template_branch_id: Option<String>,
     pub mode: ImportMode,
     pub replace_existing: bool,

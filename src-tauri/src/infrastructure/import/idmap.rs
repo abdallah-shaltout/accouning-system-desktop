@@ -70,6 +70,15 @@ impl IdMap {
         self.map.lock().unwrap().contains_key(old_id)
     }
 
+    /// Every `(old mock id, new Id)` pair assigned or minted during this import, sorted by the old
+    /// id so the output is stable run to run (plan 21 Part 04 B-5). Only the parity host reads it
+    /// (`ImportReport.id_pairs`): bundle replay and the parity diff's id bijection start from it.
+    pub fn pairs(&self) -> Vec<(String, Id)> {
+        let mut pairs: Vec<(String, Id)> = self.map.lock().unwrap().iter().map(|(k, v)| (k.clone(), *v)).collect();
+        pairs.sort_by(|a, b| a.0.cmp(&b.0));
+        pairs
+    }
+
     /// Remaps every JSON **string** value that exactly equals a key assigned in pass 1 to its new
     /// id string, recursively through objects/arrays — used for JSON columns that embed row ids
     /// inside them (`held_sales.cart`'s `productId`, route-object `params.id`, …). Never touches a

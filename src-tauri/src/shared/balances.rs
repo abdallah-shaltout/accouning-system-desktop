@@ -161,6 +161,12 @@ pub async fn supplier_balance<C: ConnectionTrait>(conn: &C, supplier_id: Id) -> 
 /// `round2(Σ(debit − credit))` per party as the single-party function. A party with no matching
 /// ledger lines is simply absent from the map (callers `.get(id).copied().unwrap_or(Decimal::ZERO)`).
 pub async fn customer_balances<C: ConnectionTrait>(conn: &C, customer_ids: &[Id]) -> Result<HashMap<Id, Decimal>, AppError> {
+    // No parties → no account lookup (like `unallocated_credits`): the mock resolves the control
+    // account per row (`accountFor` inside `customerBalance`), so an empty list never needs one and a
+    // chart without that role still lists `[]` (Part 04 Wave 2, L1 `import/import-edge` books).
+    if customer_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
     let account_id = receivable_account_id(conn).await?;
     let by_party = party_ledger_lines_batch(conn, PartyKind::Customer, customer_ids, account_id).await?;
     Ok(by_party
@@ -171,6 +177,12 @@ pub async fn customer_balances<C: ConnectionTrait>(conn: &C, customer_ids: &[Id]
 
 /// G-2: batch `supplier_balance` — see `customer_balances`.
 pub async fn supplier_balances<C: ConnectionTrait>(conn: &C, supplier_ids: &[Id]) -> Result<HashMap<Id, Decimal>, AppError> {
+    // No parties → no account lookup (like `unallocated_credits`): the mock resolves the control
+    // account per row (`accountFor` inside `supplierBalance`), so an empty list never needs one and a
+    // chart without that role still lists `[]` (Part 04 Wave 2, L1 `import/import-edge` books).
+    if supplier_ids.is_empty() {
+        return Ok(HashMap::new());
+    }
     let account_id = payable_account_id(conn).await?;
     let by_party = party_ledger_lines_batch(conn, PartyKind::Supplier, supplier_ids, account_id).await?;
     Ok(by_party
@@ -303,8 +315,57 @@ pub async fn unallocated_amount<C: ConnectionTrait>(conn: &C, payment: &payments
     Ok((round2(payment.amount - cash_consumed)).max(Decimal::ZERO))
 }
 
-/// `unallocatedCreditFor` (`payments.ts:99-106`): Σ unallocated credit across every
-/// RECEIVED/PAID payment for a party.
+/// `refundCreditedBase` (`src/mocks/backend/sales.ts`, ACC-0010) summed per customer: the base-
+/// currency customer credit every `customer_credit` refund left on the party — exactly what
+/// `create_refund` credited to the receivable for it (an FC invoice's credit at the invoice's own rate,
+/// telescoped over the invoice's refunds in creation order). A customer with none is absent.
+async fn refund_credits<C: ConnectionTrait>(conn: &C, customer_ids: &[Id]) -> Result<HashMap<Id, Decimal>, AppError> {
+    use crate::entities::sales::refunds;
+    let mut out: HashMap<Id, Decimal> = HashMap::new();
+    if customer_ids.is_empty() {
+        return Ok(out);
+    }
+    let credited = refunds::Entity::find().filter(refunds::Column::CreditedToAccount.gt(Decimal::ZERO)).all(conn).await.map_err(AppError::from)?;
+    if credited.is_empty() {
+        return Ok(out);
+    }
+    let invoice_ids: Vec<Id> = credited.iter().map(|r| r.invoice_id).collect();
+    let invs: HashMap<Id, invoices::Model> = invoices::Entity::find()
+        .filter(invoices::Column::Id.is_in(invoice_ids))
+        .filter(invoices::Column::CustomerId.is_in(customer_ids.iter().copied()))
+        .all(conn)
+        .await
+        .map_err(AppError::from)?
+        .into_iter()
+        .map(|i| (i.id, i))
+        .collect();
+    for r in &credited {
+        let Some(inv) = invs.get(&r.invoice_id) else { continue };
+        let Some(customer_id) = inv.customer_id else { continue };
+        let credit = r.credited_to_account.unwrap_or(Decimal::ZERO);
+        let base = match (&inv.currency, inv.exchange_rate) {
+            (Some(_), Some(rate)) => {
+                let all = refunds::Entity::find()
+                    .filter(refunds::Column::InvoiceId.eq(inv.id))
+                    .order_by_asc(refunds::Column::CreatedAt)
+                    .order_by_asc(refunds::Column::Number)
+                    .all(conn)
+                    .await
+                    .map_err(AppError::from)?;
+                let before = round2(all.iter().take_while(|x| x.id != r.id).fold(Decimal::ZERO, |a, x| a + x.grand_total));
+                let total_base = round2(crate::shared::currency::to_base(round2(before + r.grand_total), rate) - crate::shared::currency::to_base(before, rate));
+                crate::shared::currency::refund_cash_back_base(r.settled_to_receivable, r.cash_back, total_base, rate)
+            }
+            _ => credit,
+        };
+        *out.entry(customer_id).or_insert(Decimal::ZERO) += base;
+    }
+    Ok(out)
+}
+
+/// `unallocatedCreditFor` (`payments.ts`): Σ unallocated credit across every RECEIVED/PAID payment
+/// for a party, plus (customers, ACC-0010) every refund kept as customer credit (`refund_credits`) —
+/// docs/v2/02-accounting-review.md D4: "keep as customer credit (an unallocated credit on the party)".
 pub async fn unallocated_credit_for<C: ConnectionTrait>(conn: &C, target_type: PartyKind, target_id: Id) -> Result<Decimal, AppError> {
     use crate::entities::payments::payments::{PaymentTargetType, PaymentType};
     let payment_type = match target_type {
@@ -328,7 +389,10 @@ pub async fn unallocated_credit_for<C: ConnectionTrait>(conn: &C, target_type: P
     for p in &rows {
         total += unallocated_amount(conn, p).await?;
     }
-    Ok(total)
+    if matches!(target_type, PartyKind::Customer) {
+        total += refund_credits(conn, &[target_id]).await?.get(&target_id).copied().unwrap_or(Decimal::ZERO);
+    }
+    Ok(round2(total))
 }
 
 /// G-2: batch `unallocated_credit_for` — one query for every RECEIVED/PAID payment across all of
@@ -363,6 +427,12 @@ pub async fn unallocated_credits<C: ConnectionTrait>(conn: &C, target_type: Part
         let amount = unallocated_amount(conn, p).await?;
         *out.entry(p.target_id).or_insert(Decimal::ZERO) += amount;
     }
+    if matches!(target_type, PartyKind::Customer) {
+        for (id, credit) in refund_credits(conn, target_ids).await? {
+            let v = out.entry(id).or_insert(Decimal::ZERO);
+            *v = round2(*v + credit);
+        }
+    }
     Ok(out)
 }
 
@@ -387,6 +457,10 @@ pub struct OpenDocument {
     pub date: DocDate,
     /// Invoices only (`payments.ts:46`) — a purchase order's `OpenDocument` never sets this.
     pub due_date: Option<chrono::NaiveDate>,
+    /// The same due date as the DTO key (`DocDate::key` — the stored ISO instant when the invoice
+    /// has one, else `YYYY-MM-DD`), exactly the `dueDate` string the mock's `OpenDocument` carries
+    /// and `Invoice.dueDate` already renders.
+    pub due_date_key: Option<String>,
     pub total: Decimal,
     pub outstanding: Decimal,
     pub currency: Option<String>,
@@ -435,6 +509,7 @@ pub async fn open_invoices_for<C: ConnectionTrait>(conn: &C, customer_id: Id) ->
                 number: i.number.clone(),
                 date: i.date(),
                 due_date: i.due_date_day,
+                due_date_key: i.due_date().map(|d| d.key()),
                 total,
                 outstanding,
                 currency: i.currency.clone(),
@@ -481,6 +556,7 @@ pub async fn open_purchase_orders_for<C: ConnectionTrait>(conn: &C, supplier_id:
                 number: p.number.clone(),
                 date: p.date(),
                 due_date: None,
+                due_date_key: None,
                 total,
                 outstanding,
                 currency: p.currency.clone(),

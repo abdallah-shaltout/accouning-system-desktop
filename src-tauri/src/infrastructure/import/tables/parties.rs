@@ -11,7 +11,7 @@ use crate::entities::parties::party_phones::ActiveModel as PartyPhoneActiveModel
 use crate::entities::values::StringList;
 use crate::infrastructure::import::idmap::IdMap;
 use crate::infrastructure::import::model::{PartyGroupV1, PartyHistoryV1, PartyV1};
-use crate::infrastructure::import::tables::resolve_created_at;
+use crate::infrastructure::import::tables::{resolve_created_at, strict_ref};
 use crate::utils::id::Id;
 use crate::utils::money::round2;
 
@@ -27,7 +27,7 @@ pub async fn insert_party_groups<C: ConnectionTrait>(
             id: Set(id),
             kind: Set(row.kind.clone()),
             name: Set(row.name.clone()),
-            price_list_id: Set(row.price_list_id.as_deref().and_then(|old| id_map.resolve(old))),
+            price_list_id: Set(strict_ref(id_map, row.price_list_id.as_deref(), "party_groups")?),
             payment_terms_days: Set(row.payment_terms_days),
             discount_percent: Set(row.discount_percent),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
@@ -68,7 +68,10 @@ pub async fn insert_parties<C: ConnectionTrait>(
                 amount,
                 side: ob.side.clone(),
                 as_of_date: ob.as_of_date.as_deref().and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()),
-                journal_entry_id: ob.journal_entry_id.as_deref().and_then(|old| id_map.resolve(old)),
+                // A JSON id (no FK) pointing at a journal entry inserted later in IMPORT_ORDER:
+                // `resolve_or_mint` hands out the id `insert_journal_entries` will then `assign`
+                // (plain `resolve` would always miss here and drop the link).
+                journal_entry_id: ob.journal_entry_id.as_deref().filter(|s| !s.is_empty()).map(|old| id_map.resolve_or_mint(old)),
                 locked: ob.locked,
             }
         });
@@ -87,7 +90,7 @@ pub async fn insert_parties<C: ConnectionTrait>(
             name: Set(row.name.clone()),
             name_en: Set(row.name_en.clone()),
             code: Set(row.code.clone()),
-            group_id: Set(row.group_id.as_deref().and_then(|old| id_map.resolve(old))),
+            group_id: Set(strict_ref(id_map, row.group_id.as_deref(), "parties")?),
             tags: Set(row.tags.clone().map(StringList)),
             active: Set(row.active),
             phone: Set(row.phone.clone()),
@@ -100,17 +103,17 @@ pub async fn insert_parties<C: ConnectionTrait>(
             cr_number: Set(row.cr_number.clone()),
             national_id: Set(row.national_id.clone()),
             currency: Set(row.currency.clone().map(|c| c.to_uppercase())),
-            price_list_id: Set(row.price_list_id.as_deref().and_then(|old| id_map.resolve(old))),
+            price_list_id: Set(strict_ref(id_map, row.price_list_id.as_deref(), "parties")?),
             payment_terms_days: Set(row.payment_terms_days),
-            salesperson_id: Set(row.salesperson_id.as_deref().and_then(|old| id_map.resolve(old))),
-            branch_id: Set(row.branch_id.as_deref().and_then(|old| id_map.resolve(old))),
+            salesperson_id: Set(strict_ref(id_map, row.salesperson_id.as_deref(), "parties")?),
+            branch_id: Set(strict_ref(id_map, row.branch_id.as_deref(), "parties")?),
             bank: Set(bank),
             opening_balance: Set(opening_balance),
             notes: Set(row.notes.clone()),
-            linked_party_id: Set(row.linked_party_id.as_deref().and_then(|old| id_map.resolve(old))),
+            linked_party_id: Set(None), // DEFERRED (self-ref; a customer may link a later supplier) — phase B.
             credit_limit: Set(credit_limit),
             contact_person: Set(row.contact_person.clone()),
-            default_expense_account_id: Set(row.default_expense_account_id.as_deref().and_then(|old| id_map.resolve(old))),
+            default_expense_account_id: Set(strict_ref(id_map, row.default_expense_account_id.as_deref(), "parties")?),
             search_normalized: sea_orm::ActiveValue::NotSet, // computed by before_save.
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),

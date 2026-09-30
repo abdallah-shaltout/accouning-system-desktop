@@ -140,6 +140,7 @@ pub struct BackendServerStatus {
     pub port: i32,
     pub lan_sharing: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub failure: Option<ServerFailure>,
 }
 
@@ -154,11 +155,14 @@ pub struct BackendStatus {
     pub role: BackendRole,
     pub terminal_id: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub server_version: Option<String>,
     pub schema: SchemaStatus,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub server: Option<BackendServerStatus>,
 }
 
@@ -188,8 +192,10 @@ pub struct PagedQuery<F> {
     pub page: i32,
     pub page_size: i32,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sort: Option<PageSort>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub filters: Option<F>,
 }
 
@@ -213,8 +219,12 @@ pub struct PagedResult<R> {
 
 /// G-14: `BTreeMap<String, Decimal>` serialized as `Record<string, number>` — each value goes
 /// through the same `utils::money::serde_number` JSON-number rule the rest of the app's money
-/// fields use (rule 5), rather than serde's default `Decimal` string representation.
-mod totals_map {
+/// fields use (rule 5), rather than serde's default `Decimal` string representation. `pub` (21.04
+/// phase A, A-3) so any other DTO with a `BTreeMap<String, Decimal>` field can reuse it via
+/// `#[serde(with = "crate::core::dto::totals_map")]` (or `crate::core::dto::totals_map::required`
+/// for a non-`Option` map, e.g. `InvoiceDetail`/`PurchaseDetail`'s `returned_qty`) instead of
+/// hand-rolling the same map loop.
+pub mod totals_map {
     use super::*;
 
     pub fn serialize<S: serde::Serializer>(value: &Option<BTreeMap<String, Decimal>>, serializer: S) -> Result<S::Ok, S::Error> {
@@ -247,6 +257,21 @@ mod totals_map {
                 }
                 Ok(Some(out))
             }
+        }
+    }
+
+    /// Same rule for a non-`Option` `BTreeMap<String, Decimal>` field (21.04 phase A, A-3 finding:
+    /// `InvoiceDetail.returned_qty` / `PurchaseDetail.returned_qty` are always-present maps, never
+    /// absent-vs-empty, so they don't need the `Option` wrapper the paged-result `totals` field does).
+    pub mod required {
+        use super::*;
+
+        pub fn serialize<S: serde::Serializer>(value: &BTreeMap<String, Decimal>, serializer: S) -> Result<S::Ok, S::Error> {
+            super::serialize(&Some(value.clone()), serializer)
+        }
+
+        pub fn deserialize<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<BTreeMap<String, Decimal>, D::Error> {
+            Ok(super::deserialize(deserializer)?.unwrap_or_default())
         }
     }
 }
@@ -294,6 +319,7 @@ pub struct ActivityEntry {
     // from this type's own `core/types/gen/` output directory and breaks for any other exported
     // type at a different depth (e.g. `AuditEntry` below, exported to `diagnostics/types/gen/`).
     #[ts(optional, type = "import('@/modules/core/types/route').AppRoute")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub link: Option<crate::utils::route::RouteRef>,
 }
 
@@ -323,8 +349,10 @@ pub enum AuditAction {
 pub struct AuditFieldDiff {
     pub field: String,
     #[ts(optional, type = "unknown")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub before: Option<serde_json::Value>,
     #[ts(optional, type = "unknown")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub after: Option<serde_json::Value>,
 }
 
@@ -339,21 +367,27 @@ pub struct AuditEntry {
     #[ts(type = "string")]
     pub entity_id: Id,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub entity_label: Option<String>,
     pub action: AuditAction,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub before: Option<Vec<AuditFieldDiff>>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub after: Option<Vec<AuditFieldDiff>>,
     #[ts(type = "string")]
     pub user_id: Id,
     #[ts(optional, type = "string")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub branch_id: Option<Id>,
     pub at: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
     pub message: String,
     #[ts(optional, type = "import('@/modules/core/types/route').AppRoute")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub link: Option<crate::utils::route::RouteRef>,
 }
 

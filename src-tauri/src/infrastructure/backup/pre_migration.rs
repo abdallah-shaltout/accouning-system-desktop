@@ -63,10 +63,14 @@ async fn dump_and_write<C: sea_orm::ConnectionTrait>(conn: &C, out_dir: &Path) -
 
     let now = chrono::Utc::now();
     let created_at = crate::utils::dates::format_iso_ms(now);
-    let payload = vec![(
+    let mut payload = vec![(
         "data.json".to_string(),
         serde_json::to_vec(&dataset).map_err(|e| crate::core::error::AppError::internal("تعذر بناء النسخة الاحتياطية", Some(e.to_string())))?,
     )];
+    // C-16: same reasoning as `auto.rs`'s `build_dataset_archive` — `attachments` is excluded from
+    // the generic dataset dump (LONGBLOB columns), packed here instead so a pre-migration backup
+    // stays restorable through the same `settings_restore_from_archive` path a manual one uses.
+    super::attachments::pack_attachments(conn, &mut payload).await.map_err(crate::core::tx::TxError::into_app_error)?;
 
     let company_for_manifest = company.clone();
     let built = build_archive(

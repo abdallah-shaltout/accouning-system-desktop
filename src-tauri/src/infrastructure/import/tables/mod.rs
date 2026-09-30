@@ -47,3 +47,36 @@ pub fn parse_doc_date(raw: &str, tz: Option<chrono_tz::Tz>) -> Option<(NaiveDate
         })
     }
 }
+
+/// A typed, nullable FK column (§3.2.4, step 12): no old id (absent or empty) → `NULL`; a known old
+/// id → its new id; an old id no row in this snapshot was assigned → a dangling reference, which
+/// fails the whole import with `VALIDATION` naming `table` (the transaction rolls back) instead of
+/// silently writing `NULL` and losing the link. For columns whose target the mock can hard-delete
+/// (so a dangling id is legitimate legacy data) use [`lenient_ref`].
+pub fn strict_ref(
+    id_map: &crate::infrastructure::import::idmap::IdMap,
+    old: Option<&str>,
+    table: &str,
+) -> crate::core::tx::TxResult<Option<crate::utils::id::Id>> {
+    match old {
+        None => Ok(None),
+        Some(s) if s.is_empty() => Ok(None),
+        Some(s) => id_map.resolve(s).map(Some).ok_or_else(|| dangling_ref(table, s)),
+    }
+}
+
+/// A nullable FK whose target the mock hard-deletes while documents keep the old id
+/// (`deleteCostCenter` checks only posted journal lines, `purchases.ts:703` drops a converted debit
+/// note draft): a dangling id there becomes `NULL`, exactly what the reference means now.
+pub fn lenient_ref(id_map: &crate::infrastructure::import::idmap::IdMap, old: Option<&str>) -> Option<crate::utils::id::Id> {
+    old.filter(|s| !s.is_empty()).and_then(|s| id_map.resolve(s))
+}
+
+/// Step 12's `VALIDATION` text for a reference to a row the snapshot doesn't contain; the old id
+/// goes to the diagnostics log only.
+pub fn dangling_ref(table: &str, old: &str) -> crate::core::tx::TxError {
+    log::error!(target: "import", "dangling reference in {table}: '{old}' is not a row of this snapshot");
+    crate::core::tx::TxError::App(crate::core::error::AppError::validation(format!(
+        "تعذر الاستيراد: مرجع غير موجود في {table} — أرسل ملف التشخيص للدعم"
+    )))
+}

@@ -15,7 +15,7 @@ use crate::entities::catalog::units::ActiveModel as UnitActiveModel;
 use crate::entities::values::StringList;
 use crate::infrastructure::import::idmap::{is_freetext_product_id, IdMap};
 use crate::infrastructure::import::model::{CategoryV1, CustomFieldDefV1, PriceListV1, ProductBatchV1, ProductV1, UnitV1};
-use crate::infrastructure::import::tables::{parse_doc_date, resolve_created_at};
+use crate::infrastructure::import::tables::{parse_doc_date, resolve_created_at, strict_ref};
 use crate::utils::id::Id;
 use crate::utils::money::{round2, round4, round_qty};
 
@@ -51,11 +51,11 @@ pub async fn insert_categories<C: ConnectionTrait>(
             name: Set(row.name.clone()),
             // Deferred (self-reference).
             parent_id: Set(None),
-            purchase_account_id: Set(row.purchase_account_id.as_deref().and_then(|old| id_map.resolve(old))),
-            revenue_account_id: Set(row.revenue_account_id.as_deref().and_then(|old| id_map.resolve(old))),
-            cogs_account_id: Set(row.cogs_account_id.as_deref().and_then(|old| id_map.resolve(old))),
-            sale_tax_id: Set(row.sale_tax_id.as_deref().and_then(|old| id_map.resolve(old))),
-            purchase_tax_id: Set(row.purchase_tax_id.as_deref().and_then(|old| id_map.resolve(old))),
+            purchase_account_id: Set(strict_ref(id_map, row.purchase_account_id.as_deref(), "categories")?),
+            revenue_account_id: Set(strict_ref(id_map, row.revenue_account_id.as_deref(), "categories")?),
+            cogs_account_id: Set(strict_ref(id_map, row.cogs_account_id.as_deref(), "categories")?),
+            sale_tax_id: Set(strict_ref(id_map, row.sale_tax_id.as_deref(), "categories")?),
+            purchase_tax_id: Set(strict_ref(id_map, row.purchase_tax_id.as_deref(), "categories")?),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
             deleted_at: Set(None),
@@ -93,45 +93,58 @@ pub async fn insert_price_lists<C: ConnectionTrait>(
         // `price_lists` in IMPORT_ORDER, this pass only *records* nothing here: `product_prices`
         // rows for a price list's own `.values` are instead inserted from `insert_products` below
         // (which runs after both `price_lists` and `products` exist), reading `price_list.values`
-        // via the caller-supplied slice — see `insert_product_prices_from_price_lists`.
+        // via the caller-supplied slice — see `insert_product_prices`.
         let _ = &row.values;
     }
     Ok(())
 }
 
 /// Called by `run.rs` right after both `price_lists` and `products` have been inserted (their own
-/// `IMPORT_ORDER` slots): builds `product_prices` rows from every `PriceListV1.values` entry, now
-/// that both sides of the FK resolve. `unitPrices`/`unit_prices` on the product itself go through
-/// `insert_products` directly (they're a `Product` field, not a `PriceList` field).
-pub async fn insert_product_prices_from_price_lists<C: ConnectionTrait>(
+/// `IMPORT_ORDER` slots): builds the `product_prices` rows (`unit_id = NULL`, the base-unit price per
+/// price list) from every `Product.prices` entry — where the TS mock keeps them — in product array
+/// order, then from any legacy `PriceList.values` entry (an older snapshot shape), now that both
+/// sides of the FK resolve. A price for a price list or product that isn't in the snapshot is
+/// skipped (the mock deletes a price list without touching its products' `prices`).
+/// `unitPrices` stay a JSON column on the product row (`insert_products`).
+pub async fn insert_product_prices<C: ConnectionTrait>(
     conn: &C,
     price_lists: &[PriceListV1],
+    products: &[ProductV1],
     id_map: &IdMap,
     import_base: chrono::DateTime<chrono::Utc>,
     rounded: &mut i64,
 ) -> TxResult<()> {
-    let mut index = 0usize;
-    for price_list in price_lists {
-        let Some(price_list_id) = id_map.resolve(&price_list.id) else { continue };
-        for value in &price_list.values {
-            let Some(product_id) = id_map.resolve(&value.product_id) else { continue };
-            let unit_id = value.unit_id.as_deref().and_then(|old| id_map.resolve(old));
-            let amount = round2(value.value);
-            if amount != value.value {
-                *rounded += 1;
-            }
-            let model = ProductPriceActiveModel {
-                id: Set(Id::new()),
-                product_id: Set(product_id),
-                price_list_id: Set(price_list_id),
-                unit_id: Set(unit_id),
-                value: Set(amount),
-                created_at: Set(resolve_created_at(None, import_base, index)),
-                updated_at: Set(resolve_created_at(None, import_base, index)),
-            };
-            model.insert(conn).await.map_err(TxError::from)?;
-            index += 1;
+    // Collected into owned tuples up front: holding the borrowing iterator chain across the
+    // `.await` below trips rustc's higher-ranked `Send` inference for the command's boxed future.
+    let mut entries: Vec<(String, String, Option<String>, rust_decimal::Decimal)> = Vec::new();
+    for p in products {
+        for price in p.prices.iter().flatten() {
+            entries.push((p.id.clone(), price.price_list_id.clone(), None, price.value));
         }
+    }
+    for pl in price_lists {
+        for v in &pl.values {
+            entries.push((v.product_id.clone(), pl.id.clone(), v.unit_id.clone(), v.value));
+        }
+    }
+
+    for (index, (product_old, price_list_old, unit_old, value)) in entries.into_iter().enumerate() {
+        let (Some(product_id), Some(price_list_id)) = (id_map.resolve(&product_old), id_map.resolve(&price_list_old)) else { continue };
+        let unit_id = unit_old.as_deref().and_then(|old| id_map.resolve(old));
+        let amount = round2(value);
+        if amount != value {
+            *rounded += 1;
+        }
+        let model = ProductPriceActiveModel {
+            id: Set(Id::new()),
+            product_id: Set(product_id),
+            price_list_id: Set(price_list_id),
+            unit_id: Set(unit_id),
+            value: Set(amount),
+            created_at: Set(resolve_created_at(None, import_base, index)),
+            updated_at: Set(resolve_created_at(None, import_base, index)),
+        };
+        model.insert(conn).await.map_err(TxError::from)?;
     }
     Ok(())
 }
@@ -215,8 +228,9 @@ pub async fn insert_products<C: ConnectionTrait>(
                 list.iter()
                     .filter_map(|up| {
                         let price_list_id = id_map.resolve(&up.price_list_id)?;
-                        let unit_id = id_map.resolve(&up.unit_id)?;
-                        Some(ProductUnitPrice { price_list_id, unit_id, value: round2(up.value) })
+                        // `unitId` is the product's own `ProductUnit.id` (kept verbatim in `units`
+                        // above) or `'__base__'` — never an id-map key, so it's copied as is.
+                        Some(ProductUnitPrice { price_list_id, unit_id: up.unit_id.clone(), value: round2(up.value) })
                     })
                     .collect(),
             )
@@ -247,8 +261,8 @@ pub async fn insert_products<C: ConnectionTrait>(
             name_en: Set(row.name_en.clone()),
             sku: Set(row.sku.clone()),
             barcode: Set(row.barcode.clone()),
-            category_id: Set(row.category_id.as_deref().and_then(|old| id_map.resolve(old))),
-            unit_id: Set(row.unit_id.as_deref().and_then(|old| id_map.resolve(old))),
+            category_id: Set(strict_ref(id_map, row.category_id.as_deref(), "products")?),
+            unit_id: Set(strict_ref(id_map, row.unit_id.as_deref(), "products")?),
             r#type: Set(row.kind.clone()),
             stock_mode: Set(row.stock_mode.clone()),
             cost_price: Set(cost_price),
@@ -257,7 +271,7 @@ pub async fn insert_products<C: ConnectionTrait>(
             min_stock: Set(row.min_stock.map(round_qty)),
             active: Set(row.active),
             image: Set(row.image.clone()),
-            purchase_account_id: Set(row.purchase_account_id.as_deref().and_then(|old| id_map.resolve(old))),
+            purchase_account_id: Set(strict_ref(id_map, row.purchase_account_id.as_deref(), "products")?),
             stock_value: Set(stock_value),
             stock_by_branch: Set(stock_by_branch),
             brand: Set(row.brand.clone()),
@@ -267,13 +281,13 @@ pub async fn insert_products<C: ConnectionTrait>(
             units: Set(units),
             unit_prices: Set(unit_prices),
             min_price: Set(row.min_price.map(round2)),
-            sale_tax_id: Set(row.sale_tax_id.as_deref().and_then(|old| id_map.resolve(old))),
-            purchase_tax_id: Set(row.purchase_tax_id.as_deref().and_then(|old| id_map.resolve(old))),
-            revenue_account_id: Set(row.revenue_account_id.as_deref().and_then(|old| id_map.resolve(old))),
-            cogs_account_id: Set(row.cogs_account_id.as_deref().and_then(|old| id_map.resolve(old))),
+            sale_tax_id: Set(strict_ref(id_map, row.sale_tax_id.as_deref(), "products")?),
+            purchase_tax_id: Set(strict_ref(id_map, row.purchase_tax_id.as_deref(), "products")?),
+            revenue_account_id: Set(strict_ref(id_map, row.revenue_account_id.as_deref(), "products")?),
+            cogs_account_id: Set(strict_ref(id_map, row.cogs_account_id.as_deref(), "products")?),
             allow_negative_stock: Set(row.allow_negative_stock),
             shelf_location: Set(row.shelf_location.clone()),
-            preferred_supplier_id: Set(row.preferred_supplier_id.as_deref().and_then(|old| id_map.resolve(old))),
+            preferred_supplier_id: Set(strict_ref(id_map, row.preferred_supplier_id.as_deref(), "products")?),
             reorder_qty: Set(row.reorder_qty.map(round_qty)),
             track_batches: Set(row.track_batches),
             expiry_alert_days: Set(row.expiry_alert_days),
@@ -347,7 +361,7 @@ pub async fn insert_product_batches<C: ConnectionTrait>(
             expiry_date: Set(expiry_date),
             qty: Set(qty),
             unit_cost: Set(unit_cost),
-            supplier_id: Set(row.supplier_id.as_deref().and_then(|old| id_map.resolve(old))),
+            supplier_id: Set(strict_ref(id_map, row.supplier_id.as_deref(), "product_batches")?),
             received_date_day: Set(received_day),
             received_date_instant: Set(received_instant),
             source_ref_id: Set(source_ref_id),

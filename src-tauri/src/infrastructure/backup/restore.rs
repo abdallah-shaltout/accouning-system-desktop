@@ -92,6 +92,9 @@ async fn require_restore_allowed(state: &AppState) -> AppResult<()> {
 struct DecryptedArchive {
     manifest: BackupManifest,
     data_json: Vec<u8>,
+    /// Every payload file (unencrypted archive: as stored; encrypted: unpacked) — used to find
+    /// `attachments/<id>.*` entries (C-16) alongside `data.json`.
+    files: super::archive::PayloadFiles,
 }
 
 /// Parses, decrypts (if needed) and checksum-verifies the archive (§3.9 step 2). Returns the raw
@@ -104,14 +107,15 @@ fn parse_and_verify(bytes: &[u8], password: Option<&str>) -> AppResult<Decrypted
         return Err(AppError::validation("هذه النسخة مشفّرة — أدخل كلمة المرور"));
     }
 
-    let data_json = if parsed.manifest.encrypted {
+    let files = if parsed.manifest.encrypted {
         let password = password.expect("checked non-empty above");
-        let files = decrypt_archive(&parsed, password)?;
-        find_payload_file(&files, "data.json").map(|b| b.to_vec()).ok_or_else(|| AppError::validation("ملف النسخة الاحتياطية غير صالح: data.json مفقود"))?
+        decrypt_archive(&parsed, password)?
     } else {
-        let files = parsed.payload_files.as_ref().expect("unencrypted archive always carries payload_files");
-        find_payload_file(files, "data.json").map(|b| b.to_vec()).ok_or_else(|| AppError::validation("ملف النسخة الاحتياطية غير صالح: data.json مفقود"))?
+        parsed.payload_files.clone().expect("unencrypted archive always carries payload_files")
     };
+    let data_json = find_payload_file(&files, "data.json")
+        .map(|b| b.to_vec())
+        .ok_or_else(|| AppError::validation("ملف النسخة الاحتياطية غير صالح: data.json مفقود"))?;
 
     // D-9: verify the checksum before anything is restored — a corrupted/tampered archive must
     // never partially apply.
@@ -120,7 +124,7 @@ fn parse_and_verify(bytes: &[u8], password: Option<&str>) -> AppResult<Decrypted
         return Err(AppError::validation("المجموع الاختباري غير مطابق — الملف قد يكون تالفاً"));
     }
 
-    Ok(DecryptedArchive { manifest: parsed.manifest, data_json })
+    Ok(DecryptedArchive { manifest: parsed.manifest, data_json, files })
 }
 
 /// The mandatory pre-restore backup (§3.9 step 3): built and written in its own `with_read`
@@ -164,10 +168,13 @@ async fn build_pre_restore_archive<C: ConnectionTrait>(conn: &C) -> Result<super
     let row = crate::core::settings::load(conn).await?;
     let company = if row.store_name.trim().is_empty() { "company".to_string() } else { row.store_name.clone() };
     let created_at = crate::utils::dates::format_iso_ms(chrono::Utc::now());
-    let payload = vec![(
+    let mut payload = vec![(
         "data.json".to_string(),
         serde_json::to_vec(&dataset).map_err(|e| AppError::internal("تعذر بناء النسخة الاحتياطية", Some(e.to_string())))?,
     )];
+    // C-16: same reasoning as `auto.rs`'s `build_dataset_archive` — the mandatory pre-restore safety
+    // backup must carry attachments too, or a restore of it would silently lose every attachment.
+    super::attachments::pack_attachments(conn, &mut payload).await.map_err(TxError::into_app_error)?;
     let company_for_manifest = company.clone();
     build_archive(
         move |checksum, encrypted| BackupManifest {
@@ -211,6 +218,20 @@ pub async fn restore_from_archive(state: &AppState, archive_base64: &str, passwo
         return Err(AppError::validation(note.unwrap_or_default()));
     }
 
+    // D-7 before anything is written: the step-4 transaction re-checks Settings:Write + Users:Write,
+    // but the pre-restore backup below already writes a file and an activity row — an unauthorized
+    // caller must be refused here, not after that (and not with the misleading pre-restore error).
+    let actor = state.session.read().unwrap().clone();
+    crate::core::tx::with_read(state, move |conn| {
+        let actor = actor.clone();
+        Box::pin(async move {
+            crate::core::settings::require(conn, actor.as_ref(), crate::core::auth::Area::Settings, crate::core::auth::Access::Write).await?;
+            crate::core::settings::require(conn, actor.as_ref(), crate::core::auth::Area::Users, crate::core::auth::Access::Write).await?;
+            Ok(())
+        }) as crate::core::tx::BoxFuture<'_, TxResult<()>>
+    })
+    .await?;
+
     let device = state.device.read().unwrap().clone();
     let registry = state.undo.clone();
 
@@ -221,13 +242,15 @@ pub async fn restore_from_archive(state: &AppState, archive_base64: &str, passwo
     let schema_version = decrypted.manifest.schema_version;
     let created_at = decrypted.manifest.created_at.clone();
     let data_json = decrypted.data_json.clone();
+    let files = decrypted.files.clone();
     let terminal_id = state.terminal.terminal_id;
 
     let outcome = crate::core::tx::with_tx(state, crate::core::tx::TxOpts { require_user: false }, move |tx, cx| {
         let data_json = data_json.clone();
+        let files = files.clone();
         let created_at = created_at.clone();
         let registry = registry.clone();
-        Box::pin(run_restore_in_tx(tx, cx, registry, schema_version, created_at, data_json, terminal_id)) as crate::core::tx::BoxFuture<'_, TxResult<RestoreOutcome>>
+        Box::pin(run_restore_in_tx(tx, cx, registry, schema_version, created_at, data_json, files, terminal_id)) as crate::core::tx::BoxFuture<'_, TxResult<RestoreOutcome>>
     })
     .await?;
 
@@ -272,6 +295,7 @@ async fn run_restore_in_tx<C: ConnectionTrait>(
     schema_version: u32,
     created_at: String,
     data_json: Vec<u8>,
+    files: super::archive::PayloadFiles,
     terminal_id: Id,
 ) -> TxResult<RestoreOutcome> {
     cx.require(conn, crate::core::auth::Area::Settings, crate::core::auth::Access::Write).await?;
@@ -281,7 +305,12 @@ async fn run_restore_in_tx<C: ConnectionTrait>(
         // Browser archive: wipe then re-run the legacy importer (00-import), which ends with its
         // own `run_all` invariants check.
         let order = dataset::topo_order(conn).await?;
+        // `wipe` empties `document_counters` too (a Rust archive reloads it from its dump), but the
+        // importer only UPDATEs the migration-seeded rows (`numbering::set_counter`) — re-seed every
+        // kind that existed at 0 first, so its step 10 finds them and the code locks stay 0.
+        let counter_kinds = document_counter_kinds(conn).await?;
         dataset::wipe(conn, &order).await?;
+        reseed_document_counters(conn, &counter_kinds).await?;
 
         let snapshot_json = String::from_utf8(data_json)
             .map_err(|_| TxError::App(AppError::validation("ملف النسخة الاحتياطية غير صالح")))?;
@@ -311,6 +340,11 @@ async fn run_restore_in_tx<C: ConnectionTrait>(
         let order = dataset::topo_order(conn).await?;
         dataset::wipe(conn, &order).await?;
         dataset::load(conn, &dataset_v1, &order).await?;
+
+        // C-16: `attachments` is excluded from `dataset`'s generic dump/load (LONGBLOB columns) —
+        // restore it separately from the archive's `attachments/<id>.*` entries, if any (an archive
+        // written before C-16 has none, and simply restores zero attachments).
+        super::attachments::restore_attachments(conn, &files).await?;
 
         let results = crate::shared::invariants::run_all(conn).await.map_err(TxError::App)?;
         if let Some(first_failed) = results.iter().find(|r| !r.passed) {
@@ -355,6 +389,25 @@ async fn run_restore_in_tx<C: ConnectionTrait>(
     cx.touch(ChangeCategory::Parties);
 
     Ok(RestoreOutcome { device_fields })
+}
+
+/// Every `document_counters.kind` present now (the migrations' seed set, whatever it grows to).
+async fn document_counter_kinds<C: ConnectionTrait>(conn: &C) -> TxResult<Vec<String>> {
+    let stmt = sea_orm::Statement::from_string(conn.get_database_backend(), "SELECT `kind` FROM `document_counters` ORDER BY `kind`".to_string());
+    let rows = conn.query_all(stmt).await.map_err(TxError::from)?;
+    rows.iter().map(|r| r.try_get::<String>("", "kind").map_err(TxError::from)).collect()
+}
+
+async fn reseed_document_counters<C: ConnectionTrait>(conn: &C, kinds: &[String]) -> TxResult<()> {
+    for kind in kinds {
+        let stmt = sea_orm::Statement::from_sql_and_values(
+            conn.get_database_backend(),
+            "INSERT INTO `document_counters` (`kind`, `value`) VALUES (?, 0) ON DUPLICATE KEY UPDATE `value` = 0",
+            [kind.clone().into()],
+        );
+        conn.execute(stmt).await.map_err(TxError::from)?;
+    }
+    Ok(())
 }
 
 /// D-10's lookup: the current actor's id if it exists among the just-restored `users` rows, else

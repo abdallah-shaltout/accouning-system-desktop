@@ -57,10 +57,33 @@ impl Serialize for Id {
     }
 }
 
+impl Id {
+    /// The id a caller-supplied text that is not a UUID stands for (plan 21 Part 04 Wave 2): a
+    /// deterministic UUIDv8 hashed from the text, so it never matches a stored row (every stored id
+    /// is v7) and two different unknown texts stay different. The mock answers an unknown id
+    /// (`'fy-missing'`, `''`) with its own `NOT_FOUND`/`VALIDATION` refusal; decoding such text
+    /// into a never-existing id lets the command reach that same refusal instead of failing the
+    /// whole IPC args decode as `INTERNAL`.
+    pub fn unknown_from_text(text: &str) -> Self {
+        // FNV-1a 128-bit over the UTF-8 bytes — a stable, dependency-free hash.
+        let mut hash: u128 = 0x6c62272e07bb014262b821756295c58d;
+        for b in text.as_bytes() {
+            hash ^= u128::from(*b);
+            hash = hash.wrapping_mul(0x0000000001000000000000000000013B);
+        }
+        let mut bytes = uuid::Builder::from_custom_bytes(hash.to_be_bytes()).into_uuid().into_bytes();
+        // Variant `110x` instead of RFC `10xx`: MariaDB 11.4's `UUID` type refuses a version-8+
+        // value whose byte 8 is `0x01..=0x80` (`1292 Incorrect uuid value` → `INTERNAL`), i.e. ~1/64
+        // of RFC-variant v8 ids; `0xC0..=0xDF` is always accepted (same as `receipt_source_id`).
+        bytes[8] = (bytes[8] & 0x1F) | 0xC0;
+        Id(Uuid::from_bytes(bytes))
+    }
+}
+
 impl<'de> Deserialize<'de> for Id {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        Id::from_str(&s).map_err(serde::de::Error::custom)
+        Ok(Id::from_str(&s).unwrap_or_else(|_| Id::unknown_from_text(&s)))
     }
 }
 
@@ -76,13 +99,17 @@ impl From<Id> for Value {
 
 impl TryGetable for Id {
     fn try_get_by<I: sea_orm::ColIdx>(res: &sea_orm::QueryResult, index: I) -> Result<Self, TryGetError> {
-        // Accept either a 36-char hyphenated string or 16 raw bytes (P2-04).
-        if let Ok(s) = res.try_get_by::<String, _>(index) {
-            return Id::from_str(&s).map_err(|e| TryGetError::DbErr(sea_orm::DbErr::Custom(e.to_string())));
+        // Accept either a 36-char hyphenated string or 16 raw bytes (P2-04). A SQL NULL must stay
+        // `TryGetError::Null` so `Option<Id>` columns decode to `None` instead of failing.
+        match <String as TryGetable>::try_get_by(res, index) {
+            Ok(s) => return Id::from_str(&s).map_err(|e| TryGetError::DbErr(sea_orm::DbErr::Custom(e.to_string()))),
+            Err(TryGetError::Null(col)) => return Err(TryGetError::Null(col)),
+            Err(_) => {}
         }
-        let bytes = res
-            .try_get_by::<Vec<u8>, _>(index)
-            .map_err(|_| TryGetError::DbErr(sea_orm::DbErr::Custom("Id: column is neither text nor bytes".to_string())))?;
+        let bytes = <Vec<u8> as TryGetable>::try_get_by(res, index).map_err(|e| match e {
+            TryGetError::Null(col) => TryGetError::Null(col),
+            _ => TryGetError::DbErr(sea_orm::DbErr::Custom("Id: column is neither text nor bytes".to_string())),
+        })?;
         Uuid::from_slice(&bytes)
             .map(Id)
             .map_err(|e| TryGetError::DbErr(sea_orm::DbErr::Custom(e.to_string())))

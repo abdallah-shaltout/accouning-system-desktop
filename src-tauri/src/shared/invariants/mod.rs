@@ -57,6 +57,22 @@ pub(crate) fn close_enough(a: Decimal, b: Decimal, tolerance: Decimal) -> bool {
     (a - b).abs() <= tolerance
 }
 
+/// `roleAccount` (`invariants.ts`, ACC-0022): the role's account, or `None` when the chart has none
+/// (the `basic` template has no card/wallet clearing account; an empty company has no chart yet).
+/// `run_all` must never fail on that: nothing can have posted to a missing account, so its GL
+/// balance is 0 and each check compares that 0 with its own documents. Only `NOT_FOUND` maps to
+/// `None` — a database error still propagates.
+pub(crate) async fn optional_account<C: ConnectionTrait>(
+    conn: &C,
+    role: crate::shared::ledger::accounts::SystemRole,
+) -> Result<Option<crate::entities::org::accounts::Model>, AppError> {
+    match crate::shared::ledger::accounts::resolve_account(conn, role, &crate::shared::ledger::accounts::AccountCtx::default()).await {
+        Ok(a) => Ok(Some(a)),
+        Err(AppError::NotFound { .. }) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
 /// `closeEnough`'s default tolerance (`0.01`) — the one copy the check modules share.
 pub(crate) fn tolerance_cents() -> Decimal {
     Decimal::new(1, 2) // 0.01

@@ -10,7 +10,7 @@
 //! toast + reprint UX.
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Runtime};
 
 use super::escpos;
 use super::payload::{ConnectionType, PrintReceiptRequest};
@@ -58,7 +58,7 @@ pub fn run_print_job(req: &PrintReceiptRequest) -> Result<(), String> {
 /// `printService.ts` listens for to show a toast (and, on failure, a
 /// "إعادة الطباعة" reprint action + PDF fallback offer).
 #[tauri::command]
-pub async fn print_thermal_receipt(app: AppHandle, req: PrintReceiptRequest, job_id: String) -> Result<String, String> {
+pub async fn print_thermal_receipt<R: Runtime>(app: AppHandle<R>, req: PrintReceiptRequest, job_id: String) -> Result<String, String> {
     let job_id_for_task = job_id.clone();
     tauri::async_runtime::spawn(async move {
         let result = run_print_job(&req);

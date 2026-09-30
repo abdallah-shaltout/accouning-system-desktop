@@ -407,7 +407,9 @@ mod tests {
     #[test]
     fn payment_status_matches_the_0_005_tolerance() {
         assert_eq!(payment_status_for(dec!(100), dec!(99.996)), PaymentStatusKind::Paid);
-        assert_eq!(payment_status_for(dec!(100), dec!(99.99)), PaymentStatusKind::Paid);
+        assert_eq!(payment_status_for(dec!(100), dec!(99.995)), PaymentStatusKind::Paid);
+        // 99.99 < 100 − 0.005, same as the mock's `paid >= total - 0.005` (totals.ts:255).
+        assert_eq!(payment_status_for(dec!(100), dec!(99.99)), PaymentStatusKind::PartiallyPaid);
         assert_eq!(payment_status_for(dec!(100), dec!(50)), PaymentStatusKind::PartiallyPaid);
         assert_eq!(payment_status_for(dec!(100), Decimal::ZERO), PaymentStatusKind::Unpaid);
     }

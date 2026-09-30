@@ -51,9 +51,23 @@ fn require_main_or_debug_db(state: &AppState) -> Result<(), AppError> {
     }
 }
 
+/// Plan 21 Part 04 E-2: demo data is a development tool. A release build refuses `mode: Demo`
+/// outright, so demo books can never land in a real company's (empty) database, where a release build
+/// could never remove them again (no wipe outside debug builds, §3.2 step 1). The welcome page hides
+/// the demo card in a release desktop build too (`devToolsService.canLoadDemoData`); this is the
+/// authority. `release` is a parameter so the rule is unit-testable from a debug test build.
+fn refuse_demo_in_release(mode: ImportMode, release: bool) -> Result<(), AppError> {
+    if release && matches!(mode, ImportMode::Demo) {
+        Err(AppError::forbidden("البيانات التجريبية غير متاحة في النسخة النهائية"))
+    } else {
+        Ok(())
+    }
+}
+
 #[tauri::command]
 pub async fn setup_import_snapshot(state: State<'_, AppState>, args: SetupImportSnapshotArgs) -> Result<ImportSnapshotResult, ApiErrorPayload> {
     require_main_or_debug_db(&state).map_err(ApiErrorPayload::from)?;
+    refuse_demo_in_release(args.mode, !cfg!(debug_assertions)).map_err(ApiErrorPayload::from)?;
 
     // The JSON string is parsed once outside the closure (the closure may re-run on a deadlock
     // retry, P2-07) — `run::import_snapshot` re-parses it internally per call, but the args
@@ -134,4 +148,18 @@ pub fn ipc_signatures() -> Vec<IpcSig> {
         ipc_sig!(setup_inspect_legacy_snapshot, SetupInspectLegacySnapshotArgs, LegacySnapshotSummary),
         ipc_sig!(setup_import_snapshot, SetupImportSnapshotArgs, ImportSnapshotResult),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn release_refuses_demo_import_only() {
+        let refused = refuse_demo_in_release(ImportMode::Demo, true).unwrap_err();
+        assert!(matches!(ApiErrorPayload::from(refused).code, crate::core::dto::ApiErrorCode::Forbidden));
+        assert!(refuse_demo_in_release(ImportMode::Legacy, true).is_ok());
+        assert!(refuse_demo_in_release(ImportMode::Demo, false).is_ok());
+        assert!(refuse_demo_in_release(ImportMode::Legacy, false).is_ok());
+    }
 }

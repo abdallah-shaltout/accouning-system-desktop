@@ -263,9 +263,16 @@ pub async fn run_auto_backup_if_due(state: &AppState, trigger: AutoBackupTrigger
         return Ok(AutoBackupOutcome { ran: false, path: None, skipped: Some(AutoBackupSkipReason::NotMain), error: None });
     }
 
+    // D-6: this runs with nobody logged in too (the 60 s timer at the login screen, the close hook).
+    // Every write it makes records an audit/activity row, so attribute those to the first active
+    // admin then — otherwise the bookkeeping fails, `lastAutoRunDate` is never saved, and a new
+    // unpruned archive is written every tick until someone logs in.
+    let logged_in = state.session.read().unwrap().is_some();
+    let fallback_actor = if logged_in { None } else { system_actor(state).await? };
+
     let registry = state.undo.clone();
     let device_for_tx = device.clone();
-    let outcome = crate::core::tx::with_tx(state, crate::core::tx::TxOpts { require_user: false }, move |txn, cx| {
+    let outcome = crate::core::tx::with_tx_attributed(state, fallback_actor, move |txn, cx| {
         let registry = registry.clone();
         let device = device_for_tx.clone();
         Box::pin(run_auto_backup_in_tx(txn, cx, registry, device, trigger)) as crate::core::tx::BoxFuture<'_, TxResult<AutoBackupOutcome>>
@@ -273,6 +280,30 @@ pub async fn run_auto_backup_if_due(state: &AppState, trigger: AutoBackupTrigger
     .await?;
 
     Ok(outcome)
+}
+
+/// The first active admin (by `created_at, id`) as a session-shaped actor, or `None` on a database
+/// with no admin yet — then there is no settings row either and auto backup is disabled anyway.
+async fn system_actor(state: &AppState) -> AppResult<Option<crate::core::auth::AuthenticatedUser>> {
+    crate::core::tx::with_read(state, |conn| {
+        Box::pin(async move {
+            use crate::entities::org::users;
+            use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+            let admin = users::Entity::find()
+                .filter(users::Column::Role.eq("admin"))
+                .filter(users::Column::Active.eq(true))
+                .filter(users::Column::DeletedAt.is_null())
+                .order_by_asc(users::Column::CreatedAt)
+                .order_by_asc(users::Column::Id)
+                .one(conn)
+                .await
+                .map_err(TxError::from)?;
+            let Some(admin) = admin else { return Ok(None) };
+            let Ok(settings) = crate::core::settings::load(conn).await else { return Ok(None) };
+            Ok(Some(crate::domains::users::service::to_authenticated(&admin, settings.default_branch_id)))
+        }) as crate::core::tx::BoxFuture<'_, TxResult<Option<crate::core::auth::AuthenticatedUser>>>
+    })
+    .await
 }
 
 async fn run_auto_backup_in_tx<C: ConnectionTrait>(
@@ -378,7 +409,10 @@ async fn build_dataset_archive<C: ConnectionTrait>(
     let row = crate::core::settings::load(conn).await?;
     let company = if row.store_name.trim().is_empty() { "company".to_string() } else { row.store_name.clone() };
 
-    let payload = vec![("data.json".to_string(), serde_json::to_vec(&dataset).map_err(|e| AppError::internal("تعذر بناء النسخة الاحتياطية", Some(e.to_string())))?)];
+    let mut payload = vec![("data.json".to_string(), serde_json::to_vec(&dataset).map_err(|e| AppError::internal("تعذر بناء النسخة الاحتياطية", Some(e.to_string())))?)];
+    // C-16: attachment blobs ride along as `attachments/<id>.*` entries (dataset.rs excludes the
+    // table itself — see its EXCLUDED_TABLES note).
+    super::attachments::pack_attachments(conn, &mut payload).await.map_err(TxError::into_app_error)?;
 
     let company_for_manifest = company.clone();
     build_archive(
@@ -402,9 +436,22 @@ async fn build_dataset_archive<C: ConnectionTrait>(
 /// write happens here — the frontend saves the file through the native dialog, then
 /// `settings_record_backup_saved` runs). Returns the archive's bytes as base64 plus its file name.
 pub async fn build_and_write_or_read_archive<C: ConnectionTrait>(conn: &C, kind: BackupKind, password: Option<&str>) -> Result<super::dto::BackupArchive, AppError> {
-    let created_at = crate::utils::dates::format_iso_ms(chrono::Utc::now());
+    build_archive_at(conn, chrono::Utc::now(), kind, password).await
+}
+
+/// [`build_and_write_or_read_archive`] stamped at `now` — the command passes the business clock
+/// (`ReadCtx.clock.now`), the same instant source the auto backup and every other write use, so
+/// `manifest.createdAt` (→ `lastBackupAt` via `record_backup_saved`) follows the business clock
+/// rather than the raw wall clock (Part 04 Wave 2, L1 `backup/backup-restore-browser-archive`).
+pub async fn build_archive_at<C: ConnectionTrait>(
+    conn: &C,
+    now: chrono::DateTime<chrono::Utc>,
+    kind: BackupKind,
+    password: Option<&str>,
+) -> Result<super::dto::BackupArchive, AppError> {
+    let created_at = crate::utils::dates::format_iso_ms(now);
     let built = build_dataset_archive(conn, created_at, kind, password).await?;
-    let file_name = backup_file_name(&built.manifest.company, chrono::Utc::now().naive_utc());
+    let file_name = backup_file_name(&built.manifest.company, now.naive_utc());
     Ok(super::dto::BackupArchive { manifest: built.manifest, file_name, archive_base64: super::archive::bytes_to_base64(&built.bytes) })
 }
 

@@ -12,9 +12,22 @@ use crate::entities::payments::vouchers::{ActiveModel as VoucherActiveModel, Own
 use crate::entities::values::StringList;
 use crate::infrastructure::import::idmap::IdMap;
 use crate::infrastructure::import::model::{CardSettlementV1, PaymentV1, VoucherV1};
-use crate::infrastructure::import::tables::{parse_doc_date, resolve_created_at};
+use crate::infrastructure::import::tables::{lenient_ref, parse_doc_date, resolve_created_at, strict_ref};
 use crate::utils::id::Id;
 use crate::utils::money::round2;
+
+/// A payment allocation's polymorphic target (B-1): resolve if known (an invoice/PO row was
+/// imported), else the 'onboarding'/'onboarding-close' fixed mapping, else mint a fresh id
+/// consistently. `payments.target_ref` (= `allocations[0].targetId`) maps the same way.
+fn allocation_target_id(id_map: &IdMap, old: &str) -> Id {
+    if old == "onboarding" {
+        crate::infrastructure::import::idmap::ONBOARDING_SOURCE_ID
+    } else if old == "onboarding-close" {
+        crate::infrastructure::import::idmap::ONBOARDING_CLOSE_SOURCE_ID
+    } else {
+        id_map.resolve(old).unwrap_or_else(|| id_map.resolve_or_mint(old))
+    }
+}
 
 pub async fn insert_payments<C: ConnectionTrait>(
     conn: &C,
@@ -47,6 +60,11 @@ pub async fn insert_payments<C: ConnectionTrait>(
         // itself imported (never happens for a healthy snapshot, kept for robustness only).
         let target_id = id_map.resolve(&row.target_id).unwrap_or_else(|| id_map.resolve_or_mint(&row.target_id));
 
+        // `targetRef` is `allocations[0].targetId` (`payments.ts:250`), an old document id: it maps
+        // exactly like that allocation's `target_id` below, so the DTO's `targetRef` names the same
+        // (imported) document as the allocation does.
+        let target_ref = row.target_ref.as_deref().filter(|s| !s.is_empty()).map(|r| allocation_target_id(id_map, r).to_string());
+
         let model = PaymentActiveModel {
             id: Set(id),
             number: Set(row.number.clone()),
@@ -55,12 +73,12 @@ pub async fn insert_payments<C: ConnectionTrait>(
             r#type: Set(kind),
             target_type: Set(target_type),
             target_id: Set(target_id),
-            target_ref: Set(row.target_ref.clone()),
+            target_ref: Set(target_ref),
             target_ref_number: Set(row.target_ref_number.clone()),
             amount: Set(amount),
             method: Set(method),
             note: Set(row.note.clone()),
-            branch_id: Set(row.branch_id.as_deref().and_then(|old| id_map.resolve(old))),
+            branch_id: Set(strict_ref(id_map, row.branch_id.as_deref(), "payments")?),
             currency: Set(row.currency.clone().map(|c| c.to_uppercase())),
             amount_fc: Set(row.amount_fc.map(round2)),
             rate: Set(row.rate),
@@ -80,13 +98,7 @@ pub async fn insert_payments<C: ConnectionTrait>(
             };
             // Polymorphic (B-1): resolve if known (an invoice/PO row was imported), else the
             // 'onboarding'/'onboarding-close' fixed mapping, else mint a fresh id consistently.
-            let target_id = if alloc.target_id == "onboarding" {
-                crate::infrastructure::import::idmap::ONBOARDING_SOURCE_ID
-            } else if alloc.target_id == "onboarding-close" {
-                crate::infrastructure::import::idmap::ONBOARDING_CLOSE_SOURCE_ID
-            } else {
-                id_map.resolve(&alloc.target_id).unwrap_or_else(|| id_map.resolve_or_mint(&alloc.target_id))
-            };
+            let target_id = allocation_target_id(id_map, &alloc.target_id);
             let amount = round2(alloc.amount);
             if amount != alloc.amount {
                 *rounded += 1;
@@ -153,17 +165,17 @@ pub async fn insert_vouchers<C: ConnectionTrait>(
             description: Set(row.description.clone()),
             note: Set(row.note.clone()),
             attachment_ids: Set(row.attachment_ids.clone().map(StringList)),
-            cost_center_id: Set(row.cost_center_id.as_deref().and_then(|old| id_map.resolve(old))),
+            cost_center_id: Set(lenient_ref(id_map, row.cost_center_id.as_deref())),
             created_by: Set(created_by),
-            payment_method_id: Set(row.payment_method_id.as_deref().and_then(|old| id_map.resolve(old))),
-            credit_account_id: Set(row.credit_account_id.as_deref().and_then(|old| id_map.resolve(old))),
-            debit_account_id: Set(row.debit_account_id.as_deref().and_then(|old| id_map.resolve(old))),
-            source_account_id: Set(row.source_account_id.as_deref().and_then(|old| id_map.resolve(old))),
-            destination_account_id: Set(row.destination_account_id.as_deref().and_then(|old| id_map.resolve(old))),
+            payment_method_id: Set(strict_ref(id_map, row.payment_method_id.as_deref(), "vouchers")?),
+            credit_account_id: Set(strict_ref(id_map, row.credit_account_id.as_deref(), "vouchers")?),
+            debit_account_id: Set(strict_ref(id_map, row.debit_account_id.as_deref(), "vouchers")?),
+            source_account_id: Set(strict_ref(id_map, row.source_account_id.as_deref(), "vouchers")?),
+            destination_account_id: Set(strict_ref(id_map, row.destination_account_id.as_deref(), "vouchers")?),
             fee_amount: Set(row.fee_amount.map(round2)),
-            fee_account_id: Set(row.fee_account_id.as_deref().and_then(|old| id_map.resolve(old))),
+            fee_account_id: Set(strict_ref(id_map, row.fee_account_id.as_deref(), "vouchers")?),
             direction: Set(direction),
-            cash_account_id: Set(row.cash_account_id.as_deref().and_then(|old| id_map.resolve(old))),
+            cash_account_id: Set(strict_ref(id_map, row.cash_account_id.as_deref(), "vouchers")?),
             search_normalized: sea_orm::ActiveValue::NotSet,
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),

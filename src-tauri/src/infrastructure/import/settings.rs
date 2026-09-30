@@ -67,6 +67,9 @@ pub async fn insert_settings<C: ConnectionTrait>(
         default_purchase_account_id: a.default_purchase_account_id.as_deref().and_then(|old| id_map.resolve(old)),
     });
 
+    // `openingEntryId`/`closingEntryId` are JSON ids (no FK) to journal entries inserted *after*
+    // settings in IMPORT_ORDER: `resolve_or_mint` pre-assigns the id `insert_journal_entries` then
+    // reuses (plain `resolve` always missed and dropped the onboarding links).
     let onboarding = settings.onboarding.as_ref().map(|o| OnboardingState {
         business_type: o.business_type.clone(),
         go_live_date: o.go_live_date.as_deref().and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()),
@@ -74,8 +77,8 @@ pub async fn insert_settings<C: ConnectionTrait>(
         skipped: o.skipped.clone(),
         done: o.done.clone(),
         finished_at: o.finished_at.as_deref().and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok()).map(|d| d.with_timezone(&chrono::Utc)),
-        opening_entry_id: o.opening_entry_id.as_deref().and_then(|old| id_map.resolve(old)),
-        closing_entry_id: o.closing_entry_id.as_deref().and_then(|old| id_map.resolve(old)),
+        opening_entry_id: o.opening_entry_id.as_deref().filter(|s| !s.is_empty()).map(|old| id_map.resolve_or_mint(old)),
+        closing_entry_id: o.closing_entry_id.as_deref().filter(|s| !s.is_empty()).map(|old| id_map.resolve_or_mint(old)),
         coa_template: o.coa_template.clone(),
     });
 

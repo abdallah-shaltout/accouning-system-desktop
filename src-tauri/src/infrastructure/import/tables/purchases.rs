@@ -11,7 +11,7 @@ use crate::entities::purchases::purchase_returns::{ActiveModel as PurchaseReturn
 use crate::entities::values::StringList;
 use crate::infrastructure::import::idmap::IdMap;
 use crate::infrastructure::import::model::{PurchaseOrderV1, PurchaseReturnV1};
-use crate::infrastructure::import::tables::{parse_doc_date, resolve_created_at};
+use crate::infrastructure::import::tables::{lenient_ref, parse_doc_date, resolve_created_at, strict_ref};
 use crate::utils::id::Id;
 use crate::utils::money::{round2, round4, round_qty};
 
@@ -76,15 +76,17 @@ pub async fn insert_purchase_orders<C: ConnectionTrait>(
             invoice_discount_amount: Set(row.invoice_discount_amount.map(round2)),
             landed_costs: Set(row.landed_costs.clone()),
             supplier_invoice_no: Set(row.supplier_invoice_no.clone()),
-            supplier_invoice_date: Set(row.supplier_invoice_date.as_deref().and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())),
+            // A date key or an ISO instant (the seed/UI write `dateKeyToIso(...)`) → its business day; a
+            // `%Y-%m-%d`-only parse dropped every instant-shaped value (Part 04 parity, L2).
+            supplier_invoice_date: Set(row.supplier_invoice_date.as_deref().and_then(|s| parse_doc_date(s, tz)).map(|(day, _)| day)),
             vat_not_recoverable: Set(row.vat_not_recoverable),
             sent_at: Set(row.sent_at.as_deref().and_then(crate::infrastructure::import::model::parse_instant)),
-            backorder_of_id: Set(row.backorder_of_id.as_deref().and_then(|old| id_map.resolve(old))),
+            backorder_of_id: Set(None), // DEFERRED (self-ref) — set in run.rs phase B.
             received_date_day: Set(received_date.map(|(d, _)| d)),
             received_date_instant: Set(received_date.and_then(|(_, i)| i)),
             attachment_ids: Set(row.attachment_ids.clone().map(StringList)),
-            cost_center_id: Set(row.cost_center_id.as_deref().and_then(|old| id_map.resolve(old))),
-            branch_id: Set(row.branch_id.as_deref().and_then(|old| id_map.resolve(old))),
+            cost_center_id: Set(lenient_ref(id_map, row.cost_center_id.as_deref())),
+            branch_id: Set(strict_ref(id_map, row.branch_id.as_deref(), "purchase_orders")?),
             currency: Set(row.currency.clone().map(|c| c.to_uppercase())),
             exchange_rate: Set(row.exchange_rate.map(round4)),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
@@ -108,11 +110,13 @@ pub async fn insert_purchase_orders<C: ConnectionTrait>(
                 product_id: Set(product_id),
                 qty: Set(qty),
                 cost_price: Set(cost_price),
-                unit_id: Set(line.unit_id.as_deref().and_then(|old| id_map.resolve(old))),
+                // The product's own `ProductUnit.id` (a free string kept verbatim in `products.units`),
+                // never an id-map key — copied as is (m0020).
+                unit_id: Set(line.unit_id.clone()),
                 unit_factor: Set(line.unit_factor.map(round4)),
                 discount: Set(line.discount.map(round2)),
                 discount_is_pct: Set(line.discount_is_pct),
-                tax_id: Set(line.tax_id.as_deref().and_then(|old| id_map.resolve(old))),
+                tax_id: Set(strict_ref(id_map, line.tax_id.as_deref(), "purchase_order_lines")?),
                 received_qty: Set(line.received_qty.map(round_qty)),
                 batch_no: Set(line.batch_no.clone()),
                 expiry_date: Set(line.expiry_date.as_deref().and_then(|s| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").ok())),
@@ -168,7 +172,7 @@ pub async fn insert_purchase_returns<C: ConnectionTrait>(
             settled_to_payable: Set(settled_to_payable),
             cash_back: Set(cash_back),
             refund_method: Set(refund_method),
-            from_draft_id: Set(row.from_draft_id.as_deref().and_then(|old| id_map.resolve(old))),
+            from_draft_id: Set(lenient_ref(id_map, row.from_draft_id.as_deref())),
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
             deleted_at: Set(None),
@@ -190,7 +194,7 @@ pub async fn insert_purchase_returns<C: ConnectionTrait>(
                 product_id: Set(product_id),
                 qty: Set(qty),
                 cost_price: Set(cost_price),
-                batch_id: Set(line.batch_id.as_deref().and_then(|old| id_map.resolve(old))),
+                batch_id: Set(strict_ref(id_map, line.batch_id.as_deref(), "purchase_return_lines")?),
             };
             line_model.insert(conn).await.map_err(TxError::from)?;
         }

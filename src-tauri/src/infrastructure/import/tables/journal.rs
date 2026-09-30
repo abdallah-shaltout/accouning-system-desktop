@@ -15,7 +15,7 @@ use crate::entities::journal::journal_templates::{ActiveModel as JournalTemplate
 use crate::entities::values::StringList;
 use crate::infrastructure::import::idmap::IdMap;
 use crate::infrastructure::import::model::{JournalEntryV1, JournalLineV1, JournalTemplateV1};
-use crate::infrastructure::import::tables::{parse_doc_date, resolve_created_at};
+use crate::infrastructure::import::tables::{lenient_ref, parse_doc_date, resolve_created_at, strict_ref};
 use crate::utils::id::Id;
 use crate::utils::money::{round2, round4};
 
@@ -46,7 +46,10 @@ fn resolve_line<'a>(id_map: &IdMap, line: &'a JournalLineV1, rounded: &mut i64) 
     let account_id = id_map
         .resolve(&line.account_id)
         .ok_or_else(|| AppError::validation("تعذر الاستيراد: مرجع غير موجود في journal_lines"))?;
-    let party_id = line.party_id.as_deref().and_then(|old| id_map.resolve(old));
+    let party_id = match line.party_id.as_deref().filter(|s| !s.is_empty()) {
+        None => None,
+        Some(old) => Some(id_map.resolve(old).ok_or_else(|| AppError::validation("تعذر الاستيراد: مرجع غير موجود في journal_lines"))?),
+    };
     let party_kind = line.party_kind.as_deref().map(parse_party_kind);
     let debit = round2(line.debit);
     let credit = round2(line.credit);
@@ -110,11 +113,11 @@ pub async fn insert_journal_entries<C: ConnectionTrait>(
             reversal_of_id: Set(None),
             reversal_reason: Set(row.reversal_reason.clone()),
             created_by: Set(created_by),
-            posted_by: Set(row.posted_by.as_deref().and_then(|old| id_map.resolve(old))),
+            posted_by: Set(strict_ref(id_map, row.posted_by.as_deref(), "journal_entries")?),
             posted_at_day: Set(posted_at.map(|(d, _)| d)),
             posted_at_instant: Set(posted_at.and_then(|(_, i)| i)),
             attachment_ids: Set(row.attachment_ids.clone().map(StringList)),
-            template_id: Set(row.template_id.as_deref().and_then(|old| id_map.resolve(old))),
+            template_id: Set(None), // DEFERRED (forward ref into journal_templates) — set in run.rs phase B.
             search_normalized: sea_orm::ActiveValue::NotSet,
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
@@ -135,8 +138,8 @@ pub async fn insert_journal_entries<C: ConnectionTrait>(
                 credit: Set(credit),
                 party_kind: Set(party_kind),
                 party_id: Set(party_id),
-                branch_id: Set(line.branch_id.as_deref().and_then(|old| id_map.resolve(old))),
-                cost_center_id: Set(line.cost_center_id.as_deref().and_then(|old| id_map.resolve(old))),
+                branch_id: Set(strict_ref(id_map, line.branch_id.as_deref(), "journal_lines")?),
+                cost_center_id: Set(lenient_ref(id_map, line.cost_center_id.as_deref())),
                 currency: Set(line.currency.clone().map(|c| c.to_uppercase())),
                 amount_fc: Set(line.amount_fc.map(round2)),
                 rate: Set(line.rate.map(round4)),
@@ -193,7 +196,7 @@ pub async fn insert_journal_drafts<C: ConnectionTrait>(
             total_credit: Set(total_credit),
             created_by: Set(created_by),
             attachment_ids: Set(row.attachment_ids.clone().map(StringList)),
-            template_id: Set(row.template_id.as_deref().and_then(|old| id_map.resolve(old))),
+            template_id: Set(None), // DEFERRED (forward ref into journal_templates) — set in run.rs phase B.
             created_at: Set(resolve_created_at(row.created_at.as_deref(), import_base, i)),
             updated_at: Set(resolve_created_at(row.updated_at.as_deref(), import_base, i)),
             deleted_at: Set(None),
@@ -219,9 +222,9 @@ pub async fn insert_journal_drafts<C: ConnectionTrait>(
                 debit: Set(debit),
                 credit: Set(credit),
                 party_kind: Set(line.party_kind.as_deref().map(|k| if k == "supplier" { DraftPartyKind::Supplier } else { DraftPartyKind::Customer })),
-                party_id: Set(line.party_id.as_deref().and_then(|old| id_map.resolve(old))),
-                branch_id: Set(line.branch_id.as_deref().and_then(|old| id_map.resolve(old))),
-                cost_center_id: Set(line.cost_center_id.as_deref().and_then(|old| id_map.resolve(old))),
+                party_id: Set(strict_ref(id_map, line.party_id.as_deref(), "journal_draft_lines")?),
+                branch_id: Set(strict_ref(id_map, line.branch_id.as_deref(), "journal_draft_lines")?),
+                cost_center_id: Set(lenient_ref(id_map, line.cost_center_id.as_deref())),
                 currency: Set(line.currency.clone().map(|c| c.to_uppercase())),
                 amount_fc: Set(line.amount_fc.map(round2)),
                 rate: Set(line.rate.map(round4)),

@@ -57,17 +57,23 @@ pub struct BackupSettings {
     pub auto_enabled: bool,
     pub auto_time: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub folder: Option<String>,
     pub retention: i32,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_backup_at: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_backup_kind: Option<BackupKind>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_auto_run_date: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_backup_failed_at: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_backup_error: Option<String>,
 }
 
@@ -99,22 +105,31 @@ impl Default for BackupSettings {
 #[ts(export_to = "settings/types/gen/")]
 pub struct BackupSettingsPatch {
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_enabled: Option<bool>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_time: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub folder: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub retention: Option<i32>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_backup_at: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_backup_kind: Option<BackupKind>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_auto_run_date: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_backup_failed_at: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_backup_error: Option<String>,
 }
 
@@ -127,6 +142,7 @@ pub struct RestorePreview {
     pub manifest: BackupManifest,
     pub compatible: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub compatibility_note: Option<String>,
 }
 
@@ -168,10 +184,13 @@ pub enum AutoBackupSkipReason {
 pub struct AutoBackupOutcome {
     pub ran: bool,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub skipped: Option<AutoBackupSkipReason>,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
 
@@ -236,6 +255,7 @@ pub struct SettingsSaveBackupSettingsArgs {
 pub struct SettingsBuildBackupArchiveArgs {
     pub kind: BackupKind,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
 }
 
@@ -267,5 +287,6 @@ pub struct SettingsPreviewRestoreArgs {
 pub struct SettingsRestoreFromArchiveArgs {
     pub archive_base64: String,
     #[ts(optional)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
 }

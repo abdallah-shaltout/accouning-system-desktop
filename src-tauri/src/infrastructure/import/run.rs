@@ -53,8 +53,12 @@ pub async fn inspect<C: ConnectionTrait>(conn: &C, snapshot_json: &str, template
 }
 
 fn parse_envelope(snapshot_json: &str) -> TxResult<SnapshotV1Envelope> {
-    let envelope: SnapshotV1Envelope =
-        serde_json::from_str(snapshot_json).map_err(|_| AppError::validation("ملف البيانات غير صالح — تعذرت قراءته"))?;
+    let envelope: SnapshotV1Envelope = serde_json::from_str(snapshot_json).map_err(|err| {
+        // The user sees the fixed Arabic message; the serde path/line goes to the diagnostics log
+        // (18.B) so a support bundle says which field of the old snapshot didn't parse.
+        log::error!(target: "import", "snapshot parse failed: {err}");
+        AppError::validation("ملف البيانات غير صالح — تعذرت قراءته")
+    })?;
     if envelope.version > 1 {
         return Err(TxError::App(AppError::validation("هذه البيانات من إصدار أحدث — حدّث البرنامج أولاً")));
     }
@@ -89,6 +93,9 @@ pub struct ImportReport {
     pub rounded_values: i64,
     pub default_branch_id: Id,
     pub device_fields: DeviceFields,
+    /// B-5 (plan 21 Part 04): every mock id → its new `Id` (`IdMap::pairs`). Not part of the
+    /// command DTO; only the parity host reads it.
+    pub id_pairs: Vec<(String, Id)>,
 }
 
 /// §3.2: the whole importer. `pub` — the command, 17-backup and Part 04's harness all call this one
@@ -128,7 +135,13 @@ pub async fn import_snapshot<C: ConnectionTrait>(
     let tz: Option<chrono_tz::Tz> = tz_name.and_then(|s| s.parse().ok());
 
     let id_map = IdMap::new();
-    let import_base = chrono::Utc::now();
+    // D-8's synthetic base, anchored before the snapshot was saved (Part 04 Wave 2): every row
+    // created after the import must sort after every imported row under `ORDER BY created_at, id`
+    // (the mock's array order), also when the business clock runs at the snapshot's own time (a
+    // parity pass pins it to `savedAt`, `SET timestamp`). `min(savedAt, now)` so a future-dated
+    // snapshot can't push imported rows after new ones; one day back leaves room for `+ i ms`.
+    let saved_at = envelope.saved_at.as_deref().and_then(crate::infrastructure::import::model::parse_instant);
+    let import_base = saved_at.map_or_else(chrono::Utc::now, |s| s.min(chrono::Utc::now())) - chrono::Duration::days(1);
     let mut rounded_values: i64 = 0;
 
     // Pass 1 (id map assignment happens lazily, inline in each table's insert function, in array
@@ -156,7 +169,7 @@ pub async fn import_snapshot<C: ConnectionTrait>(
     // party_phones are inserted inside insert_parties (child of PartyCommon.phones).
     tables::catalog::insert_custom_field_defs(conn, &data.custom_field_defs, &id_map, import_base).await?;
     tables::catalog::insert_products(conn, &data.products, &id_map, import_base, &mut rounded_values).await?;
-    tables::catalog::insert_product_prices_from_price_lists(conn, &data.price_lists, &id_map, import_base, &mut rounded_values).await?;
+    tables::catalog::insert_product_prices(conn, &data.price_lists, &data.products, &id_map, import_base, &mut rounded_values).await?;
     // product_branch_stock is inserted inside insert_products.
     tables::catalog::insert_product_batches(conn, &data.product_batches, &id_map, tz, import_base, &mut rounded_values).await?;
 
@@ -281,7 +294,7 @@ pub async fn import_snapshot<C: ConnectionTrait>(
         );
     }
 
-    Ok(ImportReport { counts, rounded_values, default_branch_id, device_fields })
+    Ok(ImportReport { counts, rounded_values, default_branch_id, device_fields, id_pairs: id_map.pairs() })
 }
 
 /// Step 3's timezone table — the exact two rows cross-cutting §7/settings.md own; a real
@@ -400,6 +413,11 @@ async fn run_phase_b<C: ConnectionTrait>(conn: &C, data: &MockDbV1, id_map: &IdM
             .map_err(TxError::from)?;
     }
 
+    // fiscal_years.closed_by (forward ref into users).
+    for row in &data.fiscal_years {
+        set_deferred_ref(conn, id_map, "fiscal_years", "closed_by", &row.id, row.closed_by.as_deref()).await?;
+    }
+
     // users.price_list_id (forward ref into price_lists).
     for row in &data.users {
         let Some(price_list_old) = &row.price_list_id else { continue };
@@ -424,10 +442,58 @@ async fn run_phase_b<C: ConnectionTrait>(conn: &C, data: &MockDbV1, id_map: &IdM
             .map_err(TxError::from)?;
     }
 
+    // The six forward/self refs written NULL in phase A (order::DEFERRED's second block). A reference
+    // whose target isn't in the snapshot stays NULL: the mock hard-deletes recurring expenses and
+    // journal templates (`expenses.ts:168`, `journal.ts:201`) while documents keep the old id, so a
+    // dangling id there is legitimate legacy data, not corruption.
+    for row in &data.journal_entries {
+        set_deferred_ref(conn, id_map, "journal_entries", "template_id", &row.id, row.template_id.as_deref()).await?;
+    }
+    for row in &data.journal_drafts {
+        set_deferred_ref(conn, id_map, "journal_drafts", "template_id", &row.id, row.template_id.as_deref()).await?;
+    }
+    for row in data.customers.iter().chain(data.suppliers.iter()) {
+        set_deferred_ref(conn, id_map, "parties", "linked_party_id", &row.id, row.linked_party_id.as_deref()).await?;
+    }
+    for row in &data.invoices {
+        set_deferred_ref(conn, id_map, "invoices", "shift_id", &row.id, row.shift_id.as_deref()).await?;
+    }
+    for row in &data.purchase_orders {
+        set_deferred_ref(conn, id_map, "purchase_orders", "backorder_of_id", &row.id, row.backorder_of_id.as_deref()).await?;
+    }
+    for row in &data.expenses {
+        set_deferred_ref(conn, id_map, "expenses", "recurring_template_id", &row.id, row.recurring_template_id.as_deref()).await?;
+    }
+
     // audit.undo_of/undone_by are always NULL on import (step 6's own rule) — nothing to do here,
     // listed in DEFERRED only so the §8a IMPORT_ORDER-coverage test accounts for every FK.
     let _ = DEFERRED;
 
+    Ok(())
+}
+
+/// Phase B for one deferred `(table, column)` on one row: `UPDATE <table> SET <column> = ? WHERE id = ?`
+/// when both the row and its target resolve through the id map; a no-op otherwise. `updated_at` is
+/// assigned to itself so the column's `ON UPDATE CURRENT_TIMESTAMP` doesn't overwrite the imported
+/// timestamp (step 6: `updated_at = created_at`). `table`/`column` are always `order::DEFERRED`
+/// literals, never user input.
+async fn set_deferred_ref<C: ConnectionTrait>(
+    conn: &C,
+    id_map: &IdMap,
+    table: &str,
+    column: &str,
+    row_old_id: &str,
+    target_old_id: Option<&str>,
+) -> TxResult<()> {
+    debug_assert!(crate::infrastructure::import::order::is_deferred(table, column));
+    let Some(target_old) = target_old_id else { return Ok(()) };
+    let (Some(id), Some(target)) = (id_map.resolve(row_old_id), id_map.resolve(target_old)) else { return Ok(()) };
+    let stmt = Statement::from_sql_and_values(
+        conn.get_database_backend(),
+        format!("UPDATE `{table}` SET `{column}` = ?, `updated_at` = `updated_at` WHERE `id` = ?"),
+        [target.into(), id.into()],
+    );
+    conn.execute(stmt).await.map_err(TxError::from)?;
     Ok(())
 }
 
@@ -493,6 +559,13 @@ pub async fn wipe_business_rows<C: ConnectionTrait>(conn: &C) -> TxResult<()> {
         let stmt = Statement::from_string(conn.get_database_backend(), format!("UPDATE `{table}` SET `{column}` = NULL"));
         conn.execute(stmt).await.map_err(TxError::from)?;
     }
+
+    // `attachments` (C-16, MariaDB blobs) is not an imported table — a snapshot never carries it — but
+    // it is business data a "replace everything" wipe must clear too; otherwise rows saved before the
+    // wipe survive into the next dataset (Part 04 Wave 2, L1: the parity host's `__reset` leaked the
+    // `attachments/*` cases' rows into `backup/backup-counts`). Deleted first: it references users.
+    let stmt = Statement::from_string(conn.get_database_backend(), "DELETE FROM `attachments`".to_string());
+    conn.execute(stmt).await.map_err(TxError::from)?;
 
     for table in crate::infrastructure::import::order::IMPORT_ORDER.iter().rev() {
         let stmt = Statement::from_string(conn.get_database_backend(), format!("DELETE FROM `{table}`"));

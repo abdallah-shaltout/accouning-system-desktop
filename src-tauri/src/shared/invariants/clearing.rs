@@ -13,11 +13,11 @@ use crate::entities::payments::card_settlement_groups;
 use crate::entities::soft_delete::SoftDelete;
 use crate::entities::sales::{invoice_tenders, shifts};
 use crate::shared::invariants::ledger::gl_balance_debit_minus_credit;
-use crate::shared::ledger::accounts::{resolve_account, AccountCtx, SystemRole};
+use crate::shared::ledger::accounts::SystemRole;
 use crate::utils::id::Id;
 use crate::utils::money::round2;
 
-use super::{close_enough, numeric_check, InvariantResult, tolerance_cents};
+use super::{close_enough, numeric_check, optional_account, InvariantResult, tolerance_cents};
 
 /// 10. Card and wallet clearing balances match the unsettled tenders (`invariants.ts` §4.10).
 pub async fn check_clearing_accounts<C: ConnectionTrait>(conn: &C) -> Result<Vec<InvariantResult>, AppError> {
@@ -34,18 +34,19 @@ pub async fn check_clearing_accounts<C: ConnectionTrait>(conn: &C) -> Result<Vec
     let settled_sum =
         |ids: &BTreeSet<Id>| round2(settlement_groups.iter().filter(|g| ids.contains(&g.payment_method_id)).fold(Decimal::ZERO, |a, g| a + g.amount));
 
-    let card_clearing = resolve_account(conn, SystemRole::CardClearing, &AccountCtx::default()).await;
-    let wallet_clearing = resolve_account(conn, SystemRole::WalletClearing, &AccountCtx::default()).await;
+    // ACC-0022: a chart with no clearing account (the `basic` template) has nothing posted to it.
+    let card_clearing = optional_account(conn, SystemRole::CardClearing).await?;
+    let wallet_clearing = optional_account(conn, SystemRole::WalletClearing).await?;
 
     let card_tenders = round2(tender_sum(&card_method_ids) - settled_sum(&card_method_ids));
     let card_ledger = match &card_clearing {
-        Ok(a) => gl_balance_debit_minus_credit(conn, a.id).await?,
-        Err(_) => Decimal::ZERO,
+        Some(a) => gl_balance_debit_minus_credit(conn, a.id).await?,
+        None => Decimal::ZERO,
     };
     let wallet_tenders = round2(tender_sum(&wallet_method_ids) - settled_sum(&wallet_method_ids));
     let wallet_ledger = match &wallet_clearing {
-        Ok(a) => gl_balance_debit_minus_credit(conn, a.id).await?,
-        Err(_) => Decimal::ZERO,
+        Some(a) => gl_balance_debit_minus_credit(conn, a.id).await?,
+        None => Decimal::ZERO,
     };
 
     Ok(vec![

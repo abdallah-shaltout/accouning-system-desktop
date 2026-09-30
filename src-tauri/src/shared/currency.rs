@@ -97,10 +97,74 @@ pub fn convert_lines_to_base(fc_amounts: &[Decimal], rate: Decimal) -> Vec<Decim
     per_line
 }
 
+/// `refundBaseSplit` (`src/mocks/backend/sales.ts`, ACC-0009): the base-currency `(net, VAT)` of one
+/// refund on a foreign-currency invoice, at the invoice's own `rate`. Converted CUMULATIVELY per
+/// invoice — base refunded so far = `convert_lines_to_base([Σ refunded net, Σ refunded VAT], rate)`
+/// and this refund takes the difference — so any sequence of partial refunds ends on exactly the
+/// sale's base revenue and VAT. `before_*` are Σ of the invoice's earlier refunds (invoice currency).
+pub fn refund_base_split(before_net: Decimal, before_vat: Decimal, net: Decimal, vat: Decimal, rate: Decimal) -> (Decimal, Decimal) {
+    let b = convert_lines_to_base(&[before_net, before_vat], rate);
+    let a = convert_lines_to_base(&[round2(before_net + net), round2(before_vat + vat)], rate);
+    (round2(a[0] - b[0]), round2(a[1] - b[1]))
+}
+
+/// `cashBackBaseFor` (`sales.ts`, ACC-0009/ACC-0010): the base amount a refund's cash-back leg
+/// carries at the invoice's rate. `total_base` is the refund's telescoped base total
+/// (`refund_base_split`'s net + VAT). Nothing settled against the receivable → the whole refund is
+/// cash-back; otherwise `to_base(cash_back)` (capped at the total) and the receivable leg absorbs
+/// the rounding cent.
+pub fn refund_cash_back_base(settled_to_receivable: Decimal, cash_back: Decimal, total_base: Decimal, rate: Decimal) -> Decimal {
+    if settled_to_receivable > Decimal::ZERO {
+        to_base(cash_back, rate).min(total_base)
+    } else {
+        total_base
+    }
+}
+
+/// `saleTenderBases` (`src/mocks/backend/sales.ts`, ACC-0016): the base amounts of a foreign-currency
+/// sale's tenders at the sale's `rate`. The receivable keeps `to_base(receivable)` (the conversion
+/// its FC tag and the open-documents list use); the tenders share the rest of the sale's base total
+/// (`total_base`, `to_base(grand_total)` when `None`) — each `to_base(amount)`, with any rounding gap
+/// on the largest tender (first on ties) — so the entry balances exactly. Recomputable from a saved
+/// invoice, which is how card settlements read an FC invoice's clearing tenders in base.
+pub fn sale_tender_bases(tender_amounts: &[Decimal], grand_total: Decimal, rate: Decimal, total_base: Option<Decimal>) -> Vec<Decimal> {
+    if tender_amounts.is_empty() {
+        return Vec::new();
+    }
+    let total_base = total_base.unwrap_or_else(|| to_base(grand_total, rate));
+    let paid = round2(tender_amounts.iter().fold(Decimal::ZERO, |a, b| a + *b));
+    let receivable = round2(grand_total - paid);
+    let target = round2(total_base - to_base(receivable, rate));
+    let mut bases: Vec<Decimal> = tender_amounts.iter().map(|a| to_base(*a, rate)).collect();
+    let diff = round2(target - round2(bases.iter().fold(Decimal::ZERO, |a, b| a + *b)));
+    if !diff.is_zero() {
+        let mut largest = 0usize;
+        for (i, a) in tender_amounts.iter().enumerate().skip(1) {
+            if a.abs() > tender_amounts[largest].abs() {
+                largest = i;
+            }
+        }
+        bases[largest] = round2(bases[largest] + diff);
+    }
+    bases
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use rust_decimal_macros::dec;
+
+    /// ACC-0016: tenders + receivable of an FC sale add up to the sale's base total exactly.
+    #[test]
+    fn sale_tender_bases_balance_with_the_receivable() {
+        let (total, rate) = (dec!(300), dec!(48.57));
+        let bases = sale_tender_bases(&[dec!(150.33), dec!(99.67)], total, rate, None);
+        assert_eq!(bases, vec![dec!(7301.53), dec!(4840.97)]);
+        assert_eq!(bases[0] + bases[1] + to_base(dec!(50), rate), to_base(total, rate));
+        // a rounding gap lands on the largest tender
+        let bases = sale_tender_bases(&[dec!(0.01), dec!(0.01), dec!(0.01)], dec!(0.03), dec!(0.5), None);
+        assert_eq!(bases.iter().fold(Decimal::ZERO, |a, b| a + *b), to_base(dec!(0.03), dec!(0.5)));
+    }
 
     #[test]
     fn to_base_rounds_half_away_from_zero() {

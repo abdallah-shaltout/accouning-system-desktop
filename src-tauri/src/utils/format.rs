@@ -105,10 +105,9 @@ fn format_grouped(value: Decimal, min_frac: u32, max_frac: u32, numerals: Numera
         Numerals::Arab => '٫',
     };
     let mut out = String::new();
-    // `rust_decimal` preserves the sign bit through rounding (it never normalizes a rounded result),
-    // so a small negative magnitude that rounds to zero at `max_frac` still reports
-    // `is_sign_negative() == true` here — exactly the `-0.00` Intl also prints for such a value.
-    if rounded.is_sign_negative() {
+    // Take the sign from the *unrounded* value: `rust_decimal` normalizes a result that rounds to
+    // zero to +0, but Intl prints `-0.00` for a small negative magnitude such as -0.001.
+    if value.is_sign_negative() {
         out.push('-');
     }
     out.push_str(&grouped_int);
