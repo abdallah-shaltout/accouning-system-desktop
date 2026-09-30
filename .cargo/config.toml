@@ -14,3 +14,8 @@ TS_RS_EXPORT_DIR = { value = "src/modules", relative = true }
 # logical cores; the rest stay free for the desktop. Override for one run with `-j N` if needed.
 [build]
 jobs = 4
+
+# Link with the LLD that ships with the Rust toolchain instead of MSVC link.exe: several times faster
+# on the big test/app binaries and far lighter on RAM (user request 2026-09-29: speed up builds).
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"

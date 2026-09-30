@@ -11,6 +11,9 @@ edition = "2021"
 # The crate also ships test binaries (pdf_smoke, report_smoke, thermal_smoke, typst_spike), so
 # `cargo run` / `tauri dev` need to be told which one is the app.
 default-run = "accounting-app"
+# Integration tests are linked into 3 binaries instead of one per tests/*.rs file: each test binary
+# links the whole app (tauri + sea-orm + typst), and 32 separate links dominated test build time.
+autotests = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -20,6 +23,10 @@ default-run = "accounting-app"
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "accounting_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[features]
+# Plan 21 Part 04 B-2: `parity_host` only (see its [[bin]] entry below).
+parity = ["tauri/test"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -161,6 +168,29 @@ path = "src/bin/report_smoke.rs"
 [[bin]]
 name = "thermal_smoke"
 path = "src/bin/thermal_smoke.rs"
+
+# Plan 21 Part 04 B-2/B-4: the parity host runs the app's real command list on Tauri's
+# `MockRuntime` (`tauri::test`), for `bun run parity`. Built only with `--features parity`, so a
+# normal build never compiles tauri's `test` feature.
+[[bin]]
+name = "parity_host"
+path = "src/bin/parity_host.rs"
+required-features = ["parity"]
+
+# Every DB-backed and static-rule suite (tests/all/main.rs pulls in each tests/*.rs as a module).
+[[test]]
+name = "all"
+path = "tests/all/main.rs"
+
+# The two bundled-server suites start/stop their own MariaDB processes and ports, so they stay in
+# their own binaries (cargo runs test binaries one after another, never side by side).
+[[test]]
+name = "db_server_lifecycle"
+path = "tests/db_server_lifecycle.rs"
+
+[[test]]
+name = "db_server_lan"
+path = "tests/db_server_lan.rs"
 
 
 # Dev-build footprint (user request 2026-09-27: builds froze the PC). Full debug info for typst/
