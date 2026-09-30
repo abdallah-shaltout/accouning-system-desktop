@@ -12,7 +12,7 @@
 //! `TestDb`-friendly seeding helper later, this local one should be replaced by it (noted for the
 //! manager).
 
-mod support;
+use crate::support;
 
 use accounting_app_lib::core::auth::{AuthenticatedUser, Role};
 use accounting_app_lib::core::error::AppError;

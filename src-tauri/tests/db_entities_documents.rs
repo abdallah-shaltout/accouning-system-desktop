@@ -4,13 +4,13 @@
 //! unique, `uq_card_settlement_groups_date_method`, the composite party FK, an invoice with
 //! lines/tenders round-trip). Needs `EQUAL_TEST_DATABASE_URL` — never skipped, per `tests/support`.
 
-mod support;
+use crate::support;
 
 use accounting_app_lib::utils::id::Id;
 use rust_decimal::Decimal;
 use sea_orm::sea_query::Iden;
 use sea_orm::{ColumnTrait, ConnectionTrait, EntityTrait, Iterable, QueryFilter, Statement};
-use support::TestDb;
+use support::{unique_tail, TestDb};
 
 /// One entity's declared column names (via SeaORM's `Column: Iden`, which yields the exact
 /// snake_case DB name) — compared against `information_schema.COLUMNS` for that table.
@@ -21,20 +21,29 @@ where
     E::Column::iter().map(|c| c.to_string()).collect()
 }
 
-/// Live (non-generated) columns of a table, in ordinal order. A handful of `_live` uniqueness
-/// helpers (`sku_live`, `name_live`, …) are declared as regular entity fields because a controller
-/// reads them directly — those stay `GENERATED` in MariaDB but are still expected to match. The
-/// columns this excludes are the ones nothing in `entities/` ever declares because nothing ever
-/// reads them through the entity: the `DocDate` bridge's `<field>_key` generated columns
-/// (`date_key`/`at_key`, added by each domain migration's `add_doc_date_key` helper — B2's own doc
-/// comment on that helper explains why the string form is not modeled on the entity, only `DocDate`
-/// is) and the standalone partial-uniqueness generated columns `open_key` (`shifts`) and
-/// `default_key` (`print_templates`). Filtering by name (rather than blanket-excluding every
-/// `GENERATED` column via `information_schema.COLUMNS.EXTRA`) keeps the `_live` columns — which
-/// *are* `GENERATED ALWAYS ... STORED` too — covered by the schema-parity check.
-const UNMODELED_GENERATED_COLUMNS: &[&str] = &["date_key", "at_key", "open_key", "default_key"];
+/// The generated columns an entity MAY leave unmodeled: the `DocDate` bridge's `<field>_key`
+/// columns (added next to `<field>_day`/`<field>_instant` by `add_doc_date_columns` /
+/// `add_doc_date_key`, whose doc comments explain why the string form need not be on the entity —
+/// only `DocDate` is) and the standalone partial-uniqueness keys `open_key` (`shifts`) and
+/// `default_key` (`print_templates`). Some entities declare them anyway because a controller reads
+/// them (e.g. the B1 inventory entities' `date_key`, `shifts.open_key`), so they are *optional*:
+/// excluded from the schema side only when the entity does not declare them. Every other column —
+/// including other `GENERATED` ones like `sku_live`/`name_live`/`barcode_live` — must match.
+fn is_optional_generated_key(name: &str, extra: &str, all_names: &[String]) -> bool {
+    if !extra.to_uppercase().contains("GENERATED") {
+        return false;
+    }
+    if name == "open_key" || name == "default_key" {
+        return true;
+    }
+    match name.strip_suffix("_key") {
+        Some(stem) => all_names.iter().any(|n| *n == format!("{stem}_day")),
+        None => false,
+    }
+}
 
-async fn schema_columns(conn: &sea_orm::DatabaseConnection, table: &str) -> Vec<String> {
+/// A table's columns as `(COLUMN_NAME, EXTRA)`, in ordinal order.
+async fn schema_columns(conn: &sea_orm::DatabaseConnection, table: &str) -> Vec<(String, String)> {
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
         "SELECT COLUMN_NAME, EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION",
@@ -43,28 +52,27 @@ async fn schema_columns(conn: &sea_orm::DatabaseConnection, table: &str) -> Vec<
     let rows = conn.query_all(stmt).await.expect("information_schema query failed");
     rows.iter()
         .map(|r| (r.try_get::<String>("", "COLUMN_NAME").unwrap(), r.try_get::<String>("", "EXTRA").unwrap_or_default()))
-        .filter(|(name, extra)| {
-            // Exclude only the specific `<field>_key`/`open_key`/`default_key` generated columns no
-            // entity models (see `UNMODELED_GENERATED_COLUMNS`); every other column — including
-            // other `GENERATED` ones like `sku_live`/`name_live`/`barcode_live` — must still match.
-            !(extra.to_uppercase().contains("GENERATED") && UNMODELED_GENERATED_COLUMNS.contains(&name.as_str()))
-        })
+        .collect()
+}
+
+/// The table's columns the entity must declare: all of them except the optional generated keys
+/// (`is_optional_generated_key`) the entity leaves out.
+async fn modeled_schema_columns(conn: &sea_orm::DatabaseConnection, table: &str, declared: &[String]) -> Vec<String> {
+    let cols = schema_columns(conn, table).await;
+    let all_names: Vec<String> = cols.iter().map(|(n, _)| n.clone()).collect();
+    cols.into_iter()
+        .filter(|(name, extra)| declared.contains(name) || !is_optional_generated_key(name, extra, &all_names))
         .map(|(name, _)| name)
         .collect()
 }
 
 /// Asserts an entity's declared column set equals the real table's **modeled** column set
-/// (order-independent — generated/computed columns like `open_key`/`default_key`/`name_live` are
-/// declared as regular fields on the entity when something reads them, so they're expected to
-/// appear on both sides; the `DocDate` bridge's own `<field>_key`/`open_key`/`default_key` columns
-/// that nothing in `entities/` declares are excluded by `schema_columns`, see
-/// `UNMODELED_GENERATED_COLUMNS`), and that `SELECT <all columns> ... LIMIT 0` succeeds (proves
-/// every declared column really exists and every real, modeled column is accounted for by the
-/// entity, not just a subset).
+/// (order-independent; see `is_optional_generated_key` for the only columns an entity may omit),
+/// and that `SELECT * ... LIMIT 0` succeeds.
 macro_rules! assert_entity_matches_schema {
     ($conn:expr, $table:literal, $entity:ty) => {{
         let mut declared = declared_columns::<$entity>();
-        let mut actual = schema_columns($conn, $table).await;
+        let mut actual = modeled_schema_columns($conn, $table, &declared).await;
         declared.sort();
         actual.sort();
         assert_eq!(declared, actual, "{}: entity columns vs information_schema.COLUMNS mismatch", $table);
@@ -365,6 +373,7 @@ async fn invoice_with_lines_and_tenders_round_trips() {
 
 // --- minimal-row helpers (bare inserts satisfying NOT NULL/FK constraints, nothing more) ---------
 
+
 async fn insert_minimal_user(conn: &sea_orm::DatabaseConnection) -> Id {
     let id = Id::new();
     let username = format!("user_{}", id.to_string().replace('-', ""));
@@ -379,7 +388,7 @@ async fn insert_minimal_user(conn: &sea_orm::DatabaseConnection) -> Id {
 
 async fn insert_minimal_branch(conn: &sea_orm::DatabaseConnection) -> Id {
     let id = Id::new();
-    let code = format!("BR{}", id.to_string().replace('-', "")[..8].to_string());
+    let code = format!("BR{}", unique_tail(id, 8));
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
         "INSERT INTO branches (id, name, code) VALUES (?, 'Test Branch', ?)",
@@ -391,7 +400,7 @@ async fn insert_minimal_branch(conn: &sea_orm::DatabaseConnection) -> Id {
 
 async fn insert_minimal_account(conn: &sea_orm::DatabaseConnection) -> Id {
     let id = Id::new();
-    let code = format!("A{}", &id.to_string().replace('-', "")[..6]);
+    let code = format!("A{}", unique_tail(id, 6));
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
         "INSERT INTO accounts (id, code, name, is_group, kind, subtype, normal_side, allow_manual, active, can_delete) \
@@ -415,11 +424,11 @@ async fn insert_minimal_payment_method(conn: &sea_orm::DatabaseConnection) -> Id
 
 async fn insert_minimal_product(conn: &sea_orm::DatabaseConnection) -> Id {
     let id = Id::new();
-    let sku = format!("SKU{}", &id.to_string().replace('-', "")[..8]);
+    let sku = format!("SKU{}", unique_tail(id, 8));
     let unit_id = insert_minimal_unit(conn).await;
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
-        "INSERT INTO products (id, sku, name, unit_id, cost_price, sell_price) VALUES (?, ?, 'Widget', ?, 0, 0)",
+        "INSERT INTO products (id, sku, name, unit_id, cost_price, price) VALUES (?, ?, 'Widget', ?, 0, 0)",
         [id.to_string().into(), sku.into(), unit_id.to_string().into()],
     );
     conn.execute(stmt).await.expect("minimal product insert must succeed");
@@ -430,8 +439,8 @@ async fn insert_minimal_unit(conn: &sea_orm::DatabaseConnection) -> Id {
     let id = Id::new();
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
-        "INSERT INTO units (id, name, factor) VALUES (?, 'Each', 1)",
-        [id.to_string().into()],
+        "INSERT INTO units (id, name) VALUES (?, ?)",
+        [id.to_string().into(), format!("Each {}", unique_tail(id, 8)).into()],
     );
     conn.execute(stmt).await.expect("minimal unit insert must succeed");
     id
@@ -439,7 +448,7 @@ async fn insert_minimal_unit(conn: &sea_orm::DatabaseConnection) -> Id {
 
 async fn insert_minimal_party(conn: &sea_orm::DatabaseConnection, kind: &str) -> Id {
     let id = Id::new();
-    let code = format!("P{}", &id.to_string().replace('-', "")[..8]);
+    let code = format!("P{}", unique_tail(id, 8));
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
         "INSERT INTO parties (id, kind, code, name) VALUES (?, ?, ?, 'Test Party')",
@@ -452,7 +461,7 @@ async fn insert_minimal_party(conn: &sea_orm::DatabaseConnection, kind: &str) ->
 async fn insert_journal_entry_header(conn: &sea_orm::DatabaseConnection, debit: Decimal, credit: Decimal) -> Result<Id, sea_orm::DbErr> {
     let user_id = insert_minimal_user(conn).await;
     let id = Id::new();
-    let number = format!("JE-{}", &id.to_string().replace('-', "")[..8]);
+    let number = format!("JE-{}", unique_tail(id, 8));
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
         "INSERT INTO journal_entries (id, number, date_day, description, type, status, total_debit, total_credit, created_by) \
@@ -487,7 +496,7 @@ async fn insert_journal_line(conn: &sea_orm::DatabaseConnection, entry_id: Id, p
 
 async fn insert_shift(conn: &sea_orm::DatabaseConnection, terminal_id: Id, user_id: Id, status: &str) -> Result<(), sea_orm::DbErr> {
     let id = Id::new();
-    let number = format!("SH-{}", &id.to_string().replace('-', "")[..8]);
+    let number = format!("SH-{}", unique_tail(id, 8));
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
         "INSERT INTO shifts (id, number, terminal_id, status, opened_by, opened_at_day, opening_float) \
@@ -512,7 +521,7 @@ async fn insert_print_template(conn: &sea_orm::DatabaseConnection, branch_id: Id
 
 async fn insert_card_settlement(conn: &sea_orm::DatabaseConnection, user_id: Id) -> Id {
     let id = Id::new();
-    let number = format!("CS-{}", &id.to_string().replace('-', "")[..8]);
+    let number = format!("CS-{}", unique_tail(id, 8));
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
         "INSERT INTO card_settlements (id, number, date_day, gross_amount, deposit_amount, fee_amount, created_by) \

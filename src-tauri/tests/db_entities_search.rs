@@ -3,7 +3,7 @@
 //! `parties`, `journal_entries`, `vouchers`). Needs `EQUAL_TEST_DATABASE_URL` (see
 //! `tests/support/mod.rs`) — never skipped when absent, panics with a clear message instead.
 
-mod support;
+use crate::support;
 
 use accounting_app_lib::entities::catalog::products;
 use accounting_app_lib::entities::journal::journal_entries;

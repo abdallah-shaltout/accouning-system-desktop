@@ -2,17 +2,19 @@
 //! deferred time-boxed test pass (per-implementer hard rule: never run cargo from this agent).
 //! Needs `EQUAL_TEST_DATABASE_URL` — see `tests/support/mod.rs`.
 
-mod support;
+use crate::support;
 
 use accounting_app_lib::core::auth::{Access, Area, AuthenticatedUser, Role};
 use accounting_app_lib::core::tx::{with_read, with_tx, BoxFuture, TxOpts, TxResult};
 use accounting_app_lib::domains::users::dto::{User, UserInput};
 use accounting_app_lib::domains::users::service;
-use accounting_app_lib::entities::org::credentials;
+use accounting_app_lib::entities::catalog::price_lists;
+use accounting_app_lib::entities::org::{branches, credentials, settings, users};
+use accounting_app_lib::entities::values::{PrinterMode, PrinterSettings};
 use accounting_app_lib::shared::activity::undo::UndoRegistry;
 use accounting_app_lib::shared::invariants;
 use accounting_app_lib::utils::id::Id;
-use sea_orm::EntityTrait;
+use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 use support::TestDb;
 
 fn input(username: &str, password: Option<&str>) -> UserInput {
@@ -30,20 +32,136 @@ fn input(username: &str, password: Option<&str>) -> UserInput {
     }
 }
 
+/// The first admin, inserted directly (users + credentials, no audit) exactly the way
+/// `setup::seed_company_shell` seeds it on a fresh database: `create_user` writes an audit row, so
+/// it needs an already-signed-in actor, which the very first user cannot have.
 async fn seed_admin(db: &TestDb) -> (Id, String) {
     let password = "admin-password-123";
-    let registry = std::sync::Arc::new(UndoRegistry::new());
-    let user = with_tx(&db.state, TxOpts { require_user: false }, |tx, cx| {
-        let registry = registry.clone();
+    let id = Id::new();
+    let hash = accounting_app_lib::core::auth::hash_password(password).expect("hash admin password");
+    with_tx(&db.state, TxOpts { require_user: false }, move |tx, _cx| {
+        let hash = hash.clone();
         Box::pin(async move {
-            let mut i = input("admin", Some(password));
-            i.role = Role::Admin;
-            service::create_user(tx, cx, &registry, i).await
-        }) as BoxFuture<'_, TxResult<User>>
+            let now = chrono::Utc::now();
+            users::ActiveModel {
+                id: Set(id),
+                username: Set("admin".to_string()),
+                name: Set("admin name".to_string()),
+                phone: Set(None),
+                role: Set("admin".to_string()),
+                max_discount: Set(rust_decimal::Decimal::ZERO),
+                price_list_id: Set(None),
+                active: Set(true),
+                avatar: Set(None),
+                allowed_branches: Set(None),
+                home_branch: Set(None),
+                created_at: Set(now),
+                updated_at: Set(now),
+                deleted_at: Set(None),
+                sync_status: Set("local".to_string()),
+            }
+            .insert(tx)
+            .await?;
+            credentials::ActiveModel { user_id: Set(id), password_hash: Set(hash), created_at: Set(now), updated_at: Set(now) }.insert(tx).await?;
+            seed_branch_and_settings(tx).await?;
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
     })
     .await
     .expect("seed admin must succeed");
-    (user.id, password.to_string())
+    (id, password.to_string())
+}
+
+/// The main branch + the singleton `settings` row every signed-in flow reads (`login` resolves the
+/// session's home branch from `settings.default_branch_id`) — `seed_company_shell` always creates
+/// both before the first admin can sign in.
+async fn seed_branch_and_settings(tx: &sea_orm::DatabaseTransaction) -> Result<(), sea_orm::DbErr> {
+    let now = chrono::Utc::now();
+    let branch_id = Id::new();
+    branches::ActiveModel {
+        id: Set(branch_id),
+        name: Set("الفرع الرئيسي".to_string()),
+        code: Set("MAIN".to_string()),
+        address: Set(None),
+        national_address: Set(None),
+        phone: Set(None),
+        receipt_header: Set(None),
+        cash_account_id: Set(None),
+        bank_account_id: Set(None),
+        default_price_list_id: Set(None),
+        cost_center_id: Set(None),
+        active: Set(true),
+        can_delete: Set(false),
+        created_at: Set(now),
+        updated_at: Set(now),
+        deleted_at: Set(None),
+        sync_status: Set("local".to_string()),
+    }
+    .insert(tx)
+    .await?;
+    settings::ActiveModel {
+        id: Set(Id::new()),
+        singleton: Set(1),
+        store_name: Set("متجر تجريبي".to_string()),
+        logo: Set(None),
+        stamp: Set(None),
+        signature: Set(None),
+        currency: Set("SAR".to_string()),
+        country: Set(Some("SA".to_string())),
+        vat_number: Set(None),
+        default_tax_id: Set(None),
+        invoice_number_prefix: Set("INV-".to_string()),
+        printer: Set(PrinterSettings { mode: PrinterMode::A4, thermal_width_mm: 80, thermal: None, a4_printer_name: None, label_printer_name: None, a4_template: None, image_template: None }),
+        prices_include_tax: Set(true),
+        address: Set(None),
+        national_address: Set(None),
+        phone: Set(None),
+        commercial_register: Set(None),
+        receipt_footer: Set(None),
+        accounting: Set(None),
+        backup: Set(None),
+        inventory_approval_threshold: Set(None),
+        role_access_overrides: Set(None),
+        insight_thresholds: Set(None),
+        pos: Set(None),
+        sales: Set(None),
+        features: Set(None),
+        onboarding: Set(None),
+        timezone: Set(None),
+        default_branch_id: Set(branch_id),
+        created_at: Set(now),
+        updated_at: Set(now),
+    }
+    .insert(tx)
+    .await?;
+    Ok(())
+}
+
+/// A real `price_lists` row (`users.price_list_id` is an FK).
+async fn seed_price_list(db: &TestDb) -> Id {
+    let id = Id::new();
+    with_tx(&db.state, TxOpts::default(), move |tx, _cx| {
+        Box::pin(async move {
+            let now = chrono::Utc::now();
+            price_lists::ActiveModel {
+                id: Set(id),
+                name: Set("قائمة الجملة".to_string()),
+                active: Set(true),
+                currency: Set(None),
+                created_at: Set(now),
+                updated_at: Set(now),
+                deleted_at: Set(None),
+                sync_status: Set("local".to_string()),
+                name_live: sea_orm::ActiveValue::NotSet,
+            }
+            .insert(tx)
+            .await?;
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .expect("seed price list must succeed");
+    id
 }
 
 fn login_as(db: &TestDb, user: &User) {
@@ -290,7 +408,7 @@ async fn update_price_list_id_absent_clears_it_phone_absent_keeps_it() {
     let registry = std::sync::Arc::new(UndoRegistry::new());
     let mut initial = input("withfields", Some("pw12345"));
     initial.phone = Some("0100000000".to_string());
-    initial.price_list_id = Some(Id::new().to_string());
+    initial.price_list_id = Some(seed_price_list(&db).await.to_string());
     let created = with_tx(&db.state, TxOpts::default(), |tx, cx| {
         let registry = registry.clone();
         let i = initial.clone();

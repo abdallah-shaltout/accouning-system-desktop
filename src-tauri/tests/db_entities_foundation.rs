@@ -2,7 +2,7 @@
 //! tables (`m0002…m0007`). Needs `EQUAL_TEST_DATABASE_URL` (see `tests/support/mod.rs`) — never
 //! skipped when absent, panics with a clear message instead.
 
-mod support;
+use crate::support;
 
 use chrono::{TimeZone, Utc};
 use rust_decimal_macros::dec;
@@ -204,6 +204,7 @@ async fn settings_row_with_json_policies_round_trips_field_equal() {
     let conn = &db_guard.as_ref().unwrap().connection;
 
     let branch_id = seed_minimal_branch(conn).await;
+    support::seed_currency(conn, "EGP").await;
 
     let printer = PrinterSettings {
         mode: PrinterMode::Thermal,

@@ -6,7 +6,7 @@
 //! pattern `domain_settings.rs`/`shared_ledger.rs` each already built (tests can't import each
 //! other, per the Wave 1 compile lessons) — kept minimal to what this domain's tests need.
 
-mod support;
+use crate::support;
 
 use accounting_app_lib::core::auth::{AuthenticatedUser, Role};
 use accounting_app_lib::core::tx::{with_read, with_tx, BoxFuture, TxOpts, TxResult};
@@ -52,6 +52,7 @@ async fn seed_branch_and_settings(db: &TestDb) -> Id {
                 sync_status: Set("local".to_string()),
             };
             branch.insert(tx).await?;
+            seed_test_user(tx, branch_id).await;
 
             let printer =
                 PrinterSettings { mode: PrinterMode::A4, thermal_width_mm: 80, thermal: None, a4_printer_name: None, label_printer_name: None, a4_template: None, image_template: None };
@@ -117,7 +118,7 @@ async fn seed_receivable_and_payable(db: &TestDb) {
                     parent_id: Set(None),
                     is_group: Set(false),
                     kind: Set("ASSET".to_string()),
-                    subtype: Set("control".to_string()),
+                    subtype: Set("receivable".to_string()),
                     normal_side: Set("DEBIT".to_string()),
                     system_role: Set(Some(role.to_string())),
                     currency: Set(None),
@@ -141,8 +142,40 @@ async fn seed_receivable_and_payable(db: &TestDb) {
     .expect("seed_receivable_and_payable must succeed");
 }
 
+/// The logged-in test user. A fixed id (each test has its own database) so `log_in` can run
+/// before the fixture and the fixture can still insert the matching `users` row — `audit.user_id`
+/// and the other actor columns are FKs to `users`, exactly like the real app, where a session
+/// always belongs to an existing user.
+fn test_user_id() -> Id {
+    "01900000-0000-7000-8000-00000000a001".parse().unwrap()
+}
+
+async fn seed_test_user<C: sea_orm::ConnectionTrait>(conn: &C, branch_id: Id) {
+    let now = chrono::Utc::now();
+    accounting_app_lib::entities::org::users::ActiveModel {
+        id: Set(test_user_id()),
+        username: Set("test".to_string()),
+        name: Set("test".to_string()),
+        phone: Set(None),
+        role: Set("admin".to_string()),
+        max_discount: Set(rust_decimal::Decimal::ZERO),
+        price_list_id: Set(None),
+        active: Set(true),
+        avatar: Set(None),
+        allowed_branches: Set(None),
+        home_branch: Set(Some(branch_id)),
+        created_at: Set(now),
+        updated_at: Set(now),
+        deleted_at: Set(None),
+        sync_status: Set("local".to_string()),
+    }
+    .insert(conn)
+    .await
+    .unwrap();
+}
+
 fn log_in(db: &TestDb, role: Role) -> Id {
-    let user_id = Id::new();
+    let user_id = test_user_id();
     let user = AuthenticatedUser { id: user_id, username: "test".to_string(), role, home_branch_id: Id::new(), allowed_branches: vec![], price_list_id: None, max_discount: None };
     *db.state.session.write().unwrap() = Some(user);
     user_id

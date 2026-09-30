@@ -6,7 +6,7 @@
 //! `domain_templates.rs`'s own doc comment, which built a local copy while this domain hadn't
 //! landed yet — that copy should be replaced with this one, noted in this wave's final report).
 
-mod support;
+use crate::support;
 
 use accounting_app_lib::core::auth::{AuthenticatedUser, Role};
 use accounting_app_lib::core::tx::{with_read, with_tx, BoxFuture, TxOpts, TxResult};
@@ -15,7 +15,7 @@ use accounting_app_lib::domains::settings::dto::{
     StoreSettingsPatch, TaxAccountRole, TaxCategory, TaxDirection, TaxInput, TaxLegacyType,
 };
 use accounting_app_lib::domains::settings::service;
-use accounting_app_lib::entities::org::{accounts, branches, settings};
+use accounting_app_lib::entities::org::{accounts, branches, settings, users};
 use accounting_app_lib::entities::values::{PrinterMode, PrinterSettings};
 use accounting_app_lib::shared::activity::undo::UndoRegistry;
 use accounting_app_lib::shared::invariants;
@@ -120,7 +120,7 @@ async fn seed_main_cash_account(db: &TestDb) -> Id {
                 parent_id: Set(None),
                 is_group: Set(true),
                 kind: Set("ASSET".to_string()),
-                subtype: Set("group".to_string()),
+                subtype: Set("otherCurrentAsset".to_string()),
                 normal_side: Set("DEBIT".to_string()),
                 system_role: Set(None),
                 currency: Set(None),
@@ -246,11 +246,48 @@ async fn seed_product_with_branch_stock(db: &TestDb, branch_id: Id, qty: Decimal
     .expect("seed_product_with_branch_stock must succeed");
 }
 
-fn log_in(db: &TestDb, role: Role) -> Id {
+/// Inserts a real `users` row for the session (every audit/activity row references its actor via
+/// `fk_audit_user_id` — a random id with no row turns each audited write into an FK violation) and
+/// signs it in.
+async fn log_in(db: &TestDb, role: Role) -> Id {
     let user_id = Id::new();
+    let role_name = match role {
+        Role::Admin => "admin",
+        Role::Manager => "manager",
+        Role::Accountant => "accountant",
+        Role::Cashier => "cashier",
+        Role::Storekeeper => "storekeeper",
+    };
+    with_tx(&db.state, TxOpts { require_user: false }, move |tx, _cx| {
+        Box::pin(async move {
+            let now = chrono::Utc::now();
+            users::ActiveModel {
+                id: Set(user_id),
+                username: Set(format!("test-{user_id}")),
+                name: Set("مستخدم تجريبي".to_string()),
+                phone: Set(None),
+                role: Set(role_name.to_string()),
+                max_discount: Set(Decimal::ZERO),
+                price_list_id: Set(None),
+                active: Set(true),
+                avatar: Set(None),
+                allowed_branches: Set(None),
+                home_branch: Set(None),
+                created_at: Set(now),
+                updated_at: Set(now),
+                deleted_at: Set(None),
+                sync_status: Set("local".to_string()),
+            }
+            .insert(tx)
+            .await?;
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .expect("seed session user must succeed");
     let user = AuthenticatedUser {
         id: user_id,
-        username: "test".to_string(),
+        username: format!("test-{user_id}"),
         role,
         home_branch_id: Id::new(),
         allowed_branches: vec![],
@@ -283,7 +320,7 @@ fn tax_input(name: &str, rate: Decimal, kind: TaxLegacyType, category: TaxCatego
 async fn update_settings_rejects_blank_store_name() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let err = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -303,7 +340,7 @@ async fn update_settings_rejects_blank_store_name() {
 async fn update_settings_eg_vat_number_wrong_length_gives_country_specific_message() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let err = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -324,7 +361,7 @@ async fn update_settings_eg_vat_number_wrong_length_gives_country_specific_messa
 async fn update_settings_sa_valid_vat_number_passes() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let (_row, _delta) = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -345,7 +382,7 @@ async fn update_settings_sa_valid_vat_number_passes() {
 async fn update_settings_country_change_sets_timezone() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let (row, _delta) = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -365,7 +402,7 @@ async fn update_settings_country_change_sets_timezone() {
 async fn update_settings_device_printer_keys_are_not_written_to_the_row() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let (row, delta) = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -392,7 +429,7 @@ async fn update_settings_device_printer_keys_are_not_written_to_the_row() {
 async fn save_tax_validation_messages_in_order() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let err = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -433,7 +470,7 @@ async fn save_tax_validation_messages_in_order() {
 async fn save_tax_derives_direction_and_account_role_from_type_never_from_client() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let tax = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -456,7 +493,7 @@ async fn save_tax_derives_direction_and_account_role_from_type_never_from_client
 async fn save_tax_second_default_clears_the_first_of_the_same_type() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let first = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -483,7 +520,7 @@ async fn save_tax_second_default_clears_the_first_of_the_same_type() {
 async fn delete_tax_refuses_the_default_tax() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let tax = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -506,7 +543,7 @@ async fn delete_tax_refuses_the_default_tax() {
 async fn delete_tax_soft_deletes_and_excludes_from_list() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let tax = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -549,7 +586,7 @@ fn payment_method_input(name: &str, sort_order: i32) -> PaymentMethodInput {
 async fn reorder_payment_methods_applies_only_to_listed_ids() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let a = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -580,7 +617,7 @@ async fn reorder_payment_methods_applies_only_to_listed_ids() {
 async fn delete_payment_method_refuses_when_can_delete_is_false() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let method = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -627,7 +664,7 @@ async fn create_branch_creates_cash_account_1111_and_cost_center() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
     seed_main_cash_account(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let branch = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -650,7 +687,7 @@ async fn create_branch_duplicate_code_case_insensitive_is_validation() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
     seed_main_cash_account(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -674,7 +711,7 @@ async fn deactivate_branch_refuses_the_only_active_branch() {
     let db = TestDb::fresh().await;
     // The seeded fixture branch is the ONLY branch in this DB — deactivating it must be refused.
     let default_branch_id = seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let err = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -691,7 +728,7 @@ async fn deactivate_branch_refuses_when_stock_remains() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
     seed_main_cash_account(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     // A second branch so the "only active branch" guard doesn't fire first.
@@ -718,7 +755,7 @@ async fn deactivate_branch_refuses_when_stock_remains() {
 async fn reactivate_branch_has_no_guard_and_logs_even_when_already_active() {
     let db = TestDb::fresh().await;
     let default_branch_id = seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let branch = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -737,7 +774,7 @@ async fn reactivate_branch_has_no_guard_and_logs_even_when_already_active() {
 async fn delete_cost_center_refuses_branch_cost_center() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     let cc = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -769,7 +806,7 @@ async fn delete_cost_center_refuses_branch_cost_center() {
 async fn set_base_currency_locked_after_a_posted_journal_entry() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let locked_before = with_read(&db.state, |tx| Box::pin(async move { service::currency::is_base_currency_locked(tx).await })).await.unwrap();
     assert!(!locked_before);
@@ -779,12 +816,12 @@ async fn set_base_currency_locked_after_a_posted_journal_entry() {
 async fn create_currency_refuses_the_base_currency_code() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let err = with_tx(&db.state, TxOpts::default(), |tx, _cx| {
         Box::pin(async move {
             let input = accounting_app_lib::domains::settings::dto::Currency { code: "SAR".to_string(), name_ar: "ريال".to_string(), symbol: "ر.س".to_string(), decimals: 2, active: true, fixed: None, fixed_rate: None };
-            service::currency::create(tx, input).await
+            service::currency::create(tx, _cx, input).await
         })
     })
     .await
@@ -796,12 +833,12 @@ async fn create_currency_refuses_the_base_currency_code() {
 async fn save_exchange_rate_same_day_resave_replaces_the_row() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     with_tx(&db.state, TxOpts::default(), |tx, _cx| {
         Box::pin(async move {
             let input = accounting_app_lib::domains::settings::dto::Currency { code: "USD".to_string(), name_ar: "دولار".to_string(), symbol: "$".to_string(), decimals: 2, active: true, fixed: None, fixed_rate: None };
-            service::currency::create(tx, input).await
+            service::currency::create(tx, _cx, input).await
         })
     })
     .await
@@ -837,12 +874,12 @@ async fn save_exchange_rate_same_day_resave_replaces_the_row() {
 async fn save_exchange_rate_derives_from_inverse() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     with_tx(&db.state, TxOpts::default(), |tx, _cx| {
         Box::pin(async move {
             let input = accounting_app_lib::domains::settings::dto::Currency { code: "EGP".to_string(), name_ar: "جنيه".to_string(), symbol: "ج.م".to_string(), decimals: 2, active: true, fixed: None, fixed_rate: None };
-            service::currency::create(tx, input).await
+            service::currency::create(tx, _cx, input).await
         })
     })
     .await
@@ -865,7 +902,7 @@ async fn run_all_invariants_green_after_settings_writes() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
     seed_main_cash_account(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     let registry = std::sync::Arc::new(UndoRegistry::new());
 
     with_tx(&db.state, TxOpts::default(), |tx, cx| {

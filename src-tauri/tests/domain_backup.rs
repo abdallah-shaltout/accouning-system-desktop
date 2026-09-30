@@ -7,12 +7,13 @@
 //!   `domain_import.rs`) — used here to seed a small-but-real, invariants-clean database to back up
 //!   and restore.
 //! - `tests/fixtures/backup-browser-plain.zip` / `backup-browser-encrypted.zip` (password `1234`) —
-//!   TS-format archives, produced by `bun run verify:export-snapshot` through the real
-//!   `buildBackupArchive` (17-backup.md §8a's "compatibility with the TS format"). Gitignored;
-//!   tests that need them fail loudly with a clear message rather than skipping, per the entry
-//!   file's "never skips" convention (mirrors `tests/support/mod.rs`/`domain_import.rs`).
+//!   TS-format archives, produced by `bun run scripts/verify/export-backup-fixtures.ts` through the
+//!   real `buildBackupArchive` from `mock-snapshot-edge.json`'s data (17-backup.md §8a's
+//!   "compatibility with the TS format"). Small, checked in; tests that need them fail loudly with
+//!   a clear message rather than skipping, per the entry file's "never skips" convention (mirrors
+//!   `tests/support/mod.rs`/`domain_import.rs`).
 
-mod support;
+use crate::support;
 
 use std::path::Path;
 
@@ -43,7 +44,7 @@ fn read_fixture_bytes(name: &str) -> Vec<u8> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join(name);
     std::fs::read(&path).unwrap_or_else(|_| {
         panic!(
-            "missing fixture {path:?} — run `bun run verify:export-snapshot` first (17-backup.md §8a's \
+            "missing fixture {path:?} — run `bun run scripts/verify/export-backup-fixtures.ts` (17-backup.md §8a's \
              TS-format compatibility fixtures)"
         )
     })
@@ -55,10 +56,33 @@ fn read_fixture_bytes(name: &str) -> Vec<u8> {
 async fn seed_via_importer(db: &TestDb) {
     let db_guard = db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
-    let snapshot_json = read_fixture("mock-snapshot-edge.json");
+    // The fixture's one user has no `active` key, which imports as inactive (the mock reads it
+    // truthily — Part 04 Wave 2). These tests need a usable admin (the D-6 auto-backup attribution
+    // picks the first *active* admin), so it is activated here, not in the shared fixture file.
+    let mut snapshot: serde_json::Value = serde_json::from_str(&read_fixture("mock-snapshot-edge.json")).expect("edge fixture is JSON");
+    for user in snapshot["data"]["users"].as_array_mut().expect("edge fixture has users") {
+        user["active"] = serde_json::Value::Bool(true);
+    }
+    let snapshot_json = snapshot.to_string();
     import_run::import_snapshot(conn, &snapshot_json, None, None, ImportOpts { mode: ImportMode::Demo, replace_existing: false, adopt_terminal: None })
         .await
         .expect("seed via importer must succeed");
+}
+
+/// Logs in as the importer fixture's `admin` (what the settings page's real session is: the backup
+/// settings and restore commands require Settings:Write, restore also Users:Write — D-7).
+async fn log_in_as_imported_admin(db: &TestDb) {
+    use accounting_app_lib::entities::org::users;
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+    let conn = db.state.db.read().unwrap().as_ref().unwrap().connection.clone();
+    let admin = users::Entity::find().filter(users::Column::Username.eq("admin")).one(&conn).await.unwrap().expect("imported admin");
+    let settings = accounting_app_lib::core::settings::load(&conn).await.unwrap();
+    let session = accounting_app_lib::domains::users::service::to_authenticated(&admin, settings.default_branch_id);
+    *db.state.session.write().unwrap() = Some(session);
+}
+
+fn log_out(db: &TestDb) {
+    *db.state.session.write().unwrap() = None;
 }
 
 // --- dataset.rs: schema is dumpable, topo order covers every FK -----------------------------------
@@ -199,7 +223,10 @@ async fn table_counts_key_order_and_soft_delete_filter() {
     assert_eq!(keys, expected, "counts key order must equal the fixed spec list, then attachments");
 
     let attachments = counts.0.iter().find(|(k, _)| k == "attachments").unwrap();
-    assert_eq!(attachments.1, 0, "D-5: Rust archives never carry attachment blobs");
+    // C-16: `attachments` is a real SELECT COUNT(*) now — 0 here because the importer seed fixture
+    // inserts no attachment rows, not because the count is hardcoded (see domain_attachments.rs for
+    // a real, non-zero count).
+    assert_eq!(attachments.1, 0, "no attachments were seeded by the importer fixture");
 }
 
 // --- auto: terminal role -> not-main; disabled; not due; no folder; due -> written, retention ------
@@ -225,7 +252,9 @@ async fn auto_backup_skips_when_disabled_or_no_folder() {
     assert!(!outcome.ran);
     assert_eq!(outcome.skipped, Some(AutoBackupSkipReason::Disabled));
 
-    // Enabled but no folder configured.
+    // Enabled but no folder configured (configured by a logged-in admin, then the timer runs with
+    // nobody logged in — D-6).
+    log_in_as_imported_admin(&db).await;
     let undo = db.state.undo.clone();
     with_tx(&db.state, TxOpts { require_user: false }, move |tx, cx| {
         let undo = undo.clone();
@@ -233,6 +262,9 @@ async fn auto_backup_skips_when_disabled_or_no_folder() {
             let device = accounting_app_lib::core::device::DeviceSettings::default();
             let patch = accounting_app_lib::infrastructure::backup::dto::BackupSettingsPatch {
                 auto_enabled: Some(true),
+                // Always due (the default 20:00 would make this `not-due` before 8 pm, which is
+                // checked before the folder — §3.7 steps 3/4).
+                auto_time: Some("00:00".to_string()),
                 ..Default::default()
             };
             auto::save_backup_settings(tx, cx, &undo, &device, patch).await.map(|_| ())
@@ -240,6 +272,7 @@ async fn auto_backup_skips_when_disabled_or_no_folder() {
     })
     .await
     .expect("enabling auto_enabled must succeed");
+    log_out(&db);
 
     let outcome = auto::run_auto_backup_if_due(&db.state, AutoBackupTrigger::Schedule).await.expect("must not error");
     assert!(!outcome.ran);
@@ -260,6 +293,7 @@ async fn auto_backup_writes_file_and_prunes_retention() {
     // not only patched into the settings row.
     *db.state.device.write().unwrap() = DeviceSettings { role: DeviceRole::Main, backup_folder: Some(folder.clone()), ..Default::default() };
 
+    log_in_as_imported_admin(&db).await;
     let undo = db.state.undo.clone();
     let device_snapshot = db.state.device.read().unwrap().clone();
     with_tx(&db.state, TxOpts { require_user: false }, move |tx, cx| {
@@ -278,11 +312,27 @@ async fn auto_backup_writes_file_and_prunes_retention() {
     .await
     .expect("configuring auto backup must succeed");
 
+    // D-6: the timer runs with nobody logged in (the login screen).
+    log_out(&db);
+
     // Due (auto_time 00:00 is always <= now).
     let outcome = auto::run_auto_backup_if_due(&db.state, AutoBackupTrigger::Schedule).await.expect("must not error");
     assert!(outcome.ran, "auto backup must run when enabled, due, and a folder is configured: {outcome:?}");
     let path = outcome.path.expect("ran outcome must carry a path");
     assert!(Path::new(&path).exists(), "the backup file must actually be written");
+
+    // Settings updated: last backup recorded, and today's run remembered — the next tick is
+    // `not-due` instead of writing another archive every minute.
+    {
+        let db_guard = db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        let device = db.state.device.read().unwrap().clone();
+        let settings = auto::backup_settings(conn, &device).await.unwrap();
+        assert_eq!(settings.last_backup_kind, Some(BackupKind::Auto));
+        assert!(settings.last_backup_at.is_some() && settings.last_auto_run_date.is_some() && settings.last_backup_error.is_none());
+    }
+    let again = auto::run_auto_backup_if_due(&db.state, AutoBackupTrigger::Schedule).await.expect("must not error");
+    assert_eq!(again.skipped, Some(AutoBackupSkipReason::NotDue), "a second tick the same day must not write again: {again:?}");
 
     let _ = std::fs::remove_dir_all(&tmp_dir);
 }
@@ -302,6 +352,23 @@ async fn restore_refuses_encrypted_archive_without_password() {
 
     let err = restore::restore_from_archive(&db.state, &built.archive_base64, None).await.unwrap_err();
     assert_eq!(err.to_string(), "هذه النسخة مشفّرة — أدخل كلمة المرور");
+}
+
+/// D-7 is checked before the mandatory pre-restore backup writes anything: no session is
+/// UNAUTHORIZED (not the misleading pre-restore backup failure).
+#[tokio::test]
+async fn restore_without_session_is_unauthorized_before_any_write() {
+    let db = TestDb::fresh().await;
+    seed_via_importer(&db).await;
+    *db.state.device.write().unwrap() = DeviceSettings { role: DeviceRole::Main, ..Default::default() };
+
+    let db_guard = db.state.db.read().unwrap();
+    let conn = &db_guard.as_ref().unwrap().connection;
+    let built = build_and_write_or_read_archive(conn, BackupKind::Manual, None).await.expect("build must succeed");
+    drop(db_guard);
+
+    let err = restore::restore_from_archive(&db.state, &built.archive_base64, None).await.unwrap_err();
+    assert!(matches!(err, accounting_app_lib::core::error::AppError::Unauthorized { .. }), "unexpected error: {err:?}");
 }
 
 #[tokio::test]
@@ -324,6 +391,7 @@ async fn restore_full_round_trip_ends_session_and_matches_counts() {
     let db = TestDb::fresh().await;
     seed_via_importer(&db).await;
     *db.state.device.write().unwrap() = DeviceSettings { role: DeviceRole::Main, ..Default::default() };
+    log_in_as_imported_admin(&db).await;
 
     let (archive_base64, before_counts) = {
         let db_guard = db.state.db.read().unwrap();
@@ -333,10 +401,8 @@ async fn restore_full_round_trip_ends_session_and_matches_counts() {
         (built.archive_base64, counts)
     };
 
-    // Simulate a logged-in session so D-11 has something to clear.
-    // (No direct setter is exposed on AppState.session outside with_tx's actor resolution in this
-    // test harness; restore_from_archive itself sets it to None unconditionally after commit, which
-    // is asserted below regardless of whether a session existed before.)
+    // The admin session above is what D-11 must clear.
+    assert!(db.state.session.read().unwrap().is_some());
 
     restore::restore_from_archive(&db.state, &archive_base64, None).await.expect("restore must succeed");
 
@@ -345,7 +411,14 @@ async fn restore_full_round_trip_ends_session_and_matches_counts() {
     let db_guard = db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
     let after_counts = table_counts(conn).await.unwrap();
-    assert_eq!(before_counts, after_counts, "restoring the archive just taken must reproduce the same counts");
+    // Every table comes back as archived, plus exactly the restore's own
+    // "استعادة من نسخة احتياطية" row (§3.9 step 4 logs it after the load: one audit + one activity).
+    let expected: Vec<(String, i64)> = before_counts
+        .0
+        .iter()
+        .map(|(k, v)| (k.clone(), if k == "audit" || k == "activity" { v + 1 } else { *v }))
+        .collect();
+    assert_eq!(after_counts.0, expected, "restoring the archive just taken must reproduce the same counts (+ the restore's own log row)");
 
     let results = invariants::run_all(conn).await.expect("run_all must not error");
     let failed: Vec<_> = results.iter().filter(|r| !r.passed).collect();
@@ -375,6 +448,36 @@ async fn reads_ts_format_encrypted_archive() {
     assert!(archive::find_payload_file(&decrypted, "data.json").is_some());
     let recomputed = archive::recompute_checksum(&bytes).expect("checksum recompute must succeed");
     assert_eq!(recomputed, manifest.checksum);
+}
+
+/// §8a: restoring a TS-built (browser, `schemaVersion 1`) archive runs the D10 importer — the
+/// restored counts equal the archive manifest's own `counts`, plus the restore's log row.
+#[tokio::test]
+async fn restores_ts_format_plain_archive_through_the_importer() {
+    let db = TestDb::fresh().await;
+    seed_via_importer(&db).await;
+    *db.state.device.write().unwrap() = DeviceSettings { role: DeviceRole::Main, ..Default::default() };
+    log_in_as_imported_admin(&db).await;
+
+    let bytes = read_fixture_bytes("backup-browser-plain.zip");
+    let manifest = archive::read_manifest(&bytes).unwrap();
+    let archive_base64 = archive::bytes_to_base64(&bytes);
+    restore::restore_from_archive(&db.state, &archive_base64, None).await.expect("a browser archive must restore through the importer");
+    assert!(db.state.session.read().unwrap().is_none(), "D-11: restore must end the session");
+
+    let db_guard = db.state.db.read().unwrap();
+    let conn = &db_guard.as_ref().unwrap().connection;
+    let after = table_counts(conn).await.unwrap();
+    let manifest_counts = serde_json::to_value(&manifest.counts).unwrap();
+    for (key, n) in &after.0 {
+        let archived = manifest_counts.get(key.as_str()).and_then(|v| v.as_i64()).unwrap_or(0);
+        let expected = if key == "audit" || key == "activity" { archived + 1 } else { archived };
+        assert_eq!(*n, expected, "count for '{key}' after restoring the browser archive");
+    }
+
+    let results = invariants::run_all(conn).await.expect("run_all must not error");
+    let failed: Vec<_> = results.iter().filter(|r| !r.passed).collect();
+    assert!(failed.is_empty(), "invariants failed after restore: {failed:?}");
 }
 
 // --- pre-migration: fresh DB -> None; migrated with one pending -> file written, 10 kept ----------

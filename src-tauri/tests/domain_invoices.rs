@@ -16,7 +16,7 @@
 //! sale) rather than every bullet — the parity-case list (§8b) is handed to Part 04 regardless of
 //! which of these ran here first.
 
-mod support;
+use crate::support;
 
 use std::sync::Arc;
 
@@ -53,9 +53,13 @@ struct Fixture {
     pub bank_method_id: Id,
 }
 
-fn log_in(test_db: &TestDb) -> Id {
+/// Logs in an admin session whose `users` row exists (FK target of `journal_entries.created_by`,
+/// `audit.user_id`, documents' `created_by`/`cashier_id`, …).
+async fn log_in(test_db: &TestDb) -> Id {
     let user_id = Id::new();
     let user = AuthenticatedUser { id: user_id, username: "test".to_string(), role: Role::Admin, home_branch_id: Id::new(), allowed_branches: vec![], price_list_id: None, max_discount: None };
+    let connection = test_db.state.db.read().unwrap().as_ref().expect("test db connected").connection.clone();
+    support::seed_user(&connection, user_id, "admin").await;
     *test_db.state.session.write().unwrap() = Some(user);
     user_id
 }
@@ -72,7 +76,7 @@ async fn seed_role_account<C: ConnectionTrait>(conn: &C, code: &str, role: &str)
         parent_id: Set(None),
         is_group: Set(false),
         kind: Set("ASSET".to_string()),
-        subtype: Set("other".to_string()),
+        subtype: Set("otherCurrentAsset".to_string()),
         normal_side: Set("DEBIT".to_string()),
         system_role: Set(Some(role.to_string())),
         currency: Set(None),
@@ -160,6 +164,7 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
     };
     tax.insert(conn).await.unwrap();
 
+    support::seed_currency(conn, "SAR").await;
     let settings_row = settings::ActiveModel {
         id: Set(Id::new()),
         singleton: Set(1),
@@ -230,6 +235,8 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
     seed_role_account(conn, "6900", "cashShort").await;
     seed_role_account(conn, "4200", "salesReturns").await;
     seed_role_account(conn, "5120", "inventoryWriteOff").await;
+    // `stock_in` books its goods as an owner contribution in kind (Dr inventory / Cr capital).
+    seed_role_account(conn, "3100", "capital").await;
 
     let cash_method_id = seed_payment_method(conn, "نقدي", "cash", "cash", 1).await;
     let card_method_id = seed_payment_method(conn, "مدى", "card", "cardClearing", 2).await;
@@ -351,6 +358,20 @@ async fn stock_in(test_db: &TestDb, product_id: Id, qty: Decimal, unit_cost: Dec
                 None,
             )
             .await?;
+            // The GL side of the stock (`inventory-gl`: inventory GL = Σ product.stockValue).
+            use accounting_app_lib::shared::ledger::{accounts::SystemRole, post, AccountRef, PostJournal, PostingLine};
+            let value = accounting_app_lib::utils::money::round2(qty * unit_cost);
+            post(
+                tx,
+                cx,
+                PostJournal::new(
+                    cx.clock.today(),
+                    "stock in",
+                    accounting_app_lib::entities::journal::journal_entries::JournalEntryType::Manual,
+                    vec![PostingLine::debit(AccountRef::Role(SystemRole::Inventory), value), PostingLine::credit(AccountRef::Role(SystemRole::Capital), value)],
+                ),
+            )
+            .await?;
             Ok(())
         }) as BoxFuture<'_, TxResult<()>>
     })
@@ -359,9 +380,9 @@ async fn stock_in(test_db: &TestDb, product_id: Id, qty: Decimal, unit_cost: Dec
 }
 
 async fn make_fixture(test_db: &TestDb) -> Fixture {
+    // `with_tx` refuses with UNAUTHORIZED without a session, so log in before seeding.
+    log_in(test_db).await;
     let mut fixture = with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| Box::pin(async move { Ok(seed_fixture(tx).await) }) as BoxFuture<'_, TxResult<Fixture>>).await.unwrap();
-
-    log_in(test_db);
 
     let undo = Arc::new(UndoRegistry::new());
     let p1 = with_tx(&test_db.state, TxOpts::default(), {
@@ -591,7 +612,10 @@ async fn credit_limit_blocks_over_limit_sale() {
     let test_db = TestDb::fresh().await;
     let fixture = make_fixture(&test_db).await;
 
-    // Customer's credit_limit is 1000; a 2000+ credit sale must be refused.
+    // Customer's credit_limit is 1000; a 2000+ credit sale must be refused. Only a role without the
+    // override (`role_can_override_credit_limit`: Accounting/Parties write) is blocked — the fixture's
+    // admin could override it (`creditLimit.ts`'s `canOverride`), so sell as a cashier.
+    test_db.state.session.write().unwrap().as_mut().expect("logged in").role = Role::Cashier;
     let input = SaleInput {
         customer_id: Some(fixture.customer_id),
         lines: vec![SaleInputLine {
@@ -640,7 +664,8 @@ async fn credit_limit_blocks_over_limit_sale() {
     })
     .await;
 
-    assert!(result.is_err(), "a sale exceeding the customer's credit limit must be refused");
+    let err = result.expect_err("a sale exceeding the customer's credit limit must be refused");
+    assert!(err.to_string().contains("تجاوز الحد الائتماني"), "unexpected refusal: {err:?}");
 }
 
 #[tokio::test]
@@ -696,29 +721,14 @@ async fn refund_partial_then_stock_restocked() {
     .await
     .unwrap();
 
-    let invoice_line_id = invoice.lines[0].id.trim_start_matches(&format!("{}-l", invoice.id)).to_string();
-    // The DTO's synthetic line id is `{invoiceId}-l{position+1}` — recover the real row id by
-    // re-reading the invoice detail (its `InvoiceLine.id` field carries this same synthetic id, but
-    // `create_refund` needs the REAL `invoice_lines.id`, which we fetch here via a direct query).
-    let real_line_id = with_read(&test_db.state, {
-        let invoice_id = invoice.id;
-        move |tx| {
-            Box::pin(async move {
-                use accounting_app_lib::entities::sales::invoice_lines::{Column, Entity};
-                use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-                let line = Entity::find().filter(Column::InvoiceId.eq(invoice_id)).one(tx).await.unwrap().unwrap();
-                Ok(line.id)
-            }) as BoxFuture<'_, TxResult<Id>>
-        }
-    })
-    .await
-    .unwrap();
-    let _ = invoice_line_id;
+    // The refund input names a line by its DTO id (`{invoiceId}-l{position+1}`), the id the UI
+    // reads off the invoice and sends back.
+    let real_line_id = invoice.lines[0].id.clone();
 
     let refund_input = RefundInput {
         invoice_id: invoice.id,
         reason: Some("عيب في المنتج".to_string()),
-        lines: vec![RefundLine { invoice_line_id: real_line_id, qty: dec!(1), restock: Some(true) }],
+        lines: vec![RefundLine { invoice_line_id: real_line_id.clone(), qty: dec!(1), restock: Some(true) }],
         refund_method: Some(RefundMethod::Cash),
     };
     let registry2 = Arc::new(UndoRegistry::new());
@@ -730,8 +740,39 @@ async fn refund_partial_then_stock_restocked() {
     .await
     .unwrap();
 
+    // G-25 / ACC-0003: the sale is 2 × 115 tax-inclusive (line net 200, VAT 30). Returning 1 unit
+    // reverses exactly half of the line's net and VAT — 100 + 15 = 115 back, never 115 + 15% = 132.25.
     assert_eq!(refund.lines.len(), 1);
-    assert!(refund.grand_total > Decimal::ZERO);
+    assert_eq!(refund.sub_total, dec!(100));
+    assert_eq!(refund.tax_amount, dec!(15));
+    assert_eq!(refund.grand_total, dec!(115));
+    assert_eq!(refund.cash_back, dec!(115));
+
+    with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    // Returning the last unit is the final refund: together the two reverse the sale's revenue and
+    // VAT exactly (Σ net 200, Σ VAT 30, Σ gross 230 = the invoice's grand total).
+    let final_input = RefundInput {
+        invoice_id: invoice.id,
+        reason: Some("عيب في المنتج".to_string()),
+        lines: vec![RefundLine { invoice_line_id: real_line_id.clone(), qty: dec!(1), restock: Some(true) }],
+        refund_method: Some(RefundMethod::Cash),
+    };
+    let registry3 = Arc::new(UndoRegistry::new());
+    let final_refund = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let input = final_input.clone();
+        let registry = registry3.clone();
+        Box::pin(async move { refund_service::create_refund(tx, cx, &registry, input).await }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::invoices::dto::Refund>>
+    })
+    .await
+    .unwrap();
+
+    assert_eq!(final_refund.sub_total, dec!(100));
+    assert_eq!(final_refund.tax_amount, dec!(15));
+    assert_eq!(final_refund.grand_total, dec!(115));
+    assert_eq!(refund.sub_total + final_refund.sub_total, invoice.grand_total - invoice.tax_amount);
+    assert_eq!(refund.tax_amount + final_refund.tax_amount, invoice.tax_amount);
+    assert_eq!(refund.grand_total + final_refund.grand_total, invoice.grand_total);
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
 }
@@ -1039,4 +1080,483 @@ async fn get_invoices_paged_totals_and_search() {
 
     assert_eq!(paged.total, 1, "search for 'أحمد' must find the customer's invoice");
     assert!(paged.totals.is_some());
+}
+
+// --- ACC-0009 / ACC-0010 ----------------------------------------------------------------------
+
+fn one_line_sale(product_id: Id, customer_id: Option<Id>, price: Decimal, method: SalePaymentMethod, paid: Decimal, currency: Option<(&str, Decimal)>) -> SaleInput {
+    SaleInput {
+        customer_id,
+        lines: vec![SaleInputLine {
+            product_id: product_id.to_string(),
+            qty: dec!(1),
+            price,
+            discount: None,
+            discount_is_pct: None,
+            tax_id: None,
+            unit_id: None,
+            unit_factor: None,
+            list_price: None,
+            price_override_reason: None,
+            batch_id: None,
+            batch_no: None,
+            is_free_text: None,
+            revenue_account_id: None,
+            name: None,
+        }],
+        discount_rate: Decimal::ZERO,
+        discount_amount: None,
+        payment_method: method,
+        paid_amount: paid,
+        tendered_amount: None,
+        tenders: None,
+        note: None,
+        source: None,
+        shift_id: None,
+        invoice_type: None,
+        due_date_override: None,
+        po_reference: None,
+        terms: None,
+        attachment_ids: None,
+        manager_approved_by: None,
+        branch_id: None,
+        cost_center_id: None,
+        currency: currency.map(|(c, _)| c.to_string()),
+        exchange_rate: currency.map(|(_, r)| r),
+    }
+}
+
+async fn create_sale_now(test_db: &TestDb, input: SaleInput) -> accounting_app_lib::domains::invoices::dto::Invoice {
+    let registry = Arc::new(UndoRegistry::new());
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let input = input.clone();
+        let registry = registry.clone();
+        Box::pin(async move { sale::create_sale(tx, cx, &registry, input).await }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::invoices::dto::Invoice>>
+    })
+    .await
+    .unwrap()
+}
+
+async fn refund_whole_line(test_db: &TestDb, invoice_id: Id, method: RefundMethod) -> accounting_app_lib::domains::invoices::dto::Refund {
+    let line_id = with_read(&test_db.state, move |tx| {
+        Box::pin(async move {
+            use accounting_app_lib::entities::sales::invoice_lines::{Column, Entity};
+            use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+            let line = Entity::find().filter(Column::InvoiceId.eq(invoice_id)).one(tx).await.unwrap().unwrap();
+            Ok(format!("{}-l{}", line.invoice_id, line.position + 1))
+        }) as BoxFuture<'_, TxResult<String>>
+    })
+    .await
+    .unwrap();
+    let input = RefundInput { invoice_id, reason: Some("إرجاع".to_string()), lines: vec![RefundLine { invoice_line_id: line_id, qty: dec!(1), restock: Some(true) }], refund_method: Some(method) };
+    let registry = Arc::new(UndoRegistry::new());
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let input = input.clone();
+        let registry = registry.clone();
+        Box::pin(async move { refund_service::create_refund(tx, cx, &registry, input).await }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::invoices::dto::Refund>>
+    })
+    .await
+    .unwrap()
+}
+
+type PostedLine = (String, Decimal, Decimal, Option<Decimal>, Option<Decimal>);
+
+/// `(system_role, debit, credit, amount_fc, rate)` for every line of a document's journal entry.
+async fn posted_lines(test_db: &TestDb, source_kind: &'static str, source_id: Id) -> Vec<PostedLine> {
+    with_read(&test_db.state, move |tx| {
+        Box::pin(async move {
+            use accounting_app_lib::entities::journal::{journal_entries, journal_lines};
+            use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+            let entry = journal_entries::Entity::find()
+                .filter(journal_entries::Column::SourceKind.eq(source_kind))
+                .filter(journal_entries::Column::SourceId.eq(source_id))
+                .one(tx)
+                .await
+                .unwrap()
+                .expect("document must have posted");
+            let lines = journal_lines::Entity::find().filter(journal_lines::Column::JournalEntryId.eq(entry.id)).all(tx).await.unwrap();
+            let mut out = Vec::new();
+            for l in lines {
+                let account = accounts::Entity::find_by_id(l.account_id).one(tx).await.unwrap().unwrap();
+                out.push((account.system_role.unwrap_or_default(), l.debit, l.credit, l.amount_fc, l.rate));
+            }
+            Ok(out)
+        }) as BoxFuture<'_, TxResult<Vec<PostedLine>>>
+    })
+    .await
+    .unwrap()
+}
+
+fn role_total(lines: &[PostedLine], role: &str) -> (Decimal, Decimal) {
+    lines.iter().filter(|l| l.0 == role).fold((Decimal::ZERO, Decimal::ZERO), |a, l| (a.0 + l.1, a.1 + l.2))
+}
+
+/// ACC-0009: a USD invoice (rate 48.5) is paid by a USD receipt at 49 and then refunded in cash
+/// when the day's rate is 50. The refund reverses the sale's BASE revenue and VAT exactly (at the
+/// invoice's rate), pays the 10 USD back at the day's rate (500 SAR) and books the 15 SAR gap as a
+/// realized FX loss — never posting the raw 10 USD amounts to the SAR ledger.
+#[tokio::test]
+async fn fx_refund_posts_base_amounts_at_invoice_rate() {
+    let test_db = TestDb::fresh().await;
+    let fixture = make_fixture(&test_db).await;
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        Box::pin(async move {
+            use accounting_app_lib::entities::org::{currencies, exchange_rates};
+            let now = chrono::Utc::now();
+            seed_role_account(tx, "4310", "fxGain").await;
+            seed_role_account(tx, "6310", "fxLoss").await;
+            currencies::ActiveModel {
+                code: Set("USD".to_string()),
+                name_ar: Set("دولار أمريكي".to_string()),
+                symbol: Set("$".to_string()),
+                decimals: Set(2),
+                active: Set(true),
+                fixed: Set(None),
+                fixed_rate: Set(None),
+                created_at: Set(now),
+                updated_at: Set(now),
+            }
+            .insert(tx)
+            .await
+            .unwrap();
+            exchange_rates::ActiveModel { id: Set(Id::new()), currency: Set("USD".to_string()), date: Set(cx.clock.today()), rate: Set(dec!(50)), created_at: Set(now), updated_at: Set(now) }
+                .insert(tx)
+                .await
+                .unwrap();
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .unwrap();
+
+    let invoice = create_sale_now(&test_db, one_line_sale(fixture.product_id, Some(fixture.customer_id), dec!(10), SalePaymentMethod::Credit, Decimal::ZERO, Some(("USD", dec!(48.5))))).await;
+    let sale_lines = posted_lines(&test_db, "invoice", invoice.id).await;
+    assert_eq!(role_total(&sale_lines, "receivable").0, dec!(485));
+
+    // Receive 10 USD at 49 (490 SAR) against the invoice: AR at the invoice's rate, +5 FX gain.
+    let customer_id = fixture.customer_id;
+    let branch_id = fixture.branch_id;
+    let invoice_id = invoice.id;
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        Box::pin(async move {
+            use accounting_app_lib::domains::payments::dto::{AllocationInputTargetKind, PartyKind, PaymentAllocationInput, PaymentInput, PaymentTenderKind, PaymentTypeDto};
+            let undo = UndoRegistry::new();
+            let input = PaymentInput {
+                date: cx.clock.today().format("%Y-%m-%d").to_string(),
+                r#type: PaymentTypeDto::Received,
+                target_type: PartyKind::Customer,
+                target_id: customer_id,
+                amount: dec!(490),
+                method: PaymentTenderKind::BankTransfer,
+                note: None,
+                allocations: Some(vec![PaymentAllocationInput { target_kind: AllocationInputTargetKind::Invoice, target_id: invoice_id, amount: dec!(490) }]),
+                branch_id: Some(branch_id),
+                currency: Some("USD".to_string()),
+                amount_fc: Some(dec!(10)),
+                rate: Some(dec!(49)),
+            };
+            accounting_app_lib::domains::payments::service::create::create_payment(tx, cx, &undo, input).await
+        }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::payments::dto::Payment>>
+    })
+    .await
+    .unwrap();
+
+    let refund = refund_whole_line(&test_db, invoice.id, RefundMethod::Cash).await;
+    assert_eq!(refund.grand_total, dec!(10), "the refund document itself stays in the invoice currency");
+    assert_eq!(refund.cash_back, dec!(10));
+
+    let lines = posted_lines(&test_db, "refund", refund.id).await;
+    // Revenue and VAT reverse the sale's base amounts exactly.
+    assert_eq!(role_total(&lines, "salesReturns").0, role_total(&sale_lines, "sales").1);
+    assert_eq!(role_total(&lines, "vatOutput").0, role_total(&sale_lines, "vatOutput").1);
+    // Cash out at the day's rate, tagged with its FC amount; the gap is a realized FX loss.
+    let cash = lines.iter().find(|l| l.0 == "cash").expect("cash leg");
+    assert_eq!((cash.2, cash.3, cash.4), (dec!(500), Some(dec!(10)), Some(dec!(50))));
+    assert_eq!(role_total(&lines, "fxLoss").0, dec!(15));
+    assert_eq!(role_total(&lines, "receivable"), (Decimal::ZERO, Decimal::ZERO));
+
+    with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+}
+
+/// ACC-0010: a `customer_credit` refund on an already-paid invoice leaves a real credit on the
+/// customer's receivable — it is counted as unallocated customer credit (party page) and keeps the
+/// `customer-allocation` invariant (Σ outstanding − unallocated credit = ledger balance) green.
+#[tokio::test]
+async fn customer_credit_refund_on_paid_invoice_is_unallocated_credit() {
+    let test_db = TestDb::fresh().await;
+    let fixture = make_fixture(&test_db).await;
+
+    let invoice = create_sale_now(&test_db, one_line_sale(fixture.product_id, Some(fixture.customer_id), dec!(115), SalePaymentMethod::Cash, dec!(115), None)).await;
+    let refund = refund_whole_line(&test_db, invoice.id, RefundMethod::CustomerCredit).await;
+    assert_eq!(refund.settled_to_receivable, Decimal::ZERO);
+    assert_eq!(refund.credited_to_account, Some(dec!(115)));
+
+    let customer_id = fixture.customer_id;
+    let (balance, credit, credits) = with_read(&test_db.state, move |tx| {
+        Box::pin(async move {
+            use accounting_app_lib::entities::journal::journal_lines::PartyKind;
+            use accounting_app_lib::shared::balances;
+            let balance = balances::customer_balance(tx, customer_id).await?;
+            let credit = balances::unallocated_credit_for(tx, PartyKind::Customer, customer_id).await?;
+            let credits = balances::unallocated_credits(tx, PartyKind::Customer, &[customer_id]).await?;
+            Ok((balance, credit, credits.get(&customer_id).copied()))
+        }) as BoxFuture<'_, TxResult<(Decimal, Decimal, Option<Decimal>)>>
+    })
+    .await
+    .unwrap();
+    assert_eq!(balance, dec!(-115), "the credit sits on the customer's receivable");
+    assert_eq!(credit, dec!(115));
+    assert_eq!(credits, Some(dec!(115)), "the batch (party list) read agrees with the single-party read");
+
+    with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+}
+
+// --- ACC-0014 / ACC-0016 / ACC-0017 -----------------------------------------------------------
+
+/// USD (no rate of its own for today — the sales below pass their own) plus the FX role accounts.
+async fn seed_usd(test_db: &TestDb) {
+    with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| {
+        Box::pin(async move {
+            use accounting_app_lib::entities::org::currencies;
+            let now = chrono::Utc::now();
+            seed_role_account(tx, "4310", "fxGain").await;
+            seed_role_account(tx, "6310", "fxLoss").await;
+            currencies::ActiveModel {
+                code: Set("USD".to_string()),
+                name_ar: Set("دولار أمريكي".to_string()),
+                symbol: Set("$".to_string()),
+                decimals: Set(2),
+                active: Set(true),
+                fixed: Set(None),
+                fixed_rate: Set(None),
+                created_at: Set(now),
+                updated_at: Set(now),
+            }
+            .insert(tx)
+            .await
+            .unwrap();
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .unwrap();
+}
+
+async fn set_lock_date(test_db: &TestDb, days_from_today: Option<i64>) {
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        Box::pin(async move {
+            use sea_orm::EntityTrait;
+            let row = settings::Entity::find().one(tx).await.unwrap().unwrap();
+            let mut model: settings::ActiveModel = row.into();
+            let lock_date = days_from_today.map(|d| cx.clock.today() + chrono::Duration::days(d));
+            model.accounting = Set(Some(accounting_app_lib::entities::values::AccountingPolicy { lock_date, default_purchase_account_id: None }));
+            model.update(tx).await.unwrap();
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .unwrap();
+}
+
+/// ACC-0016: a USD sale paid with cash + bank-transfer tenders posts each tender at its BASE amount
+/// (the sale's rate), FC-tagged like a payment — it used to post the raw USD amounts, leaving the
+/// entry unbalanced and the sale refused.
+#[tokio::test]
+async fn fc_sale_tenders_post_base_amounts() {
+    let test_db = TestDb::fresh().await;
+    let fixture = make_fixture(&test_db).await;
+    seed_usd(&test_db).await;
+
+    let mut input = one_line_sale(fixture.product_id, Some(fixture.customer_id), dec!(100), SalePaymentMethod::Cash, dec!(100), Some(("USD", dec!(48.57))));
+    input.tenders = Some(vec![
+        Tender { payment_method_id: fixture.cash_method_id, amount: dec!(60.33), reference: None },
+        Tender { payment_method_id: fixture.bank_method_id, amount: dec!(39.67), reference: Some("TRX-1".to_string()) },
+    ]);
+    let invoice = create_sale_now(&test_db, input).await;
+    assert_eq!(invoice.grand_total, dec!(100), "the invoice stays in USD");
+
+    let lines = posted_lines(&test_db, "invoice", invoice.id).await;
+    let cash = lines.iter().find(|l| l.0 == "cash").expect("cash tender");
+    assert_eq!((cash.1, cash.3, cash.4), (dec!(2930.23), Some(dec!(60.33)), Some(dec!(48.57))));
+    let bank = lines.iter().find(|l| l.0 == "bank").expect("bank tender");
+    assert_eq!((bank.1, bank.3, bank.4), (dec!(1926.77), Some(dec!(39.67)), Some(dec!(48.57))));
+    // Tenders (+ a zero receivable) carry exactly the sale's base total: 100 USD × 48.57.
+    assert_eq!(role_total(&lines, "sales").1 + role_total(&lines, "vatOutput").1, dec!(4857));
+
+    with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+}
+
+/// ACC-0017: 2 × 100 tax-inclusive (net 173.91, VAT 26.09). Each unit refunds exactly 100 (net 86.95
+/// + VAT 13.05, then 86.96 + 13.04) — not 100.01 then 99.99 — and the two refunds reverse the line.
+#[tokio::test]
+async fn unit_refunds_of_an_inclusive_line_are_each_exactly_the_price() {
+    let test_db = TestDb::fresh().await;
+    let fixture = make_fixture(&test_db).await;
+
+    let mut input = one_line_sale(fixture.product_id, None, dec!(100), SalePaymentMethod::Cash, dec!(200), None);
+    input.lines[0].qty = dec!(2);
+    let invoice = create_sale_now(&test_db, input).await;
+    assert_eq!((invoice.grand_total, invoice.tax_amount), (dec!(200), dec!(26.09)));
+
+    let r1 = refund_whole_line(&test_db, invoice.id, RefundMethod::Cash).await;
+    let r2 = refund_whole_line(&test_db, invoice.id, RefundMethod::Cash).await;
+    assert_eq!((r1.sub_total, r1.tax_amount, r1.grand_total), (dec!(86.95), dec!(13.05), dec!(100)));
+    assert_eq!((r2.sub_total, r2.tax_amount, r2.grand_total), (dec!(86.96), dec!(13.04), dec!(100)));
+
+    with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+}
+
+/// ACC-0014: a sale refused by the lock date leaves no trace — no invoice, stock untouched, and the
+/// next accepted sale still takes the first invoice number.
+#[tokio::test]
+async fn refused_sale_leaves_no_invoice_stock_or_number() {
+    let test_db = TestDb::fresh().await;
+    let fixture = make_fixture(&test_db).await;
+    set_lock_date(&test_db, Some(1)).await;
+
+    let input = one_line_sale(fixture.product_id, None, dec!(115), SalePaymentMethod::Cash, dec!(115), None);
+    let registry = Arc::new(UndoRegistry::new());
+    let refused = with_tx(&test_db.state, TxOpts::default(), {
+        let input = input.clone();
+        move |tx, cx| {
+            let input = input.clone();
+            let registry = registry.clone();
+            Box::pin(async move { sale::create_sale(tx, cx, &registry, input).await }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::invoices::dto::Invoice>>
+        }
+    })
+    .await;
+    assert!(matches!(refused, Err(accounting_app_lib::core::error::AppError::Forbidden { .. })), "expected FORBIDDEN, got {refused:?}");
+
+    let product_id = fixture.product_id;
+    with_read(&test_db.state, move |tx| {
+        Box::pin(async move {
+            use accounting_app_lib::entities::catalog::products as product_rows;
+            use accounting_app_lib::entities::sales::invoices;
+            use sea_orm::{EntityTrait, PaginatorTrait};
+            assert_eq!(invoices::Entity::find().count(tx).await.unwrap(), 0, "a refused sale must save no invoice");
+            let p = product_rows::Entity::find_by_id(product_id).one(tx).await.unwrap().unwrap();
+            assert_eq!(p.stock_qty, dec!(100), "a refused sale must not move stock");
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .unwrap();
+
+    set_lock_date(&test_db, None).await;
+    let invoice = create_sale_now(&test_db, input).await;
+    assert!(invoice.number.ends_with("000001"), "the refused sale consumed a number: {}", invoice.number);
+}
+
+// --- ACC-0032 / ACC-0033 (non-base-unit lines) -----------------------------------------------------
+
+/// `(stock_qty, stock_value)` of a product row.
+async fn product_stock(test_db: &TestDb, product_id: Id) -> (Decimal, Decimal) {
+    with_read(&test_db.state, move |tx| {
+        Box::pin(async move {
+            use accounting_app_lib::entities::catalog::products as product_rows;
+            use sea_orm::EntityTrait;
+            let p = product_rows::Entity::find_by_id(product_id).one(tx).await.unwrap().unwrap();
+            Ok((p.stock_qty, p.stock_value))
+        }) as BoxFuture<'_, TxResult<(Decimal, Decimal)>>
+    })
+    .await
+    .unwrap()
+}
+
+async fn refund_line(test_db: &TestDb, invoice_id: Id, line_id: String, qty: Decimal, restock: bool) -> accounting_app_lib::domains::invoices::dto::Refund {
+    let input = RefundInput { invoice_id, reason: Some("إرجاع".to_string()), lines: vec![RefundLine { invoice_line_id: line_id, qty, restock: Some(restock) }], refund_method: Some(RefundMethod::Cash) };
+    let registry = Arc::new(UndoRegistry::new());
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let input = input.clone();
+        let registry = registry.clone();
+        Box::pin(async move { refund_service::create_refund(tx, cx, &registry, input).await }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::invoices::dto::Refund>>
+    })
+    .await
+    .unwrap()
+}
+
+/// ACC-0032: 2 boxes of 4 (8 base units at cost 50) sold, then one box refunded to stock and one
+/// written off. Each refunded box moves 4 base units at 4 × 50 = 200 — the restock puts 4 units and
+/// 200 back into stock (Dr inventory 200 / Cr COGS 200), the write-off books 200 to 5120 and leaves
+/// stock alone — never 1 unit / 50 per box.
+#[tokio::test]
+async fn refund_of_a_non_base_unit_line_moves_its_base_units() {
+    let test_db = TestDb::fresh().await;
+    let fixture = make_fixture(&test_db).await;
+
+    let mut input = one_line_sale(fixture.product_id, None, dec!(460), SalePaymentMethod::Cash, dec!(920), None);
+    input.lines[0].qty = dec!(2);
+    input.lines[0].unit_id = Some("pu-box".to_string());
+    input.lines[0].unit_factor = Some(dec!(4));
+    let invoice = create_sale_now(&test_db, input).await;
+    assert_eq!(product_stock(&test_db, fixture.product_id).await, (dec!(92), dec!(4600)));
+    let line_id = invoice.lines[0].id.clone();
+
+    let restocked = refund_line(&test_db, invoice.id, line_id.clone(), dec!(1), true).await;
+    assert_eq!(product_stock(&test_db, fixture.product_id).await, (dec!(96), dec!(4800)));
+    let lines = posted_lines(&test_db, "refund", restocked.id).await;
+    assert_eq!(role_total(&lines, "inventory"), (dec!(200), Decimal::ZERO));
+    assert_eq!(role_total(&lines, "cogs"), (Decimal::ZERO, dec!(200)));
+
+    let written_off = refund_line(&test_db, invoice.id, line_id, dec!(1), false).await;
+    assert_eq!(product_stock(&test_db, fixture.product_id).await, (dec!(96), dec!(4800)));
+    let lines = posted_lines(&test_db, "refund", written_off.id).await;
+    assert_eq!(role_total(&lines, "inventoryWriteOff"), (dec!(200), Decimal::ZERO));
+    assert_eq!(role_total(&lines, "cogs"), (Decimal::ZERO, dec!(200)));
+
+    with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+}
+
+/// ACC-0033: a quotation for 2 boxes of 4 keeps its unit, and converting it sells 8 base units
+/// (stock 100 → 92, COGS 8 × 50 = 400) — not 2.
+#[tokio::test]
+async fn quotation_in_a_non_base_unit_converts_to_its_base_units() {
+    let test_db = TestDb::fresh().await;
+    let fixture = make_fixture(&test_db).await;
+
+    let mut line = one_line_sale(fixture.product_id, None, dec!(460), SalePaymentMethod::Cash, dec!(920), None).lines.remove(0);
+    line.qty = dec!(2);
+    line.unit_id = Some("pu-box".to_string());
+    line.unit_factor = Some(dec!(4));
+    let customer_id = fixture.customer_id;
+    let quotation = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let input = accounting_app_lib::domains::invoices::dto::QuotationInput {
+            customer_id: Some(customer_id),
+            expiry_date: None,
+            lines: vec![line.clone()],
+            discount_rate: Decimal::ZERO,
+            note: None,
+            terms: None,
+            po_reference: None,
+        };
+        Box::pin(async move { q_service::save_quotation(tx, cx, input).await }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::invoices::dto::Quotation>>
+    })
+    .await
+    .unwrap();
+    assert_eq!((quotation.lines[0].unit_id.as_deref(), quotation.lines[0].unit_factor), (Some("pu-box"), Some(dec!(4))));
+
+    let registry = Arc::new(UndoRegistry::new());
+    let quotation_id = quotation.id;
+    let invoice = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let registry = registry.clone();
+        Box::pin(async move {
+            q_service::convert_quotation_to_invoice(
+                tx,
+                cx,
+                &registry,
+                quotation_id,
+                accounting_app_lib::domains::invoices::dto::ConvertPayment { payment_method: SalePaymentMethod::Cash, paid_amount: dec!(920), tendered_amount: None },
+            )
+            .await
+        }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::invoices::dto::Invoice>>
+    })
+    .await
+    .unwrap();
+
+    assert_eq!(invoice.lines[0].unit_factor, Some(dec!(4)));
+    assert_eq!(product_stock(&test_db, fixture.product_id).await, (dec!(92), dec!(4600)));
+    let lines = posted_lines(&test_db, "invoice", invoice.id).await;
+    assert_eq!(role_total(&lines, "cogs"), (dec!(400), Decimal::ZERO));
+
+    with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
 }

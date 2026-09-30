@@ -6,6 +6,10 @@ references/
 # the tracked summary.
 .diagnostics/
 
+# Stale ts-rs output from before .cargo/config.toml pinned TS_RS_EXPORT_DIR to src/modules —
+# generated bindings live there now (types/gen/); nothing reads this directory.
+/src-tauri/bindings/
+
 # Logs
 logs
 *.log

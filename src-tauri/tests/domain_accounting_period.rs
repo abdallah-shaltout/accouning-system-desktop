@@ -2,28 +2,33 @@
 //! Written now, run in the deferred time-boxed test pass (never run cargo from this agent). Needs
 //! `EQUAL_TEST_DATABASE_URL` — see `tests/support/mod.rs`.
 
-mod support;
-
-use std::sync::Arc;
+use crate::support;
 
 use chrono::Datelike;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
-use sea_orm::{ActiveModelTrait, ConnectionTrait, DatabaseTransaction, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, QueryFilter, Set};
 
 use accounting_app_lib::core::auth::{AuthenticatedUser, Role};
-use accounting_app_lib::core::tx::{with_tx, BoxFuture, TxOpts, TxResult};
+use accounting_app_lib::core::error::AppError;
+use accounting_app_lib::core::tx::{with_tx, BoxFuture, TxCtx, TxError, TxOpts, TxResult};
 use accounting_app_lib::domains::accounting::dto::{FiscalYearInput, JournalEntryInput, JournalEntryInputLine};
 use accounting_app_lib::domains::accounting::service;
+use accounting_app_lib::entities::journal::journal_entries;
 use accounting_app_lib::entities::org::{accounts, branches, fiscal_years, payment_methods, settings};
 use accounting_app_lib::entities::values::{AccountingPolicy, PrinterMode, PrinterSettings};
 use accounting_app_lib::shared::activity::undo::UndoRegistry;
 use accounting_app_lib::shared::invariants;
+use accounting_app_lib::shared::ledger::{reverse, MirrorDims, ReverseRequest, ReversalReason};
+use accounting_app_lib::utils::dates::DocDate;
 use accounting_app_lib::utils::id::Id;
 use support::TestDb;
 
-fn log_in(test_db: &TestDb, role: Role) -> Id {
+async fn log_in(test_db: &TestDb, role: Role) -> Id {
     let user_id = Id::new();
+    // The session user must exist: `journal_entries.created_by`, `audit.user_id`, … FK to `users`.
+    let conn = test_db.state.db.read().unwrap().as_ref().unwrap().connection.clone();
+    support::seed_user(&conn, user_id, &format!("{role:?}").to_lowercase()).await;
     let user = AuthenticatedUser {
         id: user_id,
         username: "test".to_string(),
@@ -82,6 +87,8 @@ struct Fixture {
     pub revenue_id: Id,
     pub expense_id: Id,
     pub payment_method_id: Id,
+    pub vat_output_id: Id,
+    pub vat_input_id: Id,
 }
 
 async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
@@ -108,6 +115,7 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
     };
     branch.insert(conn).await.unwrap();
 
+    support::seed_currency(conn, "SAR").await;
     let settings_row = settings::ActiveModel {
         id: Set(Id::new()),
         singleton: Set(1),
@@ -170,8 +178,8 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
     let cash_id = seed_role_account(conn, "1110", "cash", "ASSET", "DEBIT").await;
     let _retained_id = seed_role_account(conn, "3250", "retainedEarnings", "EQUITY", "CREDIT").await;
     let _opening_equity_id = seed_role_account(conn, "3900", "openingBalanceEquity", "EQUITY", "CREDIT").await;
-    let _vat_output_id = seed_role_account(conn, "2150", "vatOutput", "LIABILITY", "CREDIT").await;
-    let _vat_input_id = seed_role_account(conn, "2110", "vatInput", "ASSET", "DEBIT").await;
+    let vat_output_id = seed_role_account(conn, "2150", "vatOutput", "LIABILITY", "CREDIT").await;
+    let vat_input_id = seed_role_account(conn, "2110", "vatInput", "ASSET", "DEBIT").await;
     let _vat_payable_id = seed_role_account(conn, "2155", "vatPayable", "LIABILITY", "CREDIT").await;
 
     let revenue_id = Id::new();
@@ -250,7 +258,7 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
     };
     payment_method.insert(conn).await.unwrap();
 
-    Fixture { fiscal_year_id, cash_id, revenue_id, expense_id, payment_method_id }
+    Fixture { fiscal_year_id, cash_id, revenue_id, expense_id, payment_method_id, vat_output_id, vat_input_id }
 }
 
 fn line(account_id: Id, debit: Decimal, credit: Decimal) -> JournalEntryInputLine {
@@ -262,7 +270,7 @@ fn line(account_id: Id, debit: Decimal, credit: Decimal) -> JournalEntryInputLin
 #[tokio::test]
 async fn save_fiscal_year_refuses_overlap_and_edit_when_closed() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
 
     with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         Box::pin(async move {
@@ -313,8 +321,8 @@ async fn save_fiscal_year_refuses_overlap_and_edit_when_closed() {
 #[tokio::test]
 async fn lock_date_blocks_posting_on_or_before_it() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Accountant);
-    let undo = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Accountant).await;
+    let undo = test_db.state.undo.clone();
 
     let outcome = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
@@ -352,8 +360,8 @@ async fn lock_date_blocks_posting_on_or_before_it() {
 #[tokio::test]
 async fn close_year_posts_closing_entry_and_creates_next_year() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
-    let undo = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
 
     let result = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
@@ -411,8 +419,8 @@ async fn close_year_posts_closing_entry_and_creates_next_year() {
 #[tokio::test]
 async fn close_year_twice_is_refused() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
-    let undo = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
 
     let outcome = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
@@ -448,8 +456,8 @@ async fn close_year_twice_is_refused() {
 #[tokio::test]
 async fn reopen_year_requires_admin_and_mirrors_closing_entry() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
-    let undo = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
 
     let fiscal_year_id = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
@@ -478,8 +486,8 @@ async fn reopen_year_requires_admin_and_mirrors_closing_entry() {
     .expect("setup close must succeed");
 
     // Non-admin is refused first.
-    log_in(&test_db, Role::Accountant);
-    let undo2 = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Accountant).await;
+    let undo2 = test_db.state.undo.clone();
     let non_admin_outcome = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo2 = undo2.clone();
         Box::pin(async move {
@@ -492,8 +500,8 @@ async fn reopen_year_requires_admin_and_mirrors_closing_entry() {
     assert!(non_admin_outcome, "non-admin reopen must be refused");
 
     // Admin succeeds.
-    log_in(&test_db, Role::Admin);
-    let undo3 = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Admin).await;
+    let undo3 = test_db.state.undo.clone();
     let (fy, _audit_id) = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo3 = undo3.clone();
         Box::pin(async move { service::period::reopen_year(tx, cx, &undo3, fiscal_year_id).await }) as BoxFuture<'_, TxResult<(accounting_app_lib::domains::accounting::dto::FiscalYear, Id)>>
@@ -506,12 +514,68 @@ async fn reopen_year_requires_admin_and_mirrors_closing_entry() {
     assert_invariants_ok(&test_db).await;
 }
 
+/// D-A2 / ACC-0008: the reopen mirror is dated at the closing entry's own date (the year's end), so
+/// the reopened year's revenue/expense balances come back and the year can be closed again.
+#[tokio::test]
+async fn reopen_year_mirror_is_dated_at_closing_entry_date_and_year_recloses() {
+    let test_db = TestDb::fresh().await;
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
+
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let undo = undo.clone();
+        Box::pin(async move {
+            let fixture = seed_fixture(tx).await;
+            service::journal::create_journal_entry(
+                tx,
+                cx,
+                &undo,
+                JournalEntryInput {
+                    date: cx.clock.today().format("%Y-%m-%d").to_string(),
+                    description: "إيراد".to_string(),
+                    reference: None,
+                    lines: vec![line(fixture.cash_id, dec!(750), Decimal::ZERO), line(fixture.revenue_id, Decimal::ZERO, dec!(750))],
+                    attachment_ids: None,
+                    as_draft: None,
+                    template_id: None,
+                },
+            )
+            .await?;
+
+            let closed = service::period::close_year(tx, cx, &undo, fixture.fiscal_year_id).await?;
+            let closing_id = closed.closing_entry.id;
+            let year_end = chrono::NaiveDate::from_ymd_opt(cx.clock.today().year(), 12, 31).unwrap();
+
+            service::period::reopen_year(tx, cx, &undo, fixture.fiscal_year_id).await?;
+
+            let mirror = journal_entries::Entity::find()
+                .filter(journal_entries::Column::ReversalOfId.eq(closing_id))
+                .one(tx)
+                .await?
+                .expect("reopen must post a mirror of the closing entry");
+            assert_eq!(mirror.date_day, year_end, "the mirror must be dated at the closing entry's date, not today");
+            assert!(mirror.date_instant.is_none(), "the closing entry is day-only, so its mirror is too");
+
+            // Before D-A2 the mirror landed outside the year, the year's revenue netted to zero, and
+            // the second close failed with "يجب أن يحتوي القيد على سطرين على الأقل".
+            let reclosed = service::period::close_year(tx, cx, &undo, fixture.fiscal_year_id).await?;
+            assert!(reclosed.fiscal_year.is_closed);
+            assert_eq!(reclosed.closing_entry.total_debit, dec!(750), "the re-close must move the full year's revenue again");
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .expect("close -> reopen -> close must succeed");
+
+    assert_invariants_ok(&test_db).await;
+}
+
 // --- VAT settlement ------------------------------------------------------------------------
 
 #[tokio::test]
 async fn vat_settlement_zero_movement_is_refused() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
 
     let outcome = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         Box::pin(async move {
@@ -528,11 +592,111 @@ async fn vat_settlement_zero_movement_is_refused() {
     assert!(outcome, "zero VAT movement must be refused");
 }
 
+/// Posts `Dr cash (net + vat) / Cr revenue net / Cr vatOutput vat` on `date` — a VAT-bearing sale.
+async fn post_vat_sale(tx: &DatabaseTransaction, cx: &TxCtx, undo: &UndoRegistry, fixture: &Fixture, date: &str, net: Decimal, vat: Decimal) -> TxResult<()> {
+    service::journal::create_journal_entry(
+        tx,
+        cx,
+        undo,
+        JournalEntryInput {
+            date: date.to_string(),
+            description: "مبيعات خاضعة للضريبة".to_string(),
+            reference: None,
+            lines: vec![line(fixture.cash_id, net + vat, Decimal::ZERO), line(fixture.revenue_id, Decimal::ZERO, net), line(fixture.vat_output_id, Decimal::ZERO, vat)],
+            attachment_ids: None,
+            as_draft: None,
+            template_id: None,
+        },
+    )
+    .await?;
+    Ok(())
+}
+
+/// D-A6 / ACC-0007: a VAT period overlapping an already-settled one is refused with `CONFLICT`;
+/// an adjacent period still settles; voiding (reversing) a settlement frees its period again.
+#[tokio::test]
+async fn vat_settlement_refuses_overlapping_period_until_reversed() {
+    let test_db = TestDb::fresh().await;
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
+
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let undo = undo.clone();
+        Box::pin(async move {
+            let fixture = seed_fixture(tx).await;
+            let y = cx.clock.today().year();
+            let d = |md: &str| format!("{y}-{md}");
+
+            post_vat_sale(tx, cx, &undo, &fixture, &d("01-10"), dec!(1000), dec!(150)).await?;
+            post_vat_sale(tx, cx, &undo, &fixture, &d("01-20"), dec!(2000), dec!(300)).await?;
+            post_vat_sale(tx, cx, &undo, &fixture, &d("02-10"), dec!(3000), dec!(450)).await?;
+            // Input VAT in January too, so the settlement closes both control accounts.
+            service::journal::create_journal_entry(
+                tx,
+                cx,
+                &undo,
+                JournalEntryInput {
+                    date: d("01-25"),
+                    description: "مصروف مع ضريبة مدخلات".to_string(),
+                    reference: None,
+                    lines: vec![line(fixture.expense_id, dec!(400), Decimal::ZERO), line(fixture.vat_input_id, dec!(60), Decimal::ZERO), line(fixture.cash_id, Decimal::ZERO, dec!(460))],
+                    attachment_ids: None,
+                    as_draft: None,
+                    template_id: None,
+                },
+            )
+            .await?;
+
+            let january = service::vat::submit_vat_settlement(tx, cx, &d("01-01"), &d("01-31")).await?;
+            assert_eq!(january.total_debit, dec!(450));
+
+            // Overlaps January (15th-31st) — refused, and nothing is posted.
+            let overlap = service::vat::submit_vat_settlement(tx, cx, &d("01-15"), &d("02-28")).await;
+            match overlap {
+                Err(TxError::App(AppError::Conflict { message })) => {
+                    assert!(message.contains(&january.number), "the message must name the earlier settlement: {message}");
+                    assert!(message.contains(&d("01-01")) && message.contains(&d("01-31")), "the message must name its period: {message}");
+                }
+                Err(other) => panic!("an overlapping VAT period must be refused with CONFLICT, got an error of another kind: {other:?}"),
+                Ok(entry) => panic!("an overlapping VAT period must be refused with CONFLICT, but {} was posted", entry.number),
+            }
+            // Same period exactly — also an overlap.
+            let same = service::vat::submit_vat_settlement(tx, cx, &d("01-01"), &d("01-31")).await;
+            assert!(matches!(same, Err(TxError::App(AppError::Conflict { .. }))), "re-settling the same period must be refused with CONFLICT");
+
+            // Adjacent, non-overlapping period — still settles.
+            let february = service::vat::submit_vat_settlement(tx, cx, &d("02-01"), &d("02-28")).await?;
+            assert_eq!(february.total_debit, dec!(450));
+
+            // Voiding January's settlement (a mirror + `reversed` on the original) frees its period.
+            reverse(
+                tx,
+                cx,
+                ReverseRequest {
+                    original_id: january.id,
+                    date: DocDate::from(chrono::NaiveDate::from_ymd_opt(y, 1, 31).unwrap()),
+                    description: format!("عكس القيد {}", january.number),
+                    entry_type: journal_entries::JournalEntryType::Manual,
+                    allow_closed_period: true,
+                    reason: Some(ReversalReason { text: "تسوية بفترة خاطئة".to_string(), stamp_original: true }),
+                    dims: MirrorDims::Default,
+                },
+            )
+            .await?;
+            let resettled = service::vat::submit_vat_settlement(tx, cx, &d("01-01"), &d("01-31")).await?;
+            assert_eq!(resettled.total_debit, dec!(450), "a voided settlement's period must settle again in full");
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .expect("VAT overlap test must succeed");
+}
+
 #[tokio::test]
 async fn pay_vat_settlement_now_zero_amount_is_refused() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
-    let undo = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
 
     let outcome = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();

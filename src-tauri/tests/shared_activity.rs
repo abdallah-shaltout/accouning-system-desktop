@@ -3,7 +3,7 @@
 //! manual journal entry through `shared::ledger::reverse`. Needs `EQUAL_TEST_DATABASE_URL` (see
 //! `tests/support/mod.rs`) — never skipped when absent.
 
-mod support;
+use crate::support;
 
 use std::sync::Arc;
 
@@ -26,8 +26,14 @@ use support::TestDb;
 
 /// Stamps a logged-in session directly into `AppState` (same pattern as `db_foundation.rs`), with
 /// a caller-chosen role so the closed-year admin/non-admin case can be exercised.
-fn log_in(test_db: &TestDb, role: Role) -> Id {
+async fn log_in(test_db: &TestDb, role: Role) -> Id {
     let user_id = Id::new();
+    {
+        // The session user must exist: `audit.user_id`/`activity.user_id` FK to `users`.
+        let role_str = serde_json::to_value(role).unwrap().as_str().unwrap().to_string();
+        let db_guard = test_db.state.db.read().unwrap();
+        support::seed_user(&db_guard.as_ref().unwrap().connection, user_id, &role_str).await;
+    }
     let user = AuthenticatedUser {
         id: user_id,
         username: "test".to_string(),
@@ -159,10 +165,14 @@ fn test_registry() -> Arc<UndoRegistry> {
 /// for a DB test that needs `shared::ledger::post` to resolve `SystemRole::Cash`/`SystemRole::Sales`
 /// without going through the (Part 03) accounts-setup domain code.
 async fn seed_accounts(tx: &DatabaseTransaction) {
+    // `ledger::post` resolves the base currency / default branch from the singleton settings row.
+    support::seed_minimal_settings(tx, "SAR").await;
     use accounting_app_lib::entities::org::accounts::ActiveModel as AccountActiveModel;
     let now = chrono::Utc::now();
-    for (role, code, name, kind, normal_side) in
-        [(SystemRole::Cash, "1000", "الصندوق", "ASSET", "DEBIT"), (SystemRole::Sales, "4000", "مبيعات البضائع", "REVENUE", "CREDIT")]
+    for (role, code, name, kind, subtype, normal_side) in [
+        (SystemRole::Cash, "1000", "الصندوق", "ASSET", "cash", "DEBIT"),
+        (SystemRole::Sales, "4000", "مبيعات البضائع", "REVENUE", "revenue", "CREDIT"),
+    ]
     {
         let model = AccountActiveModel {
             code_live: sea_orm::ActiveValue::NotSet,
@@ -173,7 +183,7 @@ async fn seed_accounts(tx: &DatabaseTransaction) {
             parent_id: Set(None),
             is_group: Set(false),
             kind: Set(kind.to_string()),
-            subtype: Set(kind.to_string()),
+            subtype: Set(subtype.to_string()),
             normal_side: Set(normal_side.to_string()),
             system_role: Set(Some(role.as_str().to_string())),
             currency: Set(None),
@@ -221,7 +231,7 @@ async fn post_manual_entry(tx: &DatabaseTransaction, cx: &TxCtx) -> Id {
 #[tokio::test]
 async fn log_writes_audit_and_activity_rows() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let registry = test_registry();
 
     let journal_id = Id::new();
@@ -255,7 +265,7 @@ async fn log_writes_audit_and_activity_rows() {
 #[tokio::test]
 async fn log_falls_back_on_a_list_link() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let registry = test_registry();
 
     let audit_id: Id = with_tx(&test_db.state, TxOpts::default(), |txn, ctx| {
@@ -275,7 +285,7 @@ async fn log_falls_back_on_a_list_link() {
 #[tokio::test]
 async fn auth_kind_defaults_to_login_action() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let registry = test_registry();
 
     let audit_id: Id = with_tx(&test_db.state, TxOpts::default(), |txn, ctx| {
@@ -294,7 +304,7 @@ async fn auth_kind_defaults_to_login_action() {
 #[tokio::test]
 async fn undo_happy_path_links_both_rows() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let registry = test_registry();
 
     let original_audit_id: Id = with_tx(&test_db.state, TxOpts::default(), |txn, ctx| {
@@ -337,7 +347,7 @@ async fn undo_happy_path_links_both_rows() {
 #[tokio::test]
 async fn undo_twice_gives_conflict() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let registry = test_registry();
 
     let original_audit_id: Id = with_tx(&test_db.state, TxOpts::default(), |txn, ctx| {
@@ -380,7 +390,7 @@ async fn undo_twice_gives_conflict() {
 #[tokio::test]
 async fn undo_of_a_non_undoable_row_gives_validation() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let registry = test_registry();
 
     let audit_id: Id = with_tx(&test_db.state, TxOpts::default(), |txn, ctx| {
@@ -402,7 +412,7 @@ async fn undo_of_a_non_undoable_row_gives_validation() {
 #[tokio::test]
 async fn undo_with_empty_reason_gives_validation() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let registry = test_registry();
 
     let audit_id: Id = with_tx(&test_db.state, TxOpts::default(), |txn, ctx| {
@@ -437,7 +447,7 @@ async fn undo_with_empty_reason_gives_validation() {
 #[tokio::test]
 async fn undo_unregistered_action_type_gives_internal() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let registry = test_registry();
 
     // Constructed with an action_type the registry doesn't know, bypassing record()'s own
@@ -516,7 +526,7 @@ async fn closed_year_non_admin_forbidden_admin_succeeds() {
     // Post the entry and its undoable audit row as admin (setup) *before* the year is closed (a
     // real post would itself be refused in a closed year without allow_closed_period), then seed
     // the year as already closed for the undo attempts below.
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let registry = test_registry();
 
     let (audit_id, entry_date) = with_tx(&test_db.state, TxOpts::default(), |txn, ctx| {
@@ -550,7 +560,7 @@ async fn closed_year_non_admin_forbidden_admin_succeeds() {
     .unwrap();
 
     // Non-admin: FORBIDDEN.
-    log_in(&test_db, Role::Accountant);
+    log_in(&test_db, Role::Accountant).await;
     let non_admin_result: Result<Id, AppError> = with_tx(&test_db.state, TxOpts::default(), |txn, ctx| {
         let registry = registry.clone();
         Box::pin(async move { undo(txn, ctx, &registry, audit_id, UndoRequest { reason: "محاولة تراجع".to_string(), date: None }).await })
@@ -560,7 +570,7 @@ async fn closed_year_non_admin_forbidden_admin_succeeds() {
     assert!(matches!(non_admin_result, Err(AppError::Forbidden { .. })), "undoing in a closed year as non-admin must give FORBIDDEN (D7)");
 
     // Admin: succeeds.
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let admin_result: Result<Id, AppError> = with_tx(&test_db.state, TxOpts::default(), |txn, ctx| {
         let registry = registry.clone();
         Box::pin(async move { undo(txn, ctx, &registry, audit_id, UndoRequest { reason: "تراجع الأدمن".to_string(), date: None }).await })
@@ -573,7 +583,7 @@ async fn closed_year_non_admin_forbidden_admin_succeeds() {
 #[tokio::test]
 async fn a_failing_compensator_rolls_everything_back() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let registry = test_registry();
 
     let audit_id: Id = with_tx(&test_db.state, TxOpts::default(), |txn, ctx| {

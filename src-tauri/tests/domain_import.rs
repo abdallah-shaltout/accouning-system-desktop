@@ -10,7 +10,7 @@
 //!   `tests/support/mod.rs`'s own instruction for `EQUAL_TEST_DATABASE_URL`).
 //! - `tests/fixtures/mock-snapshot-edge.json` — small, hand-written, checked in (§8a).
 
-mod support;
+use crate::support;
 
 use std::path::Path;
 
@@ -110,6 +110,53 @@ async fn imports_demo_snapshot_cleanly() {
     let results = invariants::run_all(conn).await.expect("run_all must not error");
     let failed: Vec<_> = results.iter().filter(|r| !r.passed).collect();
     assert!(failed.is_empty(), "invariants failed after demo import: {failed:?}");
+
+    // Post-import `COUNT(*)` per tableCounts key equals the snapshot's own array lengths (every row
+    // imported, customers/suppliers split by `parties.kind`).
+    let raw: serde_json::Value = serde_json::from_str(&snapshot_json).unwrap();
+    for (key, imported) in &report.counts.0 {
+        if key == "attachments" {
+            continue;
+        }
+        let expected = raw["data"][key.as_str()].as_array().map(|a| a.len() as i64).unwrap_or(0);
+        assert_eq!(*imported, expected, "row count for '{key}' after import");
+    }
+
+    // Deferred (phase B) and forward references land — nothing silently written NULL.
+    let scalar = |sql: &'static str| async move {
+        use sea_orm::{ConnectionTrait, Statement};
+        let row = conn.query_one(Statement::from_string(conn.get_database_backend(), sql.to_string())).await.unwrap().unwrap();
+        row.try_get::<i64>("", "n").unwrap()
+    };
+    let data = &raw["data"];
+    let count_where = |table: &str, field: &str| data[table].as_array().map(|a| a.iter().filter(|r| r[field].is_string()).count() as i64).unwrap_or(0);
+    assert_eq!(scalar("SELECT COUNT(*) AS n FROM invoices WHERE shift_id IS NOT NULL").await, count_where("invoices", "shiftId"), "invoices.shift_id");
+    assert_eq!(
+        scalar("SELECT COUNT(*) AS n FROM purchase_orders WHERE backorder_of_id IS NOT NULL").await,
+        count_where("purchaseOrders", "backorderOfId"),
+        "purchase_orders.backorder_of_id"
+    );
+    let product_prices: i64 = data["products"].as_array().unwrap().iter().map(|p| p["prices"].as_array().map(|a| a.len() as i64).unwrap_or(0)).sum();
+    assert_eq!(scalar("SELECT COUNT(*) AS n FROM product_prices WHERE unit_id IS NULL").await, product_prices, "Product.prices -> product_prices");
+    let locked_methods = data["paymentMethods"].as_array().unwrap().iter().filter(|m| m["canDelete"] == serde_json::Value::Bool(false)).count() as i64;
+    assert_eq!(scalar("SELECT COUNT(*) AS n FROM payment_methods WHERE can_delete = 0").await, locked_methods, "payment_methods.can_delete");
+}
+
+/// The demo snapshot deserializes into `SnapshotV1Envelope` — a no-DB check that names the exact
+/// field/offset when the TS `MockDb` shape and `model.rs` drift apart (the importer itself only
+/// surfaces the fixed "ملف البيانات غير صالح" message to the user).
+#[test]
+fn demo_snapshot_parses_into_the_model() {
+    use accounting_app_lib::infrastructure::import::model::SnapshotV1Envelope;
+    let json = read_fixture("mock-snapshot-demo.json");
+    if let Err(err) = serde_json::from_str::<SnapshotV1Envelope>(&json) {
+        let col = err.column().saturating_sub(1);
+        let start = col.saturating_sub(300);
+        let end = (col + 200).min(json.len());
+        let context = json.get(start..end).unwrap_or("<non-utf8 boundary>");
+        panic!("demo snapshot does not parse: {err}
+context: …{context}…");
+    }
 }
 
 /// Second import into the now non-empty DB → exact `CONFLICT` text; `replace_existing` in a debug
@@ -191,10 +238,10 @@ async fn credentials_are_hashed_with_argon2() {
     );
 }
 
-/// Edge fixture: `freetext-1` line -> `product_id NULL`; `'onboarding'` source -> the fixed
+/// Edge fixture: `freetext-0` line -> `product_id NULL`; `'onboarding'` source -> the fixed
 /// constant; one `'pos-1'` shift with `adopt_terminal` -> that terminal id; empty
-/// `settings.currency` -> `EGP`; `theme` ignored; audit row `is_undoable = false`; JSON
-/// `cart.productId` remapped.
+/// `settings.currency` -> `EGP`; `theme` ignored; audit row `is_undoable = false`; the held sale's
+/// `lines` stored in the `cart` JSON column with `productId` remapped.
 #[tokio::test]
 async fn edge_fixture_quirks() {
     let db = TestDb::fresh().await;
@@ -222,6 +269,22 @@ async fn edge_fixture_quirks() {
 
     let shift = shifts::Entity::find().one(conn).await.unwrap().expect("the edge fixture's one shift must exist");
     assert_eq!(shift.terminal_id, adopt, "the single pos-1 terminal must adopt this machine's terminal id");
+
+    // Part 04 Wave 2 (L1): `HeldSale.lines` (the TS field) lands in the `cart` column, remapped —
+    // the importer used to read a `cart` key no mock held sale has, dropping every parked line.
+    use accounting_app_lib::entities::catalog::products;
+    use accounting_app_lib::entities::sales::held_sales;
+    let held = held_sales::Entity::find().one(conn).await.unwrap().expect("the edge fixture's one held sale must exist");
+    let product = products::Entity::find().one(conn).await.unwrap().expect("the edge fixture's one product must exist");
+    let lines = held.cart.as_array().expect("cart is the lines array");
+    assert_eq!(lines.len(), 1, "the held sale's one line must survive the import");
+    assert_eq!(lines[0]["productId"], serde_json::Value::String(product.id.to_string()), "the line's productId must be remapped");
+
+    // Part 04 Wave 2 (L1): the fixture's admin has no `active` key. The mock reads it truthily
+    // (`if (!user.active)` → "هذا الحساب موقوف"), so an absent flag imports as `false`, not `true`.
+    use accounting_app_lib::entities::org::users;
+    let admin = users::Entity::find().one(conn).await.unwrap().expect("the edge fixture's one user must exist");
+    assert!(!admin.active, "a user row with no `active` key must import as inactive, like the mock reads it");
 }
 
 /// Dangling `invoice.customerId` -> `VALIDATION` text naming `invoices`, nothing committed.
@@ -257,9 +320,11 @@ async fn dangling_fk_reference_fails_validation_and_rolls_back() {
     )
     .await;
 
-    // A dangling FK either fails our own resolve step or the DB's own FK check (errno 1452) —
-    // either way the transaction must not commit and the error must be a VALIDATION-shaped one.
-    assert!(result.is_err(), "a dangling customerId must not import successfully");
+    // §8a: the dangling reference itself is the failure (not a later invariant), as step 12's
+    // VALIDATION text naming the table (the command's `with_tx` then rolls everything back).
+    let err = result.expect_err("a dangling customerId must not import successfully");
+    let msg = err.into_app_error().to_string();
+    assert_eq!(msg, "تعذر الاستيراد: مرجع غير موجود في invoices — أرسل ملف التشخيص للدعم");
 }
 
 /// `IdMap` unit-level sanity (already covered in `idmap.rs`'s own `#[cfg(test)]` module — this

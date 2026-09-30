@@ -2,7 +2,7 @@
 //! mapping against a real DB, and `with_tx` transaction behavior. Needs `EQUAL_TEST_DATABASE_URL`
 //! (see `tests/support/mod.rs`) — never skipped when absent, panics with a clear message instead.
 
-mod support;
+use crate::support;
 
 use std::sync::Arc;
 

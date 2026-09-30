@@ -10,7 +10,7 @@
 //! fixture should be replaced with it (same note pattern as `domain_settings.rs`'s
 //! `seed_branch_and_settings` doc comment).
 
-mod support;
+use crate::support;
 
 use accounting_app_lib::core::auth::{AuthenticatedUser, Role};
 use accounting_app_lib::core::tx::{with_read, with_tx, BoxFuture, TxOpts, TxResult};
@@ -28,7 +28,7 @@ use accounting_app_lib::entities::org::accounts::ActiveModel as AccountActiveMod
 use accounting_app_lib::entities::org::branches::ActiveModel as BranchActiveModel;
 use accounting_app_lib::entities::org::settings::ActiveModel as SettingsActiveModel;
 use accounting_app_lib::entities::org::users::ActiveModel as UserActiveModel;
-use accounting_app_lib::entities::values::{AccountingPolicy, PrinterMode, PrinterSettings};
+use accounting_app_lib::entities::values::{AccountingPolicy, OnboardingState, PrinterMode, PrinterSettings};
 use accounting_app_lib::shared::activity::undo::UndoRegistry;
 use accounting_app_lib::shared::invariants;
 use accounting_app_lib::utils::id::Id;
@@ -51,6 +51,13 @@ struct Fixture {
     pub accounts: std::collections::HashMap<&'static str, Id>,
     pub admin_id: Id,
     pub manager_id: Id,
+}
+
+/// The seeded `admin` user's fixed id (each test has its own database), so tests that log in
+/// without keeping the fixture still act as an existing user — `audit.user_id` and the other actor
+/// columns are FKs to `users`, as in the real app where a session always belongs to a real user.
+fn test_admin_id() -> Id {
+    "01900000-0000-7000-8000-00000000a001".parse().unwrap()
 }
 
 fn log_in(test_db: &TestDb, user_id: Id, role: Role) {
@@ -121,7 +128,20 @@ async fn seed_fixture<C: ConnectionTrait>(conn: &C) -> Fixture {
         pos: Set(None),
         sales: Set(None),
         features: Set(None),
-        onboarding: Set(None),
+        // Onboarding in progress: several tests post opening stock (STOCK_IN reason `opening`,
+        // Cr openingBalanceEquity), which is an onboarding step — invariant 9 only requires 3900
+        // to be zero once onboarding is finished (`checkOpeningBalanceEquity`), same as the mock.
+        onboarding: Set(Some(OnboardingState {
+            business_type: None,
+            go_live_date: None,
+            completed_step: None,
+            skipped: vec![],
+            done: vec![],
+            finished_at: None,
+            opening_entry_id: None,
+            closing_entry_id: None,
+            coa_template: None,
+        })),
         timezone: Set(None),
         default_branch_id: Set(branch_id),
         created_at: Set(now),
@@ -150,7 +170,7 @@ async fn seed_fixture<C: ConnectionTrait>(conn: &C) -> Fixture {
             parent_id: Set(None),
             is_group: Set(false),
             kind: Set("ASSET".to_string()),
-            subtype: Set("other".to_string()),
+            subtype: Set("otherCurrentAsset".to_string()),
             normal_side: Set("DEBIT".to_string()),
             system_role: Set(Some((*role).to_string())),
             currency: Set(None),
@@ -181,7 +201,7 @@ async fn seed_fixture<C: ConnectionTrait>(conn: &C) -> Fixture {
         parent_id: Set(None),
         is_group: Set(false),
         kind: Set("EQUITY".to_string()),
-        subtype: Set("other".to_string()),
+        subtype: Set("equity".to_string()),
         normal_side: Set("CREDIT".to_string()),
         system_role: Set(None),
         currency: Set(None),
@@ -199,7 +219,7 @@ async fn seed_fixture<C: ConnectionTrait>(conn: &C) -> Fixture {
     control.insert(conn).await.unwrap();
     accounts.insert("control", control_id);
 
-    let admin_id = Id::new();
+    let admin_id = test_admin_id();
     let manager_id = Id::new();
     for (id, username, role) in [(admin_id, "admin", "admin"), (manager_id, "manager", "manager")] {
         let user = UserActiveModel {
@@ -223,6 +243,52 @@ async fn seed_fixture<C: ConnectionTrait>(conn: &C) -> Fixture {
     }
 
     Fixture { branch_id, branch2_id, accounts, admin_id, manager_id }
+}
+
+async fn seed_supplier<C: ConnectionTrait>(conn: &C) -> Id {
+    let id = Id::new();
+    let now = chrono::Utc::now();
+    accounting_app_lib::entities::parties::parties::ActiveModel {
+        id: Set(id),
+        kind: Set("supplier".to_string()),
+        r#type: Set("company".to_string()),
+        name: Set("مورد".to_string()),
+        name_en: Set(None),
+        code: Set("S-0001".to_string()),
+        group_id: Set(None),
+        tags: Set(None),
+        active: Set(true),
+        phone: Set(None),
+        email: Set(None),
+        contacts: Set(None),
+        address: Set(None),
+        national_address: Set(None),
+        structured_address: Set(None),
+        vat_number: Set(None),
+        cr_number: Set(None),
+        national_id: Set(None),
+        currency: Set(None),
+        price_list_id: Set(None),
+        payment_terms_days: Set(None),
+        salesperson_id: Set(None),
+        branch_id: Set(None),
+        bank: Set(None),
+        opening_balance: Set(None),
+        notes: Set(None),
+        linked_party_id: Set(None),
+        credit_limit: Set(None),
+        contact_person: Set(None),
+        default_expense_account_id: Set(None),
+        search_normalized: Set(None),
+        created_at: Set(now),
+        updated_at: Set(now),
+        deleted_at: Set(None),
+        sync_status: Set("local".to_string()),
+    }
+    .insert(conn)
+    .await
+    .unwrap();
+    id
 }
 
 fn base_product_input(name: &str, sku: &str) -> ProductInput {
@@ -277,7 +343,7 @@ async fn create_product_happy_path_has_empty_prices_and_zero_stock() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await
     };
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
 
     let undo = Arc::new(UndoRegistry::default());
     let input = base_product_input("منتج تجريبي", "SKU-001");
@@ -302,7 +368,7 @@ async fn create_product_validation_messages_in_order() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     async fn run(db: &TestDb, undo: &Arc<UndoRegistry>, input: ProductInput) -> Result<accounting_app_lib::core::error::AppError, String> {
@@ -402,7 +468,7 @@ async fn create_product_with_opening_qty_posts_stock_in_and_activity_order() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let mut input = base_product_input("منتج برصيد افتتاحي", "SKU-OPEN");
@@ -437,7 +503,7 @@ async fn create_product_opening_qty_above_threshold_rolls_back_whole_create() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     // threshold is 1000; 200 * 10 = 2000 >= threshold, no approvedBy -> FORBIDDEN.
@@ -475,7 +541,7 @@ async fn update_product_cost_ignored_with_stock_applied_when_empty() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let mut input = base_product_input("منتج للتحديث", "SKU-UPD");
@@ -552,7 +618,7 @@ async fn category_exact_name_conflict_and_case_variants_allowed() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
 
     let cat1 = with_tx(&db.state, TxOpts::default(), |tx, cx| {
         Box::pin(async move { catalog::save_category(tx, cx, "Food".to_string(), None, None).await }) as BoxFuture<'_, TxResult<Category>>
@@ -587,7 +653,7 @@ async fn delete_category_in_use_is_refused_then_freed_after_removal() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let cat = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -623,7 +689,7 @@ async fn unit_preset_applies_once_and_is_idempotent() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
 
     let created1 = with_tx(&db.state, TxOpts::default(), |tx, cx| {
         Box::pin(async move { catalog::apply_unit_preset(tx, cx, UnitPresetKind::Supermarket).await }) as BoxFuture<'_, TxResult<Vec<Unit>>>
@@ -647,7 +713,7 @@ async fn price_list_delete_cascades_and_set_values_rolls_back_on_negative() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let list = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -687,7 +753,7 @@ async fn custom_field_def_requires_options_for_list_type_and_delete_guard() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let no_options: Result<_, _> = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -741,7 +807,7 @@ async fn stock_in_each_reason_credits_expected_role() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let product = {
@@ -807,7 +873,7 @@ async fn loss_above_stock_is_refused_and_tracked_product_requires_batch_no() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let mut input = base_product_input("منتج LOSS", "SKU-LOSS");
@@ -869,7 +935,7 @@ async fn stocktake_gain_and_loss_in_one_entry() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let gain_product = {
@@ -928,7 +994,7 @@ async fn draft_adjustment_has_no_journal_and_complete_uses_snapshot() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let product = {
@@ -972,7 +1038,7 @@ async fn draft_adjustment_has_no_journal_and_complete_uses_snapshot() {
         let id = draft.id;
         with_tx(&db.state, TxOpts::default(), move |tx, cx| {
             let undo = undo.clone();
-            Box::pin(async move { adjustments::complete_adjustment(tx, cx, &undo, id).await }) as BoxFuture<'_, TxResult<StockAdjustment>>
+            Box::pin(async move { adjustments::complete_adjustment(tx, cx, &undo, id, None, ApprovalCheck::none()).await }) as BoxFuture<'_, TxResult<StockAdjustment>>
         })
         .await
         .unwrap()
@@ -985,7 +1051,7 @@ async fn draft_adjustment_has_no_journal_and_complete_uses_snapshot() {
         let id = draft.id;
         with_tx(&db.state, TxOpts::default(), move |tx, cx| {
             let undo = undo.clone();
-            Box::pin(async move { adjustments::complete_adjustment(tx, cx, &undo, id).await }) as BoxFuture<'_, TxResult<StockAdjustment>>
+            Box::pin(async move { adjustments::complete_adjustment(tx, cx, &undo, id, None, ApprovalCheck::none()).await }) as BoxFuture<'_, TxResult<StockAdjustment>>
         })
         .await
     };
@@ -999,7 +1065,7 @@ async fn delete_draft_adjustment_writes_activity_and_refuses_completed() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let product = {
@@ -1136,6 +1202,91 @@ async fn approval_threshold_forbidden_without_grant_posts_with_granted_manager()
     assert!(granted.is_ok(), "a granted, active manager must be able to approve: {granted:?}");
 }
 
+/// ACC-0006: completing an above-threshold draft enforces the same manager-approval rule as a
+/// direct adjustment (the mock used to post it without any approval).
+#[tokio::test]
+async fn completing_draft_above_threshold_requires_granted_manager() {
+    let db = TestDb::fresh().await;
+    let fixture = {
+        let guard = db.state.db.read().unwrap();
+        seed_fixture(&guard.as_ref().unwrap().connection).await
+    };
+    log_in(&db, fixture.admin_id, Role::Admin);
+    let undo = Arc::new(UndoRegistry::default());
+
+    let product = {
+        let undo = undo.clone();
+        let input = base_product_input("منتج مسودة فوق الحد", "SKU-DRAFT-THRESH");
+        with_tx(&db.state, TxOpts::default(), move |tx, cx| {
+            let input = input.clone();
+            let undo = undo.clone();
+            Box::pin(async move { products::create_product(tx, cx, &undo, input).await }) as BoxFuture<'_, TxResult<Product>>
+        })
+        .await
+        .unwrap()
+    };
+
+    // A draft skips the approval check (it posts nothing): 200 * 10 = 2000 >= threshold (1000).
+    let draft_input = StockAdjustmentInput {
+        r#type: StockAdjustmentType::StockIn,
+        date: chrono::Utc::now().date_naive().format("%Y-%m-%d").to_string(),
+        note: None,
+        reason: Some(StockInReason::Found),
+        offset_account_id: None,
+        lines: vec![StockAdjustmentLineInput { product_id: product.id, qty_change: Some(dec!(200)), counted_qty: None, batch_no: None, expiry_date: None }],
+        approved_by: None,
+    };
+    let draft = {
+        let undo = undo.clone();
+        with_tx(&db.state, TxOpts::default(), move |tx, cx| {
+            let input = draft_input.clone();
+            let undo = undo.clone();
+            Box::pin(async move { adjustments::record_stock_adjustment(tx, cx, &undo, input, true, ApprovalCheck::none()).await }) as BoxFuture<'_, TxResult<StockAdjustment>>
+        })
+        .await
+        .expect("an above-threshold draft is saved without approval")
+    };
+
+    // Completing without approval, or with an ungranted manager id -> FORBIDDEN, nothing posted.
+    for (approved_by, granted) in [(None, false), (Some(fixture.manager_id), false)] {
+        let undo = undo.clone();
+        let id = draft.id;
+        let refused: Result<_, _> = with_tx(&db.state, TxOpts::default(), move |tx, cx| {
+            let undo = undo.clone();
+            Box::pin(async move { adjustments::complete_adjustment(tx, cx, &undo, id, approved_by, ApprovalCheck { granted }).await }) as BoxFuture<'_, TxResult<StockAdjustment>>
+        })
+        .await;
+        assert!(
+            matches!(refused, Err(accounting_app_lib::core::error::AppError::Forbidden { .. })),
+            "completing an above-threshold draft without a granted manager must be FORBIDDEN, got {refused:?}"
+        );
+    }
+    let still_draft = with_read(&db.state, move |tx| Box::pin(async move { adjustments::get_stock_adjustment(tx, draft.id).await.map_err(Into::into) })).await.unwrap();
+    assert_eq!(still_draft.status, accounting_app_lib::domains::products::dto::inventory::StockAdjustmentStatus::Draft);
+    let untouched = with_read(&db.state, move |tx| Box::pin(async move { products::get_product(tx, product.id).await.map_err(Into::into) })).await.unwrap();
+    assert_eq!(untouched.stock_qty, Decimal::ZERO, "a refused completion must not move stock");
+
+    // With a granted, active manager -> completes and stamps the approver.
+    let completed = {
+        let undo = undo.clone();
+        let id = draft.id;
+        let manager_id = fixture.manager_id;
+        with_tx(&db.state, TxOpts::default(), move |tx, cx| {
+            let undo = undo.clone();
+            Box::pin(async move { adjustments::complete_adjustment(tx, cx, &undo, id, Some(manager_id), ApprovalCheck { granted: true }).await }) as BoxFuture<'_, TxResult<StockAdjustment>>
+        })
+        .await
+        .expect("a granted manager approves the draft")
+    };
+    assert_eq!(completed.status, accounting_app_lib::domains::products::dto::inventory::StockAdjustmentStatus::Completed);
+    assert_eq!(completed.approved_by, Some(fixture.manager_id));
+    assert!(completed.approved_at.is_some());
+
+    let results = with_read(&db.state, |tx| Box::pin(async move { invariants::run_all(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
+    let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
+    assert!(failed.is_empty(), "invariants must all pass after an approved draft completion: {failed:?}");
+}
+
 // --- Movements -------------------------------------------------------------------------------
 
 #[tokio::test]
@@ -1145,7 +1296,7 @@ async fn stock_movements_filter_and_date_desc_order() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let product = {
@@ -1177,7 +1328,7 @@ async fn write_off_expired_batches_groups_by_product() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let mut input = base_product_input("منتج تشغيلات", "SKU-BATCH");
@@ -1237,7 +1388,7 @@ async fn empty_batch_selection_for_write_off_and_return_are_refused() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let result: Result<_, _> = {
@@ -1265,14 +1416,20 @@ async fn return_batches_to_supplier_creates_draft() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
+    // `debit_note_drafts.supplier_id` is an FK to `parties` — the draft needs a real supplier
+    // (the UI only offers existing ones).
+    let supplier_id = {
+        let guard = db.state.db.read().unwrap();
+        seed_supplier(&guard.as_ref().unwrap().connection).await
+    };
     let lines = vec![DebitNoteDraftLineInput { product_id: Id::new(), batch_id: Id::new(), qty: dec!(2), unit_cost: dec!(5) }];
     let draft = with_tx(&db.state, TxOpts::default(), move |tx, cx| {
         let lines = lines.clone();
         let undo = undo.clone();
-        Box::pin(async move { batches::return_batches_to_supplier(tx, cx, &undo, Id::new(), lines, None).await }) as BoxFuture<'_, TxResult<DebitNoteDraft>>
+        Box::pin(async move { batches::return_batches_to_supplier(tx, cx, &undo, supplier_id, lines, None).await }) as BoxFuture<'_, TxResult<DebitNoteDraft>>
     })
     .await
     .expect("return_batches_to_supplier must create a draft");
@@ -1288,7 +1445,7 @@ async fn stock_count_full_cycle() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let mut input = base_product_input("منتج جرد", "SKU-COUNT");
@@ -1362,7 +1519,7 @@ async fn stock_count_empty_scope_is_refused() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await;
     }
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let input = StockCountInput { scope: StockCountScope::Category, category_id: Some(Id::new()), location: None, blind: false, note: None };
@@ -1384,7 +1541,7 @@ async fn transfer_send_over_branch_stock_is_conflict_full_cycle_otherwise_succee
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await
     };
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let mut input = base_product_input("منتج تحويل", "SKU-TR");
@@ -1505,7 +1662,7 @@ async fn reject_transfer_returns_full_value_and_requires_reason() {
         let guard = db.state.db.read().unwrap();
         seed_fixture(&guard.as_ref().unwrap().connection).await
     };
-    log_in(&db, Id::new(), Role::Admin);
+    log_in(&db, test_admin_id(), Role::Admin);
     let undo = Arc::new(UndoRegistry::default());
 
     let mut input = base_product_input("منتج رفض تحويل", "SKU-REJ");

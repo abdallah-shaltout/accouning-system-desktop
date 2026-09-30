@@ -9,7 +9,7 @@
 //! seed accounts/journal entries directly via `ActiveModel::insert` rather than going through a
 //! writer domain's service layer (out of this domain's owned files).
 
-mod support;
+use crate::support;
 
 use accounting_app_lib::core::auth::{AuthenticatedUser, Role};
 use accounting_app_lib::core::tx::{with_read_ctx, BoxFuture, TxResult};
@@ -57,6 +57,7 @@ async fn seed_branch_and_settings(db: &TestDb) -> Id {
 
             let printer = PrinterSettings { mode: PrinterMode::A4, thermal_width_mm: 80, thermal: None, a4_printer_name: None, label_printer_name: None, a4_template: None, image_template: None };
 
+            support::seed_currency(tx, "SAR").await;
             let settings_row = settings::ActiveModel {
                 id: Set(settings_id),
                 singleton: Set(1),
@@ -101,8 +102,11 @@ async fn seed_branch_and_settings(db: &TestDb) -> Id {
     branch_id
 }
 
-fn log_in(db: &TestDb, role: Role) -> Id {
+async fn log_in(db: &TestDb, role: Role) -> Id {
     let user_id = Id::new();
+    // The session user must exist: `journal_entries.created_by`, `audit.user_id`, … FK to `users`.
+    let conn = db.state.db.read().unwrap().as_ref().unwrap().connection.clone();
+    support::seed_user(&conn, user_id, &format!("{role:?}").to_lowercase()).await;
     let user = AuthenticatedUser { id: user_id, username: "test".to_string(), role, home_branch_id: Id::new(), allowed_branches: vec![], price_list_id: None, max_discount: None };
     *db.state.session.write().unwrap() = Some(user);
     user_id
@@ -144,6 +148,9 @@ async fn seed_account(tx: &DatabaseTransaction, code: &str, name: &str, kind: &s
 async fn post_entry(tx: &DatabaseTransaction, number: &str, day: chrono::NaiveDate, description: &str, lines: &[(Id, Decimal, Decimal)]) -> Id {
     let entry_id = Id::new();
     let now = chrono::Utc::now();
+    // `created_by`/`posted_by` FK to `users`.
+    let author_id = Id::new();
+    support::seed_user(tx, author_id, "accountant").await;
     let total_debit: Decimal = lines.iter().fold(Decimal::ZERO, |a, (_, d, _)| a + *d);
     let total_credit: Decimal = lines.iter().fold(Decimal::ZERO, |a, (_, _, c)| a + *c);
 
@@ -163,8 +170,8 @@ async fn post_entry(tx: &DatabaseTransaction, number: &str, day: chrono::NaiveDa
         reversed: Set(false),
         reversal_of_id: Set(None),
         reversal_reason: Set(None),
-        created_by: Set(Id::new()),
-        posted_by: Set(Some(Id::new())),
+        created_by: Set(author_id),
+        posted_by: Set(Some(author_id)),
         posted_at_day: Set(Some(day)),
         posted_at_instant: Set(None),
         attachment_ids: Set(None),
@@ -212,7 +219,7 @@ fn day(y: i32, m: u32, d: u32) -> chrono::NaiveDate {
 async fn trial_balance_splits_opening_and_period_and_drops_inactive_accounts() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let (cash, _revenue, unrelated) = accounting_app_lib::core::tx::with_tx(&db.state, accounting_app_lib::core::tx::TxOpts { require_user: false }, |tx, _cx| {
         Box::pin(async move {
@@ -250,7 +257,7 @@ async fn trial_balance_splits_opening_and_period_and_drops_inactive_accounts() {
 async fn profit_and_loss_splits_cogs_from_opex_and_drops_zero_lines() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let (revenue, cogs, opex) = accounting_app_lib::core::tx::with_tx(&db.state, accounting_app_lib::core::tx::TxOpts { require_user: false }, |tx, _cx| {
         Box::pin(async move {
@@ -294,7 +301,7 @@ async fn profit_and_loss_splits_cogs_from_opex_and_drops_zero_lines() {
 async fn balance_sheet_reports_balanced_and_rejects_invalid_as_of() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     accounting_app_lib::core::tx::with_tx(&db.state, accounting_app_lib::core::tx::TxOpts { require_user: false }, |tx, _cx| {
         Box::pin(async move {
@@ -332,7 +339,7 @@ async fn balance_sheet_reports_balanced_and_rejects_invalid_as_of() {
 async fn account_ledger_not_found_and_running_balance() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let missing = with_read_ctx(&db.state, move |tx, _ctx| {
         Box::pin(async move { ledgers::account_ledger(tx, Id::new(), &DateRangeInput::default()).await }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::reports::dto::AccountLedger>>
@@ -372,7 +379,7 @@ async fn account_ledger_not_found_and_running_balance() {
 async fn ledger_targets_and_dimension_options_exclude_inactive_and_deleted() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     accounting_app_lib::core::tx::with_tx(&db.state, accounting_app_lib::core::tx::TxOpts { require_user: false }, |tx, _cx| {
         Box::pin(async move {
@@ -408,7 +415,7 @@ async fn ledger_targets_and_dimension_options_exclude_inactive_and_deleted() {
 async fn sales_report_summary_matches_invoice_totals_with_no_invoices() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let report = with_read_ctx(&db.state, move |tx, _ctx| {
         Box::pin(async move { sales::sales_report(tx, &DateRangeInput::default()).await }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::reports::dto::SalesReport>>
@@ -425,7 +432,7 @@ async fn sales_report_summary_matches_invoice_totals_with_no_invoices() {
 async fn discounts_report_empty_set_and_gross_profit_empty_set() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let discounts = with_read_ctx(&db.state, move |tx, _ctx| {
         Box::pin(async move { sales::discounts_report(tx, &DateRangeInput::default(), DiscountGroupBy::Cashier).await })
@@ -452,7 +459,7 @@ async fn discounts_report_empty_set_and_gross_profit_empty_set() {
 async fn inventory_report_orders_by_arabic_category_then_name() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let rows = with_read_ctx(&db.state, move |tx, _ctx| {
         Box::pin(async move { stock::inventory_report(tx).await }) as BoxFuture<'_, TxResult<Vec<accounting_app_lib::domains::reports::dto::InventoryReportRow>>>
@@ -466,7 +473,7 @@ async fn inventory_report_orders_by_arabic_category_then_name() {
 async fn dead_stock_report_rejects_negative_days() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let result = with_read_ctx(&db.state, move |tx, ctx| {
         let clock = ctx.clock;
@@ -485,7 +492,7 @@ async fn dead_stock_report_rejects_negative_days() {
 async fn aging_and_overdue_reports_are_empty_with_no_parties() {
     let db = TestDb::fresh().await;
     seed_branch_and_settings(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let clock = accounting_app_lib::utils::dates::BusinessClock::new(chrono::Utc::now(), None);
     let aging = with_read_ctx(&db.state, move |tx, _ctx| {

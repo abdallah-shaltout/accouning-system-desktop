@@ -6,7 +6,7 @@
 //! non-Windows `FORBIDDEN` stub path (real provision/pair runs are in the final testing plan, per
 //! the entry file's §8a note).
 
-mod support;
+use crate::support;
 
 use accounting_app_lib::core::auth::{AuthenticatedUser, Role};
 use accounting_app_lib::core::tx::{with_read, with_tx, BoxFuture, TxOpts, TxResult};
@@ -24,19 +24,25 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseTransaction, EntityTrait, P
 use std::sync::Arc;
 use support::TestDb;
 
-fn log_in(db: &TestDb, role: Role) -> Id {
-    let user_id = Id::new();
+/// Signs in as the shell's own seeded `admin` user (a real `users` row — every audit/activity row
+/// references its actor through `fk_audit_user_id`), with `role` for the session and the shell's
+/// main branch as home — the same identity the wizard's bootstrap session runs under.
+async fn log_in(db: &TestDb, role: Role) -> Id {
+    use accounting_app_lib::entities::org::users::{Column as UserColumn, Entity as UserEntity};
+    let conn = db.state.db.read().unwrap().as_ref().unwrap().connection.clone();
+    let admin = UserEntity::find().filter(UserColumn::Username.eq("admin")).one(&conn).await.unwrap().expect("seed_shell must run before log_in");
+    let home_branch_id = default_branch_id(db).await;
     let user = AuthenticatedUser {
-        id: user_id,
-        username: "test".to_string(),
+        id: admin.id,
+        username: admin.username.clone(),
         role,
-        home_branch_id: Id::new(),
+        home_branch_id,
         allowed_branches: vec![],
         price_list_id: None,
         max_discount: None,
     };
     *db.state.session.write().unwrap() = Some(user);
-    user_id
+    admin.id
 }
 
 /// Seeds the empty-company shell via the real `shell::seed_company_shell` (not a hand-built
@@ -225,8 +231,8 @@ async fn coa_build_accounts_sa_and_pharmacy_addons() {
 async fn country_tax_eg_to_sa_switches_currency_rate_and_timezone() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
-    let registry = Arc::new(UndoRegistry::new());
+    log_in(&db, Role::Admin).await;
+    let registry = db.state.undo.clone();
 
     with_tx(&db.state, TxOpts::default(), |tx, cx| {
         let registry = registry.clone();
@@ -285,8 +291,8 @@ async fn country_tax_eg_to_sa_switches_currency_rate_and_timezone() {
 async fn country_tax_locked_after_a_posted_journal_entry() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
-    let registry = Arc::new(UndoRegistry::new());
+    log_in(&db, Role::Admin).await;
+    let registry = db.state.undo.clone();
 
     post_trivial_journal_entry(&db).await;
 
@@ -343,7 +349,7 @@ async fn post_trivial_journal_entry(db: &TestDb) {
 async fn fiscal_year_start_jan_1_and_jul_1_and_feb_30_normalization() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let go_live = chrono::NaiveDate::from_ymd_opt(2026, 3, 15).unwrap();
     let fy = with_tx(&db.state, TxOpts::default(), move |tx, cx| {
@@ -375,7 +381,7 @@ async fn fiscal_year_start_jan_1_and_jul_1_and_feb_30_normalization() {
 async fn fiscal_year_locked_after_a_posted_journal_entry() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     post_trivial_journal_entry(&db).await;
 
     let go_live = chrono::NaiveDate::from_ymd_opt(2026, 3, 15).unwrap();
@@ -393,8 +399,8 @@ async fn fiscal_year_locked_after_a_posted_journal_entry() {
 async fn branches_rename_main_and_create_two_more() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
-    let registry = Arc::new(UndoRegistry::new());
+    log_in(&db, Role::Admin).await;
+    let registry = db.state.undo.clone();
 
     let branches = vec![
         WizardBranchInput { name: "الفرع الرئيسي المعدل".to_string(), code: "main2".to_string(), address: None },
@@ -427,8 +433,8 @@ async fn branches_rename_main_and_create_two_more() {
 async fn branches_duplicate_code_and_empty_list_texts() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
-    let registry = Arc::new(UndoRegistry::new());
+    log_in(&db, Role::Admin).await;
+    let registry = db.state.undo.clone();
 
     let err = with_tx(&db.state, TxOpts::default(), |tx, cx| {
         let registry = registry.clone();
@@ -458,7 +464,7 @@ async fn branches_duplicate_code_and_empty_list_texts() {
 async fn coa_apply_keeps_ids_of_shared_codes_and_soft_deletes_the_rest() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let cash_id_before = account_id_by_code(&db, "1110").await;
 
@@ -480,15 +486,18 @@ async fn coa_apply_keeps_ids_of_shared_codes_and_soft_deletes_the_rest() {
     // A standard-only code (e.g. 1145, "بضاعة بالطريق بين الفروع") is soft-deleted, not in the live set.
     let conn = db.state.db.read().unwrap().as_ref().unwrap().connection.clone();
     use accounting_app_lib::entities::org::accounts::{Column as AccountColumn, Entity as AccountEntity};
-    let dangling = AccountEntity::find().filter(AccountColumn::Code.eq("1145")).one(&conn).await.unwrap();
+    use accounting_app_lib::entities::soft_delete::SoftDelete;
+    let dangling = AccountEntity::find_live().filter(AccountColumn::Code.eq("1145")).one(&conn).await.unwrap();
     assert!(dangling.is_none(), "1145 (standard-only) must not exist in the basic template's live set");
+    let soft_deleted = AccountEntity::find_including_deleted().filter(AccountColumn::Code.eq("1145")).one(&conn).await.unwrap().expect("1145 row is kept, soft-deleted");
+    assert!(soft_deleted.deleted_at.is_some(), "1145 is soft-deleted, not hard-deleted");
 }
 
 #[tokio::test]
 async fn coa_apply_locked_after_a_posted_journal_entry() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
     post_trivial_journal_entry(&db).await;
 
     let err = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -506,7 +515,7 @@ async fn coa_apply_locked_after_a_posted_journal_entry() {
 async fn payment_methods_replace_and_locked_text() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let methods = vec![
         WizardPaymentMethodInput { name: "نقدي".to_string(), kind: PaymentMethodType::Cash, account_role: PaymentMethodAccountRole::Cash, active: true },
@@ -521,8 +530,9 @@ async fn payment_methods_replace_and_locked_text() {
 
     let conn = db.state.db.read().unwrap().as_ref().unwrap().connection.clone();
     use accounting_app_lib::entities::org::payment_methods::Entity as PmEntity;
-    let live = PmEntity::find().all(&conn).await.unwrap();
-    assert_eq!(live.len(), 2);
+    use accounting_app_lib::entities::soft_delete::SoftDelete;
+    let live = PmEntity::find_live().all(&conn).await.unwrap();
+    assert_eq!(live.len(), 2, "the shell's 2 methods are soft-deleted, the wizard's 2 are the live set");
     assert!(live.iter().all(|m| m.can_delete), "wizard-created methods are deletable (Q-9)");
 
     post_trivial_journal_entry(&db).await;
@@ -541,8 +551,8 @@ async fn payment_methods_replace_and_locked_text() {
 async fn opening_balances_posts_balanced_entry_with_3900_line_and_closes_to_capital() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
-    let registry = Arc::new(UndoRegistry::new());
+    log_in(&db, Role::Admin).await;
+    let registry = db.state.undo.clone();
 
     let cash_id = account_id_by_code(&db, "1110").await;
     let input = OpeningEntryInput {
@@ -593,8 +603,8 @@ async fn opening_balances_posts_balanced_entry_with_3900_line_and_closes_to_capi
 async fn opening_stock_per_branch_posts_movement_and_inventory_entry() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
-    let registry = Arc::new(UndoRegistry::new());
+    log_in(&db, Role::Admin).await;
+    let registry = db.state.undo.clone();
 
     let branch_id = default_branch_id(&db).await;
     let product_id = seed_product(&db, dec!(10), false).await;
@@ -620,8 +630,8 @@ async fn opening_stock_per_branch_posts_movement_and_inventory_entry() {
 async fn opening_stock_unknown_branch_is_not_found() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
-    let registry = Arc::new(UndoRegistry::new());
+    log_in(&db, Role::Admin).await;
+    let registry = db.state.undo.clone();
 
     let product_id = seed_product(&db, dec!(10), false).await;
     let lines = vec![OpeningStockLine { product_id, qty: dec!(5), unit_cost: dec!(12), batch_no: None, expiry_date: None }];
@@ -707,8 +717,8 @@ async fn seed_product(db: &TestDb, cost_price: rust_decimal::Decimal, track_batc
 async fn party_opening_before_and_after_go_live_counter_account() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
-    let registry = Arc::new(UndoRegistry::new());
+    log_in(&db, Role::Admin).await;
+    let registry = db.state.undo.clone();
 
     // Set a go-live date via `apply_fiscal_year` so `party_opening` has something to compare against.
     with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -739,7 +749,9 @@ async fn party_opening_before_and_after_go_live_counter_account() {
     let net_after = with_read(&db.state, |conn| Box::pin(async move { service::opening::get_opening_balance_equity_net(conn).await }) as BoxFuture<'_, TxResult<rust_decimal::Decimal>>)
         .await
         .unwrap();
-    assert_eq!(net_after - net_before, dec!(500), "before go-live, the counter is 3900");
+    // `openingBalanceEquityNet` is debit-positive (`opening.ts:41`): a customer opening debit of
+    // 500 credits 3900 by 500, so its net moves by −500.
+    assert_eq!(net_after - net_before, dec!(-500), "before go-live, the counter is 3900");
 
     // After go-live: counter is capital, 3900 must not move further.
     let net_before_2 = net_after;
@@ -765,8 +777,8 @@ async fn party_opening_before_and_after_go_live_counter_account() {
 async fn party_opening_zero_amount_is_none_and_unknown_party_is_not_found() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
-    let registry = Arc::new(UndoRegistry::new());
+    log_in(&db, Role::Admin).await;
+    let registry = db.state.undo.clone();
 
     let customer_id = seed_party(&db, "customer", "عميل").await;
 
@@ -810,8 +822,8 @@ async fn party_opening_zero_amount_is_none_and_unknown_party_is_not_found() {
 async fn party_opening_audit_row_is_undoable_with_correct_action_type() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
-    let registry = Arc::new(UndoRegistry::new());
+    log_in(&db, Role::Admin).await;
+    let registry = db.state.undo.clone();
 
     let customer_id = seed_party(&db, "customer", "عميل").await;
     with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -837,8 +849,8 @@ async fn party_opening_audit_row_is_undoable_with_correct_action_type() {
 async fn reverse_party_opening_missing_not_opening_allocated_and_success() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
-    let registry = Arc::new(UndoRegistry::new());
+    log_in(&db, Role::Admin).await;
+    let registry = db.state.undo.clone();
 
     // Missing.
     let err = with_tx(&db.state, TxOpts::default(), |tx, cx| {
@@ -901,7 +913,7 @@ async fn reverse_party_opening_missing_not_opening_allocated_and_success() {
     .expect("non-zero amount");
 
     // Allocated: insert a payment + allocation targeting this entry as 'opening'.
-    seed_payment_allocation(&db, entry_id).await;
+    seed_payment_allocation(&db, entry_id, customer_id).await;
     let err = with_tx(&db.state, TxOpts::default(), |tx, cx| {
         let registry = registry.clone();
         Box::pin(async move { service::party_opening::reverse_party_opening(tx, cx, &registry, entry_id, true, None).await }) as BoxFuture<'_, TxResult<Id>>
@@ -925,7 +937,9 @@ async fn reverse_party_opening_missing_not_opening_allocated_and_success() {
     assert!(original.reversed, "the original entry must be flagged reversed");
 }
 
-async fn seed_payment_allocation(db: &TestDb, entry_id: Id) {
+/// `customer_id` must be a real customer: `payments (target_id, target_type)` is an FK to
+/// `parties (id, kind)` (`fk_payments_target_party`).
+async fn seed_payment_allocation(db: &TestDb, entry_id: Id, customer_id: Id) {
     use accounting_app_lib::entities::payments::payment_allocations::ActiveModel as AllocActiveModel;
     use accounting_app_lib::entities::payments::payments::ActiveModel as PaymentActiveModel;
     let payment_id = Id::new();
@@ -939,7 +953,7 @@ async fn seed_payment_allocation(db: &TestDb, entry_id: Id) {
                 date_instant: Set(Some(now)),
                 r#type: Set(accounting_app_lib::entities::payments::payments::PaymentType::Received),
                 target_type: Set(accounting_app_lib::entities::payments::payments::PaymentTargetType::Customer),
-                target_id: Set(Id::new()),
+                target_id: Set(customer_id),
                 target_ref: Set(None),
                 target_ref_number: Set(None),
                 amount: Set(dec!(400)),
@@ -998,7 +1012,7 @@ async fn remove_all_allocations(db: &TestDb) {
 async fn undo_reverses_the_party_opening_via_the_registry() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
-    log_in(&db, Role::Admin);
+    log_in(&db, Role::Admin).await;
 
     let mut registry = UndoRegistry::new();
     accounting_app_lib::domains::setup::register_undo(&mut registry);
@@ -1051,3 +1065,83 @@ async fn undo_reverses_the_party_opening_via_the_registry() {
 // final testing plan (entry file §8a's own note), not here. `pairing::parse_code`'s own validator
 // is a pure function with no app handle dependency — it is covered by `infrastructure::database`'s
 // own unit tests, not duplicated here.
+
+/// ACC-0030: the wizard closes 3900, something moves it again (opening stock, a changed opening
+/// entry), and the wizard re-closes it. The re-close is a separate posting, so it gets its own source
+/// id instead of reusing `ONBOARDING_CLOSE_SOURCE_ID` — two active entries on one source broke
+/// `one-active-entry`.
+#[tokio::test]
+async fn reclose_after_3900_moves_again_uses_its_own_source() {
+    use accounting_app_lib::entities::journal::journal_entries;
+    use accounting_app_lib::shared::ledger::accounts::SystemRole;
+    use accounting_app_lib::shared::ledger::post::{self as ledger_post, AccountRef, PostJournal, PostingLine};
+    use accounting_app_lib::utils::dates::DocDate;
+
+    let db = TestDb::fresh().await;
+    seed_shell(&db).await;
+    log_in(&db, Role::Admin).await;
+    let registry = db.state.undo.clone();
+
+    let cash_id = account_id_by_code(&db, "1110").await;
+    let input = OpeningEntryInput {
+        date: "2026-01-01".to_string(),
+        cash: vec![OpeningCashLine { account_id: cash_id, amount: dec!(1000), currency: None, amount_fc: None, rate: None }],
+        customers: vec![],
+        suppliers: vec![],
+        other: vec![],
+    };
+    with_tx(&db.state, TxOpts::default(), |tx, cx| {
+        let registry = registry.clone();
+        let input = input.clone();
+        Box::pin(async move { service::opening::post_opening_balances(tx, cx, &registry, input, CloseTarget::Capital).await })
+            as BoxFuture<'_, TxResult<accounting_app_lib::domains::setup::dto::PostOpeningBalancesResult>>
+    })
+    .await
+    .expect("post_opening_balances must succeed");
+
+    // Something credits 3900 again (what opening stock does): Dr cash 400 / Cr 3900 400.
+    with_tx(&db.state, TxOpts::default(), |tx, cx| {
+        Box::pin(async move {
+            ledger_post::post(
+                tx,
+                cx,
+                PostJournal {
+                    date: DocDate { day: chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(), instant: None },
+                    description: "رصيد افتتاحي إضافي".to_string(),
+                    entry_type: journal_entries::JournalEntryType::Opening,
+                    source: None,
+                    lines: vec![PostingLine::debit(AccountRef::Role(SystemRole::Cash), dec!(400)), PostingLine::credit(AccountRef::Role(SystemRole::OpeningBalanceEquity), dec!(400))],
+                    allow_closed_period: true,
+                    attachment_ids: Vec::new(),
+                    template_id: None,
+                },
+            )
+            .await?;
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .expect("extra opening posting must succeed");
+
+    with_tx(&db.state, TxOpts::default(), |tx, cx| {
+        let registry = registry.clone();
+        Box::pin(async move { service::opening::reclose_opening_balance_equity(tx, cx, &registry, chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(), CloseTarget::Capital).await })
+            as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .expect("reclose must succeed");
+
+    let conn = db.state.db.read().unwrap().as_ref().unwrap().connection.clone();
+    let closes = journal_entries::Entity::find()
+        .filter(journal_entries::Column::SourceKind.eq("opening"))
+        .filter(journal_entries::Column::Type.eq(journal_entries::JournalEntryType::Closing))
+        .all(&conn)
+        .await
+        .unwrap();
+    assert_eq!(closes.len(), 2, "the close and the re-close");
+    assert_ne!(closes[0].source_id, closes[1].source_id, "the re-close must not reuse the first close's source");
+
+    let results = with_read(&db.state, |tx| Box::pin(async move { invariants::run_all(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
+    let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
+    assert!(failed.is_empty(), "invariants must be green after the re-close: {failed:?}");
+}

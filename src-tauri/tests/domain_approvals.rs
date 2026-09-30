@@ -2,16 +2,14 @@
 //! the deferred time-boxed test pass (per-implementer hard rule: never run cargo from this agent).
 //! Needs `EQUAL_TEST_DATABASE_URL` — see `tests/support.rs`.
 
-mod support;
+use crate::support;
 
 use accounting_app_lib::core::auth::{AuthenticatedUser, Role};
 use accounting_app_lib::core::error::AppError;
 use accounting_app_lib::core::tx::{with_read, with_tx, BoxFuture, TxOpts, TxResult};
 use accounting_app_lib::domains::approvals::dto::{ApprovalDecisionInput, ApprovalKind, ApprovalListFilter, ApprovalRequest, ApprovalRequestInput, ApprovalStatus};
 use accounting_app_lib::domains::approvals::service;
-use accounting_app_lib::domains::users::dto::UserInput;
-use accounting_app_lib::domains::users::service as users_service;
-use accounting_app_lib::entities::org::{branches, settings};
+use accounting_app_lib::entities::org::{branches, settings, users};
 use accounting_app_lib::entities::platform::activity::{ActivityKind, Column as ActivityColumn, Entity as ActivityEntity};
 use accounting_app_lib::entities::platform::audit::{Column as AuditColumn, Entity as AuditEntity};
 use accounting_app_lib::entities::values::{PrinterMode, PrinterSettings};
@@ -100,51 +98,54 @@ async fn seed_branch_and_settings(db: &TestDb) -> Id {
     branch_id
 }
 
-fn user_input(username: &str, role: Role) -> UserInput {
-    UserInput {
-        username: username.to_string(),
-        name: format!("مستخدم {username}"),
-        phone: None,
-        role,
-        max_discount: dec!(0),
-        price_list_id: None,
-        active: true,
-        password: Some("password-123".to_string()),
-        allowed_branches: None,
-        home_branch: None,
+fn role_str(role: Role) -> &'static str {
+    match role {
+        Role::Admin => "admin",
+        Role::Manager => "manager",
+        Role::Accountant => "accountant",
+        Role::Cashier => "cashier",
+        Role::Storekeeper => "storekeeper",
     }
 }
 
 /// Creates a real `users` row (so `actor_name` resolves a genuine DB name, not the "مستخدم"
-/// fallback) and logs it in as the active session.
+/// fallback) and logs it in as the active session. Inserted directly — like `seed_company_shell`
+/// seeds the first admin — because `users_service::create_user` writes an audit row and so needs
+/// an already-signed-in actor, which the first seeded user cannot have.
 async fn seed_and_login(db: &TestDb, username: &str, role: Role) -> Id {
-    let registry = std::sync::Arc::new(UndoRegistry::new());
-    let user = with_tx(&db.state, TxOpts { require_user: false }, {
-        let registry = registry.clone();
-        let input = user_input(username, role);
-        move |tx, cx| {
-            let registry = registry.clone();
-            let input = input.clone();
-            Box::pin(async move { users_service::create_user(tx, cx, &registry, input).await }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::users::dto::User>>
-        }
+    let id = Id::new();
+    let name = format!("مستخدم {username}");
+    let username_owned = username.to_string();
+    let role_owned = role_str(role).to_string();
+    with_tx(&db.state, TxOpts { require_user: false }, move |tx: &DatabaseTransaction, _cx| {
+        let (username_owned, name, role_owned) = (username_owned.clone(), name.clone(), role_owned.clone());
+        Box::pin(async move {
+            let now = chrono::Utc::now();
+            users::ActiveModel {
+                id: Set(id),
+                username: Set(username_owned),
+                name: Set(name),
+                phone: Set(None),
+                role: Set(role_owned),
+                max_discount: Set(dec!(0)),
+                price_list_id: Set(None),
+                active: Set(true),
+                avatar: Set(None),
+                allowed_branches: Set(None),
+                home_branch: Set(None),
+                created_at: Set(now),
+                updated_at: Set(now),
+                deleted_at: Set(None),
+                sync_status: Set("local".to_string()),
+            }
+            .insert(tx)
+            .await?;
+            Ok(())
+        })
     })
     .await
     .expect("seed user must succeed");
 
-    let authenticated = AuthenticatedUser {
-        id: user.id,
-        username: user.username.clone(),
-        role: user.role,
-        home_branch_id: Id::new(),
-        allowed_branches: vec![],
-        price_list_id: None,
-        max_discount: Some(user.max_discount),
-    };
-    *db.state.session.write().unwrap() = Some(authenticated);
-    user.id
-}
-
-fn login_as(db: &TestDb, id: Id, username: &str, role: Role) {
     let authenticated = AuthenticatedUser {
         id,
         username: username.to_string(),
@@ -152,9 +153,10 @@ fn login_as(db: &TestDb, id: Id, username: &str, role: Role) {
         home_branch_id: Id::new(),
         allowed_branches: vec![],
         price_list_id: None,
-        max_discount: None,
+        max_discount: Some(dec!(0)),
     };
     *db.state.session.write().unwrap() = Some(authenticated);
+    id
 }
 
 fn discount_input(summary: &str, value: Decimal) -> ApprovalRequestInput {
@@ -311,10 +313,11 @@ async fn list_is_newest_first_and_filters_by_status() {
         .await
         .unwrap();
     assert_eq!(all.len(), 3);
-    // All three share the same instant-resolution second in a fast test run, so this mainly checks
-    // that the sort is stable (ties keep insertion order) rather than reversing them.
-    assert_eq!(all[0].summary, "طلب 0");
-    assert_eq!(all[2].summary, "طلب 2");
+    // `requested_at` has millisecond resolution (DATETIME(3), like the mock's ISO strings) and each
+    // submit is its own committed transaction, so the three instants differ: newest first, exactly
+    // as the mock's `listApprovalRequests` sorts (`requestedAt` descending).
+    assert_eq!(all[0].summary, "طلب 2");
+    assert_eq!(all[2].summary, "طلب 0");
 
     let pending = with_read(&db.state, |tx| {
         Box::pin(async move { service::list(tx, Some(ApprovalListFilter { status: Some(ApprovalStatus::Pending) })).await }) as BoxFuture<'_, TxResult<Vec<ApprovalRequest>>>
@@ -505,8 +508,6 @@ async fn concurrent_approve_and_reject_exactly_one_wins() {
     let registry = std::sync::Arc::new(UndoRegistry::new());
     let request_id = submit_one(&db, &registry).await;
 
-    let manager_a_id = Id::new();
-    let manager_b_id = Id::new();
 
     // Both managers act against the same shared `AppState`/session slot is not realistic for two
     // physically different terminals, but `TxCtx.actor` is captured per-transaction from
@@ -516,7 +517,8 @@ async fn concurrent_approve_and_reject_exactly_one_wins() {
     // exercised directly: both transactions race on the same request id under the actual
     // `SELECT ... FOR UPDATE`, and only one observes `status == pending` after acquiring the lock —
     // that is the invariant under test, independent of which "manager identity" is attached.
-    login_as(&db, manager_a_id, "managerA", Role::Manager);
+    // A real `users` row: the decision's audit row references its actor (`fk_audit_user_id`).
+    seed_and_login(&db, "managerA", Role::Manager).await;
 
     let fut_approve = with_tx(&db.state, TxOpts::default(), {
         let registry = registry.clone();
@@ -539,9 +541,4 @@ async fn concurrent_approve_and_reject_exactly_one_wins() {
     let already_decided = [&r1, &r2].iter().filter(|r| matches!(r, Err(e) if e.to_string() == "تم اتخاذ قرار بشأن هذا الطلب مسبقاً")).count();
     assert_eq!(successes, 1, "exactly one decide must succeed");
     assert_eq!(already_decided, 1, "the loser must see the already-decided validation error");
-
-    // manager_b_id is unused directly (both closures ran under the same session slot per the note
-    // above) — kept only to document the intended two-manager scenario for a future real
-    // multi-session harness.
-    let _ = manager_b_id;
 }

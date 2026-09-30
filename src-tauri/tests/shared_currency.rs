@@ -1,7 +1,7 @@
 //! `shared::currency` DB-backed tests (phase-c-ledger.md "Tests"). Needs
 //! `EQUAL_TEST_DATABASE_URL` (see `tests/support/mod.rs`) — never skipped.
 
-mod support;
+use crate::support;
 
 use accounting_app_lib::entities::org::currencies::ActiveModel as CurrencyActiveModel;
 use accounting_app_lib::entities::org::exchange_rates::ActiveModel as RateActiveModel;
@@ -14,6 +14,7 @@ use sea_orm::{ActiveModelTrait, ConnectionTrait, Set};
 use support::TestDb;
 
 async fn seed_settings<C: ConnectionTrait>(conn: &C, base: &str) {
+    let default_branch_id = support::seed_settings_parents(conn, base).await;
     let settings = SettingsActiveModel {
         id: Set(Id::new()),
         singleton: Set(1),
@@ -51,7 +52,7 @@ async fn seed_settings<C: ConnectionTrait>(conn: &C, base: &str) {
         features: Set(None),
         onboarding: Set(None),
         timezone: Set(None),
-        default_branch_id: Set(Id::new()),
+        default_branch_id: Set(default_branch_id),
         created_at: Set(chrono::Utc::now()),
         updated_at: Set(chrono::Utc::now()),
     };

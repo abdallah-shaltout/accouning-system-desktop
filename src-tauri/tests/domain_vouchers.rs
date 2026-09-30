@@ -3,7 +3,7 @@
 //! Needs `EQUAL_TEST_DATABASE_URL` — see `tests/support/mod.rs`. Fixture pattern copied from
 //! `tests/domain_expenses.rs` (tests can't import each other's fixtures).
 
-mod support;
+use crate::support;
 
 use std::sync::Arc;
 
@@ -11,7 +11,10 @@ use chrono::Datelike;
 
 use accounting_app_lib::core::auth::{AuthenticatedUser, Role};
 use accounting_app_lib::core::error::AppError;
-use accounting_app_lib::core::tx::{with_tx, BoxFuture, TxOpts, TxResult};
+use accounting_app_lib::core::tx::{with_tx, BoxFuture, TxCtx, TxOpts, TxResult};
+use accounting_app_lib::entities::journal::journal_entries::JournalEntryType;
+use accounting_app_lib::shared::ledger::accounts::SystemRole;
+use accounting_app_lib::shared::ledger::{post, AccountRef, PostJournal, PostingLine, SourceRef};
 use accounting_app_lib::domains::vouchers::dto::{
     CardSettlementGroupRef, CardSettlementInput, OwnerDirection, OwnerVoucherInput, PaymentVoucherInput, ReceiptVoucherInput, TransferVoucherInput,
     UnsettledTenderGroup, Voucher, VoucherFilter,
@@ -29,7 +32,9 @@ use rust_decimal_macros::dec;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, Set};
 use support::TestDb;
 
-fn log_in(test_db: &TestDb) -> Id {
+/// Logs in an admin session whose `users` row exists (FK target of `journal_entries.created_by`,
+/// `audit.user_id`, documents' `created_by`/`cashier_id`, …).
+async fn log_in(test_db: &TestDb) -> Id {
     let user_id = Id::new();
     let user = AuthenticatedUser {
         id: user_id,
@@ -40,6 +45,8 @@ fn log_in(test_db: &TestDb) -> Id {
         price_list_id: None,
         max_discount: None,
     };
+    let connection = test_db.state.db.read().unwrap().as_ref().expect("test db connected").connection.clone();
+    support::seed_user(&connection, user_id, "admin").await;
     *test_db.state.session.write().unwrap() = Some(user);
     user_id
 }
@@ -111,7 +118,7 @@ async fn seed_plain_account<C: ConnectionTrait>(conn: &C, code: &str, allow_manu
         parent_id: Set(None),
         is_group: Set(false),
         kind: Set("ASSET".to_string()),
-        subtype: Set("other".to_string()),
+        subtype: Set("otherCurrentAsset".to_string()),
         normal_side: Set("DEBIT".to_string()),
         system_role: Set(None),
         currency: Set(None),
@@ -180,6 +187,7 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
     };
     branch.insert(conn).await.unwrap();
 
+    support::seed_currency(conn, "SAR").await;
     let settings_row = settings::ActiveModel {
         id: Set(Id::new()),
         singleton: Set(1),
@@ -245,6 +253,8 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
     let drawings_account_id = seed_role_account(conn, "3200", "drawings").await;
     // `cardFees` role account, needed by the settlement's fee line.
     let _card_fees_account_id = seed_role_account(conn, "5300", "cardFees").await;
+    // The seeded completed invoices post their own tender entries (Dr method account / Cr sales).
+    let _sales_account_id = seed_role_account(conn, "4100", "sales").await;
 
     let plain_account_id = seed_plain_account(conn, "6100", true).await;
     let plain_account_2_id = seed_plain_account(conn, "6200", true).await;
@@ -270,16 +280,20 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
 /// A minimal `COMPLETED` invoice with one tender, for the settlement tests — only the columns the
 /// `unsettled_tender_groups` query reads are meaningful; the rest are filled with harmless
 /// defaults.
-async fn seed_completed_invoice_with_tender<C: ConnectionTrait>(conn: &C, day: chrono::NaiveDate, payment_method_id: Id, amount: Decimal) -> Id {
+async fn seed_completed_invoice_with_tender<C: ConnectionTrait>(conn: &C, cx: &TxCtx, day: chrono::NaiveDate, payment_method_id: Id, amount: Decimal) -> Id {
     let now = chrono::Utc::now();
+    // `invoices.cashier_id` FKs to `users`.
+    let cashier_id = Id::new();
+    support::seed_user(conn, cashier_id, "cashier").await;
     let invoice_id = Id::new();
+    let number = format!("INV-{}", support::unique_tail(invoice_id, 8));
     let invoice = invoices::ActiveModel {
         id: Set(invoice_id),
-        number: Set(format!("INV-{}", &invoice_id.to_string()[..8])),
+        number: Set(number.clone()),
         date_day: Set(day),
         date_instant: Set(None),
         customer_id: Set(None),
-        cashier_id: Set(Id::new()),
+        cashier_id: Set(cashier_id),
         status: Set(invoices::InvoiceStatus::Completed),
         payment_status: Set(invoices::PaymentStatus::Paid),
         sub_total: Set(amount),
@@ -323,6 +337,20 @@ async fn seed_completed_invoice_with_tender<C: ConnectionTrait>(conn: &C, day: c
     };
     tender.insert(conn).await.unwrap();
 
+    // The sale's own entry: Dr the tender's settlement account (its method's `account_role`) / Cr
+    // sales. Without it a settlement credits a clearing account nothing ever debited
+    // (`card-clearing`/`wallet-clearing` would read negative).
+    let method = payment_methods::Entity::find_by_id(payment_method_id).one(conn).await.unwrap().expect("seeded payment method");
+    let role: SystemRole = method.account_role.parse().expect("known account role");
+    let mut req = PostJournal::new(
+        day,
+        format!("invoice {number}"),
+        JournalEntryType::System,
+        vec![PostingLine::debit(AccountRef::Role(role), amount), PostingLine::credit(AccountRef::Role(SystemRole::Sales), amount)],
+    );
+    req.source = Some(SourceRef { kind: "invoice".to_string(), id: invoice_id, number: Some(number) });
+    post(conn, cx, req).await.unwrap();
+
     invoice_id
 }
 
@@ -343,7 +371,7 @@ fn today_str(cx_today: chrono::NaiveDate) -> String {
 #[tokio::test]
 async fn receipt_voucher_posts_dr_cash_cr_manual_account() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let voucher = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -380,7 +408,7 @@ async fn receipt_voucher_posts_dr_cash_cr_manual_account() {
 #[tokio::test]
 async fn payment_voucher_posts_dr_manual_account_cr_cash() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let voucher = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -413,7 +441,7 @@ async fn payment_voucher_posts_dr_manual_account_cr_cash() {
 #[tokio::test]
 async fn transfer_voucher_with_fee_credits_source_amount_plus_fee() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let voucher = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -451,7 +479,7 @@ async fn transfer_voucher_with_fee_credits_source_amount_plus_fee() {
 #[tokio::test]
 async fn transfer_voucher_without_fee_stores_none() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let voucher = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -485,7 +513,7 @@ async fn transfer_voucher_without_fee_stores_none() {
 #[tokio::test]
 async fn transfer_voucher_same_accounts_rejected_before_lookup() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let err = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -515,7 +543,7 @@ async fn transfer_voucher_same_accounts_rejected_before_lookup() {
 #[tokio::test]
 async fn transfer_voucher_fee_without_account_rejected() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let err = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -545,7 +573,7 @@ async fn transfer_voucher_fee_without_account_rejected() {
 #[tokio::test]
 async fn record_transfer_voucher_with_preallocated_number_uses_it() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let voucher = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -579,7 +607,7 @@ async fn record_transfer_voucher_with_preallocated_number_uses_it() {
 #[tokio::test]
 async fn owner_voucher_drawings_and_contribution_both_directions() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let (drawings, contribution) = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -638,7 +666,7 @@ async fn owner_voucher_drawings_and_contribution_both_directions() {
 #[tokio::test]
 async fn voucher_amount_and_method_and_account_validation_messages() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     // amount <= 0
@@ -790,7 +818,7 @@ async fn voucher_amount_and_method_and_account_validation_messages() {
 #[tokio::test]
 async fn owner_voucher_missing_drawings_role_rejected() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     // Fixture without seeding a `drawings` role account: build a stripped-down version inline.
@@ -821,6 +849,7 @@ async fn owner_voucher_missing_drawings_role_rejected() {
             .insert(tx)
             .await
             .unwrap();
+            support::seed_currency(tx, "SAR").await;
             settings::ActiveModel {
                 id: Set(Id::new()),
                 singleton: Set(1),
@@ -905,7 +934,7 @@ async fn owner_voucher_missing_drawings_role_rejected() {
 #[tokio::test]
 async fn get_vouchers_filters_by_kind_date_and_arabic_search_and_orders_desc() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -975,9 +1004,9 @@ async fn get_vouchers_filters_by_kind_date_and_arabic_search_and_orders_desc() {
 #[tokio::test]
 async fn unsettled_groups_split_by_day_and_method_excluding_cash_and_settled() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
-    with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| {
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
             let today = chrono::Utc::now().date_naive();
@@ -985,11 +1014,11 @@ async fn unsettled_groups_split_by_day_and_method_excluding_cash_and_settled() {
 
             // Two card tenders today (same group), one wallet tender today, one card tender
             // yesterday, and a cash tender today (must never appear).
-            seed_completed_invoice_with_tender(tx, today, fixture.card_payment_method_id, dec!(100)).await;
-            seed_completed_invoice_with_tender(tx, today, fixture.card_payment_method_id, dec!(50)).await;
-            seed_completed_invoice_with_tender(tx, today, fixture.wallet_payment_method_id, dec!(30)).await;
-            seed_completed_invoice_with_tender(tx, yesterday, fixture.card_payment_method_id, dec!(75)).await;
-            seed_completed_invoice_with_tender(tx, today, fixture.cash_payment_method_id, dec!(999)).await;
+            seed_completed_invoice_with_tender(tx, cx, today, fixture.card_payment_method_id, dec!(100)).await;
+            seed_completed_invoice_with_tender(tx, cx, today, fixture.card_payment_method_id, dec!(50)).await;
+            seed_completed_invoice_with_tender(tx, cx, today, fixture.wallet_payment_method_id, dec!(30)).await;
+            seed_completed_invoice_with_tender(tx, cx, yesterday, fixture.card_payment_method_id, dec!(75)).await;
+            seed_completed_invoice_with_tender(tx, cx, today, fixture.cash_payment_method_id, dec!(999)).await;
 
             let groups = service::settlements::unsettled_tender_groups(tx).await?;
             assert_eq!(groups.len(), 3, "cash tenders must never be grouped: {groups:?}");
@@ -1008,13 +1037,13 @@ async fn unsettled_groups_split_by_day_and_method_excluding_cash_and_settled() {
 #[tokio::test]
 async fn refunded_invoice_tenders_are_excluded_from_unsettled_groups() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
-    with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| {
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
             let today = chrono::Utc::now().date_naive();
-            let invoice_id = seed_completed_invoice_with_tender(tx, today, fixture.card_payment_method_id, dec!(40)).await;
+            let invoice_id = seed_completed_invoice_with_tender(tx, cx, today, fixture.card_payment_method_id, dec!(40)).await;
 
             // Flip it to REFUNDED (Q-V2 kept: it must drop out of the unsettled list).
             use accounting_app_lib::entities::sales::invoices::{ActiveModel as InvoiceActiveModel, Entity as InvoiceEntity, InvoiceStatus};
@@ -1036,7 +1065,7 @@ async fn refunded_invoice_tenders_are_excluded_from_unsettled_groups() {
 #[tokio::test]
 async fn settlement_with_fee_posts_bank_and_card_fees_debit_and_clearing_credit() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let settlement = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -1044,12 +1073,12 @@ async fn settlement_with_fee_posts_bank_and_card_fees_debit_and_clearing_credit(
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
             let today = cx.clock.today();
-            seed_completed_invoice_with_tender(tx, today, fixture.card_payment_method_id, dec!(100)).await;
+            seed_completed_invoice_with_tender(tx, cx, today, fixture.card_payment_method_id, dec!(100)).await;
 
             let input = CardSettlementInput {
                 date: today_str(today),
                 groups: vec![CardSettlementGroupRef { date: today_str(today), payment_method_id: fixture.card_payment_method_id }],
-                deposit_amount: dec!(97),
+                deposit_amount: Some(dec!(97)),
                 note: None,
             };
             service::settlements::create_card_settlement(tx, cx, &undo, input).await
@@ -1069,7 +1098,7 @@ async fn settlement_with_fee_posts_bank_and_card_fees_debit_and_clearing_credit(
 #[tokio::test]
 async fn settlement_deposit_slightly_over_gross_is_allowed() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let settlement = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -1077,13 +1106,13 @@ async fn settlement_deposit_slightly_over_gross_is_allowed() {
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
             let today = cx.clock.today();
-            seed_completed_invoice_with_tender(tx, today, fixture.card_payment_method_id, dec!(100)).await;
+            seed_completed_invoice_with_tender(tx, cx, today, fixture.card_payment_method_id, dec!(100)).await;
 
             let input = CardSettlementInput {
                 date: today_str(today),
                 groups: vec![CardSettlementGroupRef { date: today_str(today), payment_method_id: fixture.card_payment_method_id }],
                 // gross 100, deposit 100.003 -> fee = -0.003, within the -0.005 tolerance.
-                deposit_amount: dec!(100.003),
+                deposit_amount: Some(dec!(100.003)),
                 note: None,
             };
             service::settlements::create_card_settlement(tx, cx, &undo, input).await
@@ -1101,7 +1130,7 @@ async fn settlement_deposit_slightly_over_gross_is_allowed() {
 #[tokio::test]
 async fn settlement_deposit_over_gross_by_a_lot_rejected() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let err = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -1109,12 +1138,12 @@ async fn settlement_deposit_over_gross_by_a_lot_rejected() {
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
             let today = cx.clock.today();
-            seed_completed_invoice_with_tender(tx, today, fixture.card_payment_method_id, dec!(100)).await;
+            seed_completed_invoice_with_tender(tx, cx, today, fixture.card_payment_method_id, dec!(100)).await;
 
             let input = CardSettlementInput {
                 date: today_str(today),
                 groups: vec![CardSettlementGroupRef { date: today_str(today), payment_method_id: fixture.card_payment_method_id }],
-                deposit_amount: dec!(101),
+                deposit_amount: Some(dec!(101)),
                 note: None,
             };
             service::settlements::create_card_settlement(tx, cx, &undo, input).await.map(|_| ())
@@ -1128,7 +1157,7 @@ async fn settlement_deposit_over_gross_by_a_lot_rejected() {
 #[tokio::test]
 async fn settlement_mixed_card_and_wallet_posts_two_credit_lines() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let settlement = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -1136,8 +1165,8 @@ async fn settlement_mixed_card_and_wallet_posts_two_credit_lines() {
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
             let today = cx.clock.today();
-            seed_completed_invoice_with_tender(tx, today, fixture.card_payment_method_id, dec!(100)).await;
-            seed_completed_invoice_with_tender(tx, today, fixture.wallet_payment_method_id, dec!(50)).await;
+            seed_completed_invoice_with_tender(tx, cx, today, fixture.card_payment_method_id, dec!(100)).await;
+            seed_completed_invoice_with_tender(tx, cx, today, fixture.wallet_payment_method_id, dec!(50)).await;
 
             let input = CardSettlementInput {
                 date: today_str(today),
@@ -1145,7 +1174,7 @@ async fn settlement_mixed_card_and_wallet_posts_two_credit_lines() {
                     CardSettlementGroupRef { date: today_str(today), payment_method_id: fixture.card_payment_method_id },
                     CardSettlementGroupRef { date: today_str(today), payment_method_id: fixture.wallet_payment_method_id },
                 ],
-                deposit_amount: dec!(150),
+                deposit_amount: Some(dec!(150)),
                 note: None,
             };
             service::settlements::create_card_settlement(tx, cx, &undo, input).await
@@ -1162,7 +1191,7 @@ async fn settlement_mixed_card_and_wallet_posts_two_credit_lines() {
 #[tokio::test]
 async fn settlement_of_already_settled_group_is_conflict() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let err = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -1170,15 +1199,15 @@ async fn settlement_of_already_settled_group_is_conflict() {
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
             let today = cx.clock.today();
-            seed_completed_invoice_with_tender(tx, today, fixture.card_payment_method_id, dec!(100)).await;
+            seed_completed_invoice_with_tender(tx, cx, today, fixture.card_payment_method_id, dec!(100)).await;
 
             let group_ref = CardSettlementGroupRef { date: today_str(today), payment_method_id: fixture.card_payment_method_id };
-            let first = CardSettlementInput { date: today_str(today), groups: vec![group_ref.clone()], deposit_amount: dec!(100), note: None };
+            let first = CardSettlementInput { date: today_str(today), groups: vec![group_ref.clone()], deposit_amount: Some(dec!(100)), note: None };
             service::settlements::create_card_settlement(tx, cx, &undo, first).await?;
 
             // The same (day, method) is no longer in the unsettled list, so re-selecting it must
             // fail the stale-list `CONFLICT` (step 3), not the DB constraint.
-            let second = CardSettlementInput { date: today_str(today), groups: vec![group_ref], deposit_amount: dec!(100), note: None };
+            let second = CardSettlementInput { date: today_str(today), groups: vec![group_ref], deposit_amount: Some(dec!(100)), note: None };
             service::settlements::create_card_settlement(tx, cx, &undo, second).await.map(|_| ())
         }) as BoxFuture<'_, TxResult<()>>
     })
@@ -1190,14 +1219,14 @@ async fn settlement_of_already_settled_group_is_conflict() {
 #[tokio::test]
 async fn settlement_no_groups_or_negative_deposit_rejected() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let err = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
         Box::pin(async move {
             let _fixture = seed_fixture(tx).await;
-            let input = CardSettlementInput { date: today_str(cx.clock.today()), groups: vec![], deposit_amount: dec!(10), note: None };
+            let input = CardSettlementInput { date: today_str(cx.clock.today()), groups: vec![], deposit_amount: Some(dec!(10)), note: None };
             service::settlements::create_card_settlement(tx, cx, &undo, input).await.map(|_| ())
         }) as BoxFuture<'_, TxResult<()>>
     })
@@ -1209,7 +1238,7 @@ async fn settlement_no_groups_or_negative_deposit_rejected() {
 #[tokio::test]
 async fn estimate_settlement_fee_matches_round2_of_sum() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| {
         Box::pin(async move {
@@ -1245,7 +1274,7 @@ async fn estimate_settlement_fee_matches_round2_of_sum() {
 #[tokio::test]
 async fn get_card_settlements_and_get_card_settlement() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let settlement_id = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -1253,11 +1282,11 @@ async fn get_card_settlements_and_get_card_settlement() {
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
             let today = cx.clock.today();
-            seed_completed_invoice_with_tender(tx, today, fixture.card_payment_method_id, dec!(20)).await;
+            seed_completed_invoice_with_tender(tx, cx, today, fixture.card_payment_method_id, dec!(20)).await;
             let input = CardSettlementInput {
                 date: today_str(today),
                 groups: vec![CardSettlementGroupRef { date: today_str(today), payment_method_id: fixture.card_payment_method_id }],
-                deposit_amount: dec!(20),
+                deposit_amount: Some(dec!(20)),
                 note: None,
             };
             let settlement = service::settlements::create_card_settlement(tx, cx, &undo, input).await?;
@@ -1289,7 +1318,7 @@ async fn get_card_settlements_and_get_card_settlement() {
 #[tokio::test]
 async fn voucher_in_closed_period_is_forbidden_and_writes_nothing() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let err = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -1338,4 +1367,197 @@ async fn voucher_in_closed_period_is_forbidden_and_writes_nothing() {
         .len();
     drop(db_guard);
     assert_eq!(count, 0, "nothing must be written when the period is closed");
+}
+
+// --- ACC-0014 / ACC-0016 ------------------------------------------------------------------------
+
+/// ACC-0014: every voucher kind refused by the lock date (committed in its own transaction, like a
+/// real user's settings) leaves no trace — no voucher row, and the next accepted voucher still takes
+/// the first number.
+#[tokio::test]
+async fn refused_vouchers_leave_no_row_and_consume_no_number() {
+    let test_db = TestDb::fresh().await;
+    log_in(&test_db).await;
+    let undo = Arc::new(UndoRegistry::new());
+
+    let (cash_account, bank_account, plain_account, cash_method) = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        Box::pin(async move {
+            let fixture = seed_fixture(tx).await;
+            let row = settings::Entity::find().one(tx).await.unwrap().unwrap();
+            let mut model: settings::ActiveModel = row.into();
+            model.accounting = Set(Some(AccountingPolicy { lock_date: Some(cx.clock.today() + chrono::Duration::days(1)), default_purchase_account_id: None }));
+            model.update(tx).await.unwrap();
+            Ok((fixture.cash_role_account_id, fixture.bank_role_account_id, fixture.plain_account_id, fixture.cash_payment_method_id))
+        }) as BoxFuture<'_, TxResult<(Id, Id, Id, Id)>>
+    })
+    .await
+    .unwrap();
+
+    let receipt = move |date: String| ReceiptVoucherInput {
+        date,
+        amount: dec!(100),
+        description: "بيع خردة".to_string(),
+        note: None,
+        attachment_ids: None,
+        cost_center_id: None,
+        payment_method_id: cash_method,
+        credit_account_id: plain_account,
+    };
+
+    for kind in 0..4 {
+        let undo = undo.clone();
+        let result = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+            let undo = undo.clone();
+            let date = today_str(cx.clock.today());
+            Box::pin(async move {
+                match kind {
+                    0 => service::general::create_receipt_voucher(tx, cx, &undo, receipt(date)).await,
+                    1 => {
+                        let input = PaymentVoucherInput {
+                            date,
+                            amount: dec!(50),
+                            description: "رسوم".to_string(),
+                            note: None,
+                            attachment_ids: None,
+                            cost_center_id: None,
+                            payment_method_id: cash_method,
+                            debit_account_id: plain_account,
+                        };
+                        service::general::create_payment_voucher(tx, cx, &undo, input).await
+                    }
+                    2 => {
+                        let input = TransferVoucherInput {
+                            date,
+                            amount: dec!(500),
+                            description: "إيداع".to_string(),
+                            note: None,
+                            attachment_ids: None,
+                            cost_center_id: None,
+                            source_account_id: cash_account,
+                            destination_account_id: bank_account,
+                            fee_amount: Some(dec!(5)),
+                            fee_account_id: Some(plain_account),
+                        };
+                        service::general::create_transfer_voucher(tx, cx, &undo, input).await
+                    }
+                    _ => {
+                        let input = OwnerVoucherInput {
+                            date,
+                            amount: dec!(300),
+                            description: "مسحوبات".to_string(),
+                            note: None,
+                            attachment_ids: None,
+                            cost_center_id: None,
+                            direction: OwnerDirection::Drawings,
+                            cash_account_id: cash_account,
+                        };
+                        service::general::create_owner_voucher(tx, cx, &undo, input).await
+                    }
+                }
+            }) as BoxFuture<'_, TxResult<Voucher>>
+        })
+        .await;
+        assert!(matches!(result, Err(AppError::Forbidden { .. })), "voucher kind {kind}: expected FORBIDDEN, got {result:?}");
+    }
+
+    // Unlock, then post one receipt: it is the only voucher and it takes the first number.
+    let voucher = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let undo = undo.clone();
+        let date = today_str(cx.clock.today());
+        Box::pin(async move {
+            use sea_orm::PaginatorTrait;
+            assert_eq!(accounting_app_lib::entities::payments::vouchers::Entity::find().count(tx).await.unwrap(), 0, "refused vouchers must save nothing");
+            let row = settings::Entity::find().one(tx).await.unwrap().unwrap();
+            let mut model: settings::ActiveModel = row.into();
+            model.accounting = Set(Some(AccountingPolicy { lock_date: None, default_purchase_account_id: None }));
+            model.update(tx).await.unwrap();
+            service::general::create_receipt_voucher(tx, cx, &undo, receipt(date)).await
+        }) as BoxFuture<'_, TxResult<Voucher>>
+    })
+    .await
+    .expect("receipt voucher must succeed once unlocked");
+    match voucher {
+        Voucher::Receipt { base, .. } => assert_eq!(base.number, "VCH-000001", "a refused voucher consumed a number"),
+        _ => panic!("expected a RECEIPT voucher"),
+    }
+}
+
+/// ACC-0016: a USD invoice's card tender posted its BASE amount to card clearing (the sale's rate),
+/// so the settlement pick list offers that base amount — 100 USD × 48.57 = 4,857 — not "100".
+#[tokio::test]
+async fn unsettled_groups_read_fc_invoice_tenders_in_base() {
+    let test_db = TestDb::fresh().await;
+    log_in(&test_db).await;
+
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        Box::pin(async move {
+            let fixture = seed_fixture(tx).await;
+            let today = chrono::Utc::now().date_naive();
+            let invoice_id = seed_completed_invoice_with_tender(tx, cx, today, fixture.card_payment_method_id, dec!(100)).await;
+            let invoice = invoices::Entity::find_by_id(invoice_id).one(tx).await.unwrap().unwrap();
+            let mut model: invoices::ActiveModel = invoice.into();
+            model.currency = Set(Some("USD".to_string()));
+            model.exchange_rate = Set(Some(dec!(48.57)));
+            model.update(tx).await.unwrap();
+
+            let groups = service::settlements::unsettled_tender_groups(tx).await?;
+            let card = groups.iter().find(|g| g.payment_method_id == fixture.card_payment_method_id).expect("today's card group");
+            assert_eq!(card.total, dec!(4857));
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .expect("FC tender group assertions must pass");
+}
+
+/// ACC-0031: a payment voucher paid with the business's card (or wallet) credits the BANK — the
+/// method's clearing account only holds customer tenders awaiting the acquirer's deposit — the rule
+/// ACC-0024 set for expenses. Before, it credited card clearing and broke `card-clearing`.
+#[tokio::test]
+async fn payment_voucher_by_card_or_wallet_credits_bank_not_clearing() {
+    let test_db = TestDb::fresh().await;
+    log_in(&test_db).await;
+    let undo = Arc::new(UndoRegistry::new());
+
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let undo = undo.clone();
+        Box::pin(async move {
+            use accounting_app_lib::entities::journal::{journal_entries, journal_lines};
+            use sea_orm::{ColumnTrait, QueryFilter};
+            let fixture = seed_fixture(tx).await;
+            for method in [fixture.card_payment_method_id, fixture.wallet_payment_method_id] {
+                let input = PaymentVoucherInput {
+                    date: today_str(cx.clock.today()),
+                    amount: dec!(40),
+                    description: "اشتراك مدفوع ببطاقة المتجر".to_string(),
+                    note: None,
+                    attachment_ids: None,
+                    cost_center_id: None,
+                    payment_method_id: method,
+                    debit_account_id: fixture.plain_account_id,
+                };
+                let voucher = service::general::create_payment_voucher(tx, cx, &undo, input).await?;
+                let Voucher::Payment { base, .. } = voucher else { panic!("expected a PAYMENT voucher") };
+                let entry = journal_entries::Entity::find()
+                    .filter(journal_entries::Column::SourceKind.eq("voucher"))
+                    .filter(journal_entries::Column::SourceId.eq(base.id))
+                    .one(tx)
+                    .await
+                    .unwrap()
+                    .expect("voucher entry");
+                let credit = journal_lines::Entity::find()
+                    .filter(journal_lines::Column::JournalEntryId.eq(entry.id))
+                    .filter(journal_lines::Column::Credit.gt(Decimal::ZERO))
+                    .one(tx)
+                    .await
+                    .unwrap()
+                    .expect("credit line");
+                assert_eq!(credit.account_id, fixture.bank_role_account_id, "a card/wallet payout must leave the bank");
+            }
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .expect("card/wallet payment vouchers must succeed");
+    assert_invariants_ok(&test_db).await;
 }

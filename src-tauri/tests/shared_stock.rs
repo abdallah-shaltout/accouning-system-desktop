@@ -1,7 +1,7 @@
 //! `shared::stock` DB-backed tests (phase-d-stock.md "Tests"). Needs `EQUAL_TEST_DATABASE_URL` —
 //! never skipped, per `tests/support`.
 
-mod support;
+use crate::support;
 
 use std::sync::Arc;
 
@@ -32,13 +32,22 @@ fn log_in(test_db: &TestDb) {
     *test_db.state.session.write().unwrap() = Some(user);
 }
 
+/// `apply_change(.., branch_id: None)` defaults to `settings.default_branch_id`, and the
+/// `product_branch_stock.branch_id` FK needs that branch to exist — seed both (the setup wizard's
+/// job in the real app).
+async fn seed_settings(test_db: &TestDb) -> Id {
+    let db_guard = test_db.state.db.read().unwrap();
+    let conn = &db_guard.as_ref().unwrap().connection;
+    support::seed_minimal_settings(conn, "SAR").await
+}
+
 fn doc_date(day: &str) -> DocDate {
     DocDate { day: NaiveDate::parse_from_str(day, "%Y-%m-%d").unwrap(), instant: None }
 }
 
 async fn insert_product(conn: &DatabaseConnection, name: &str, track_batches: bool) -> Id {
     let id = Id::new();
-    let sku = format!("SKU{}", &id.to_string().replace('-', "")[..8]);
+    let sku = format!("SKU{}", support::unique_tail(id, 8));
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
         "INSERT INTO products (id, name, sku, type, track_batches) VALUES (?, ?, ?, 'product', ?)",
@@ -50,7 +59,7 @@ async fn insert_product(conn: &DatabaseConnection, name: &str, track_batches: bo
 
 async fn insert_service(conn: &DatabaseConnection) -> Id {
     let id = Id::new();
-    let sku = format!("SKU{}", &id.to_string().replace('-', "")[..8]);
+    let sku = format!("SKU{}", support::unique_tail(id, 8));
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
         "INSERT INTO products (id, name, sku, type) VALUES (?, 'Service', ?, 'service')",
@@ -71,6 +80,7 @@ async fn stock_of(conn: &DatabaseConnection, product_id: Id) -> (Decimal, Decima
 async fn apply_change_review_a1_worked_example() {
     let test_db = TestDb::fresh().await;
     log_in(&test_db);
+    seed_settings(&test_db).await;
 
     let product_id = {
         let db_guard = test_db.state.db.read().unwrap();
@@ -168,6 +178,7 @@ async fn apply_change_review_a1_worked_example() {
 async fn selling_the_whole_remaining_stock_takes_exactly_stock_value() {
     let test_db = TestDb::fresh().await;
     log_in(&test_db);
+    seed_settings(&test_db).await;
     let product_id = {
         let db_guard = test_db.state.db.read().unwrap();
         let conn = &db_guard.as_ref().unwrap().connection;
@@ -226,14 +237,18 @@ async fn purchase_return_variance_guard_books_the_shortfall() {
 async fn branch_rows_always_sum_to_the_product_totals() {
     let test_db = TestDb::fresh().await;
     log_in(&test_db);
+    seed_settings(&test_db).await;
     let product_id = {
         let db_guard = test_db.state.db.read().unwrap();
         let conn = &db_guard.as_ref().unwrap().connection;
         insert_product(conn, "Widget", false).await
     };
 
-    let branch_a = Id::new();
-    let branch_b = Id::new();
+    let (branch_a, branch_b) = {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        (support::seed_branch(conn).await, support::seed_branch(conn).await)
+    };
 
     with_tx(&test_db.state, TxOpts::default(), move |txn, cx| -> BoxFuture<'_, accounting_app_lib::core::tx::TxResult<()>> {
         Box::pin(async move {
@@ -269,6 +284,7 @@ async fn branch_rows_always_sum_to_the_product_totals() {
 async fn service_and_untracked_products_are_a_no_op() {
     let test_db = TestDb::fresh().await;
     log_in(&test_db);
+    seed_settings(&test_db).await;
     let service_id = {
         let db_guard = test_db.state.db.read().unwrap();
         let conn = &db_guard.as_ref().unwrap().connection;
@@ -301,6 +317,7 @@ async fn service_and_untracked_products_are_a_no_op() {
 async fn fefo_earliest_expiry_first_undated_last_expired_skipped() {
     let test_db = TestDb::fresh().await;
     log_in(&test_db);
+    seed_settings(&test_db).await;
     let product_id = {
         let db_guard = test_db.state.db.read().unwrap();
         let conn = &db_guard.as_ref().unwrap().connection;
@@ -354,6 +371,7 @@ async fn fefo_earliest_expiry_first_undated_last_expired_skipped() {
 async fn fefo_shortfall_returns_partial_draws_with_no_error() {
     let test_db = TestDb::fresh().await;
     log_in(&test_db);
+    seed_settings(&test_db).await;
     let product_id = {
         let db_guard = test_db.state.db.read().unwrap();
         let conn = &db_guard.as_ref().unwrap().connection;
@@ -394,6 +412,7 @@ async fn qty_rounds_to_2dp() {
 async fn concurrent_apply_change_on_the_same_product_serializes() {
     let test_db = TestDb::fresh().await;
     log_in(&test_db);
+    seed_settings(&test_db).await;
     let product_id = {
         let db_guard = test_db.state.db.read().unwrap();
         let conn = &db_guard.as_ref().unwrap().connection;
@@ -465,6 +484,7 @@ async fn concurrent_apply_change_on_the_same_product_serializes() {
 async fn lock_products_locks_a_set_sorted_by_id() {
     let test_db = TestDb::fresh().await;
     log_in(&test_db);
+    seed_settings(&test_db).await;
     let (id_a, id_b) = {
         let db_guard = test_db.state.db.read().unwrap();
         let conn = &db_guard.as_ref().unwrap().connection;

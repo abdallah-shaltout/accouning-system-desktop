@@ -2,7 +2,7 @@
 //! (see `tests/support/mod.rs`) — never skipped, panics loudly instead per the entry file's own
 //! instruction.
 
-mod support;
+use crate::support;
 
 use chrono::Datelike;
 
@@ -27,8 +27,12 @@ use rust_decimal_macros::dec;
 use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, QueryFilter, Set};
 use support::TestDb;
 
-fn log_in(test_db: &TestDb) -> Id {
+async fn log_in(test_db: &TestDb) -> Id {
     let user_id = Id::new();
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        support::seed_user(&db_guard.as_ref().unwrap().connection, user_id, "admin").await;
+    }
     let user = AuthenticatedUser {
         id: user_id,
         username: "test".to_string(),
@@ -74,6 +78,7 @@ async fn seed_fixture<C: ConnectionTrait>(conn: &C, roles: &[(&'static str, &str
         sync_status: Set("local".to_string()),
     };
     branch.insert(conn).await.unwrap();
+    support::seed_currency(conn, "SAR").await;
 
     let settings = SettingsActiveModel {
         id: Set(Id::new()),
@@ -163,7 +168,7 @@ async fn seed_group_account<C: ConnectionTrait>(conn: &C) -> Id {
         parent_id: Set(None),
         is_group: Set(true),
         kind: Set("ASSET".to_string()),
-        subtype: Set("group".to_string()),
+        subtype: Set("otherCurrentAsset".to_string()),
         normal_side: Set("DEBIT".to_string()),
         system_role: Set(None),
         currency: Set(None),
@@ -192,7 +197,7 @@ fn sales_role() -> SystemRole {
 #[tokio::test]
 async fn balanced_post_persists_entry_and_lines_with_sequential_numbers_and_defaults() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
@@ -236,13 +241,15 @@ async fn balanced_post_persists_entry_and_lines_with_sequential_numbers_and_defa
 #[tokio::test]
 async fn zero_lines_are_dropped_and_one_kept_line_gives_the_exact_message() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
     seed_fixture(conn, &[("cash", "cash"), ("sales", "sales")]).await;
     drop(db_guard);
 
+    // `resolvePosting` (core.ts) drops the zero line, then checks the balance BEFORE the
+    // two-line minimum — so a lone one-sided line is refused as unbalanced, exactly like the mock.
     let result: Result<_, AppError> = with_tx(&test_db.state, TxOpts::default(), |txn, cx| {
         Box::pin(async move {
             let req = PostJournal::new(
@@ -258,15 +265,31 @@ async fn zero_lines_are_dropped_and_one_kept_line_gives_the_exact_message() {
         }) as BoxFuture<'_, Result<_, TxError>>
     })
     .await;
+    assert_eq!(result.unwrap_err().to_string(), "القيد غير متوازن: المدين 10 ≠ الدائن 0");
 
-    let err = result.unwrap_err();
-    assert_eq!(err.to_string(), "يجب أن يحتوي القيد على سطرين على الأقل");
+    // One kept line that balances on its own (debit = credit) passes the balance check and hits
+    // the two-line minimum, after the zero line is dropped.
+    let result: Result<_, AppError> = with_tx(&test_db.state, TxOpts::default(), |txn, cx| {
+        Box::pin(async move {
+            let mut both_sides = PostingLine::debit(AccountRef::Role(cash_role()), dec!(10));
+            both_sides.credit = dec!(10);
+            let req = PostJournal::new(
+                chrono::Utc::now().date_naive(),
+                "قيد سطر واحد",
+                JournalEntryType::Manual,
+                vec![both_sides, PostingLine::credit(AccountRef::Role(sales_role()), Decimal::ZERO)],
+            );
+            post(txn, cx, req).await
+        }) as BoxFuture<'_, Result<_, TxError>>
+    })
+    .await;
+    assert_eq!(result.unwrap_err().to_string(), "يجب أن يحتوي القيد على سطرين على الأقل");
 }
 
 #[tokio::test]
 async fn unbalanced_post_gives_the_exact_arabic_message() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
@@ -296,7 +319,7 @@ async fn unbalanced_post_gives_the_exact_arabic_message() {
 #[tokio::test]
 async fn group_account_is_refused() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
@@ -327,7 +350,7 @@ async fn group_account_is_refused() {
 #[tokio::test]
 async fn missing_role_gives_the_label_message() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
@@ -357,7 +380,7 @@ async fn missing_role_gives_the_label_message() {
 #[tokio::test]
 async fn period_lock_date_and_closed_year_are_refused_unless_allowed() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
@@ -444,7 +467,7 @@ async fn period_lock_date_and_closed_year_are_refused_unless_allowed() {
 #[tokio::test]
 async fn reverse_keep_vs_default_dimensions_and_both_reason_variants_and_double_reversal_refused() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
@@ -535,7 +558,7 @@ async fn reverse_keep_vs_default_dimensions_and_both_reason_variants_and_double_
 #[tokio::test]
 async fn draft_post_draft_keeps_id_and_number_and_removes_the_draft() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
@@ -586,15 +609,24 @@ async fn draft_post_draft_keeps_id_and_number_and_removes_the_draft() {
 #[tokio::test]
 async fn effects_ledger_always_touched_parties_only_with_a_party_line() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
     seed_fixture(conn, &[("cash", "cash"), ("sales", "sales"), ("receivable", "receivable")]).await;
+    // The party line's `(party_id, party_kind)` composite FK needs a real customer row.
+    let party_id = Id::new();
+    conn.execute(sea_orm::Statement::from_sql_and_values(
+        conn.get_database_backend(),
+        "INSERT INTO parties (id, kind, type, code, name) VALUES (?, 'customer', 'individual', ?, 'عميل تجريبي')",
+        [party_id.to_string().into(), support::unique_code("C").into()],
+    ))
+    .await
+    .expect("party insert must succeed");
     drop(db_guard);
 
     // No party line: only Ledger touched.
-    let _: Result<_, AppError> = with_tx(&test_db.state, TxOpts::default(), |txn, cx| {
+    let posted: Result<_, AppError> = with_tx(&test_db.state, TxOpts::default(), |txn, cx| {
         Box::pin(async move {
             let req = PostJournal::new(
                 chrono::Utc::now().date_naive(),
@@ -609,13 +641,13 @@ async fn effects_ledger_always_touched_parties_only_with_a_party_line() {
         }) as BoxFuture<'_, Result<_, TxError>>
     })
     .await;
+    posted.expect("the posting must succeed");
     assert_eq!(test_db.state.change_seen.lock().unwrap().get(&ChangeCategory::Parties).copied(), None);
     let ledger_after_first = test_db.state.change_seen.lock().unwrap().get(&ChangeCategory::Ledger).copied();
     assert_eq!(ledger_after_first, Some(1));
 
     // A party line touches Parties too.
-    let party_id = Id::new();
-    let _: Result<_, AppError> = with_tx(&test_db.state, TxOpts::default(), |txn, cx| {
+    let posted: Result<_, AppError> = with_tx(&test_db.state, TxOpts::default(), |txn, cx| {
         Box::pin(async move {
             let req = PostJournal::new(
                 chrono::Utc::now().date_naive(),
@@ -633,6 +665,7 @@ async fn effects_ledger_always_touched_parties_only_with_a_party_line() {
         }) as BoxFuture<'_, Result<_, TxError>>
     })
     .await;
+    posted.expect("the posting must succeed");
     assert_eq!(test_db.state.change_seen.lock().unwrap().get(&ChangeCategory::Parties).copied(), Some(1));
     let ledger_after_second = test_db.state.change_seen.lock().unwrap().get(&ChangeCategory::Ledger).copied();
     assert_eq!(ledger_after_second, Some(2));
@@ -641,7 +674,7 @@ async fn effects_ledger_always_touched_parties_only_with_a_party_line() {
 #[tokio::test]
 async fn trace_ring_gets_the_entry_after_commit_and_nothing_after_a_rollback() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
@@ -690,7 +723,7 @@ async fn trace_ring_gets_the_entry_after_commit_and_nothing_after_a_rollback() {
 #[tokio::test]
 async fn resolve_account_precedence_and_inactive_soft_deleted_excluded() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
@@ -778,7 +811,7 @@ async fn resolve_account_precedence_and_inactive_soft_deleted_excluded() {
 #[tokio::test]
 async fn twenty_concurrent_posts_get_distinct_sequential_numbers_with_no_gaps() {
     let test_db = std::sync::Arc::new(TestDb::fresh().await);
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     {
         let db_guard = test_db.state.db.read().unwrap();
@@ -825,7 +858,7 @@ async fn twenty_concurrent_posts_get_distinct_sequential_numbers_with_no_gaps() 
 #[tokio::test]
 async fn closing_a_year_blocks_a_concurrent_poster_then_refuses_it() {
     let test_db = std::sync::Arc::new(TestDb::fresh().await);
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let fy_id = Id::new();
     let today = chrono::Utc::now().date_naive();

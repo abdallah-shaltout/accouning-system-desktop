@@ -2,7 +2,7 @@
 //! the deferred time-boxed test pass (per-implementer hard rule: never run cargo from this agent).
 //! Needs `EQUAL_TEST_DATABASE_URL` — see `tests/support/mod.rs`.
 
-mod support;
+use crate::support;
 
 use std::sync::Arc;
 
@@ -10,7 +10,11 @@ use chrono::Datelike;
 
 use accounting_app_lib::core::auth::{AuthenticatedUser, Role};
 use accounting_app_lib::core::error::AppError;
-use accounting_app_lib::core::tx::{with_tx, BoxFuture, TxOpts};
+use accounting_app_lib::core::tx::{with_tx, BoxFuture, TxCtx, TxOpts};
+use accounting_app_lib::entities::journal::journal_entries::JournalEntryType;
+use accounting_app_lib::entities::journal::journal_lines::PartyKind as JournalPartyKind;
+use accounting_app_lib::shared::ledger::accounts::SystemRole;
+use accounting_app_lib::shared::ledger::{post, AccountRef, PartyRef, PostJournal, PostingLine, SourceRef};
 use accounting_app_lib::domains::payments::dto::{
     AllocationInputTargetKind, AllocationStatus, PartyKind, PaymentAllocationInput, PaymentInput, PaymentTenderKind, PaymentTypeDto,
 };
@@ -28,7 +32,9 @@ use rust_decimal_macros::dec;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, Set};
 use support::TestDb;
 
-fn log_in(test_db: &TestDb) -> Id {
+/// Logs in an admin session whose `users` row exists (FK target of `journal_entries.created_by`,
+/// `audit.user_id`, documents' `created_by`/`cashier_id`, …).
+async fn log_in(test_db: &TestDb) -> Id {
     let user_id = Id::new();
     let user = AuthenticatedUser {
         id: user_id,
@@ -39,6 +45,8 @@ fn log_in(test_db: &TestDb) -> Id {
         price_list_id: None,
         max_discount: None,
     };
+    let connection = test_db.state.db.read().unwrap().as_ref().expect("test db connected").connection.clone();
+    support::seed_user(&connection, user_id, "admin").await;
     *test_db.state.session.write().unwrap() = Some(user);
     user_id
 }
@@ -107,6 +115,8 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
     };
     branch.insert(conn).await.unwrap();
 
+    support::seed_currency(conn, "SAR").await;
+    support::seed_currency(conn, "USD").await; // the FC tests tag invoices/receipts in USD
     let settings_row = settings::ActiveModel {
         id: Set(Id::new()),
         singleton: Set(1),
@@ -171,6 +181,9 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
     let _bank_id = seed_role_account(conn, "1120", "bank", None).await;
     let _fx_gain_id = seed_role_account(conn, "4900", "fxGain", None).await;
     let _fx_loss_id = seed_role_account(conn, "5900", "fxLoss", None).await;
+    // The seeded invoices/POs post their own AR/AP entries (see `post_document_entry`) against these.
+    let _sales_id = seed_role_account(conn, "4100", "sales", None).await;
+    let _freight_in_id = seed_role_account(conn, "5200", "freightIn", None).await;
 
     let customer_id = Id::new();
     let customer = parties::ActiveModel {
@@ -258,12 +271,16 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
 #[allow(clippy::too_many_arguments)]
 async fn seed_invoice<C: ConnectionTrait>(
     conn: &C,
+    cx: &TxCtx,
     customer_id: Id,
     number: &str,
     grand_total: Decimal,
     currency: Option<&str>,
     exchange_rate: Option<Decimal>,
 ) -> Id {
+    // `invoices.cashier_id` FKs to `users`.
+    let cashier_id = Id::new();
+    support::seed_user(conn, cashier_id, "cashier").await;
     let id = Id::new();
     let now = chrono::Utc::now();
     let invoice = invoices::ActiveModel {
@@ -272,7 +289,7 @@ async fn seed_invoice<C: ConnectionTrait>(
         date_day: Set(now.date_naive()),
         date_instant: Set(None),
         customer_id: Set(Some(customer_id)),
-        cashier_id: Set(Id::new()),
+        cashier_id: Set(cashier_id),
         status: Set(invoices::InvoiceStatus::Completed),
         payment_status: Set(invoices::PaymentStatus::Unpaid),
         sub_total: Set(grand_total),
@@ -305,10 +322,46 @@ async fn seed_invoice<C: ConnectionTrait>(
         sync_status: Set(invoices::SyncStatus::Local),
     };
     invoice.insert(conn).await.unwrap();
+    // Dr receivable (customer, FC-tagged at the invoice's rate) / Cr sales: without the invoice's own
+    // posting the ledger would not carry the receivable its outstanding claims (`customer-allocation`).
+    let fc = currency.zip(exchange_rate).map(|(c, rate)| (c.to_string(), grand_total, rate));
+    let base = fc.as_ref().map(|(_, amount, rate)| accounting_app_lib::utils::money::round2(*amount * *rate)).unwrap_or(grand_total);
+    post_document_entry(conn, cx, "invoice", id, number, SystemRole::Receivable, SystemRole::Sales, base, (JournalPartyKind::Customer, customer_id), fc).await;
     id
 }
 
-async fn seed_purchase_order<C: ConnectionTrait>(conn: &C, supplier_id: Id, number: &str, grand_total: Decimal) -> Id {
+/// Posts a directly-seeded document's own entry: the party line on `party_role` (AR debit / AP
+/// credit), the other side on `other_role`, FC-tagged when `fc = (currency, amount_fc, rate)`.
+#[allow(clippy::too_many_arguments)]
+async fn post_document_entry<C: ConnectionTrait>(
+    conn: &C,
+    cx: &TxCtx,
+    source_kind: &str,
+    source_id: Id,
+    number: &str,
+    party_role: SystemRole,
+    other_role: SystemRole,
+    base: Decimal,
+    party: (JournalPartyKind, Id),
+    fc: Option<(String, Decimal, Decimal)>,
+) {
+    let is_receivable = party_role == SystemRole::Receivable;
+    let mut party_line =
+        if is_receivable { PostingLine::debit(AccountRef::Role(party_role), base) } else { PostingLine::credit(AccountRef::Role(party_role), base) };
+    party_line.party = Some(PartyRef { kind: party.0, id: party.1 });
+    if let Some((currency, amount_fc, rate)) = fc {
+        party_line.currency = Some(currency);
+        party_line.amount_fc = Some(amount_fc);
+        party_line.rate = Some(rate);
+    }
+    let other_line =
+        if is_receivable { PostingLine::credit(AccountRef::Role(other_role), base) } else { PostingLine::debit(AccountRef::Role(other_role), base) };
+    let mut req = PostJournal::new(cx.clock.today(), format!("{source_kind} {number}"), JournalEntryType::System, vec![party_line, other_line]);
+    req.source = Some(SourceRef { kind: source_kind.to_string(), id: source_id, number: Some(number.to_string()) });
+    post(conn, cx, req).await.unwrap();
+}
+
+async fn seed_purchase_order<C: ConnectionTrait>(conn: &C, cx: &TxCtx, supplier_id: Id, number: &str, grand_total: Decimal) -> Id {
     let id = Id::new();
     let now = chrono::Utc::now();
     let po = purchase_orders::ActiveModel {
@@ -347,13 +400,16 @@ async fn seed_purchase_order<C: ConnectionTrait>(conn: &C, supplier_id: Id, numb
         sync_status: Set(purchase_orders::SyncStatus::Local),
     };
     po.insert(conn).await.unwrap();
+    // Cr payable (supplier) / Dr freightIn as a stand-in for the received goods: the fixture PO has
+    // no product lines, so debiting inventory would break `inventory-gl`.
+    post_document_entry(conn, cx, "purchaseOrder", id, number, SystemRole::Payable, SystemRole::FreightIn, grand_total, (JournalPartyKind::Supplier, supplier_id), None).await;
     id
 }
 
 #[tokio::test]
 async fn create_payment_receipt_no_allocation_posts_unallocated() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let (fixture_customer_id, payment) = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -407,15 +463,15 @@ async fn create_payment_receipt_no_allocation_posts_unallocated() {
 #[tokio::test]
 async fn create_payment_receipt_allocated_to_two_invoices_updates_paid_amount() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let (invoice1, invoice2, payment) = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
-            let invoice1 = seed_invoice(tx, fixture.customer_id, "INV-0001", dec!(300), None, None).await;
-            let invoice2 = seed_invoice(tx, fixture.customer_id, "INV-0002", dec!(200), None, None).await;
+            let invoice1 = seed_invoice(tx, cx, fixture.customer_id, "INV-0001", dec!(300), None, None).await;
+            let invoice2 = seed_invoice(tx, cx, fixture.customer_id, "INV-0002", dec!(200), None, None).await;
 
             let input = PaymentInput {
                 date: cx.clock.today().format("%Y-%m-%d").to_string(),
@@ -465,14 +521,14 @@ async fn create_payment_receipt_allocated_to_two_invoices_updates_paid_amount() 
 #[tokio::test]
 async fn create_payment_supplier_against_received_po() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let (po_id, payment) = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
-            let po_id = seed_purchase_order(tx, fixture.supplier_id, "PO-0001", dec!(400)).await;
+            let po_id = seed_purchase_order(tx, cx, fixture.supplier_id, "PO-0001", dec!(400)).await;
 
             let input = PaymentInput {
                 date: cx.clock.today().format("%Y-%m-%d").to_string(),
@@ -514,7 +570,7 @@ async fn create_payment_supplier_against_received_po() {
 #[tokio::test]
 async fn create_payment_fx_gain_on_usd_invoice() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     // Invoice: 100 USD at 3.75 -> grand_total (FC) = 100, outstanding base = 375.
@@ -523,7 +579,7 @@ async fn create_payment_fx_gain_on_usd_invoice() {
         let undo = undo.clone();
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
-            let invoice_id = seed_invoice(tx, fixture.customer_id, "INV-0003", dec!(100), Some("USD"), Some(dec!(3.75))).await;
+            let invoice_id = seed_invoice(tx, cx, fixture.customer_id, "INV-0003", dec!(100), Some("USD"), Some(dec!(3.75))).await;
 
             let input = PaymentInput {
                 date: cx.clock.today().format("%Y-%m-%d").to_string(),
@@ -567,14 +623,14 @@ async fn create_payment_fx_gain_on_usd_invoice() {
 #[tokio::test]
 async fn create_payment_base_currency_partial_against_fc_invoice_is_refused() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let result = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
-            let invoice_id = seed_invoice(tx, fixture.customer_id, "INV-0004", dec!(100), Some("USD"), Some(dec!(3.75))).await;
+            let invoice_id = seed_invoice(tx, cx, fixture.customer_id, "INV-0004", dec!(100), Some("USD"), Some(dec!(3.75))).await;
 
             let input = PaymentInput {
                 date: cx.clock.today().format("%Y-%m-%d").to_string(),
@@ -605,7 +661,7 @@ async fn create_payment_base_currency_partial_against_fc_invoice_is_refused() {
 #[tokio::test]
 async fn allocate_later_then_remove_allocation_round_trips() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let undo1 = undo.clone();
@@ -613,7 +669,7 @@ async fn allocate_later_then_remove_allocation_round_trips() {
         let undo = undo1.clone();
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
-            let invoice_id = seed_invoice(tx, fixture.customer_id, "INV-0005", dec!(500), None, None).await;
+            let invoice_id = seed_invoice(tx, cx, fixture.customer_id, "INV-0005", dec!(500), None, None).await;
 
             let input = PaymentInput {
                 date: cx.clock.today().format("%Y-%m-%d").to_string(),
@@ -685,7 +741,7 @@ async fn allocate_later_then_remove_allocation_round_trips() {
 #[tokio::test]
 async fn remove_allocation_with_realized_fx_is_refused() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let undo1 = undo.clone();
@@ -693,7 +749,7 @@ async fn remove_allocation_with_realized_fx_is_refused() {
         let undo = undo1.clone();
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
-            let invoice_id = seed_invoice(tx, fixture.customer_id, "INV-0006", dec!(100), Some("USD"), Some(dec!(3.75))).await;
+            let invoice_id = seed_invoice(tx, cx, fixture.customer_id, "INV-0006", dec!(100), Some("USD"), Some(dec!(3.75))).await;
 
             let input = PaymentInput {
                 date: cx.clock.today().format("%Y-%m-%d").to_string(),
@@ -736,7 +792,7 @@ async fn remove_allocation_with_realized_fx_is_refused() {
 #[tokio::test]
 async fn get_payment_unknown_id_is_not_found() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let result = with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| {
         Box::pin(async move { service::read::get_payment(tx, Id::new()).await }) as BoxFuture<'_, accounting_app_lib::core::tx::TxResult<accounting_app_lib::domains::payments::dto::PaymentRow>>
@@ -753,14 +809,14 @@ async fn get_payment_unknown_id_is_not_found() {
 #[tokio::test]
 async fn over_allocation_beyond_payment_amount_is_refused() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let result = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
-            let invoice_id = seed_invoice(tx, fixture.customer_id, "INV-0007", dec!(1000), None, None).await;
+            let invoice_id = seed_invoice(tx, cx, fixture.customer_id, "INV-0007", dec!(1000), None, None).await;
 
             let input = PaymentInput {
                 date: cx.clock.today().format("%Y-%m-%d").to_string(),
@@ -791,7 +847,7 @@ async fn over_allocation_beyond_payment_amount_is_refused() {
 #[tokio::test]
 async fn list_payments_filters_and_search() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -863,14 +919,14 @@ async fn list_payments_filters_and_search() {
 #[tokio::test]
 async fn payments_for_invoice_returns_only_received_allocated_ones() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let invoice_id = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
         Box::pin(async move {
             let fixture = seed_fixture(tx).await;
-            let invoice_id = seed_invoice(tx, fixture.customer_id, "INV-0008", dec!(500), None, None).await;
+            let invoice_id = seed_invoice(tx, cx, fixture.customer_id, "INV-0008", dec!(500), None, None).await;
             let input = PaymentInput {
                 date: cx.clock.today().format("%Y-%m-%d").to_string(),
                 r#type: PaymentTypeDto::Received,
@@ -904,7 +960,7 @@ async fn payments_for_invoice_returns_only_received_allocated_ones() {
 #[tokio::test]
 async fn create_payment_period_locked_refuses_with_forbidden() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let result = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -948,6 +1004,268 @@ async fn create_payment_period_locked_refuses_with_forbidden() {
             use sea_orm::PaginatorTrait;
             let count = accounting_app_lib::entities::payments::payments::Entity::find().count(tx).await.unwrap();
             assert_eq!(count, 0, "a period-locked create_payment must write nothing");
+            Ok(())
+        }) as BoxFuture<'_, accounting_app_lib::core::tx::TxResult<()>>
+    })
+    .await
+    .unwrap();
+}
+
+/// ACC-0015 helper: the payment's journal lines, per entry (ordered by entry number, then position),
+/// as `(system_role, debit, credit, amount_fc, rate)`.
+async fn payment_entry_lines<C: ConnectionTrait>(conn: &C, payment_id: Id) -> Vec<Vec<(String, Decimal, Decimal, Option<Decimal>, Option<Decimal>)>> {
+    use accounting_app_lib::entities::journal::{journal_entries, journal_lines};
+    use sea_orm::{ColumnTrait, QueryFilter, QueryOrder};
+    let entries = journal_entries::Entity::find()
+        .filter(journal_entries::Column::SourceKind.eq("payment"))
+        .filter(journal_entries::Column::SourceId.eq(payment_id))
+        .order_by_asc(journal_entries::Column::Number)
+        .all(conn)
+        .await
+        .unwrap();
+    let mut out = Vec::new();
+    for e in entries {
+        let lines = journal_lines::Entity::find()
+            .filter(journal_lines::Column::JournalEntryId.eq(e.id))
+            .order_by_asc(journal_lines::Column::Position)
+            .all(conn)
+            .await
+            .unwrap();
+        let mut rows = Vec::new();
+        for l in lines {
+            let role = accounts::Entity::find_by_id(l.account_id).one(conn).await.unwrap().unwrap().system_role.unwrap_or_default();
+            rows.push((role, l.debit, l.credit, l.amount_fc, l.rate));
+        }
+        out.push(rows);
+    }
+    out
+}
+
+fn invariant_passed(report: &[invariants::InvariantResult], key: &str) -> bool {
+    report.iter().filter(|r| r.key == key).all(|r| r.passed)
+}
+
+/// ACC-0015: a USD receipt recorded unallocated, then allocated to a USD invoice booked at a lower
+/// rate. The allocate-later FX entry releases the untagged cash (Dr AR 380), settles the invoice at
+/// ITS rate FC-tagged (Cr AR 375 = 100 USD × 3.75) and books the gain (Cr FX gain 5) — not one
+/// 5.00 AR line tagged with the whole 100 USD. `fx-conversion` and `one-active-entry` both hold.
+#[tokio::test]
+async fn allocate_later_fx_entry_tags_the_settled_fc_at_the_invoice_rate() {
+    let test_db = TestDb::fresh().await;
+    log_in(&test_db).await;
+    let undo = Arc::new(UndoRegistry::new());
+
+    let payment_id = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let undo = undo.clone();
+        Box::pin(async move {
+            let fixture = seed_fixture(tx).await;
+            let invoice_id = seed_invoice(tx, cx, fixture.customer_id, "INV-0015", dec!(100), Some("USD"), Some(dec!(3.75))).await;
+            let input = PaymentInput {
+                date: cx.clock.today().format("%Y-%m-%d").to_string(),
+                r#type: PaymentTypeDto::Received,
+                target_type: PartyKind::Customer,
+                target_id: fixture.customer_id,
+                amount: dec!(380),
+                method: PaymentTenderKind::BankTransfer,
+                note: None,
+                allocations: None,
+                branch_id: Some(fixture.branch_id),
+                currency: Some("USD".to_string()),
+                amount_fc: Some(dec!(100)),
+                rate: Some(dec!(3.80)),
+            };
+            let payment = service::create::create_payment(tx, cx, &undo, input).await?;
+            let allocated = service::allocate::allocate_existing_payment(
+                tx,
+                cx,
+                &undo,
+                payment.id,
+                vec![PaymentAllocationInput { target_kind: AllocationInputTargetKind::Invoice, target_id: invoice_id, amount: dec!(380) }],
+            )
+            .await?;
+            assert_eq!(allocated.fx_gain_loss, Some(dec!(5)));
+            Ok(payment.id)
+        }) as BoxFuture<'_, accounting_app_lib::core::tx::TxResult<Id>>
+    })
+    .await
+    .unwrap();
+
+    with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| {
+        Box::pin(async move {
+            let entries = payment_entry_lines(tx, payment_id).await;
+            assert_eq!(entries.len(), 2, "the receipt + one allocate-later FX entry");
+            assert_eq!(
+                entries[1],
+                vec![
+                    ("receivable".to_string(), dec!(380), dec!(0), None, None),
+                    ("receivable".to_string(), dec!(0), dec!(375), Some(dec!(100)), Some(dec!(3.75))),
+                    ("fxGain".to_string(), dec!(0), dec!(5), None, None),
+                ]
+            );
+            let report = invariants::run_all(tx).await.unwrap();
+            assert!(invariant_passed(&report, "fx-conversion"), "fx-conversion failed: {report:?}");
+            assert!(invariant_passed(&report, "one-active-entry"), "one-active-entry failed: {report:?}");
+            Ok(())
+        }) as BoxFuture<'_, accounting_app_lib::core::tx::TxResult<()>>
+    })
+    .await
+    .unwrap();
+}
+
+/// ACC-0015 (PAID side): paying a USD PO booked at 3.75 with USD bought at 3.80 is a LOSS (more base
+/// cash went out than the payable carried). `fx_gain_loss` is −5 and the allocate-later entry
+/// balances: Cr AP 380 (release) / Dr AP 375 (100 USD at 3.75) / Dr FX loss 5. Before the fix the
+/// sign was `cash − ar` (+5, "gain") and the entry could not balance.
+#[tokio::test]
+async fn allocate_later_supplier_payment_books_fx_loss() {
+    let test_db = TestDb::fresh().await;
+    log_in(&test_db).await;
+    let undo = Arc::new(UndoRegistry::new());
+
+    let payment_id = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let undo = undo.clone();
+        Box::pin(async move {
+            let fixture = seed_fixture(tx).await;
+            let po_id = seed_purchase_order(tx, cx, fixture.supplier_id, "PO-0015", dec!(100)).await;
+            let po = purchase_orders::Entity::find_by_id(po_id).one(tx).await.unwrap().unwrap();
+            let mut po_model: purchase_orders::ActiveModel = po.into();
+            po_model.currency = Set(Some("USD".to_string()));
+            po_model.exchange_rate = Set(Some(dec!(3.75)));
+            po_model.update(tx).await.unwrap();
+
+            let input = PaymentInput {
+                date: cx.clock.today().format("%Y-%m-%d").to_string(),
+                r#type: PaymentTypeDto::Paid,
+                target_type: PartyKind::Supplier,
+                target_id: fixture.supplier_id,
+                amount: dec!(380),
+                method: PaymentTenderKind::BankTransfer,
+                note: None,
+                allocations: None,
+                branch_id: Some(fixture.branch_id),
+                currency: Some("USD".to_string()),
+                amount_fc: Some(dec!(100)),
+                rate: Some(dec!(3.80)),
+            };
+            let payment = service::create::create_payment(tx, cx, &undo, input).await?;
+            let allocated = service::allocate::allocate_existing_payment(
+                tx,
+                cx,
+                &undo,
+                payment.id,
+                vec![PaymentAllocationInput { target_kind: AllocationInputTargetKind::PurchaseOrder, target_id: po_id, amount: dec!(380) }],
+            )
+            .await?;
+            assert_eq!(allocated.fx_gain_loss, Some(dec!(-5)));
+            Ok(payment.id)
+        }) as BoxFuture<'_, accounting_app_lib::core::tx::TxResult<Id>>
+    })
+    .await
+    .unwrap();
+
+    with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| {
+        Box::pin(async move {
+            let entries = payment_entry_lines(tx, payment_id).await;
+            assert_eq!(entries.len(), 2);
+            assert_eq!(
+                entries[1],
+                vec![
+                    ("payable".to_string(), dec!(0), dec!(380), None, None),
+                    ("payable".to_string(), dec!(375), dec!(0), Some(dec!(100)), Some(dec!(3.75))),
+                    ("fxLoss".to_string(), dec!(5), dec!(0), None, None),
+                ]
+            );
+            Ok(())
+        }) as BoxFuture<'_, accounting_app_lib::core::tx::TxResult<()>>
+    })
+    .await
+    .unwrap();
+}
+
+/// ACC-0014: a payment refused by the lock date (committed in an earlier transaction, like a real
+/// user's settings) leaves no trace — no payment row, the invoice's paid amount untouched, and the
+/// next accepted payment still gets the first number.
+#[tokio::test]
+async fn refused_payment_consumes_no_number_and_touches_no_invoice() {
+    let test_db = TestDb::fresh().await;
+    log_in(&test_db).await;
+    let undo = Arc::new(UndoRegistry::new());
+
+    let (fixture_customer, fixture_branch, invoice_id) = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        Box::pin(async move {
+            let fixture = seed_fixture(tx).await;
+            let invoice_id = seed_invoice(tx, cx, fixture.customer_id, "INV-0014", dec!(200), None, None).await;
+            Ok((fixture.customer_id, fixture.branch_id, invoice_id))
+        }) as BoxFuture<'_, accounting_app_lib::core::tx::TxResult<(Id, Id, Id)>>
+    })
+    .await
+    .unwrap();
+
+    let receipt = move |date: String| PaymentInput {
+        date,
+        r#type: PaymentTypeDto::Received,
+        target_type: PartyKind::Customer,
+        target_id: fixture_customer,
+        amount: dec!(150),
+        method: PaymentTenderKind::Cash,
+        note: None,
+        allocations: Some(vec![PaymentAllocationInput { target_kind: AllocationInputTargetKind::Invoice, target_id: invoice_id, amount: dec!(150) }]),
+        branch_id: Some(fixture_branch),
+        currency: None,
+        amount_fc: None,
+        rate: None,
+    };
+
+    // Lock everything up to tomorrow, in its own committed transaction.
+    with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        Box::pin(async move {
+            let settings_row = settings::Entity::find().one(tx).await.unwrap().unwrap();
+            let mut model: settings::ActiveModel = settings_row.into();
+            model.accounting = Set(Some(AccountingPolicy { lock_date: Some(cx.clock.today() + chrono::Duration::days(1)), default_purchase_account_id: None }));
+            model.update(tx).await.unwrap();
+            Ok(())
+        }) as BoxFuture<'_, accounting_app_lib::core::tx::TxResult<()>>
+    })
+    .await
+    .unwrap();
+
+    let undo1 = undo.clone();
+    let refused = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let undo = undo1.clone();
+        let input = receipt(cx.clock.today().format("%Y-%m-%d").to_string());
+        Box::pin(async move { service::create::create_payment(tx, cx, &undo, input).await })
+            as BoxFuture<'_, accounting_app_lib::core::tx::TxResult<accounting_app_lib::domains::payments::dto::Payment>>
+    })
+    .await;
+    assert!(matches!(refused, Err(AppError::Forbidden { .. })), "expected FORBIDDEN, got {refused:?}");
+
+    // Unlock and post the same receipt: it gets the FIRST number, and it is the only payment.
+    let accepted = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
+        let undo = undo.clone();
+        let input = receipt(cx.clock.today().format("%Y-%m-%d").to_string());
+        Box::pin(async move {
+            let inv = invoices::Entity::find_by_id(invoice_id).one(tx).await.unwrap().unwrap();
+            assert_eq!(inv.paid_amount, Decimal::ZERO, "the refused payment must not touch the invoice");
+            let settings_row = settings::Entity::find().one(tx).await.unwrap().unwrap();
+            let mut model: settings::ActiveModel = settings_row.into();
+            model.accounting = Set(Some(AccountingPolicy { lock_date: None, default_purchase_account_id: None }));
+            model.update(tx).await.unwrap();
+            service::create::create_payment(tx, cx, &undo, input).await
+        }) as BoxFuture<'_, accounting_app_lib::core::tx::TxResult<accounting_app_lib::domains::payments::dto::Payment>>
+    })
+    .await
+    .unwrap();
+
+    assert!(accepted.number.ends_with("000001"), "the refused payment consumed a number: {}", accepted.number);
+    let accepted_number = accepted.number.clone();
+    with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| {
+        let accepted_number = accepted_number.clone();
+        Box::pin(async move {
+            use sea_orm::PaginatorTrait;
+            let count = accounting_app_lib::entities::payments::payments::Entity::find().count(tx).await.unwrap();
+            assert_eq!(count, 1, "only the accepted payment exists");
+            let first = accounting_app_lib::entities::payments::payments::Entity::find().one(tx).await.unwrap().unwrap();
+            assert_eq!(first.number, accepted_number);
             Ok(())
         }) as BoxFuture<'_, accounting_app_lib::core::tx::TxResult<()>>
     })

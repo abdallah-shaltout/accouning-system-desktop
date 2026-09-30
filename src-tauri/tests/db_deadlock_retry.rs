@@ -1,7 +1,7 @@
 //! Forced-deadlock retry test (phase-a-foundation.md "Tests": "a forced deadlock (two connections,
 //! opposite lock order on a test table) retries and succeeds"). Needs `EQUAL_TEST_DATABASE_URL`.
 
-mod support;
+use crate::support;
 
 use accounting_app_lib::core::error::AppError;
 use accounting_app_lib::core::events::ChangeCategory;
@@ -43,6 +43,11 @@ async fn forced_deadlock_retries_and_succeeds() {
     // A second, independent connection to the same throwaway test database, deliberately taking
     // locks in the opposite order (id=2 then id=1) while `with_tx`'s closure (below) takes id=1
     // then id=2 — the classic two-connection, opposite-lock-order deadlock setup.
+    //
+    // Which side InnoDB rolls back is not random: it picks the *lighter* transaction (fewer rows
+    // changed/locked). So the second connection first inserts a batch of extra rows to make itself
+    // the heavier one, and `with_tx`'s closure is the one to close the cycle (it asks for id=2
+    // last) — `with_tx` is then always the deadlock victim, and its retry is what's under test.
     let second = Database::connect(test_db.db_url.clone()).await.unwrap();
 
     let barrier = std::sync::Arc::new(tokio::sync::Barrier::new(2));
@@ -54,12 +59,16 @@ async fn forced_deadlock_retries_and_succeeds() {
         txn.execute(Statement::from_string(txn.get_database_backend(), "UPDATE deadlock_test SET v = v + 1 WHERE id = 2".to_string()))
             .await
             .unwrap();
+        let ballast: Vec<String> = (100..150).map(|i| format!("({i}, 0)")).collect();
+        txn.execute(Statement::from_string(txn.get_database_backend(), format!("INSERT INTO deadlock_test (id, v) VALUES {}", ballast.join(", "))))
+            .await
+            .unwrap();
         barrier2.wait().await;
-        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
-        let _ = txn
-            .execute(Statement::from_string(txn.get_database_backend(), "UPDATE deadlock_test SET v = v + 1 WHERE id = 1".to_string()))
-            .await;
-        let _ = txn.commit().await;
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        txn.execute(Statement::from_string(txn.get_database_backend(), "UPDATE deadlock_test SET v = v + 1 WHERE id = 1".to_string()))
+            .await
+            .expect("the heavier transaction must survive the deadlock");
+        txn.commit().await.expect("the heavier transaction must commit");
     });
 
     let attempts = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
@@ -70,13 +79,16 @@ async fn forced_deadlock_retries_and_succeeds() {
         let attempts_for_closure = attempts_for_closure.clone();
         let barrier_for_closure = barrier_for_closure.clone();
         Box::pin(async move {
-            attempts_for_closure.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let attempt = attempts_for_closure.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             ctx.touch(ChangeCategory::Ledger);
             txn.execute(Statement::from_string(txn.get_database_backend(), "UPDATE deadlock_test SET v = v + 1 WHERE id = 1".to_string()))
                 .await
                 .map_err(TxError::from)?;
-            barrier_for_closure.wait().await;
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            if attempt == 0 {
+                // Only the first attempt meets the other connection; the retry runs alone.
+                barrier_for_closure.wait().await;
+                tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            }
             txn.execute(Statement::from_string(txn.get_database_backend(), "UPDATE deadlock_test SET v = v + 1 WHERE id = 2".to_string()))
                 .await
                 .map_err(TxError::from)?;
@@ -85,8 +97,17 @@ async fn forced_deadlock_retries_and_succeeds() {
     })
     .await;
 
-    let _ = opposite_order_task.await;
+    opposite_order_task.await.expect("the opposite-order task must not panic");
 
     assert!(result.is_ok(), "with_tx should recover from a deadlock via retry: {result:?}");
     assert!(attempts.load(std::sync::atomic::Ordering::SeqCst) >= 2, "expected at least one retry after the forced deadlock");
+
+    // Both transactions' increments landed exactly once: id=1 and id=2 each +1 from the other
+    // connection and +1 from the (retried) `with_tx` closure.
+    let rows = conn
+        .query_all(Statement::from_string(conn.get_database_backend(), "SELECT v FROM deadlock_test WHERE id IN (1, 2) ORDER BY id".to_string()))
+        .await
+        .unwrap();
+    let values: Vec<i32> = rows.iter().map(|r| r.try_get_by_index::<i32>(0).unwrap()).collect();
+    assert_eq!(values, vec![2, 2]);
 }

@@ -2,7 +2,7 @@
 //! the deferred time-boxed test pass (per-implementer hard rule: never run cargo from this agent).
 //! Needs `EQUAL_TEST_DATABASE_URL` — see `tests/support/mod.rs`.
 
-mod support;
+use crate::support;
 
 use std::sync::Arc;
 
@@ -23,7 +23,9 @@ use rust_decimal_macros::dec;
 use sea_orm::{ActiveModelTrait, ConnectionTrait, DatabaseTransaction, Set};
 use support::TestDb;
 
-fn log_in(test_db: &TestDb) -> Id {
+/// Logs in an admin session whose `users` row exists (FK target of `journal_entries.created_by`,
+/// `audit.user_id`, documents' `created_by`/`cashier_id`, …).
+async fn log_in(test_db: &TestDb) -> Id {
     let user_id = Id::new();
     let user = AuthenticatedUser {
         id: user_id,
@@ -34,6 +36,8 @@ fn log_in(test_db: &TestDb) -> Id {
         price_list_id: None,
         max_discount: None,
     };
+    let connection = test_db.state.db.read().unwrap().as_ref().expect("test db connected").connection.clone();
+    support::seed_user(&connection, user_id, "admin").await;
     *test_db.state.session.write().unwrap() = Some(user);
     user_id
 }
@@ -103,6 +107,7 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
     };
     branch.insert(conn).await.unwrap();
 
+    support::seed_currency(conn, "SAR").await;
     let settings_row = settings::ActiveModel {
         id: Set(Id::new()),
         singleton: Set(1),
@@ -177,7 +182,7 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
         parent_id: Set(None),
         is_group: Set(false),
         kind: Set("EXPENSE".to_string()),
-        subtype: Set("operating".to_string()),
+        subtype: Set("operatingExpense".to_string()),
         normal_side: Set("DEBIT".to_string()),
         system_role: Set(None),
         currency: Set(None),
@@ -289,7 +294,7 @@ fn credit_paid_from(id: Id) -> ExpensePaidFrom {
 #[tokio::test]
 async fn create_expense_cash_no_vat_posts_balanced_entry() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let (category_id, expense) = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -341,7 +346,7 @@ async fn create_expense_cash_no_vat_posts_balanced_entry() {
 #[tokio::test]
 async fn create_expense_tax_invoice_splits_net_and_vat() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let expense = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -383,7 +388,7 @@ async fn create_expense_tax_invoice_splits_net_and_vat() {
 #[tokio::test]
 async fn create_expense_credit_posts_to_payable_with_supplier_party() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let expense = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -427,7 +432,7 @@ async fn create_expense_credit_posts_to_payable_with_supplier_party() {
 #[tokio::test]
 async fn expense_category_validation_messages_in_order() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
 
     let err = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         Box::pin(async move {
@@ -465,7 +470,7 @@ async fn expense_category_validation_messages_in_order() {
 #[tokio::test]
 async fn expense_category_delete_protected_and_in_use_refusals() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     let category_id = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -554,7 +559,7 @@ async fn expense_category_delete_protected_and_in_use_refusals() {
 #[tokio::test]
 async fn list_expenses_filters_by_category_and_search() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -607,7 +612,7 @@ async fn list_expenses_filters_by_category_and_search() {
 #[tokio::test]
 async fn recurring_expense_crud_and_due_list_and_post_due() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db);
+    log_in(&test_db).await;
     let undo = Arc::new(UndoRegistry::new());
 
     with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {

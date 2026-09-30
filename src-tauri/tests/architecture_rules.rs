@@ -29,6 +29,25 @@
 //! write goes through the one shared module) does not apply to them (21.03 G-41).
 //! 8. (02.E E-6) Every `RouteRef::list("…")`/`RouteRef::detail("…", …)` string literal anywhere
 //!    under `src/` must name a route present in `../src/router/route-map.gen.d.ts`.
+//! 9. (21.04 phase A, A-3) Decimal/ts-rs serde drift: `rust_decimal` is built with `serde-with-str`,
+//!    so a bare `Decimal` field serializes as a JSON *string* unless it opts into
+//!    `#[serde(with = "…serde_number")]` — but ts-rs (`#[ts(type = "number")]`) always promises a
+//!    JSON number. A `Decimal`/`Option<Decimal>` DTO field needs a `#[serde(with = "…")]` (or
+//!    `#[serde(default, with = "…")]`) attribute naming a path that ends in `serde_number` (scalar) or
+//!    `serde_number::option` (`Option<Decimal>`); a `BTreeMap<String, Decimal>` needs one ending in
+//!    `totals_map` or `totals_map::required`, and `BTreeMap<String, Option<Decimal>>` one ending in
+//!    `_map` (the local per-DTO map helpers, e.g. `decimal_option_map`, follow the same rule via
+//!    their own inner `serde_number`/`decimal_from_json_value` calls, but naming every such helper
+//!    here would be brittle — this rule only requires *some* `with` attribute to be present, since a
+//!    field with no `with` attribute at all is always the drift bug (serde's raw string default vs.
+//!    ts-rs's number promise), while a *wrong* helper is a logic bug for a human review to catch, not
+//!    a pattern a text scan can verify). A field whose own type already bakes in `serde_number` at
+//!    its definition (e.g. `crate::entities::values::JsonDecimal`, a newtype around `Decimal`) needs
+//!    no field-level attribute — this rule only matches the literal type names `Decimal`/`Option<Decimal>`/
+//!    `BTreeMap<String, Decimal>`/`BTreeMap<String, Option<Decimal>>`, not a wrapper type. Scope:
+//!    `domains/**/dto*.rs`, `domains/**/dto/*.rs`, `core/dto.rs`, `infrastructure/**/dto.rs`. A field
+//!    whose TS type is a string may opt out with a `// serde-ok: <reason>` comment on the line above
+//!    its attributes (none known as of this writing — every Decimal field in scope has a numeric TS type).
 //!
 //! Written to be robust to directories that don't exist yet (`shared/`, `domains/` are Part 03
 //! additions) and structured (`RuleViolation`, one `check_*` function per rule) so later phases can
@@ -475,6 +494,99 @@ fn check_route_ref_names_are_known(root: &Path) -> Vec<Violation> {
     violations
 }
 
+/// Files in scope for rule 9 (A-3): `domains/**/dto*.rs`, `domains/**/dto/*.rs`, `core/dto.rs`,
+/// `infrastructure/**/dto.rs`.
+fn decimal_serde_scope_files(root: &Path) -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let domains = root.join("domains");
+    if domains.exists() {
+        let mut stack = vec![domains];
+        while let Some(dir) = stack.pop() {
+            let Ok(entries) = fs::read_dir(&dir) else { continue };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+                    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                    let parent_is_dto = path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()) == Some("dto");
+                    if (name.starts_with("dto") && name.ends_with(".rs")) || parent_is_dto {
+                        out.push(path);
+                    }
+                }
+            }
+        }
+    }
+    let core_dto = root.join("core").join("dto.rs");
+    if core_dto.exists() {
+        out.push(core_dto);
+    }
+    for file in rs_files_under(root, "infrastructure") {
+        if file.file_name().and_then(|n| n.to_str()) == Some("dto.rs") {
+            out.push(file);
+        }
+    }
+    out
+}
+
+/// Rule 9 (A-3): a `Decimal`/`Option<Decimal>`/`BTreeMap<String, Decimal>`/
+/// `BTreeMap<String, Option<Decimal>>` struct field needs a `#[serde(with = "…")]` (or
+/// `#[serde(default, with = "…")]`) attribute — the one thing that stops `rust_decimal`'s
+/// `serde-with-str` default (a JSON string) from silently drifting away from ts-rs's
+/// `#[ts(type = "number")]` promise. A `// serde-ok: <reason>` comment directly above the field's
+/// attribute block opts a field out (for a TS type that is genuinely a string).
+fn check_decimal_serde(root: &Path) -> Vec<Violation> {
+    let mut violations = Vec::new();
+    for file in decimal_serde_scope_files(root) {
+        let lines = read_lines(&file);
+        for (i, line) in lines.iter().enumerate() {
+            let trimmed = line.trim();
+            let is_decimal_field = trimmed.starts_with("pub ")
+                && (field_type_is(trimmed, "Decimal")
+                    || field_type_is(trimmed, "Option<Decimal>")
+                    || field_type_is(trimmed, "BTreeMap<String, Decimal>")
+                    || field_type_is(trimmed, "BTreeMap<String, Option<Decimal>>"));
+            if !is_decimal_field {
+                continue;
+            }
+            // Walk upward over this field's own attribute lines (and any doc/plain comments
+            // immediately above them) looking for a `#[serde(...with...)]` attribute or a
+            // `serde-ok:` opt-out. Stops at the first line that is neither an attribute nor a
+            // comment — that's the previous field/struct, so nothing above it belongs to this one.
+            let mut has_with = false;
+            let mut opted_out = false;
+            let mut j = i;
+            while j > 0 {
+                j -= 1;
+                let prev = lines[j].trim();
+                if prev.starts_with("#[serde(") && prev.contains("with") {
+                    has_with = true;
+                }
+                if prev.starts_with("// serde-ok:") {
+                    opted_out = true;
+                }
+                let is_attr_or_comment = prev.starts_with('#') || prev.starts_with("///") || prev.starts_with("//!") || prev.starts_with("//") || prev.is_empty();
+                if !is_attr_or_comment {
+                    break;
+                }
+            }
+            if !has_with && !opted_out {
+                violations.push(Violation { rule: "decimal-serde-matches-ts-rs-number", file: file.clone(), line: i + 1, text: line.clone() });
+            }
+        }
+    }
+    violations
+}
+
+/// Whether `trimmed` (a `pub name: <Type>,`-shaped line, possibly without the trailing comma) has
+/// exactly `ty` as its field type — a plain substring match would also match `Option<Decimal>` when
+/// looking for `Decimal`, so this anchors on the `: ` before the type and an optional trailing `,`.
+fn field_type_is(trimmed: &str, ty: &str) -> bool {
+    let Some(after_colon) = trimmed.split_once(": ") else { return false };
+    let candidate = after_colon.1.trim_end_matches(',').trim();
+    candidate == ty
+}
+
 fn contains_word(line: &str, word: &str) -> bool {
     // Cheap word-boundary check without a regex dependency: `word` must not be immediately
     // preceded/followed by an identifier character (so `f64` doesn't false-positive `MyF64Type`
@@ -579,6 +691,56 @@ fn route_ref_names_exist_in_the_generated_route_map() {
     let root = src_root();
     let violations = check_route_ref_names_are_known(&root);
     assert!(violations.is_empty(), "a RouteRef named a route missing from route-map.gen.d.ts:\n{}", format_violations(&violations));
+}
+
+#[test]
+fn decimal_serde_matches_ts_rs_number() {
+    let root = src_root();
+    let violations = check_decimal_serde(&root);
+    assert!(
+        violations.is_empty(),
+        "a Decimal/Option<Decimal>/BTreeMap<String, Decimal> DTO field has no #[serde(with = \"…\")] attribute, so it will serialize as a JSON string while ts-rs promises a number (add the attribute, or `// serde-ok: <reason>` if the TS type is genuinely a string):\n{}",
+        format_violations(&violations)
+    );
+}
+
+/// Rule (Part 04 parity, 2026-09-30): a field ts-rs renders as `field?: T` (`#[ts(optional)]`,
+/// not `optional = nullable`) of type `Option<…>` must omit `None` instead of serializing `null` —
+/// the TS type never allows `null`, and the mock omits the key.
+fn check_ts_optional_skips_none(root: &Path) -> Vec<Violation> {
+    let mut violations = Vec::new();
+    for file in all_rs_files(root) {
+        let lines = read_lines(&file);
+        let mut attrs = String::new();
+        for (i, line) in lines.iter().enumerate() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("#[") || trimmed.starts_with("//") {
+                attrs.push_str(trimmed);
+                continue;
+            }
+            if trimmed.starts_with("pub ")
+                && trimmed.contains(": Option<")
+                && attrs.contains("#[ts(optional")
+                && !attrs.contains("optional = nullable")
+                && !attrs.contains("skip_serializing_if")
+            {
+                violations.push(Violation { rule: "ts-optional-must-skip-none", file: file.clone(), line: i + 1, text: line.clone() });
+            }
+            attrs.clear();
+        }
+    }
+    violations
+}
+
+#[test]
+fn ts_optional_fields_omit_none() {
+    let root = src_root();
+    let violations = check_ts_optional_skips_none(&root);
+    assert!(
+        violations.is_empty(),
+        "a #[ts(optional)] Option field has no #[serde(skip_serializing_if = \"Option::is_none\")], so it serializes null while ts-rs promises `field?: T`:\n{}",
+        format_violations(&violations)
+    );
 }
 
 fn format_violations(violations: &[Violation]) -> String {

@@ -6,15 +6,17 @@
       "storeName": "متجر الاختبار",
       "currency": "",
       "theme": "dark",
-      "printer": { "mode": "a4" }
+      "invoiceNumberPrefix": "INV-",
+      "pricesIncludeTax": true,
+      "printer": { "mode": "a4", "thermalWidthMm": 80 }
     },
     "branches": [
-      { "id": "branch-main", "name": "الفرع الرئيسي", "code": "MAIN" }
+      { "id": "branch-main", "name": "الفرع الرئيسي", "code": "MAIN", "active": true, "canDelete": false }
     ],
     "accounts": [
-      { "id": "acc-cash", "code": "1010", "name": "الصندوق", "kind": "ASSET", "subtype": "cash", "normalSide": "DEBIT", "systemRole": "cash" },
-      { "id": "acc-sales", "code": "4010", "name": "المبيعات", "kind": "REVENUE", "subtype": "sales", "normalSide": "CREDIT" },
-      { "id": "acc-vat-output", "code": "2110", "name": "ضريبة المخرجات", "kind": "LIABILITY", "subtype": "vatOutput", "normalSide": "CREDIT" }
+      { "id": "acc-cash", "code": "1010", "name": "الصندوق", "kind": "ASSET", "subtype": "cash", "normalSide": "DEBIT", "systemRole": "cash", "active": true, "allowManual": true, "canDelete": false },
+      { "id": "acc-sales", "code": "4010", "name": "المبيعات", "kind": "REVENUE", "subtype": "revenue", "normalSide": "CREDIT", "systemRole": "sales", "active": true, "allowManual": true, "canDelete": false },
+      { "id": "acc-vat-output", "code": "2110", "name": "ضريبة المخرجات", "kind": "LIABILITY", "subtype": "tax", "normalSide": "CREDIT", "systemRole": "vatOutput", "active": true, "allowManual": false, "canDelete": false }
     ],
     "users": [
       { "id": "u-admin", "username": "admin", "name": "المدير", "role": "admin", "maxDiscount": 0 }
@@ -23,7 +25,7 @@
       "admin": "admin123"
     },
     "products": [
-      { "id": "prod-1", "name": "منتج تجريبي", "sku": "SKU-1", "type": "product", "costPrice": 10, "price": 20, "stockQty": 5, "stockValue": 50 }
+      { "id": "prod-1", "name": "منتج تجريبي", "sku": "SKU-1", "type": "product", "costPrice": 10, "price": 20, "stockQty": 0, "stockValue": 0, "active": true }
     ],
     "journalEntries": [
       {
@@ -40,6 +42,23 @@
         "lines": [
           { "accountId": "acc-cash", "debit": 100, "credit": 0 },
           { "accountId": "acc-sales", "debit": 0, "credit": 100 }
+        ]
+      },
+      {
+        "id": "je-inv-1",
+        "number": "JE-000002",
+        "date": "2026-06-01",
+        "description": "فاتورة مبيعات INV-000001",
+        "type": "SYSTEM",
+        "status": "POSTED",
+        "sourceRef": { "kind": "invoice", "id": "inv-1", "number": "INV-000001" },
+        "totalDebit": 115,
+        "totalCredit": 115,
+        "createdBy": "u-admin",
+        "lines": [
+          { "accountId": "acc-cash", "debit": 115, "credit": 0 },
+          { "accountId": "acc-sales", "debit": 0, "credit": 100 },
+          { "accountId": "acc-vat-output", "debit": 0, "credit": 15 }
         ]
       }
     ],
@@ -59,9 +78,12 @@
         "grandTotal": 115,
         "paymentMethod": "cash",
         "paidAmount": 115,
+        "refundedAmount": 0,
+        "tenders": [],
         "lines": [
           {
-            "productId": "freetext-1",
+            "id": "inv-1-l1",
+            "productId": "freetext-0",
             "name": "سطر نصي حر",
             "qty": 1,
             "price": 100,
@@ -91,11 +113,9 @@
         "heldBy": "u-admin",
         "discountRate": 0,
         "discountIsPct": true,
-        "cart": {
-          "lines": [
-            { "productId": "prod-1", "qty": 1 }
-          ]
-        }
+        "lines": [
+          { "productId": "prod-1", "qty": 1, "price": 20 }
+        ]
       }
     ],
     "audit": [

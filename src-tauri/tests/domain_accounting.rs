@@ -4,7 +4,7 @@
 //!
 //! Period-close (12b) tests are in `domain_accounting_period.rs`.
 
-mod support;
+use crate::support;
 
 use std::sync::Arc;
 
@@ -26,8 +26,11 @@ use accounting_app_lib::shared::invariants;
 use accounting_app_lib::utils::id::Id;
 use support::TestDb;
 
-fn log_in(test_db: &TestDb, role: Role) -> Id {
+async fn log_in(test_db: &TestDb, role: Role) -> Id {
     let user_id = Id::new();
+    // The session user must exist: `journal_entries.created_by`, `audit.user_id`, … FK to `users`.
+    let conn = test_db.state.db.read().unwrap().as_ref().unwrap().connection.clone();
+    support::seed_user(&conn, user_id, &format!("{role:?}").to_lowercase()).await;
     let user = AuthenticatedUser {
         id: user_id,
         username: "test".to_string(),
@@ -156,6 +159,7 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Fixture {
     };
     branch.insert(conn).await.unwrap();
 
+    support::seed_currency(conn, "SAR").await;
     let settings_row = settings::ActiveModel {
         id: Set(Id::new()),
         singleton: Set(1),
@@ -309,7 +313,7 @@ fn line(account_id: Id, debit: Decimal, credit: Decimal) -> JournalEntryInputLin
 #[tokio::test]
 async fn save_account_creates_and_validates_code_format() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
 
     let result = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         Box::pin(async move {
@@ -367,7 +371,7 @@ async fn save_account_creates_and_validates_code_format() {
 #[tokio::test]
 async fn save_account_refuses_duplicate_code() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
 
     let outcome = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         Box::pin(async move {
@@ -404,8 +408,8 @@ async fn save_account_refuses_duplicate_code() {
 #[tokio::test]
 async fn delete_account_refuses_when_postings_exist() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
-    let undo = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
 
     let outcome = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
@@ -442,8 +446,8 @@ async fn delete_account_refuses_when_postings_exist() {
 #[tokio::test]
 async fn create_journal_entry_posts_balanced_manual_entry() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
-    let undo = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
 
     let entry = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
@@ -478,8 +482,8 @@ async fn create_journal_entry_posts_balanced_manual_entry() {
 #[tokio::test]
 async fn manual_journal_refuses_posting_to_non_manual_account() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
-    let undo = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
 
     let outcome = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
@@ -512,8 +516,8 @@ async fn manual_journal_refuses_posting_to_non_manual_account() {
 #[tokio::test]
 async fn manual_journal_requires_party_on_control_account() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
-    let undo = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
 
     let outcome = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
@@ -546,8 +550,8 @@ async fn manual_journal_requires_party_on_control_account() {
 #[tokio::test]
 async fn draft_lifecycle_save_update_post_delete() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
-    let undo = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
 
     let (draft_id, posted) = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
@@ -605,8 +609,8 @@ async fn draft_lifecycle_save_update_post_delete() {
 #[tokio::test]
 async fn reverse_journal_entry_requires_reason_and_blocks_double_reversal() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
-    let undo = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
 
     with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
@@ -672,8 +676,8 @@ async fn reverse_journal_entry_requires_reason_and_blocks_double_reversal() {
 #[tokio::test]
 async fn save_and_post_recurring_template_advances_next_date() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
-    let undo = Arc::new(UndoRegistry::new());
+    log_in(&test_db, Role::Admin).await;
+    let undo = test_db.state.undo.clone();
 
     let (first_next, second_next) = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let undo = undo.clone();
@@ -734,7 +738,7 @@ async fn save_and_post_recurring_template_advances_next_date() {
 #[tokio::test]
 async fn undo_create_journal_entry_reverses_it_via_registry() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let mut registry = UndoRegistry::new();
     accounting_app_lib::domains::accounting::register_undo(&mut registry);
     let registry = Arc::new(registry);

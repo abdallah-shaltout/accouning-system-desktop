@@ -5,9 +5,8 @@
 //! now per the manager's "implementers write tests, never run cargo" decision; run in the deferred,
 //! time-boxed DB test pass.
 
-mod support;
+use crate::support;
 
-use std::sync::Arc;
 
 use chrono::Datelike;
 use rust_decimal::Decimal;
@@ -24,7 +23,7 @@ use accounting_app_lib::domains::diagnostics::dto::AuditFilter;
 use accounting_app_lib::domains::diagnostics::service::audit as audit_service;
 use accounting_app_lib::domains::diagnostics::service::debugger as debugger_service;
 use accounting_app_lib::domains::diagnostics::service::support as support_service;
-use accounting_app_lib::entities::org::{accounts, branches, fiscal_years, settings};
+use accounting_app_lib::entities::org::{accounts, branches, fiscal_years, settings, users};
 use accounting_app_lib::entities::platform::activity::ActivityKind;
 use accounting_app_lib::entities::values::{AccountingPolicy, PrinterMode, PrinterSettings};
 use accounting_app_lib::shared::activity::undo::UndoRegistry;
@@ -34,11 +33,50 @@ use accounting_app_lib::utils::id::Id;
 use accounting_app_lib::utils::route::RouteRef;
 use support::TestDb;
 
-fn log_in(test_db: &TestDb, role: Role) -> Id {
+/// Inserts a real `users` row for the session (the audit/activity `user_id` FKs reference it — a
+/// random id with no row makes every audit write an FK violation) and signs it in.
+async fn log_in(test_db: &TestDb, role: Role) -> Id {
     let user_id = Id::new();
+    let username = format!("test-{user_id}");
+    let role_name = match role {
+        Role::Admin => "admin",
+        Role::Manager => "manager",
+        Role::Accountant => "accountant",
+        Role::Cashier => "cashier",
+        Role::Storekeeper => "storekeeper",
+    };
+    let (u, r) = (username.clone(), role_name.to_string());
+    with_tx(&test_db.state, TxOpts { require_user: false }, move |tx, _cx| {
+        let (u, r) = (u.clone(), r.clone());
+        Box::pin(async move {
+            let now = chrono::Utc::now();
+            users::ActiveModel {
+                id: Set(user_id),
+                username: Set(u),
+                name: Set("مستخدم تجريبي".to_string()),
+                phone: Set(None),
+                role: Set(r),
+                max_discount: Set(rust_decimal::Decimal::ZERO),
+                price_list_id: Set(None),
+                active: Set(true),
+                avatar: Set(None),
+                allowed_branches: Set(None),
+                home_branch: Set(None),
+                created_at: Set(now),
+                updated_at: Set(now),
+                deleted_at: Set(None),
+                sync_status: Set("local".to_string()),
+            }
+            .insert(tx)
+            .await?;
+            Ok(())
+        }) as BoxFuture<'_, TxResult<()>>
+    })
+    .await
+    .expect("seed session user must succeed");
     let user = AuthenticatedUser {
         id: user_id,
-        username: "test".to_string(),
+        username,
         role,
         home_branch_id: Id::new(),
         allowed_branches: vec![],
@@ -68,7 +106,7 @@ async fn write_activity(test_db: &TestDb, kind: ActivityKind, message: &str, lin
 #[tokio::test]
 async fn audit_entries_come_back_newest_first() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
 
     write_activity(&test_db, ActivityKind::Party, "أول عملية", None).await;
     write_activity(&test_db, ActivityKind::Party, "ثاني عملية", None).await;
@@ -91,10 +129,10 @@ async fn audit_entries_come_back_newest_first() {
 #[tokio::test]
 async fn audit_entries_filter_by_user_entity_and_action() {
     let test_db = TestDb::fresh().await;
-    let user_a = log_in(&test_db, Role::Admin);
+    let user_a = log_in(&test_db, Role::Admin).await;
     write_activity(&test_db, ActivityKind::Party, "من المستخدم أ", None).await;
 
-    let user_b = log_in(&test_db, Role::Admin);
+    let user_b = log_in(&test_db, Role::Admin).await;
     write_activity(&test_db, ActivityKind::Product, "من المستخدم ب", None).await;
 
     let by_user = with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| {
@@ -127,7 +165,7 @@ async fn audit_entries_filter_by_user_entity_and_action() {
 #[tokio::test]
 async fn audit_entries_search_matches_message_entity_id_and_label_case_insensitively() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     write_activity(&test_db, ActivityKind::Party, "تحديث بيانات العميل Ahmed", None).await;
 
     let hits = with_tx(&test_db.state, TxOpts::default(), |tx, _cx| {
@@ -150,7 +188,7 @@ async fn audit_entries_search_matches_message_entity_id_and_label_case_insensiti
 #[tokio::test]
 async fn audit_entries_from_to_compare_the_utc_date_slice_not_business_day() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     write_activity(&test_db, ActivityKind::Party, "قيد اليوم", None).await;
 
     let today_key = chrono::Utc::now().format("%Y-%m-%d").to_string();
@@ -179,7 +217,7 @@ async fn audit_entries_from_to_compare_the_utc_date_slice_not_business_day() {
 #[tokio::test]
 async fn audit_entities_are_distinct_and_code_point_sorted() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     // `ActivityKind::Party`'s default entity is "party"; log two so distinctness is exercised too.
     write_activity(&test_db, ActivityKind::Party, "قيد أول", None).await;
     write_activity(&test_db, ActivityKind::Party, "قيد ثانٍ", None).await;
@@ -199,10 +237,13 @@ async fn audit_entities_are_distinct_and_code_point_sorted() {
 #[tokio::test]
 async fn cashier_cannot_read_audit_entries_forbidden() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Cashier);
+    log_in(&test_db, Role::Cashier).await;
 
     let result = with_tx(&test_db.state, TxOpts::default(), |tx, cx| {
         Box::pin(async move {
+            // The role check reads `settings.role_access_overrides`, so a settings row must exist
+            // (it always does in the app once setup ran).
+            seed_branch_and_settings(tx).await;
             audit_service::require_audit_read(tx, &into_read_ctx(cx)).await?;
             audit_service::get_audit_entries(tx, &AuditFilter::default()).await
         })
@@ -289,7 +330,7 @@ async fn seed_branch_and_settings(conn: &DatabaseTransaction) -> Id {
 #[tokio::test]
 async fn any_signed_in_user_gets_a_support_snapshot_without_db() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Cashier);
+    log_in(&test_db, Role::Cashier).await;
     let device = test_db.state.device.read().unwrap().clone();
 
     let snapshot = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -309,7 +350,7 @@ async fn any_signed_in_user_gets_a_support_snapshot_without_db() {
 #[tokio::test]
 async fn admin_include_db_snapshot_has_no_credentials_table_and_no_password_hash_anywhere() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let device = test_db.state.device.read().unwrap().clone();
 
     let snapshot = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -333,13 +374,16 @@ async fn admin_include_db_snapshot_has_no_credentials_table_and_no_password_hash
 #[tokio::test]
 async fn cashier_include_db_snapshot_is_forbidden() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Cashier);
+    log_in(&test_db, Role::Cashier).await;
 
     let device = test_db.state.device.read().unwrap().clone();
     let result = with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let device = device.clone();
-        Box::pin(async move { support_service::support_snapshot(&device, None, tx, &into_read_ctx(cx), true).await })
-            as BoxFuture<'_, TxResult<accounting_app_lib::domains::diagnostics::dto::SupportSnapshot>>
+        Box::pin(async move {
+            // The role check reads `settings.role_access_overrides`, so a settings row must exist.
+            seed_branch_and_settings(tx).await;
+            support_service::support_snapshot(&device, None, tx, &into_read_ctx(cx), true).await
+        }) as BoxFuture<'_, TxResult<accounting_app_lib::domains::diagnostics::dto::SupportSnapshot>>
     })
     .await;
 
@@ -464,7 +508,9 @@ fn manual_line(account_id: Id, debit: Decimal, credit: Decimal) -> JournalEntryI
 /// Posts one balanced manual journal entry (`expense_id` debit / `cash_id` credit) through the real
 /// `create_journal_entry` posting path — same helper every slice-B test below reuses.
 async fn post_manual_entry(test_db: &TestDb, fixture: &DebuggerFixture, amount: Decimal) -> accounting_app_lib::domains::accounting::dto::JournalEntry {
-    let undo = Arc::new(UndoRegistry::new());
+    // The app's own fully-registered registry (`create_journal_entry` records an undoable
+    // `accounting.createJournalEntry` audit row, which must resolve to a registered handler).
+    let undo = test_db.state.undo.clone();
     let expense_id = fixture.expense_id;
     let cash_id = fixture.cash_id;
     with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
@@ -494,7 +540,7 @@ async fn post_manual_entry(test_db: &TestDb, fixture: &DebuggerFixture, amount: 
 #[tokio::test]
 async fn list_recent_documents_orders_newest_first_and_marks_traced_entries() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
 
     let fixture = with_tx(&test_db.state, TxOpts { require_user: false }, |tx, _cx| Box::pin(seed_debugger_fixture(tx))).await.expect("seed_debugger_fixture must succeed");
     let first = post_manual_entry(&test_db, &fixture, dec!(100)).await;
@@ -519,7 +565,7 @@ async fn list_recent_documents_orders_newest_first_and_marks_traced_entries() {
 #[tokio::test]
 async fn posting_trace_is_recorded_on_commit_and_absent_for_a_rolled_back_attempt() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let fixture = with_tx(&test_db.state, TxOpts { require_user: false }, |tx, _cx| Box::pin(seed_debugger_fixture(tx))).await.expect("seed_debugger_fixture must succeed");
 
     let entry = post_manual_entry(&test_db, &fixture, dec!(75)).await;
@@ -533,7 +579,7 @@ async fn posting_trace_is_recorded_on_commit_and_absent_for_a_rolled_back_attemp
 #[tokio::test]
 async fn get_journal_entry_raw_finds_posted_entry_and_returns_none_for_unknown_id() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let fixture = with_tx(&test_db.state, TxOpts { require_user: false }, |tx, _cx| Box::pin(seed_debugger_fixture(tx))).await.expect("seed_debugger_fixture must succeed");
     let entry = post_manual_entry(&test_db, &fixture, dec!(60)).await;
 
@@ -556,7 +602,7 @@ async fn get_journal_entry_raw_finds_posted_entry_and_returns_none_for_unknown_i
 #[tokio::test]
 async fn balances_around_follow_number_ordering_on_the_same_day() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let fixture = with_tx(&test_db.state, TxOpts { require_user: false }, |tx, _cx| Box::pin(seed_debugger_fixture(tx))).await.expect("seed_debugger_fixture must succeed");
 
     let first = post_manual_entry(&test_db, &fixture, dec!(100)).await;
@@ -579,7 +625,7 @@ async fn balances_around_follow_number_ordering_on_the_same_day() {
 #[tokio::test]
 async fn get_balances_around_returns_empty_for_unknown_entry() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     with_tx(&test_db.state, TxOpts { require_user: false }, |tx, _cx| Box::pin(seed_debugger_fixture(tx))).await.expect("seed_debugger_fixture must succeed");
 
     let balances = with_tx(&test_db.state, TxOpts::default(), |tx, _cx| Box::pin(async move { debugger_service::get_balances_around(tx, Id::new()).await }))
@@ -591,7 +637,7 @@ async fn get_balances_around_returns_empty_for_unknown_entry() {
 #[tokio::test]
 async fn invariant_results_equal_run_all_and_pass_on_a_balanced_fixture() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let fixture = with_tx(&test_db.state, TxOpts { require_user: false }, |tx, _cx| Box::pin(seed_debugger_fixture(tx))).await.expect("seed_debugger_fixture must succeed");
     post_manual_entry(&test_db, &fixture, dec!(100)).await;
 
@@ -617,7 +663,7 @@ async fn invariant_results_equal_run_all_and_pass_on_a_balanced_fixture() {
 #[tokio::test]
 async fn drift_report_is_empty_on_a_clean_fixture() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let fixture = with_tx(&test_db.state, TxOpts { require_user: false }, |tx, _cx| Box::pin(seed_debugger_fixture(tx))).await.expect("seed_debugger_fixture must succeed");
     post_manual_entry(&test_db, &fixture, dec!(100)).await;
 
@@ -630,7 +676,7 @@ async fn drift_report_is_empty_on_a_clean_fixture() {
 #[tokio::test]
 async fn explain_account_balance_returns_lines_newest_first() {
     let test_db = TestDb::fresh().await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let fixture = with_tx(&test_db.state, TxOpts { require_user: false }, |tx, _cx| Box::pin(seed_debugger_fixture(tx))).await.expect("seed_debugger_fixture must succeed");
     post_manual_entry(&test_db, &fixture, dec!(30)).await;
     post_manual_entry(&test_db, &fixture, dec!(40)).await;

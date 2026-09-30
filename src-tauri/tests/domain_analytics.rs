@@ -12,7 +12,7 @@
 //! rather than every rule/branch — the parity-case list (§8b of both files) is handed to Part 04
 //! regardless of which of these ran here first.
 
-mod support;
+use crate::support;
 
 use std::sync::Arc;
 
@@ -45,8 +45,11 @@ struct Fixture {
     pub customer_id: Id,
 }
 
-fn log_in(test_db: &TestDb, role: Role) -> Id {
+async fn log_in(test_db: &TestDb, role: Role) -> Id {
     let user_id = Id::new();
+    // The session user must exist: `journal_entries.created_by`, `audit.user_id`, … FK to `users`.
+    let conn = test_db.state.db.read().unwrap().as_ref().unwrap().connection.clone();
+    support::seed_user(&conn, user_id, &format!("{role:?}").to_lowercase()).await;
     let user = AuthenticatedUser { id: user_id, username: "test".to_string(), role, home_branch_id: Id::new(), allowed_branches: vec![], price_list_id: None, max_discount: None };
     *test_db.state.session.write().unwrap() = Some(user);
     user_id
@@ -64,7 +67,7 @@ async fn seed_role_account<C: ConnectionTrait>(conn: &C, code: &str, role: &str)
         parent_id: Set(None),
         is_group: Set(false),
         kind: Set("ASSET".to_string()),
-        subtype: Set("other".to_string()),
+        subtype: Set("otherCurrentAsset".to_string()),
         normal_side: Set("DEBIT".to_string()),
         system_role: Set(Some(role.to_string())),
         currency: Set(None),
@@ -152,6 +155,7 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Id {
     };
     tax.insert(conn).await.unwrap();
 
+    support::seed_currency(conn, "SAR").await;
     let settings_row = settings::ActiveModel {
         id: Set(Id::new()),
         singleton: Set(1),
@@ -338,11 +342,10 @@ async fn stock_in(test_db: &TestDb, product_id: Id, qty: Decimal, unit_cost: Dec
 }
 
 async fn make_fixture(test_db: &TestDb) -> Fixture {
+    log_in(test_db, Role::Admin).await;
     let customer_id = with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| Box::pin(async move { Ok(seed_fixture(tx).await) }) as BoxFuture<'_, TxResult<Id>>).await.unwrap();
 
-    log_in(test_db, Role::Admin);
-
-    let undo = Arc::new(UndoRegistry::new());
+    let undo = test_db.state.undo.clone();
     let p1 = with_tx(&test_db.state, TxOpts::default(), {
         let undo = undo.clone();
         move |tx, cx| {
@@ -359,6 +362,11 @@ async fn make_fixture(test_db: &TestDb) -> Fixture {
 }
 
 async fn sell(test_db: &TestDb, fixture: &Fixture, qty: Decimal, price: Decimal, customer: bool) {
+    sell_with(test_db, fixture, qty, price, customer, true).await
+}
+
+/// `paid = false` sells on credit (nothing paid) — the only way a sale leaves a receivable balance.
+async fn sell_with(test_db: &TestDb, fixture: &Fixture, qty: Decimal, price: Decimal, customer: bool, paid: bool) {
     let input = SaleInput {
         customer_id: if customer { Some(fixture.customer_id) } else { None },
         lines: vec![SaleInputLine {
@@ -380,9 +388,9 @@ async fn sell(test_db: &TestDb, fixture: &Fixture, qty: Decimal, price: Decimal,
         }],
         discount_rate: Decimal::ZERO,
         discount_amount: None,
-        payment_method: SalePaymentMethod::Cash,
-        paid_amount: round2(qty * price),
-        tendered_amount: Some(round2(qty * price)),
+        payment_method: if paid { SalePaymentMethod::Cash } else { SalePaymentMethod::Credit },
+        paid_amount: if paid { round2(qty * price) } else { Decimal::ZERO },
+        tendered_amount: if paid { Some(round2(qty * price)) } else { None },
         tenders: None,
         note: None,
         source: None,
@@ -398,7 +406,7 @@ async fn sell(test_db: &TestDb, fixture: &Fixture, qty: Decimal, price: Decimal,
         currency: None,
         exchange_rate: None,
     };
-    let registry = Arc::new(UndoRegistry::new());
+    let registry = test_db.state.undo.clone();
     with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         let input = input.clone();
         let registry = registry.clone();
@@ -722,7 +730,7 @@ async fn insight_reorder_fires_when_stock_at_or_below_min() {
     let test_db = TestDb::fresh().await;
     let fixture = make_fixture(&test_db).await;
     sell(&test_db, &fixture, dec!(95), dec!(115), false).await; // stock_qty 5 <= min_stock 10.
-    log_in(&test_db, Role::Manager);
+    log_in(&test_db, Role::Manager).await;
     let today = read_ctx_today(&test_db).await;
 
     let insights = with_read_ctx(&test_db.state, move |tx, ctx| {
@@ -762,6 +770,7 @@ async fn insight_a_failing_rule_does_not_stop_the_others() {
     // rule must still run to completion ("a single bad rule shouldn't break the whole home
     // screen", ie:108-112).
     let test_db = TestDb::fresh().await;
+    log_in(&test_db, Role::Admin).await;
     let customer_id = with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| {
         Box::pin(async move {
             let now = chrono::Utc::now();
@@ -786,6 +795,7 @@ async fn insight_a_failing_rule_does_not_stop_the_others() {
                 sync_status: Set("local".to_string()),
             };
             branch.insert(tx).await?;
+            support::seed_currency(tx, "SAR").await;
             let settings_row = settings::ActiveModel {
                 id: Set(Id::new()),
                 singleton: Set(1),
@@ -834,7 +844,7 @@ async fn insight_a_failing_rule_does_not_stop_the_others() {
     .await
     .unwrap();
     let _ = customer_id;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let today = read_ctx_today(&test_db).await;
 
     // No accounts/products/customers seeded at all: every rule that needs an account
@@ -859,8 +869,8 @@ async fn insight_credit_limit_fires_near_and_over() {
     let test_db = TestDb::fresh().await;
     let fixture = make_fixture(&test_db).await;
     // credit_limit = 1000 (fixture); a balance >= 900 (90%) fires "near", > 1000 fires "over".
-    sell(&test_db, &fixture, dec!(10), dec!(115), true).await; // 1150 > 1000 -> over.
-    log_in(&test_db, Role::Manager);
+    sell_with(&test_db, &fixture, dec!(10), dec!(115), true, false).await; // on credit: receivable 1150 > 1000 -> over.
+    log_in(&test_db, Role::Manager).await;
     let today = read_ctx_today(&test_db).await;
 
     let insights = with_read_ctx(&test_db.state, move |tx, ctx| {
@@ -878,7 +888,7 @@ async fn insight_credit_limit_fires_near_and_over() {
 async fn insight_backup_overdue_fires_with_no_backup_ever_taken() {
     let test_db = TestDb::fresh().await;
     let _fixture = make_fixture(&test_db).await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let today = read_ctx_today(&test_db).await;
 
     let insights = with_read_ctx(&test_db.state, move |tx, ctx| {
@@ -898,28 +908,35 @@ async fn insight_backup_overdue_fires_with_no_backup_ever_taken() {
 async fn insight_year_end_sign_quirk_future_vs_past() {
     let test_db = TestDb::fresh().await;
     let _fixture = make_fixture(&test_db).await;
-    log_in(&test_db, Role::Admin);
+    log_in(&test_db, Role::Admin).await;
     let today = read_ctx_today(&test_db).await;
 
-    // Add a second, already-ended fiscal year (ends yesterday) to exercise the "ended" branch
-    // alongside the fixture's still-open 2026 year (which is far more than yearEndDays away, so it
-    // won't fire — proving the quirk's sign inversion on the ended year specifically).
+    // Quirk Q-1 (14b-insights.md §3.1 rule 19, `insightRules.ts` `yearEndRule`): `d = today − end`,
+    // so a year that ENDED yesterday (d = 1) reports "ends in 1 day" (warning), while a year that
+    // ends in 10 days (d = −10) reports "ended" (critical, value 5000). Both are added explicitly so
+    // the assertions don't depend on where today falls relative to the fixture's own year.
     with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| {
         Box::pin(async move {
             let now = chrono::Utc::now();
-            let ended = fiscal_years::ActiveModel {
-                id: Set(Id::new()),
-                name: Set("2025".to_string()),
-                start_date: Set(today - chrono::Duration::days(400)),
-                end_date: Set(today - chrono::Duration::days(1)),
-                is_closed: Set(false),
-                closing_entry_id: Set(None),
-                closed_at: Set(None),
-                closed_by: Set(None),
-                created_at: Set(now),
-                updated_at: Set(now),
-            };
-            ended.insert(tx).await?;
+            for (name, start, end) in [
+                ("PAST-FY", today - chrono::Duration::days(400), today - chrono::Duration::days(1)),
+                ("FUTURE-FY", today - chrono::Duration::days(300), today + chrono::Duration::days(10)),
+            ] {
+                fiscal_years::ActiveModel {
+                    id: Set(Id::new()),
+                    name: Set(name.to_string()),
+                    start_date: Set(start),
+                    end_date: Set(end),
+                    is_closed: Set(false),
+                    closing_entry_id: Set(None),
+                    closed_at: Set(None),
+                    closed_by: Set(None),
+                    created_at: Set(now),
+                    updated_at: Set(now),
+                }
+                .insert(tx)
+                .await?;
+            }
             Ok(())
         }) as BoxFuture<'_, TxResult<()>>
     })
@@ -933,10 +950,15 @@ async fn insight_year_end_sign_quirk_future_vs_past() {
     .await
     .unwrap();
 
-    let ended_insight = insights.iter().find(|i| i.message.contains("2025")).expect("the already-ended fiscal year must fire as 'ended'");
-    assert!(ended_insight.message.contains("انتهت ولم تُقفل بعد"), "a past end date reports as 'ended' (quirk Q-1 sign inversion)");
-    assert_eq!(ended_insight.severity, accounting_app_lib::domains::dashboard::dto::InsightSeverity::Critical);
-    assert_eq!(ended_insight.value, dec!(5000));
+    let past = insights.iter().find(|i| i.rule_key == "year-end" && i.message.contains("PAST-FY")).expect("the already-ended fiscal year must fire");
+    assert_eq!(past.message, "السنة المالية \"PAST-FY\" تنتهي خلال 1 يوماً", "a past end date reports as 'ends in N days' (quirk Q-1 sign inversion)");
+    assert_eq!(past.severity, accounting_app_lib::domains::dashboard::dto::InsightSeverity::Warning);
+    assert_eq!(past.value, dec!(29), "value = yearEndDays (30) − d (1)");
+
+    let future = insights.iter().find(|i| i.rule_key == "year-end" && i.message.contains("FUTURE-FY")).expect("the upcoming fiscal year end must fire");
+    assert_eq!(future.message, "السنة المالية \"FUTURE-FY\" انتهت ولم تُقفل بعد", "a future end date reports as 'ended' (quirk Q-1 sign inversion)");
+    assert_eq!(future.severity, accounting_app_lib::domains::dashboard::dto::InsightSeverity::Critical);
+    assert_eq!(future.value, dec!(5000));
 }
 
 // --- dashboard_get_product_inline_hints -----------------------------------------------------------
