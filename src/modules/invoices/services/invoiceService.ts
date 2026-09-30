@@ -7,6 +7,7 @@ import { closeShift, currentOpenShift, forceCloseShift, openShift, recordShiftMo
 import { nextNumber } from '@/mocks/db';
 import { assertWithinCreditLimit, computeDueDate } from '@/modules/parties/helpers/creditLimit';
 import type { Customer } from '@/modules/parties/types';
+import { withComputed as customerWithBalances } from '@/modules/parties/services/partyService';
 import type { Payment } from '@/modules/payments/types';
 import type { PagedQuery, PagedResult } from '@/modules/core/types/paging';
 import { mutate } from '@/mocks/persist';
@@ -98,8 +99,9 @@ export const getInvoicesPaged = wrap('invoices.getInvoicesPaged', async function
 
   const total = rows.length;
   const totals = {
-    grandTotal: rows.reduce((a, r) => a + r.grandTotal - r.refundedAmount, 0),
-    outstanding: rows.reduce((a, r) => a + r.outstanding, 0),
+    // One rounding rule: the footer sums money, so it is `round2`ed (Rust: `get_invoices_paged`).
+    grandTotal: round2(rows.reduce((a, r) => a + r.grandTotal - r.refundedAmount, 0)),
+    outstanding: round2(rows.reduce((a, r) => a + r.outstanding, 0)),
   };
 
   const sort = query.sort;
@@ -118,6 +120,12 @@ export const getInvoicesPaged = wrap('invoices.getInvoicesPaged', async function
   return { rows: rows.slice(start, start + query.pageSize), total, totals };
 });
 
+/** The invoice's customer as `getCustomer` returns it (computed `balance`/`unallocatedCredit`). */
+function customerOf(id: string | undefined): Customer | undefined {
+  const c = id ? db.customers.find((x) => x.id === id) : undefined;
+  return c && customerWithBalances(c);
+}
+
 export const getInvoice = wrap('invoices.getInvoice', async function getInvoice(id: string): Promise<InvoiceDetail> {
   if (usesRust('invoices')) return backendCall('invoices_get_invoice', { id });
   await delay();
@@ -128,7 +136,7 @@ export const getInvoice = wrap('invoices.getInvoice', async function getInvoice(
   const sourceIds = new Set([id, ...refunds.map((r) => r.id), ...payments.map((p) => p.id)]);
   return {
     ...toRow(inv),
-    customer: clone(db.customers.find((c) => c.id === inv.customerId)),
+    customer: customerOf(inv.customerId),
     refunds: clone(refunds),
     payments: clone(payments),
     journalEntries: db.journalEntries
@@ -249,7 +257,7 @@ export const getInvoicePrintData = wrap('invoices.getInvoicePrintData', async fu
   if (!inv) throw new ApiError('الفاتورة غير موجودة', 'NOT_FOUND');
   return {
     invoice: clone(inv),
-    customer: clone(db.customers.find((c) => c.id === inv.customerId)),
+    customer: customerOf(inv.customerId),
     cashierName: db.users.find((u) => u.id === inv.cashierId)?.name ?? '—',
     settings: clone(db.settings),
   };
@@ -458,6 +466,10 @@ export const saveQuotation = wrap('invoices.saveQuotation', async function saveQ
         taxRate: lineTaxes[i].rate,
         net: lr.net,
         vat: lr.vat,
+        // ACC-0033: the line's unit is part of what was quoted — `qty`/`price` count that unit (a
+        // box), so conversion needs its factor to take `qty × unitFactor` base units out of stock.
+        unitId: l.unitId,
+        unitFactor: l.unitFactor,
       };
     }),
     discountRate: input.discountRate,
@@ -491,7 +503,7 @@ export const convertQuotationToInvoice = wrap('invoices.convertQuotationToInvoic
   if (q.convertedInvoiceId) throw new ApiError('تم تحويل عرض السعر إلى فاتورة بالفعل', 'CONFLICT');
   const invoice = await createSale({
     customerId: q.customerId,
-    lines: q.lines.map((l) => ({ productId: l.productId, qty: l.qty, price: l.price, discount: l.discount, taxId: l.taxId })),
+    lines: q.lines.map((l) => ({ productId: l.productId, qty: l.qty, price: l.price, discount: l.discount, taxId: l.taxId, unitId: l.unitId, unitFactor: l.unitFactor })),
     discountRate: q.discountRate,
     note: q.note,
     terms: q.terms,

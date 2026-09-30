@@ -40,6 +40,13 @@ import type { ApprovalsApproveRequestArgs } from "../../../approvals/types/gen/A
 import type { ApprovalsGetApprovalRequestsArgs } from "../../../approvals/types/gen/ApprovalsGetApprovalRequestsArgs";
 import type { ApprovalsRejectRequestArgs } from "../../../approvals/types/gen/ApprovalsRejectRequestArgs";
 import type { ApprovalsSubmitApprovalRequestArgs } from "../../../approvals/types/gen/ApprovalsSubmitApprovalRequestArgs";
+import type { AttachmentMeta } from "./AttachmentMeta";
+import type { AttachmentRecord } from "./AttachmentRecord";
+import type { AttachmentsFetchAttachmentArgs } from "./AttachmentsFetchAttachmentArgs";
+import type { AttachmentsFetchAttachmentsArgs } from "./AttachmentsFetchAttachmentsArgs";
+import type { AttachmentsFetchAttachmentsByIdsArgs } from "./AttachmentsFetchAttachmentsByIdsArgs";
+import type { AttachmentsRemoveAttachmentArgs } from "./AttachmentsRemoveAttachmentArgs";
+import type { AttachmentsSaveAttachmentArgs } from "./AttachmentsSaveAttachmentArgs";
 import type { AuditEntry } from "../../../diagnostics/types/gen/AuditEntry";
 import type { AutoBackupOutcome } from "../../../settings/types/gen/AutoBackupOutcome";
 import type { BackendStatus } from "./BackendStatus";
@@ -689,4 +696,9 @@ export interface IpcCommands {
   dashboard_has_any_products: { args: undefined; returns: boolean };
   dashboard_compute_insights: { args: DashboardComputeInsightsArgs; returns: Array<InsightDto> };
   dashboard_get_product_inline_hints: { args: DashboardGetProductInlineHintsArgs; returns: Array<InsightDto> };
+  attachments_fetch_attachments: { args: AttachmentsFetchAttachmentsArgs; returns: Array<AttachmentMeta> };
+  attachments_fetch_attachment: { args: AttachmentsFetchAttachmentArgs; returns: AttachmentRecord | null };
+  attachments_fetch_attachments_by_ids: { args: AttachmentsFetchAttachmentsByIdsArgs; returns: Array<AttachmentRecord> };
+  attachments_save_attachment: { args: AttachmentsSaveAttachmentArgs; returns: AttachmentRecord };
+  attachments_remove_attachment: { args: AttachmentsRemoveAttachmentArgs; returns: null };
 }

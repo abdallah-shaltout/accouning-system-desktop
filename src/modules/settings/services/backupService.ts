@@ -30,7 +30,8 @@ import {
 import { sha256Hex } from '../helpers/backupCrypto';
 import { updateSettings } from './settingsService';
 import { saveFile } from '@/modules/core/services/saveFile';
-import { backendCall, usesRust } from '@/modules/core/services/backend';
+import { backendCall, getBackendStatus, usesRust } from '@/modules/core/services/backend';
+import { log } from '@/modules/diagnostics/services/logService';
 import type { AutoBackupOutcome, AutoBackupTrigger, BackupArchive, BackupHistoryEntry, BackupKind, BackupManifest, BackupSettings, RestorePreview } from '../types/backup';
 import { DEFAULT_BACKUP_SETTINGS } from '../types/backup';
 
@@ -433,10 +434,30 @@ async function pruneFileHistory(): Promise<void> {
   }
 }
 
+/**
+ * Rust branch of both auto-backup triggers (plan 21 Part 04, E-2). `initAutoBackup()` runs right at
+ * boot, usually before a Main PC's bundled server has connected (it starts in the background), and
+ * `backendCall` then throws. That used to reject `initAutoBackup()` at its first `await`, so neither
+ * the 60 s timer nor the close-time hook was ever installed for the whole session. So: skip quietly
+ * until the database is connected (the timer retries; a database that stays down is reported by
+ * `ServerFailureScreen`), and log a real failure instead of letting it escape.
+ */
+async function runRustAutoBackup(trigger: AutoBackupTrigger): Promise<void> {
+  if (usesRust('settings')) {
+    const status = await getBackendStatus().catch(() => null);
+    if (!status?.connected) return;
+    try {
+      const outcome: AutoBackupOutcome = await backendCall('settings_run_auto_backup_if_due', { trigger });
+      if (outcome.error) console.error(`[backup] ${trigger} auto backup failed`, outcome.error);
+    } catch (err) {
+      log.error('backup', `${trigger} auto backup failed`, err instanceof Error ? err : new Error(String(err)));
+    }
+  }
+}
+
 async function runAutoBackupIfDue(): Promise<void> {
   if (usesRust('settings')) {
-    const outcome: AutoBackupOutcome = await backendCall('settings_run_auto_backup_if_due', { trigger: 'schedule' satisfies AutoBackupTrigger });
-    if (outcome.error) console.error('[backup] scheduled auto backup failed', outcome.error);
+    await runRustAutoBackup('schedule');
     return;
   }
 
@@ -463,8 +484,7 @@ async function runAutoBackupIfDue(): Promise<void> {
 /** Runs an auto backup once on app close (best-effort — see notes below on Tauri vs browser). */
 async function runCloseBackup(): Promise<void> {
   if (usesRust('settings')) {
-    const outcome: AutoBackupOutcome = await backendCall('settings_run_auto_backup_if_due', { trigger: 'close' satisfies AutoBackupTrigger });
-    if (outcome.error) console.error('[backup] close-time auto backup failed', outcome.error);
+    await runRustAutoBackup('close');
     return;
   }
 

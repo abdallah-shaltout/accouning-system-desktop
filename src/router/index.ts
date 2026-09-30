@@ -5,7 +5,7 @@ import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
 import { APP_NAME_AR } from '@/modules/core/helpers/brand';
 import { usesRust } from '@/modules/core/services/backend';
-import { ensureDeviceSetupState } from '@/modules/setup/services/deviceService';
+import { deviceStateForNavigation, mustHoldForDatabase } from '@/modules/setup/services/deviceService';
 import coreRoutes from '@/modules/core/routes';
 import usersRoutes from '@/modules/users/routes';
 import productsRoutes from '@/modules/products/routes';
@@ -64,8 +64,19 @@ router.beforeEach(async (to) => {
   // browser/e2e run (`isTauri()` gates it), so this branch never fires there and today's
   // mock-backend behavior below is unchanged.
   if (usesRust('setup')) {
-    const deviceState = await ensureDeviceSetupState();
+    // Part 04 E-2 (3): re-read a cached "no users" whenever it would decide this navigation (a
+    // non-public page or /login bounced to /welcome, or /welcome itself) — the wizard, a legacy
+    // import and the demo import each create the first users after the cache was filled.
+    const revalidateFresh = !to.meta.public || to.name === 'login' || to.name === 'welcome';
+    const deviceState = await deviceStateForNavigation(revalidateFresh);
     if (!deviceState.configured) return to.name === 'device-setup' ? true : { name: 'device-setup' };
+    // Part 04 E-2 (2): configured but the database is down — "no users" is unknown, not a fresh
+    // install. Hold the navigation: `ServerFailureScreen` (App.vue) covers the app, and App.vue
+    // reloads once the database is back so this guard decides again on real data.
+    if (await mustHoldForDatabase(deviceState)) return false;
+    // Part 04 E-2 (3): /welcome (legacy import, start company, demo) only makes sense on an empty
+    // company — every one of its cards needs an empty database (00-import step 1, 02-setup §3.3).
+    if (to.name === 'welcome' && deviceState.hasUsers) return { name: 'login' };
   }
 
   if (to.name === 'welcome') return true;

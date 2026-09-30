@@ -7,7 +7,7 @@
 import path from 'node:path';
 import ts from 'typescript';
 import { config } from './config';
-import type { FnFacts, Param, PathLink, TypeDecl, TypeField } from './types';
+import type { FnFacts, Param, PathLink, SwitchSite, TypeDecl, TypeField } from './types';
 
 type FnNode = ts.FunctionDeclaration | ts.FunctionExpression | ts.ArrowFunction | ts.MethodDeclaration;
 
@@ -17,7 +17,7 @@ export interface Extracted {
   /** Facts per function id, filled lazily as bodies are reached. */
   facts: Map<string, FnFacts>;
   /** Wrapped service functions (raw — the analyze stage adds closures and dispositions). */
-  wrapped: { source: string; file: string; line: number; name: string; params: Param[]; returns: string; fnId: string; calls: string[] }[];
+  wrapped: { source: string; file: string; line: number; name: string; params: Param[]; returns: string; fnId: string; calls: string[]; switchSites: SwitchSite[] }[];
   unwrapped: { module: string; file: string; name: string }[];
   types: TypeDecl[];
   pathLinks: PathLink[];
@@ -103,10 +103,46 @@ export function extract(): Extracted {
     const id = idFor(node, name);
     const cached = facts.get(id);
     if (cached) return cached;
-    const f: FnFacts = { id, file: rel(node.getSourceFile().fileName), name, line: lineOf(node), tables: [], writes: [], calls: [], mockRefs: [], invokes: [], platform: [], round2: 0, round4: 0 };
+    const f: FnFacts = { id, file: rel(node.getSourceFile().fileName), name, line: lineOf(node), tables: [], writes: [], calls: [], mockRefs: [], invokes: [], platform: [], round2: 0, round4: 0, switchSites: [] };
     facts.set(id, f);
     const tables = new Set<string>(), writes = new Set<string>(), calls = new Set<string>(), mockRefs = new Set<string>(), invokes = new Set<string>(), platform = new Set<string>();
+    const switchSites: SwitchSite[] = [];
     const aliases = new Map<string, { table: string; copy: boolean }>(); // local var → table it was read from
+
+    /** The domain named by a bare `usesRust('<domain>')` call, or by a `&&`/`||` expression that
+     * contains exactly one such call (A-2's guard only needs to recognize the common shapes actually
+     * used in the services — see `settingsService.ts` for the plain form). */
+    const usesRustDomain = (expr: ts.Expression): string | undefined => {
+      if (ts.isParenthesizedExpression(expr)) return usesRustDomain(expr.expression);
+      if (ts.isCallExpression(expr) && ts.isIdentifier(expr.expression) && expr.expression.text === 'usesRust' && expr.arguments[0] && ts.isStringLiteralLike(expr.arguments[0]))
+        return expr.arguments[0].text;
+      if (ts.isBinaryExpression(expr) && (expr.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken || expr.operatorToken.kind === ts.SyntaxKind.BarBarToken))
+        return usesRustDomain(expr.left) ?? usesRustDomain(expr.right);
+      return undefined;
+    };
+    /** The domain named by `!usesRust('<domain>')` (or a parenthesized/negated-compound form of it) —
+     * the guard-clause idiom (`if (!usesRust('setup')) desktopOnly();` then unconditional Rust-only
+     * code below, e.g. `legacyImportService.ts`'s importLegacySnapshot/inspectLegacySnapshot). */
+    const negatedUsesRustDomain = (expr: ts.Expression): string | undefined => {
+      if (ts.isParenthesizedExpression(expr)) return negatedUsesRustDomain(expr.expression);
+      if (ts.isPrefixUnaryExpression(expr) && expr.operator === ts.SyntaxKind.ExclamationToken) return usesRustDomain(expr.operand);
+      return undefined;
+    };
+    /** Whether `stmt` always exits the enclosing block (return/throw, or an if/else where both
+     * branches do) — used to recognize a guard clause whose `then` branch always exits, so the domain
+     * it negates is guaranteed true for every statement that follows it in the same block. */
+    const alwaysExits = (stmt: ts.Statement): boolean => {
+      if (ts.isReturnStatement(stmt) || ts.isThrowStatement(stmt)) return true;
+      if (ts.isBlock(stmt)) return stmt.statements.length > 0 && alwaysExits(stmt.statements[stmt.statements.length - 1]);
+      if (ts.isExpressionStatement(stmt) && ts.isCallExpression(stmt.expression)) {
+        // A call to a function whose own return type is `never` (e.g. `desktopOnly()`) always exits.
+        const sig = checker.getResolvedSignature(stmt.expression);
+        const ret = sig ? checker.getReturnTypeOfSignature(sig) : undefined;
+        return !!ret && !!(ret.flags & ts.TypeFlags.Never);
+      }
+      if (ts.isIfStatement(stmt)) return !!stmt.elseStatement && alwaysExits(stmt.thenStatement) && alwaysExits(stmt.elseStatement);
+      return false;
+    };
     /** `onRoot`: a mutating method called on `target` itself (so a copied array doesn't count). */
     const markWrite = (target: ts.Expression, onRoot = false) => {
       const t = tableOf(target);
@@ -119,7 +155,7 @@ export function extract(): Extracted {
       if (alias && !(alias.copy && onRoot && ts.isIdentifier(target))) writes.add(alias.table);
     };
 
-    const visit = (n: ts.Node, inWriteScope: boolean): void => {
+    const visit = (n: ts.Node, inWriteScope: boolean, guardDomain: string | undefined): void => {
       if (ts.isPropertyAccessExpression(n) && ts.isIdentifier(n.expression) && isMockDb(n.expression)) {
         tables.add(n.name.text);
         if (inWriteScope) writes.add(n.name.text);
@@ -137,6 +173,39 @@ export function extract(): Extracted {
       if ((ts.isPrefixUnaryExpression(n) || ts.isPostfixUnaryExpression(n)) && (n.operator === ts.SyntaxKind.PlusPlusToken || n.operator === ts.SyntaxKind.MinusMinusToken)) markWrite(n.operand);
       if (ts.isDeleteExpression(n)) markWrite(n.expression);
 
+      // An `if (usesRust('<domain>') [&&/|| …])` statement's `then` branch (and any `else if` chain)
+      // is scanned with that domain as the active guard — A-2's "exactly one backendCall inside an
+      // `if (usesRust('<d>'))`" check needs to know which domain textually encloses a given call.
+      // The inverse guard-clause idiom — `if (!usesRust('<domain>')) return/throw;` — makes every
+      // statement AFTER it in the same block conditional on that domain too (legacyImportService.ts).
+      if (ts.isIfStatement(n)) {
+        const domain = usesRustDomain(n.expression) ?? guardDomain;
+        visit(n.expression, inWriteScope, guardDomain);
+        visit(n.thenStatement, inWriteScope, domain);
+        if (n.elseStatement) visit(n.elseStatement, inWriteScope, guardDomain);
+        return;
+      }
+      if (ts.isBlock(n) || ts.isModuleBlock(n) || ts.isCaseClause(n) || ts.isDefaultClause(n)) {
+        let active = guardDomain;
+        for (const stmt of n.statements) {
+          visit(stmt, inWriteScope, active);
+          if (ts.isIfStatement(stmt) && !stmt.elseStatement && alwaysExits(stmt.thenStatement)) {
+            const negated = negatedUsesRustDomain(stmt.expression);
+            if (negated) active = active ?? negated;
+          }
+        }
+        return;
+      }
+      // A ternary `usesRust('<domain>') ? rustExpr : mockExpr` gates its `whenTrue` branch the same
+      // way an `if` does (diagnostics/services/supportBundleService.ts's exportSupportBundle).
+      if (ts.isConditionalExpression(n)) {
+        const domain = usesRustDomain(n.condition) ?? guardDomain;
+        visit(n.condition, inWriteScope, guardDomain);
+        visit(n.whenTrue, inWriteScope, domain);
+        visit(n.whenFalse, inWriteScope, guardDomain);
+        return;
+      }
+
       if (ts.isCallExpression(n)) {
         const callee = n.expression;
         if (ts.isPropertyAccessExpression(callee) && config.mutatingMethods.includes(callee.name.text)) markWrite(callee.expression, true);
@@ -149,14 +218,19 @@ export function extract(): Extracted {
           const decl = resolve(target);
           const declFile = decl ? rel(decl.getSourceFile().fileName) : '';
           // `invoke` is usually destructured from a dynamic `import('@tauri-apps/api/core')`, so it
-          // resolves to a local binding — match it by name + literal command instead.
-          if (target.text === 'invoke' && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0])) invokes.add(n.arguments[0].text);
+          // resolves to a local binding — match it by name + literal command instead. `backendCall`
+          // (core/services/backend.ts) is the one designated wrapper around `invoke` every switch-line
+          // service call goes through (A-1, 21.04 phase A) — same treatment, same literal-first-arg match.
+          if ((target.text === 'invoke' || target.text === 'backendCall') && n.arguments[0] && ts.isStringLiteralLike(n.arguments[0])) {
+            invokes.add(n.arguments[0].text);
+            if (target.text === 'backendCall') switchSites.push({ command: n.arguments[0].text, guardDomain, line: lineOf(n) });
+          }
           else if (declFile.includes('node_modules/@tauri-apps/')) platform.add(declFile.split('node_modules/')[1].split('/').slice(0, 2).join('/'));
           const fn = decl && inSrc(decl.getSourceFile().fileName) ? fnOfDeclaration(decl) : undefined;
           if (fn) calls.add(idFor(fn.node, fn.name));
         }
         if (ts.isIdentifier(callee) && config.writeScopes.includes(callee.text)) {
-          n.arguments.forEach((a) => visit(a, true));
+          n.arguments.forEach((a) => visit(a, true, guardDomain));
           return;
         }
       }
@@ -165,12 +239,12 @@ export function extract(): Extracted {
         const decl = resolve(n);
         if (decl && rel(decl.getSourceFile().fileName).startsWith(config.mocksDir + '/') && n.text !== 'db' && !fnOfDeclaration(decl) && ts.isVariableDeclaration(decl)) mockRefs.add(n.text);
       }
-      ts.forEachChild(n, (c) => visit(c, inWriteScope));
+      ts.forEachChild(n, (c) => visit(c, inWriteScope, guardDomain));
     };
-    if (node.body) visit(node.body, false);
+    if (node.body) visit(node.body, false, undefined);
     Object.assign(f, {
       tables: [...tables].sort(), writes: [...writes].sort(), calls: [...calls].sort(), mockRefs: [...mockRefs].sort(),
-      invokes: [...invokes].sort(), platform: [...platform].sort(),
+      invokes: [...invokes].sort(), platform: [...platform].sort(), switchSites,
     });
     return f;
   }
@@ -240,7 +314,7 @@ export function extract(): Extracted {
             optional: !!p.questionToken || !!p.initializer,
           }));
           const returns = sig ? checker.typeToString(sig.getReturnType(), fnNode, flags) : 'unknown';
-          wrapped.push({ source, file, line: lineOf(d), name, params, returns, fnId, calls: facts.get(fnId)!.calls });
+          wrapped.push({ source, file, line: lineOf(d), name, params, returns, fnId, calls: facts.get(fnId)!.calls, switchSites: facts.get(fnId)!.switchSites });
         }
       });
     }

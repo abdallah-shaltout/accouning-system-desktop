@@ -24,12 +24,25 @@ export interface FnFacts {
   calls: string[];
   /** Non-function values imported from src/mocks (e.g. `session`) — state the Rust side must own. */
   mockRefs: string[];
-  /** Tauri commands called through `invoke('<cmd>')`. */
+  /** Tauri commands called through `invoke('<cmd>')` or `backendCall('<cmd>', …)`. */
   invokes: string[];
   /** Browser / Tauri-plugin APIs used directly. */
   platform: string[];
   round2: number;
   round4: number;
+  /** `backendCall('<cmd>', …)` sites found directly in this function's own body (not through calls
+   * into other functions) — the switch-line coverage check (21.04 phase A, A-2) walks these without
+   * following the closure, since the guard must be textually local to the `port` function itself. */
+  switchSites: SwitchSite[];
+}
+
+/** One `backendCall('<cmd>', …)` call site: which command, and which `usesRust('<domain>')` guard (if
+ * any) directly encloses it. `guardDomain` is `undefined` when the call is not inside any
+ * `usesRust(...)` condition (an ungated call — A-2 requires these to be on the allowlist). */
+export interface SwitchSite {
+  command: string;
+  guardDomain?: string;
+  line: number;
 }
 
 /** A function's facts after following every call it makes (transitively). */
@@ -42,6 +55,10 @@ export interface Closure {
   platform: string[];
   /** Shared-manager capabilities reached (config.capabilities keys: ledger, stock, audit…). */
   capabilities: string[];
+  /** `backendCall` sites reached through local (non-service) helpers too — e.g. `computeAll()` inside
+   * `insightEngine.ts` — but not through another `wrap()`-registered service (that service's own
+   * switch line is verified independently; A-2 doesn't want to double-count across a service boundary). */
+  switchSites: SwitchSite[];
 }
 
 export interface ServiceFn {
@@ -58,6 +75,8 @@ export interface ServiceFn {
   dtoTypes: string[];
   /** Other wrapped service functions this one calls. */
   serviceCalls: string[];
+  /** `backendCall(...)` sites in this function's own body (A-2) — not the transitive closure. */
+  switchSites: SwitchSite[];
   closure: Closure;
   disposition: Disposition;
   dispositionReason: string;

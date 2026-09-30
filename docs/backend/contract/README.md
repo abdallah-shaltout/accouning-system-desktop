@@ -6,7 +6,7 @@ Every service function the pages call (the seam), what it touches in the mock ba
 Rust backend should do with it. Source of truth for plans/pending/21-rust-backend Part 01. Dispositions
 are **heuristic suggestions** until a reviewer confirms them in `scripts/contract/config.ts` → `overrides`.
 
-**354** wrapped service functions · **46** MockDb tables · **297** exported module types · **240** mock-engine functions · **1** path-string links to convert.
+**359** wrapped service functions · **46** MockDb tables · **297** exported module types · **267** mock-engine functions · **1** path-string links to convert.
 
 ## Modules
 
@@ -15,20 +15,20 @@ are **heuristic suggestions** until a reviewer confirms them in `scripts/contrac
 | **accounting** | 33 | 30 |  | 3 |  |  | 10 | activity, ledger, numbering, period | [accounting.md](accounting.md) |
 | **analytics** | 3 | 3 |  |  |  |  | 0 |  | [analytics.md](analytics.md) |
 | **approvals** | 5 | 5 |  |  |  |  | 3 | activity | [approvals.md](approvals.md) |
-| **core** | 37 | 18 | 9 | 8 | 2 |  | 1 | activity, currency, ledger, numbering, period, stock | [core.md](core.md) |
-| **diagnostics** | 14 | 3 |  | 3 | 8 |  | 0 |  | [diagnostics.md](diagnostics.md) |
+| **core** | 42 | 17 | 10 | 13 | 2 |  | 1 | activity, currency, ledger, numbering, period, stock | [core.md](core.md) |
+| **diagnostics** | 14 | 3 |  | 3 | 8 |  | 0 | currency | [diagnostics.md](diagnostics.md) |
 | **expenses** | 11 | 11 |  |  |  |  | 7 | activity, ledger, numbering, period | [expenses.md](expenses.md) |
 | **invoices** | 28 | 25 |  | 3 |  |  | 12 | activity, currency, ledger, numbering, period, stock | [invoices.md](invoices.md) |
-| **parties** | 16 | 16 |  |  |  |  | 5 | activity | [parties.md](parties.md) |
+| **parties** | 16 | 15 |  | 1 |  |  | 5 | activity | [parties.md](parties.md) |
 | **payments** | 7 | 7 |  |  |  |  | 7 | activity, ledger, numbering, period | [payments.md](payments.md) |
 | **products** | 51 | 47 |  | 4 |  |  | 15 | activity, ledger, numbering, period, stock | [products.md](products.md) |
 | **purchases** | 12 | 12 |  |  |  |  | 9 | activity, ledger, numbering, period, stock | [purchases.md](purchases.md) |
 | **reports** | 32 | 32 |  |  |  |  | 0 |  | [reports.md](reports.md) |
-| **settings** | 47 | 35 |  | 12 |  |  | 12 | activity, ledger, numbering, period | [settings.md](settings.md) |
-| **setup** | 27 | 23 |  | 3 |  | 1 | 15 | activity, ledger, numbering, period, stock | [setup.md](setup.md) |
+| **settings** | 47 | 34 | 6 | 7 |  |  | 12 | activity, ledger, numbering, period | [settings.md](settings.md) |
+| **setup** | 27 | 21 | 3 | 2 |  | 1 | 15 | activity, ledger, numbering, period, stock | [setup.md](setup.md) |
 | **templates** | 11 | 10 |  | 1 |  |  | 0 |  | [templates.md](templates.md) |
 | **users** | 9 | 8 |  |  | 1 |  | 4 | activity | [users.md](users.md) |
-| **vouchers** | 11 | 11 |  |  |  |  | 6 | activity, ledger, numbering, period | [vouchers.md](vouchers.md) |
+| **vouchers** | 11 | 11 |  |  |  |  | 6 | activity, currency, ledger, numbering, period | [vouchers.md](vouchers.md) |
 
 ## Shared managers (master plan §3 rule 3)
 
@@ -36,12 +36,12 @@ Which service functions reach each capability — every one of them must go thro
 
 | Capability | Mock entry points | Service fns | Modules |
 |---|---|---|---|
-| **ledger** | `backend/core#postJournal`, `backend/core#postDraftJournal`, `backend/core#draftJournal` | 42 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
-| **stock** | `backend/core#applyStockChange`, `backend/inventory#receiveBatch`, `backend/inventory#consumeFefo` | 18 | core, invoices, products, purchases, setup |
-| **activity** | `backend/core#logAudit`, `backend/core#logActivity` | 85 | accounting, approvals, core, expenses, invoices, parties, payments, products, purchases, settings, setup, users, vouchers |
-| **numbering** | `db#nextNumber` | 46 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
-| **currency** | `backend/currency#toBase`, `backend/currency#convertLinesToBase`, `backend/currency#requireRate` | 4 | core, invoices |
-| **period** | `backend/core#assertOpenPeriod` | 42 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
+| **ledger** | `backend/core#postJournal`, `backend/core#postDraftJournal`, `backend/core#draftJournal` | 41 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
+| **stock** | `backend/core#applyStockChange`, `backend/inventory#receiveBatch`, `backend/inventory#consumeFefo` | 17 | core, invoices, products, purchases, setup |
+| **activity** | `backend/core#logAudit`, `backend/core#logActivity` | 82 | accounting, approvals, core, expenses, invoices, parties, payments, products, purchases, settings, setup, users, vouchers |
+| **numbering** | `db#nextNumber` | 45 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
+| **currency** | `backend/currency#toBase`, `backend/currency#convertLinesToBase`, `backend/currency#requireRate` | 7 | core, diagnostics, invoices, vouchers |
+| **period** | `backend/core#assertOpenPeriod` | 41 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
 
 ## Tables (entity ownership hints for Part 02)
 
@@ -49,52 +49,52 @@ Which service functions reach each capability — every one of them must go thro
 
 | Table | Read by (fns) | Written by (fns) | Writer modules |
 |---|---|---|---|
-| `accounts` | 90 | 12 | accounting, core, settings, setup |
-| `activity` | 86 | 85 | accounting, approvals, core, expenses, invoices, parties, payments, products, purchases, settings, setup, users, vouchers |
+| `accounts` | 89 | 12 | accounting, core, settings, setup |
+| `activity` | 83 | 82 | accounting, approvals, core, expenses, invoices, parties, payments, products, purchases, settings, setup, users, vouchers |
 | `approvalRequests` | 5 | 1 | approvals |
-| `audit` | 87 | 85 | accounting, approvals, core, expenses, invoices, parties, payments, products, purchases, settings, setup, users, vouchers |
-| `branches` | 56 | 6 | core, settings, setup |
+| `audit` | 84 | 82 | accounting, approvals, core, expenses, invoices, parties, payments, products, purchases, settings, setup, users, vouchers |
+| `branches` | 52 | 6 | core, settings, setup |
 | `cardSettlements` | 5 | 2 | core, vouchers |
 | `categories` | 15 | 3 | core, products |
 | `costCenters` | 10 | 6 | core, settings, setup |
-| `counters` | 46 | 46 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
+| `counters` | 45 | 45 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
 | `credentials` | 6 | 3 | core, users |
 | `currencies` | 11 | 3 | core, settings, setup |
 | `customFieldDefs` | 4 | 3 | products |
-| `customers` | 33 | 3 | core, parties |
+| `customers` | 26 | 3 | core, parties |
 | `debitNoteDrafts` | 4 | 2 | products, purchases |
 | `exchangeRates` | 7 | 2 | core, settings |
 | `expenseCategories` | 9 | 3 | core, expenses |
 | `expenses` | 9 | 3 | core, expenses |
-| `fiscalYears` | 48 | 5 | accounting, core, setup |
+| `fiscalYears` | 47 | 5 | accounting, core, setup |
 | `heldSales` | 4 | 3 | invoices |
-| `invoices` | 48 | 8 | core, invoices, payments |
+| `invoices` | 47 | 7 | core, invoices, payments |
 | `journalDrafts` | 12 | 6 | accounting, core |
-| `journalEntries` | 96 | 42 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
-| `journalTemplates` | 6 | 3 | accounting |
+| `journalEntries` | 93 | 41 | accounting, core, expenses, invoices, payments, products, purchases, settings, setup, vouchers |
+| `journalTemplates` | 5 | 3 | accounting |
 | `partyGroups` | 2 | 1 | core |
 | `partyHistory` | 4 | 3 | core, parties |
-| `paymentMethods` | 26 | 5 | core, settings, setup |
-| `payments` | 19 | 5 | core, payments |
+| `paymentMethods` | 21 | 5 | core, settings, setup |
+| `payments` | 17 | 5 | core, payments |
 | `priceLists` | 5 | 3 | core, products |
-| `productBatches` | 17 | 14 | core, invoices, products, purchases, setup |
-| `products` | 62 | 5 | core, products |
-| `purchaseOrders` | 24 | 11 | core, payments, purchases |
-| `purchaseReturns` | 14 | 3 | core, purchases |
-| `quotations` | 8 | 3 | invoices |
+| `productBatches` | 16 | 13 | core, invoices, products, purchases, setup |
+| `products` | 56 | 5 | core, products |
+| `purchaseOrders` | 21 | 11 | core, payments, purchases |
+| `purchaseReturns` | 11 | 3 | core, purchases |
+| `quotations` | 5 | 3 | invoices |
 | `recurringExpenses` | 6 | 4 | core, expenses |
-| `refunds` | 19 | 2 | core, invoices |
-| `settings` | 85 | 18 | accounting, core, settings, setup |
-| `shifts` | 17 | 4 | core, invoices |
+| `refunds` | 23 | 2 | core, invoices |
+| `settings` | 71 | 14 | accounting, core, settings, setup |
+| `shifts` | 12 | 4 | core, invoices |
 | `stockAdjustments` | 9 | 7 | core, products |
 | `stockCounts` | 8 | 4 | products |
-| `stockMovements` | 22 | 19 | core, invoices, products, purchases, setup |
-| `stockTransfers` | 11 | 2 | core, products |
-| `suppliers` | 30 | 3 | core, parties |
-| `taxes` | 22 | 4 | core, settings, setup |
+| `stockMovements` | 21 | 18 | core, invoices, products, purchases, setup |
+| `stockTransfers` | 8 | 2 | core, products |
+| `suppliers` | 26 | 3 | core, parties |
+| `taxes` | 16 | 4 | core, settings, setup |
 | `units` | 6 | 5 | core, products, setup |
-| `users` | 29 | 3 | core, users |
-| `vouchers` | 14 | 8 | accounting, core, invoices, vouchers |
+| `users` | 22 | 3 | core, users |
+| `vouchers` | 11 | 8 | accounting, core, invoices, vouchers |
 
 ## Path-string links (must become named route objects — CLAUDE.md rule 25)
 
@@ -104,4 +104,4 @@ Which service functions reach each capability — every one of them must go thro
 
 ## Unwrapped service exports (not endpoints — helpers, constants, re-exports)
 
-`core.fetchAttachment` · `core.fetchAttachments` · `core.removeAttachment` · `core.saveAttachment` · `core.backendCall` · `core.initBackendBridge` · `core.usesRust` · `core.clearMirrors` · `core.mirrored` · `core.getInTransitTransfers` · `core.getJournalDraftCount` · `core.getLastBackupFailedAt` · `core.getPendingApprovalRequests` · `core.getStockValueSnapshot` · `core.hasAnyProducts` · `core.onLedgerChanged` · `core.getCities` · `core.getDistricts` · `core.getLabels` · `core.getRegions` · `core.searchPlaces` · `core.INSIGHT_ICONS` · `core.INSIGHT_RULES` · `core.DEFAULT_THRESHOLDS` · `diagnostics.buildReproBundle` · `diagnostics.currentJournal` · `diagnostics.debugRecordingAvailable` · `diagnostics.isRecording` · `diagnostics.recordServiceCall` · `diagnostics.startRecording` · `diagnostics.stopRecording` · `diagnostics.getAuditEntityKinds` · `diagnostics.serviceRegistry` · `diagnostics.wrap` · `diagnostics.computePerfStats` · `diagnostics.groupByFingerprint` · `diagnostics.loadChannel` · `diagnostics.slowestLongTasks` · `diagnostics.clearLogs` · `diagnostics.exportAll` · `diagnostics.initDiagnostics` · `diagnostics.openLogFolder` · `diagnostics.readLogs` · `diagnostics.rotateLogs` · `diagnostics.debugEnabled` · `diagnostics.fingerprintOf` · `diagnostics.log` · `diagnostics.newCorrelationId` · `diagnostics.registerSink` · `diagnostics.setLogContext` · `diagnostics.withCorrelation` · `products.onCatalogChanged` · `products.branchStockFromCache` · `products.rememberBranchStock` · `settings.isClosingWithBackup` · `setup.ensureDeviceSetupState` · `setup.isFreshInstallCached` · `setup.refreshDeviceSetupState` · `setup.ensureEmptyCompanyShell` · `users.isFreshInstall`
+`core.newAttachmentId` · `core.ALL_BACKEND_DOMAINS` · `core.backendCall` · `core.initBackendBridge` · `core.setParityTransport` · `core.usesRust` · `core.usesRustEverywhere` · `core.clearMirrors` · `core.mirrored` · `core.mirrorsSettled` · `core.getInTransitTransfers` · `core.getJournalDraftCount` · `core.getLastBackupFailedAt` · `core.getPendingApprovalRequests` · `core.getStockValueSnapshot` · `core.hasAnyProducts` · `core.onLedgerChanged` · `core.canLoadDemoData` · `core.getCities` · `core.getDistricts` · `core.getLabels` · `core.getRegions` · `core.searchPlaces` · `core.INSIGHT_ICONS` · `core.INSIGHT_RULES` · `core.DEFAULT_THRESHOLDS` · `diagnostics.reproRecordingRefusal` · `diagnostics.buildReproBundle` · `diagnostics.currentJournal` · `diagnostics.debugRecordingAvailable` · `diagnostics.isRecording` · `diagnostics.recordServiceCall` · `diagnostics.startRecording` · `diagnostics.stopRecording` · `diagnostics.getAuditEntityKinds` · `diagnostics.serviceRegistry` · `diagnostics.wrap` · `diagnostics.computePerfStats` · `diagnostics.groupByFingerprint` · `diagnostics.loadChannel` · `diagnostics.slowestLongTasks` · `diagnostics.clearLogs` · `diagnostics.exportAll` · `diagnostics.initDiagnostics` · `diagnostics.openLogFolder` · `diagnostics.readLogs` · `diagnostics.rotateLogs` · `diagnostics.debugEnabled` · `diagnostics.fingerprintOf` · `diagnostics.log` · `diagnostics.newCorrelationId` · `diagnostics.registerSink` · `diagnostics.setLogContext` · `diagnostics.withCorrelation` · `parties.withComputed` · `products.onCatalogChanged` · `products.branchStockFromCache` · `products.rememberBranchStock` · `settings.isClosingWithBackup` · `setup.deviceStateForNavigation` · `setup.ensureDeviceSetupState` · `setup.isFreshInstallCached` · `setup.isNavigationHeldForDatabase` · `setup.mustHoldForDatabase` · `setup.refreshDeviceSetupState` · `setup.ensureEmptyCompanyShell` · `users.isFreshInstall`

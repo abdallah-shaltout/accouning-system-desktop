@@ -49,6 +49,35 @@ export type BackendDomain =
   | 'users'
   | 'vouchers';
 
+/** Every member of `BackendDomain`, as a runtime list (plan 21 Part 04, E-1/E-3): `usesRustEverywhere()`
+ * walks it, and E-1's flip is `RUST_DOMAINS = new Set(ALL_BACKEND_DOMAINS)` (P4-1: every domain flips
+ * together). `_AllDomainsListed` below fails `vue-tsc` if a domain is added to the union but not here. */
+export const ALL_BACKEND_DOMAINS = [
+  'accounting',
+  'analytics',
+  'approvals',
+  'core',
+  'dashboard',
+  'diagnostics',
+  'expenses',
+  'invoices',
+  'parties',
+  'payments',
+  'products',
+  'purchases',
+  'reports',
+  'settings',
+  'setup',
+  'templates',
+  'users',
+  'vouchers',
+] as const satisfies readonly BackendDomain[];
+
+/** Compile-time check: `never` only while `ALL_BACKEND_DOMAINS` lists every `BackendDomain`. */
+type _AllDomainsListed = Exclude<BackendDomain, (typeof ALL_BACKEND_DOMAINS)[number]>;
+const _allDomainsListed: [_AllDomainsListed] extends [never] ? true : never = true;
+void _allDomainsListed;
+
 /** Domains whose services call the real Rust backend. Empty in this wave (Part 04 flips domains
  * one at a time as their commands land) — every service still runs on the mock until then. */
 const RUST_DOMAINS: ReadonlySet<BackendDomain> = new Set<BackendDomain>([]);
@@ -82,12 +111,42 @@ function devOverrideDomains(): ReadonlySet<BackendDomain> | '*' | null {
  * the mock.
  */
 export function usesRust(domain: BackendDomain): boolean {
+  if (parityTransport) return true;
   if (!isTauri()) return false;
   if (RUST_DOMAINS.has(domain)) return true;
   const override = devOverrideDomains();
   if (override === '*') return true;
   if (override && override.has(domain)) return true;
   return false;
+}
+
+/**
+ * Whether every domain uses the real Rust backend (plan 21 Part 04, E-3): the app is in "Rust mode".
+ * Then the mock must neither load nor write the browser's own IndexedDB snapshot (`main.ts` skips
+ * `bootMockDb()`, `mocks/persist.ts` refuses snapshot writes and resets), because that snapshot is the
+ * user's legacy data waiting for its one-time import (P4-9). `false` in the browser build and in e2e
+ * (`usesRust` is false outside Tauri), and while `RUST_DOMAINS` is empty unless a dev override puts
+ * every domain on Rust.
+ */
+export function usesRustEverywhere(): boolean {
+  return ALL_BACKEND_DOMAINS.every((domain) => usesRust(domain));
+}
+
+/** Plan 21 Part 04 B-7: a headless transport to the Rust `parity_host` (`scripts/parity/transport.ts`),
+ * set only by the parity runner. Same signature as Tauri's `invoke` for the calls `backendCall` makes. */
+export type ParityTransport = (command: string, payload?: { args: unknown }) => Promise<unknown>;
+
+let parityTransport: ParityTransport | null = null;
+
+/**
+ * Parity-harness hook (plan 21 Part 04, B-7, decision P4-2): while a transport is set, every
+ * `usesRust()` answers `true` and `backendCall` sends through the transport instead of Tauri's
+ * `invoke`, with the same `ApiError` conversion — so `bun run parity` drives the real services
+ * against Rust without touching any of them. Refuses inside Tauri: the real app can never use it.
+ */
+export function setParityTransport(transport: ParityTransport | null): void {
+  if (isTauri()) throw new Error('setParityTransport is a headless parity-harness hook and is never available inside the Tauri app');
+  parityTransport = transport;
 }
 
 /** Generic Arabic message for a Rust-side failure with no structured `{code, message}` payload
@@ -118,7 +177,9 @@ export async function backendCall<K extends keyof IpcCommands>(
   ...args: IpcCommands[K]['args'] extends undefined ? [] : [args: IpcCommands[K]['args']]
 ): Promise<IpcCommands[K]['returns']> {
   try {
-    return await invoke<IpcCommands[K]['returns']>(command, args.length > 0 ? { args: args[0] } : undefined);
+    const payload = args.length > 0 ? { args: args[0] } : undefined;
+    if (parityTransport) return (await parityTransport(command, payload)) as IpcCommands[K]['returns'];
+    return await invoke<IpcCommands[K]['returns']>(command, payload);
   } catch (err) {
     if (isApiErrorPayload(err)) {
       throw new ApiError(err.message, err.code);

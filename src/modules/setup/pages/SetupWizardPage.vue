@@ -106,13 +106,16 @@ async function commitCurrentStep(): Promise<boolean> {
         );
         break;
       case 'ready':
+        // Record the step before finishing: finishing ends the wizard's bootstrap session on the
+        // Rust backend (02-setup D-1), after which a progress write is refused (UNAUTHORIZED).
+        await setupService.markStepDone(step.value.key, stepIndex.value);
         await setupService.finishOnboarding();
         break;
       default:
         break;
     }
     doneSteps.value.add(step.value.key);
-    await setupService.markStepDone(step.value.key, stepIndex.value);
+    if (step.value.key !== 'ready') await setupService.markStepDone(step.value.key, stepIndex.value);
     await setupService.persistProgress();
     return true;
   } catch (err) {

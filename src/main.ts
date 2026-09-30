@@ -25,7 +25,7 @@ import { errorMessage } from './modules/core/controllers/useToast';
 import { initAutoBackup } from './modules/settings/services/backupService';
 import { initDiagnostics } from './modules/diagnostics/services/diagnosticsService';
 import { fingerprintOf, log } from './modules/diagnostics/services/logService';
-import { initBackendBridge } from './modules/core/services/backend';
+import { initBackendBridge, usesRustEverywhere } from './modules/core/services/backend';
 
 initTheme();
 initAppearance();
@@ -46,7 +46,9 @@ window.addEventListener('unhandledrejection', (e) => {
 async function bootstrap() {
   // Load a persisted IndexedDB snapshot if one exists; otherwise `db` stays empty and the router
   // guard sends the first navigation to /welcome (demo data seeds it, or "start company" does).
-  await bootMockDb();
+  // Rust mode (plan 21 Part 04, E-3): the books live in MariaDB, and the IndexedDB snapshot is the
+  // user's legacy data for the one-time import (P4-9) — loading a stale copy into memory is skipped.
+  if (!usesRustEverywhere()) await bootMockDb();
 
   const app = createApp(App);
   const pinia = createPinia();

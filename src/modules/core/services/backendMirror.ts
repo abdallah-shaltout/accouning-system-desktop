@@ -43,6 +43,9 @@ type Entry<T> = Pending | Loaded<T> | Failed;
  * entry. */
 const entries = reactive(new Map<string, Entry<unknown>>());
 
+/** Every `load()` still in flight (removed as each settles). */
+const pendingLoads = new Set<Promise<void>>();
+
 /** Every category the mock event bus can emit (`src/mocks/events.ts`) invalidates every mirrored
  * entry — a mirror has no per-key subscription to "which category would affect this key", and a
  * dashboard/insight read is cheap enough that over-invalidating (a `catalog:changed` clearing a
@@ -83,16 +86,27 @@ export function mirrored<T>(key: string, load: () => Promise<T>, fallback: T, op
   // entry just went stale: (re)start the load.
 
   entries.set(key, { state: 'pending' });
-  void load()
+  const inflight: Promise<void> = load()
     .then((value) => {
       entries.set(key, { state: 'loaded', value, loadedAt: Date.now() });
     })
     .catch((err: unknown) => {
       entries.set(key, { state: 'failed' });
       log.error('core.backendMirror', `mirrored("${key}") failed`, err instanceof Error ? err : undefined, { key });
-    });
+    })
+    .finally(() => pendingLoads.delete(inflight));
+  pendingLoads.add(inflight);
 
   return existing?.state === 'loaded' ? existing.value : fallback;
+}
+
+/**
+ * Resolves once no mirrored `load()` is in flight — for a headless caller (the parity harness,
+ * `scripts/parity/cases/dashboard/*`) that reads a mirrored value, waits for the background load,
+ * and reads it again. The UI never needs it: its `computed()`s re-run when the entry lands.
+ */
+export async function mirrorsSettled(): Promise<void> {
+  while (pendingLoads.size > 0) await Promise.all([...pendingLoads]);
 }
 
 /**

@@ -1,5 +1,7 @@
 import { ApiError, clone, db, delay, inDateRange, includesText, session } from '@/mocks';
 import { activeBatchesFor } from '@/mocks/backend/inventory';
+import { supplierBalance } from '@/mocks/backend/balances';
+import { unallocatedCreditFor } from '@/mocks/backend/payments';
 import {
   cancelPurchase,
   computePurchaseTotals,
@@ -90,7 +92,9 @@ export const getPurchaseOrder = wrap('purchases.getPurchaseOrder', async functio
   const dup = po.supplierInvoiceNo && supplier ? duplicateSupplierInvoice(supplier.id, po.supplierInvoiceNo, po.id) : undefined;
   return {
     ...toRow(po),
-    supplier: clone(supplier),
+    // BUG-0020: the supplier with its computed balance/credit (like `getSupplier`), not the raw row's
+    // stale stored `balance` — the Rust backend reads it through `parties::get_supplier`.
+    supplier: supplier && { ...clone(supplier), balance: supplierBalance(supplier.id), unallocatedCredit: unallocatedCreditFor('supplier', supplier.id) },
     products,
     returns: clone(returns),
     payments: clone(payments),

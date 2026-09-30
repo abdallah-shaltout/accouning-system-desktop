@@ -2,7 +2,7 @@
  * Client-side file processing for `AttachmentField` (docs/v2/14-platform.md §5): type/size
  * validation, image resize + WebP re-encode via canvas, and thumbnail generation.
  */
-import { uid, type AttachmentKind, type AttachmentRecord } from '../services/attachmentService';
+import { newAttachmentId, type AttachmentKind, type AttachmentRecord } from '../services/attachmentService';
 
 /** Max upload size. A setting in the spec's language — exported as a const until Settings grows a UI for it. */
 export const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB
@@ -98,7 +98,7 @@ export async function processFile(file: File, ownerRef: string | undefined, crea
   }
 
   const kind = kindOf(file.type);
-  const id = uid('att');
+  const id = newAttachmentId();
   const createdAt = new Date().toISOString();
 
   if (kind === 'image' && file.type !== 'image/svg+xml') {

@@ -92,6 +92,31 @@ export const config = {
       disposition: 'drop',
       reason: '01.B setup review — only calls flushSnapshot() (mock-specific IndexedDB persistence); under MariaDB every write already commits durably inside its own transaction, so there is no Rust equivalent',
     },
+    'setup.previewCoaTemplate': {
+      disposition: 'frontend',
+      reason:
+        "21.04 phase A (A-2 finding): the function's own doc comment already says \"D-6: stays frontend-only even on Rust — pure/synchronous, used in a computed (StepCoa.vue)\", and its mock body (`src/mocks/backend/setup.ts#previewCoaTemplate`) is itself documented \"without touching db\" — a pure tree-builder over its own arguments, not a backend read. The heuristic mis-suggested `port` only because it reaches a `src/mocks/backend/**` function at all, not because that function touches any table",
+    },
+    'setup.hasLegacySnapshot': {
+      disposition: 'frontend',
+      reason:
+        "P4-9 (21.04 entry file): reads the browser's OWN legacy IndexedDB snapshot directly via `src/mocks/persist.ts#readPersistedSnapshot` — this is not a MockDb business table, it is the one-time legacy-import source data that stays in IndexedDB even after the Rust flip (the importer then hands it to `setup_import_snapshot`). The heuristic mis-suggested `port` because `readPersistedSnapshot` lives under `src/mocks/`, but it never reads `db.*`",
+    },
+    'parties.findDuplicates': {
+      disposition: 'frontend',
+      reason:
+        '21.04 phase A (A-2 finding): a synchronous internal helper over `db.customers`/`db.suppliers` with no `usesRust` guard of its own — its only caller in `src/` is `parties.checkDuplicates` (same file), which already has its own gated `backendCall(\'parties_check_duplicates\', …)` switch line and only falls back to this sync helper on the mock path. No page or component calls `findDuplicates` directly (grep confirmed), so there is no seam to close — it is exported only because `wrap()` requires an export, not because it is a standalone Rust-backed entry point',
+    },
+    'core.getThresholds': {
+      disposition: 'port',
+      reason:
+        "21.04 phase A (A-2 finding): its Rust branch reads `useSettingsStore().settings?.insightThresholds` instead of calling `backendCall` itself — the store's own `load()`/`update()` already go through the gated `settings.getSettings`/`settings.updateSettings` switch lines (settingsService.ts). This is the same pattern CLAUDE.md's router-guard/store-load rule describes for a synchronous reader (A-5): the switch line lives in the loader, not in every function that later reads the loaded state. Kept as `port` since it genuinely is Rust-backed once the store has loaded; allowlisted here so A-2 doesn't demand a second, redundant backendCall in this function's own body",
+    },
+    'core.setThresholds': {
+      disposition: 'port',
+      reason:
+        '21.04 phase A (A-2 finding): same pattern as core.getThresholds — its Rust branch calls `useSettingsStore().update(...)`, which is `settings.updateSettings`\'s own already-gated switch line, not a second backendCall here',
+    },
     'users.getDemoAccounts': {
       disposition: 'dev-only',
       reason: '01.B users review — returns plaintext passwords for the dev/demo login-screen account picker; must never exist as a general-purpose production command (same class of restriction as devToolsService, F9)',
@@ -128,4 +153,35 @@ export const config = {
    * never a type any service exposes).
    */
   excludeFromTypes: [/\/types\/gen\//, /\/contract\.check\.ts$/],
+
+  /** Where `BackendDomain` (`core/services/backend.ts`) and `IpcCommands` (`core/types/gen/ipc.gen.ts`)
+   * live — the A-2 switch-line coverage check reads both textually instead of hardcoding the lists here. */
+  backendServiceFile: 'src/modules/core/services/backend.ts',
+  ipcManifestFile: 'src/modules/core/types/gen/ipc.gen.ts',
+
+  /**
+   * A-2 (21.04 phase A): `backendCall('<cmd>', …)` sites that are allowed to have **no** enclosing
+   * `usesRust('<domain>')` guard, each with a reason. Everything else a `port` function calls (or any
+   * other wrapped service calls) must sit inside exactly one such guard, keyed by the domain the
+   * command's own prefix names.
+   */
+  ungatedSwitchSites: {
+    core_backend_status: 'F-2 — the real backend\'s own connection/role/schema status; no mock equivalent to switch away from, so it is a literal backendCall with no domain guard (core.getBackendStatus is `rust-existing`, not `port`)',
+  } as Record<string, string>,
+
+  /**
+   * A-2 rule (b) exception: a `backendCall` command prefix that legitimately does not equal its
+   * enclosing `usesRust('<domain>')` guard's domain, each with a reason. Rule (b)'s "`<d>` equals the
+   * command's prefix" holds for every switch line except these documented ones.
+   */
+  switchDomainPrefixExceptions: {
+    attachments: 'core',
+  } as Record<string, string>,
+
+  /**
+   * A-4 (21.04 phase A): `stay-frontend` service functions allowed to still read mock `db.*` tables
+   * after the flip — dev-only tooling that is refused or rerouted on Rust rather than ported, each
+   * with a reason tied to the finding that justifies it.
+   */
+  stayFrontendMockReadAllowlist: {} as Record<string, string>,
 };

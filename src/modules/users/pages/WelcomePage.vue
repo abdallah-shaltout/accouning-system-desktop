@@ -9,12 +9,19 @@ import {
     toggleTheme,
 } from "@/modules/core/controllers/useTheme";
 import { errorMessage } from "@/modules/core/controllers/useToast";
-import { reloadDemoData } from "@/modules/core/services/devToolsService";
+import {
+    canLoadDemoData,
+    reloadDemoData,
+} from "@/modules/core/services/devToolsService";
 import { APP_NAME_AR } from "@/modules/core/helpers/brand";
+import LegacyImportCard from "@/modules/setup/components/LegacyImportCard.vue";
 
 const router = useRouter();
 const pending = ref<"demo" | "fresh" | null>(null);
 const error = ref("");
+// Plan 21 Part 04 E-2 (3): a release desktop build never offers demo data — it would land in the
+// real company's database for good (`canLoadDemoData`). The browser build always offers it.
+const demoAvailable = canLoadDemoData();
 
 async function startDemo() {
     error.value = "";
@@ -68,7 +75,18 @@ function startFresh() {
                 {{ error }}
             </p>
 
-            <div class="grid gap-4 sm:grid-cols-2">
+            <!-- Plan 21 Part 04 E-2 (3) / P4-9: on the Main PC, the one-time import of this PC's
+                 data from the previous version. Renders nothing in the browser build, on a
+                 terminal, once imported, or when there is no old data. -->
+            <LegacyImportCard
+                class="mb-4"
+                @imported="() => router.replace({ name: 'login' })"
+            />
+
+            <div
+                class="grid gap-4"
+                :class="demoAvailable ? 'sm:grid-cols-2' : ''"
+            >
                 <button
                     type="button"
                     class="group flex flex-col items-start gap-3 rounded-xl border border-border bg-surface p-6 text-start transition-colors hover:border-primary/50 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
@@ -95,6 +113,7 @@ function startFresh() {
                 </button>
 
                 <button
+                    v-if="demoAvailable"
                     type="button"
                     class="group flex flex-col items-start gap-3 rounded-xl border border-border bg-surface p-6 text-start transition-colors hover:border-primary/50 hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
                     :disabled="pending !== null"

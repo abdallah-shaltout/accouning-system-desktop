@@ -1,10 +1,11 @@
 <script setup lang="ts">
 /**
  * D10 (21.03 §00-import): the one-time "import your company's data from the previous version" card,
- * embedded by 02-setup's device/role page (W2 — this file lands before that page exists, so nothing
- * mounts it yet; `hasLegacySnapshot()` gates whether it would show at all). Setup-local, not a
- * shared `core/components` piece — only ever used on that one screen, so rule 3 (UI rules §"Never
- * duplicate") doesn't apply and it isn't added to `/dev/ui`/`docs/design_system.md`.
+ * mounted by the welcome page (`users/pages/WelcomePage.vue`, plan 21 Part 04 E-2) — the one screen
+ * a connected Main PC with no users always reaches, also after a restart between provisioning and
+ * importing. `hasLegacySnapshot()` gates whether it shows at all: Rust mode, the Main PC only
+ * (00-import D-3), no import marker yet (P4-9, E-4) and a snapshot that holds a company. Feature-only
+ * (setup module), not a shared `core/components` piece, so it isn't in `/dev/ui`/`docs/design_system.md`.
  */
 import { computed, onMounted, ref } from 'vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
@@ -97,6 +98,7 @@ async function runImport(): Promise<void> {
       <p class="text-caption text-text-secondary">
         يتم نقل بياناتك إلى قاعدة البيانات الجديدة على هذا الجهاز. لا تُلغِ تثبيت البرنامج قبل انتهاء النقل.
       </p>
+      <p class="text-caption text-text-secondary">تبقى بياناتك القديمة محفوظة على هذا الجهاز كما هي، فالاستيراد ينسخها ولا يحذفها.</p>
 
       <p v-if="error" class="text-xs text-danger">{{ error }}</p>
 

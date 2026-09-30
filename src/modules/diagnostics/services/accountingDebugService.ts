@@ -167,9 +167,13 @@ export const getDriftReport = wrap('diagnostics.getDriftReport', async function 
   // `checkPartyAllocation` in invariants.ts uses, kept here only for display (every row, not just
   // failing ones) — this file never decides pass/fail, that stays in the shared invariant.
   const arReducedByRefunds = (invoiceId: string) => db.refunds.filter((r) => r.invoiceId === invoiceId).reduce((a, r) => a + r.settledToReceivable, 0);
+  const outstandingBase = (i: (typeof db.invoices)[number]) => {
+    const fc = i.grandTotal - arReducedByRefunds(i.id) - i.paidAmount;
+    return i.currency && i.exchangeRate ? round2(fc * i.exchangeRate) : fc;
+  };
   for (const c of db.customers) {
     const outstanding = round2(
-      db.invoices.filter((i) => i.customerId === c.id && i.status !== 'DRAFT').reduce((a, i) => a + (i.grandTotal - arReducedByRefunds(i.id) - i.paidAmount), 0),
+      db.invoices.filter((i) => i.customerId === c.id && i.status !== 'DRAFT').reduce((a, i) => a + outstandingBase(i), 0),
     );
     const credit = unallocatedCreditFor('customer', c.id);
     const subledger = round2(outstanding - credit);
@@ -257,15 +261,28 @@ export const explainAccountBalance = wrap(
 // Repro bundles + replay (18.F4)
 // ---------------------------------------------------------------------------------------------
 
+/** 16 D-5's refusal text — one copy for the service's refusal and the tab's disabled buttons. */
+const REPRO_RECORDING_REFUSAL = 'تسجيل إعادة الإنتاج غير متاح مع قاعدة البيانات الحقيقية بعد';
+
+/**
+ * Why repro recording is unavailable right now, or `null` where it works (the mock). Plan 21 Part 04
+ * E-5 (P4-11): on the real backend the "المحاسبة" tab shows this instead of offering the recording
+ * buttons, because a Rust accounting fix ships a parity case (`scripts/parity/cases/…`) plus a
+ * `tests/domain_*.rs` test as its regression case, not a repro bundle (`scripts/verify/cases/` stays
+ * for mock bugs). The tab's other panels already read the ported `diagnostics_*` commands.
+ */
+export function reproRecordingRefusal(): string | null {
+  return usesRust('diagnostics') ? REPRO_RECORDING_REFUSAL : null;
+}
+
 /** Starts recording every service call from this point on, snapshotting the current `db` as the
  * bundle's starting point. UI-only — `scripts/verify/replay.ts` seeds its own `db` headlessly and
  * never calls this. D-5: not ported to Rust (the mock's "clone the whole DB then record calls" has
  * no Rust equivalent yet, spec §9 → Part 04) — refuses instead of recording mock data once the
  * `diagnostics` domain is on the real backend. */
 export const startReproRecording = wrap('diagnostics.startReproRecording', async function startReproRecording(): Promise<void> {
-  if (usesRust('diagnostics')) {
-    throw new ApiError('تسجيل إعادة الإنتاج غير متاح مع قاعدة البيانات الحقيقية بعد', 'FORBIDDEN');
-  }
+  const refusal = reproRecordingRefusal();
+  if (refusal) throw new ApiError(refusal, 'FORBIDDEN');
   const { startRecording } = await import('./actionJournal');
   startRecording(clone(db));
 });

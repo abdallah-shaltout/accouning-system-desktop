@@ -12,6 +12,7 @@ import type { PagedQuery, PagedResult, PageSort } from './paging';
 import type { ActivityEntry, DashboardSummary } from './index';
 import type { HomeKpi, HomeKpis, TopCustomerRow, TopProductRow, getRecentActivity, getRecentInvoices } from '../services/dashboardService';
 import type { Insight, InsightIconKey } from '../services/insightTypes';
+import type { AttachmentKind, AttachmentMeta } from '@/mocks/attachments';
 import type { Role } from '@/modules/users/types';
 
 import type { ApiErrorPayload as GenApiErrorPayload } from './gen/ApiErrorPayload';
@@ -34,6 +35,8 @@ import type { TopCustomerRow as GenTopCustomerRow } from './gen/TopCustomerRow';
 import type { RecentInvoice as GenRecentInvoice } from './gen/RecentInvoice';
 import type { RecentActivityEntry as GenRecentActivityEntry } from './gen/RecentActivityEntry';
 import type { InsightDto as GenInsightDto } from './gen/InsightDto';
+import type { AttachmentKind as GenAttachmentKind } from './gen/AttachmentKind';
+import type { AttachmentMeta as GenAttachmentMeta } from './gen/AttachmentMeta';
 
 export type _ApiErrorPayload = Expect<Equals<GenApiErrorPayload, ApiErrorPayload>>;
 export type _BackendChangedPayload = Expect<Equals<GenBackendChangedPayload, BackendChangedPayload>>;
@@ -82,3 +85,14 @@ export type _RecentActivityEntry = Expect<Equals<Simplify<GenRecentActivityEntry
 // neither of which `Equals`/`Simplify` needs reconciled beyond the shape below.
 // contract-ok: icon is a Vue component; the service maps InsightIconKey → Component; roles is readonly in TS
 export type _InsightDto = Expect<Equals<Simplify<GenInsightDto>, Simplify<Omit<Insight, 'icon' | 'roles'> & { icon: InsightIconKey; roles: Role[] }>>>;
+
+// --- C-16 attachments (src-tauri/src/domains/attachments/dto.rs) ----------------------------------
+
+export type _AttachmentKind = Expect<Equals<GenAttachmentKind, AttachmentKind>>;
+// `AttachmentMeta`'s wire shape is identical to the mock's own `AttachmentMeta` (`src/mocks/
+// attachments.ts`) — `attachmentService.ts`'s `metaFromDto` maps the Rust DTO onto it 1:1.
+// `AttachmentRecord` isn't checked here: Rust carries the blob as `blobBase64`/`thumbnailBase64`
+// (base64 strings, the `pdf_base64` precedent) where the mock's own type has `blob`/`thumbnail:
+// Blob` — `attachmentService.ts`'s `recordFromDto` is the one place that reconciles the two shapes.
+// contract-ok: AttachmentRecord's blob/thumbnail are Blob in the mock vs base64 strings on the wire (attachmentService.ts's recordFromDto)
+export type _AttachmentMeta = Expect<Equals<GenAttachmentMeta, AttachmentMeta>>;

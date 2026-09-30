@@ -9,14 +9,20 @@
  * import mocks) and ships it to the Rust importer as a JSON string — the whole `MockDb` never needs
  * its own ts-rs type (`00-import.md` §3's "the snapshot travels as a JSON string so ts-rs never has
  * to type the whole `MockDb`").
+ *
+ * Plan 21 Part 04 (P4-9, E-4): the app never deletes that snapshot. A successful import records an
+ * `importedAt` marker under its own key in the same IndexedDB store (`writeLegacyImportMarker`), and
+ * the card hides once it exists. The importer's own empty-database refusal (00-import step 1) stays
+ * the real guard against a second import.
  */
 import { ApiError } from '@/mocks';
-import { readPersistedSnapshot } from '@/mocks/persist';
+import { readLegacyImportMarker, readPersistedSnapshot, writeLegacyImportMarker } from '@/mocks/persist';
 import { backendCall, usesRust } from '@/modules/core/services/backend';
+import { log } from '@/modules/diagnostics/services/logService';
 import { wrap } from '@/modules/diagnostics/services/defineService';
+import { ensureDeviceSetupState } from './deviceService';
 import type { LegacySnapshotSummary } from '../types';
 
-const LEGACY_IMPORTED_AT_KEY = 'equal.legacyImportedAt';
 const TEMPLATES_STORAGE_KEY = 'pdf_templates_v1';
 
 function desktopOnly(): never {
@@ -31,20 +37,17 @@ function readTemplatesJson(): string | undefined {
   }
 }
 
-/** Frontend-only (no Rust round trip): a legacy snapshot exists **and** it hasn't already been
- * imported on this machine (`equal.legacyImportedAt` unset) — drives whether the one-time import
- * card shows at all. */
+/** Whether the one-time import card shows at all: this is the Main PC (00-import D-3 — a terminal's
+ * own old snapshot is never merged and stays on that PC untouched, P4-9), this PC's snapshot was not
+ * imported yet (no E-4 marker), and the snapshot holds a company (at least one user). Only the device
+ * state is a Rust round trip, and it is the cached one the router guard already fetched. */
 export const hasLegacySnapshot = wrap('setup.hasLegacySnapshot', async function hasLegacySnapshot(): Promise<boolean> {
   if (!usesRust('setup')) return false;
-  let alreadyImported = false;
-  try {
-    alreadyImported = localStorage.getItem(LEGACY_IMPORTED_AT_KEY) != null;
-  } catch {
-    alreadyImported = false;
-  }
-  if (alreadyImported) return false;
+  const device = await ensureDeviceSetupState();
+  if (device.role !== 'main') return false;
+  if (await readLegacyImportMarker()) return false;
   const snapshot = await readPersistedSnapshot();
-  return snapshot != null;
+  return (snapshot?.data?.users?.length ?? 0) > 0;
 });
 
 /** `setup_inspect_legacy_snapshot`: summarizes the persisted snapshot (row counts, branches,
@@ -60,7 +63,8 @@ export const inspectLegacySnapshot = wrap('setup.inspectLegacySnapshot', async f
 /** `setup_import_snapshot` in `mode: 'legacy'`: the actual one-time import. `templateBranchId` is
  * only needed when the snapshot has more than one branch and print templates exist
  * (`LegacySnapshotSummary.branches.length > 1 && hasTemplates` — the card only shows the picker
- * then). On success, marks this machine as already-imported so the offer disappears. */
+ * then). On success, writes the E-4 marker so the offer disappears. (The import created the company's
+ * users; the router guard re-reads the device state before it would bounce `/login` to `/welcome`.) */
 export const importLegacySnapshot = wrap('setup.importLegacySnapshot', async function importLegacySnapshot(templateBranchId?: string): Promise<void> {
   if (!usesRust('setup')) desktopOnly();
   const snapshot = await readPersistedSnapshot();
@@ -74,8 +78,9 @@ export const importLegacySnapshot = wrap('setup.importLegacySnapshot', async fun
     replaceExisting: false,
   });
   try {
-    localStorage.setItem(LEGACY_IMPORTED_AT_KEY, new Date().toISOString());
-  } catch {
-    /* private mode — the offer may reappear next launch, not a correctness issue */
+    await writeLegacyImportMarker(new Date().toISOString());
+  } catch (err) {
+    // Not a correctness issue: the offer may reappear, and the importer refuses a non-empty database.
+    log.error('setup.importLegacySnapshot', 'failed to write the legacy-import marker', err instanceof Error ? err : new Error(String(err)));
   }
 });

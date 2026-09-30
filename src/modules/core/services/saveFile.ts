@@ -3,6 +3,16 @@
  * (Excel, JSON, CSV/MD, backup, PDF) goes through the native Tauri Save dialog on desktop, with a
  * plain `<a download>` fallback in a browser (dev/e2e — Playwright's `expect_download()` needs a
  * real anchor click, not a Tauri dialog it can't drive).
+ *
+ * Plan 21 Part 04 phase D (D-3): the Tauri e2e path (`--target tauri`, `scripts/e2e/common.py`)
+ * drives the real Tauri window, where `isTauri()` is true and a native Save dialog would block
+ * automation the same way it does in a real browser. Rule 21 allows the browser-download fallback
+ * "only for dev/e2e", and this is exactly that case: when running a dev build
+ * (`import.meta.env.DEV`) with `localStorage['equal.e2e'] === '1'` (set by `open_page()`/
+ * `reset_backend()` in common.py, never in a production build), the Tauri branch below also uses
+ * `browserDownload()` instead of the native dialog. `expect_saved_file()` (common.py) then watches
+ * the CDP session's configured download directory for the result. Production builds are
+ * unaffected: `import.meta.env.DEV` is `false` there regardless of `localStorage`.
  */
 import { isTauri } from '@tauri-apps/api/core';
 import { useToast } from '@/modules/core/controllers/useToast';
@@ -79,6 +89,18 @@ function browserDownload(bytes: Uint8Array, filename: string, kind: SaveFileKind
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** D-3: true only in a dev build running under the Tauri e2e path (`scripts/e2e/common.py`'s
+ * `open_page()`/`reset_backend()` set this flag) — never true in a production build, since
+ * `import.meta.env.DEV` is always false there regardless of `localStorage` content. */
+function isE2eSaveFallback(): boolean {
+  if (!import.meta.env.DEV) return false;
+  try {
+    return localStorage.getItem('equal.e2e') === '1';
+  } catch {
+    return false;
+  }
+}
+
 export interface SaveFileOptions {
   /** File name including extension, e.g. "الفواتير 2026-01-01_2026-09-25.xlsx". */
   suggestedName: string;
@@ -96,7 +118,7 @@ export const saveFile = wrap('core.saveFile', async function saveFile(data: Uint
   const name = safeName(options.suggestedName);
   const bytes = await toBytes(data);
 
-  if (!isTauri()) {
+  if (!isTauri() || isE2eSaveFallback()) {
     browserDownload(bytes, name, options.kind);
     return true;
   }

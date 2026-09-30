@@ -30,44 +30,45 @@ The executable spec the Rust `shared/` and `domains/` port. Rounding counts show
 | [`backend/branches#activeBranches`](../../../src/mocks/backend/branches.ts#L25) | branches |  |  |  |  |  |
 | [`backend/branches#branchById`](../../../src/mocks/backend/branches.ts#L21) | branches |  |  |  |  |  |
 | [`backend/branches#branchesEnabled`](../../../src/mocks/backend/branches.ts#L30) | settings |  |  |  |  |  |
-| [`backend/branches#branchPrefix`](../../../src/mocks/backend/branches.ts#L205) | branches |  | backend/branches#branchById |  |  |  |
+| [`backend/branches#branchPrefix`](../../../src/mocks/backend/branches.ts#L210) | branches |  | backend/branches#branchById |  |  |  |
 | [`backend/branches#cashParentId`](../../../src/mocks/backend/branches.ts#L43) | accounts |  |  |  |  |  |
-| [`backend/branches#costCenterById`](../../../src/mocks/backend/branches.ts#L219) | costCenters |  |  |  |  |  |
+| [`backend/branches#costCenterById`](../../../src/mocks/backend/branches.ts#L224) | costCenters |  |  |  |  |  |
 | [`backend/branches#costCentersEnabled`](../../../src/mocks/backend/branches.ts#L38) | settings |  |  |  |  |  |
-| [`backend/branches#createBranch`](../../../src/mocks/backend/branches.ts#L100) |  | branches | backend/branches#createBranchCashAccount, backend/branches#createBranchCostCenter, backend/core#logActivity, events#emit, persist#mutate, u… |  |  |  |
+| [`backend/branches#createBranch`](../../../src/mocks/backend/branches.ts#L105) |  | branches | backend/branches#createBranchCashAccount, backend/branches#createBranchCostCenter, backend/core#logActivity, events#emit, persist#mutate, u… |  |  |  |
 | [`backend/branches#createBranchCashAccount`](../../../src/mocks/backend/branches.ts#L61) |  | accounts | backend/branches#cashParentId, backend/branches#nextCashCode, persist#mutate, utils#uid |  |  |  |
-| [`backend/branches#createBranchCostCenter`](../../../src/mocks/backend/branches.ts#L82) |  | costCenters | persist#mutate, utils#uid |  |  |  |
-| [`backend/branches#createCostCenter`](../../../src/mocks/backend/branches.ts#L223) |  | costCenters | backend/core#logActivity, persist#mutate, utils#uid |  |  |  |
+| [`backend/branches#createBranchCostCenter`](../../../src/mocks/backend/branches.ts#L87) |  | costCenters | persist#mutate, utils#uid |  |  |  |
+| [`backend/branches#createCostCenter`](../../../src/mocks/backend/branches.ts#L228) |  | costCenters | backend/core#logActivity, persist#mutate, utils#uid |  |  |  |
 | [`backend/branches#currenciesEnabled`](../../../src/mocks/backend/branches.ts#L34) | settings |  |  |  |  |  |
-| [`backend/branches#deactivateBranch`](../../../src/mocks/backend/branches.ts#L171) | products, shifts | accounts, branches | backend/core#logActivity, persist#mutate | 1 |  |  |
-| [`backend/branches#defaultCostCenterFor`](../../../src/mocks/backend/branches.ts#L264) |  |  | backend/branches#branchById |  |  |  |
-| [`backend/branches#deleteCostCenter`](../../../src/mocks/backend/branches.ts#L253) | journalEntries | costCenters | backend/core#logActivity, persist#mutate |  |  |  |
-| [`backend/branches#listBranches`](../../../src/mocks/backend/branches.ts#L96) | branches |  |  |  |  |  |
-| [`backend/branches#listCostCenters`](../../../src/mocks/backend/branches.ts#L215) | costCenters |  |  |  |  |  |
+| [`backend/branches#deactivateBranch`](../../../src/mocks/backend/branches.ts#L176) | products, shifts | accounts, branches | backend/core#logActivity, persist#mutate | 1 |  |  |
+| [`backend/branches#defaultCostCenterFor`](../../../src/mocks/backend/branches.ts#L269) |  |  | backend/branches#branchById |  |  |  |
+| [`backend/branches#deleteCostCenter`](../../../src/mocks/backend/branches.ts#L258) | journalEntries | costCenters | backend/core#logActivity, persist#mutate |  |  |  |
+| [`backend/branches#listBranches`](../../../src/mocks/backend/branches.ts#L101) | branches |  |  |  |  |  |
+| [`backend/branches#listCostCenters`](../../../src/mocks/backend/branches.ts#L220) | costCenters |  |  |  |  |  |
 | [`backend/branches#nextCashCode`](../../../src/mocks/backend/branches.ts#L49) | accounts |  | backend/branches#cashParentId |  |  |  |
-| [`backend/branches#reactivateBranch`](../../../src/mocks/backend/branches.ts#L192) |  | accounts, branches | backend/core#logActivity, persist#mutate |  |  |  |
-| [`backend/branches#updateBranch`](../../../src/mocks/backend/branches.ts#L131) |  | accounts, branches | backend/core#diffFields, backend/core#logAudit, persist#mutate |  |  |  |
-| [`backend/branches#updateCostCenter`](../../../src/mocks/backend/branches.ts#L245) |  | costCenters | backend/core#logActivity, persist#mutate |  |  |  |
-| [`backend/core#applyStockChange`](../../../src/mocks/backend/core.ts#L268) |  | stockMovements | persist#mutate, utils#uid | 4 | 1 | stock |
+| [`backend/branches#reactivateBranch`](../../../src/mocks/backend/branches.ts#L197) |  | accounts, branches | backend/core#logActivity, persist#mutate |  |  |  |
+| [`backend/branches#updateBranch`](../../../src/mocks/backend/branches.ts#L136) |  | accounts, branches | backend/core#diffFields, backend/core#logAudit, persist#mutate |  |  |  |
+| [`backend/branches#updateCostCenter`](../../../src/mocks/backend/branches.ts#L250) |  | costCenters | backend/core#logActivity, persist#mutate |  |  |  |
+| [`backend/core#applyStockChange`](../../../src/mocks/backend/core.ts#L280) |  | stockMovements | persist#mutate, utils#uid | 4 | 1 | stock |
 | [`backend/core#assertOpenPeriod`](../../../src/mocks/backend/core.ts#L105) | fiscalYears, settings |  | utils#localDateKey |  |  | period |
-| [`backend/core#closeFiscalYear`](../../../src/mocks/backend/core.ts#L555) | accounts, journalEntries | fiscalYears | backend/accounts#accountFor, backend/core#closeYearPreChecks, backend/core#logActivity, backend/core#postJournal, persist#mutate, utils#loc… | 3 |  |  |
-| [`backend/core#closeYearPreChecks`](../../../src/mocks/backend/core.ts#L512) | fiscalYears, journalDrafts, journalEntries |  | backend/accounts#accountFor, backend/core#trialBalanceFor | 1 |  |  |
-| [`backend/core#deleteDraftJournal`](../../../src/mocks/backend/core.ts#L226) |  | journalDrafts | persist#mutate |  |  |  |
-| [`backend/core#diffFields`](../../../src/mocks/backend/core.ts#L443) |  |  |  |  |  |  |
-| [`backend/core#draftJournal`](../../../src/mocks/backend/core.ts#L178) |  | journalDrafts | backend/core#resolvePosting, db#nextNumber, persist#mutate, utils#uid |  |  | ledger |
-| [`backend/core#entityFromLink`](../../../src/mocks/backend/core.ts#L335) |  |  | utils#uid |  |  |  |
-| [`backend/core#logActivity`](../../../src/mocks/backend/core.ts#L352) |  |  | backend/core#entityFromLink, backend/core#logAudit |  |  | activity |
-| [`backend/core#logAudit`](../../../src/mocks/backend/core.ts#L409) |  | activity, audit | persist#mutate, utils#uid |  |  | activity |
-| [`backend/core#postDraftJournal`](../../../src/mocks/backend/core.ts#L233) |  | journalDrafts, journalEntries | backend/core#assertOpenPeriod, events#emit, persist#mutate |  |  | ledger |
-| [`backend/core#postJournal`](../../../src/mocks/backend/core.ts#L124) |  | journalEntries | backend/core#assertOpenPeriod, backend/core#resolvePosting, backend/posting-trace#recordPostingTrace, db#nextNumber, events#emit, persist#m… |  |  | ledger |
-| [`backend/core#productById`](../../../src/mocks/backend/core.ts#L251) | products |  |  |  |  |  |
-| [`backend/core#purchaseTaxRate`](../../../src/mocks/backend/core.ts#L468) | taxes |  |  |  |  |  |
-| [`backend/core#reopenFiscalYear`](../../../src/mocks/backend/core.ts#L635) |  | fiscalYears, journalEntries | backend/core#logActivity, backend/core#postJournal, persist#mutate |  |  |  |
+| [`backend/core#closeFiscalYear`](../../../src/mocks/backend/core.ts#L567) | accounts, journalEntries | fiscalYears | backend/accounts#accountFor, backend/core#closeYearPreChecks, backend/core#logActivity, backend/core#postJournal, persist#mutate, utils#loc… | 3 |  |  |
+| [`backend/core#closeYearPreChecks`](../../../src/mocks/backend/core.ts#L524) | fiscalYears, journalDrafts, journalEntries |  | backend/accounts#accountFor, backend/core#trialBalanceFor | 1 |  |  |
+| [`backend/core#deleteDraftJournal`](../../../src/mocks/backend/core.ts#L238) |  | journalDrafts | persist#mutate |  |  |  |
+| [`backend/core#diffFields`](../../../src/mocks/backend/core.ts#L455) |  |  |  |  |  |  |
+| [`backend/core#draftJournal`](../../../src/mocks/backend/core.ts#L190) |  | journalDrafts | backend/core#resolvePosting, db#nextNumber, persist#mutate, utils#uid |  |  | ledger |
+| [`backend/core#entityFromLink`](../../../src/mocks/backend/core.ts#L347) |  |  | utils#uid |  |  |  |
+| [`backend/core#logActivity`](../../../src/mocks/backend/core.ts#L364) |  |  | backend/core#entityFromLink, backend/core#logAudit |  |  | activity |
+| [`backend/core#logAudit`](../../../src/mocks/backend/core.ts#L421) |  | activity, audit | persist#mutate, utils#uid |  |  | activity |
+| [`backend/core#postDraftJournal`](../../../src/mocks/backend/core.ts#L245) |  | journalDrafts, journalEntries | backend/core#assertOpenPeriod, events#emit, persist#mutate |  |  | ledger |
+| [`backend/core#postJournal`](../../../src/mocks/backend/core.ts#L138) |  | journalEntries | backend/core#preflightJournal, backend/posting-trace#recordPostingTrace, db#nextNumber, events#emit, persist#mutate, utils#uid |  |  | ledger |
+| [`backend/core#preflightJournal`](../../../src/mocks/backend/core.ts#L125) |  |  | backend/core#assertOpenPeriod, backend/core#resolvePosting |  |  |  |
+| [`backend/core#productById`](../../../src/mocks/backend/core.ts#L263) | products |  |  |  |  |  |
+| [`backend/core#purchaseTaxRate`](../../../src/mocks/backend/core.ts#L480) | taxes |  |  |  |  |  |
+| [`backend/core#reopenFiscalYear`](../../../src/mocks/backend/core.ts#L652) |  | fiscalYears, journalEntries | backend/core#logActivity, backend/core#postJournal, persist#mutate |  |  |  |
 | [`backend/core#resolvePosting`](../../../src/mocks/backend/core.ts#L55) | branches |  | backend/accounts#accountById, backend/accounts#accountFor, backend/currency#baseCurrency, utils#sum, utils#uid | 2 |  |  |
-| [`backend/core#salesTaxRate`](../../../src/mocks/backend/core.ts#L461) | settings, taxes |  |  |  |  |  |
-| [`backend/core#trialBalanceFor`](../../../src/mocks/backend/core.ts#L487) | accounts, journalEntries |  |  | 3 |  |  |
-| [`backend/core#updateDraftJournal`](../../../src/mocks/backend/core.ts#L208) |  | journalDrafts | backend/core#resolvePosting, persist#mutate |  |  |  |
-| [`backend/core#userById`](../../../src/mocks/backend/core.ts#L473) | users |  |  |  |  |  |
+| [`backend/core#salesTaxRate`](../../../src/mocks/backend/core.ts#L473) | settings, taxes |  |  |  |  |  |
+| [`backend/core#trialBalanceFor`](../../../src/mocks/backend/core.ts#L499) | accounts, journalEntries |  |  | 3 |  |  |
+| [`backend/core#updateDraftJournal`](../../../src/mocks/backend/core.ts#L220) |  | journalDrafts | backend/core#resolvePosting, persist#mutate |  |  |  |
+| [`backend/core#userById`](../../../src/mocks/backend/core.ts#L485) | users |  |  |  |  |  |
 | [`backend/currency#activeCurrencies`](../../../src/mocks/backend/currency.ts#L26) | currencies |  |  |  |  |  |
 | [`backend/currency#baseCurrency`](../../../src/mocks/backend/currency.ts#L14) | settings |  |  |  |  |  |
 | [`backend/currency#convertLinesToBase`](../../../src/mocks/backend/currency.ts#L97) |  |  |  | 6 |  | currency |
@@ -81,140 +82,165 @@ The executable spec the Rust `shared/` and `domains/` port. Rounding counts show
 | [`backend/currency#setBaseCurrency`](../../../src/mocks/backend/currency.ts#L54) |  | settings | backend/core#logActivity, backend/currency#isBaseCurrencyLocked, persist#mutate |  |  |  |
 | [`backend/currency#toBase`](../../../src/mocks/backend/currency.ts#L115) |  |  |  | 1 |  | currency |
 | [`backend/currency#updateCurrency`](../../../src/mocks/backend/currency.ts#L39) |  |  | backend/currency#currencyByCode, persist#mutate |  |  |  |
-| [`backend/expenses#deleteExpenseCategory`](../../../src/mocks/backend/expenses.ts#L32) | expenses | expenseCategories | persist#mutate |  |  |  |
-| [`backend/expenses#deleteRecurringExpense`](../../../src/mocks/backend/expenses.ts#L151) |  | recurringExpenses | persist#mutate |  |  |  |
-| [`backend/expenses#dueRecurringExpenses`](../../../src/mocks/backend/expenses.ts#L158) | recurringExpenses |  |  |  |  |  |
-| [`backend/expenses#getExpenseById`](../../../src/mocks/backend/expenses.ts#L119) | expenses |  |  |  |  |  |
-| [`backend/expenses#nextMonthDate`](../../../src/mocks/backend/expenses.ts#L130) |  |  | utils#localDateKey |  |  |  |
-| [`backend/expenses#postRecurringExpense`](../../../src/mocks/backend/expenses.ts#L163) |  | recurringExpenses | backend/expenses#nextMonthDate, backend/expenses#recordExpense, persist#mutate |  |  |  |
-| [`backend/expenses#recordExpense`](../../../src/mocks/backend/expenses.ts#L66) | paymentMethods | expenses | backend/core#logActivity, backend/core#postJournal, backend/expenses#splitTax, backend/expenses#validateExpenseInput, db#nextNumber, events… | 1 |  |  |
-| [`backend/expenses#saveExpenseCategory`](../../../src/mocks/backend/expenses.ts#L18) |  | expenseCategories | backend/accounts#accountById, persist#mutate, utils#uid |  |  |  |
-| [`backend/expenses#saveRecurringExpense`](../../../src/mocks/backend/expenses.ts#L136) | expenseCategories | recurringExpenses | persist#mutate, utils#uid |  |  |  |
-| [`backend/expenses#splitTax`](../../../src/mocks/backend/expenses.ts#L44) | taxes |  |  | 3 |  |  |
-| [`backend/expenses#validateExpenseInput`](../../../src/mocks/backend/expenses.ts#L52) | expenseCategories, paymentMethods, suppliers |  |  |  |  |  |
-| [`backend/invariants#apReducedByReturns`](../../../src/mocks/backend/invariants.ts#L218) |  |  |  |  |  |  |
-| [`backend/invariants#arReducedByRefunds`](../../../src/mocks/backend/invariants.ts#L201) |  |  |  |  |  |  |
-| [`backend/invariants#checkAllocationsWithinTotal`](../../../src/mocks/backend/invariants.ts#L361) |  |  |  |  |  |  |
-| [`backend/invariants#checkArApControl`](../../../src/mocks/backend/invariants.ts#L134) |  |  | backend/balances#customerBalance, backend/balances#supplierBalance, backend/invariants#glBalance, backend/invariants#numericCheck | 2 |  |  |
-| [`backend/invariants#checkBalancedEntries`](../../../src/mocks/backend/invariants.ts#L65) |  |  | backend/invariants#closeEnough |  |  |  |
-| [`backend/invariants#checkClearingAccounts`](../../../src/mocks/backend/invariants.ts#L305) |  |  | backend/invariants#glBalance, backend/invariants#numericCheck, backend/invariants#settledSum, backend/invariants#tenderSum | 4 |  |  |
-| [`backend/invariants#checkDraftsIsolated`](../../../src/mocks/backend/invariants.ts#L349) |  |  |  |  |  |  |
-| [`backend/invariants#checkFxConversion`](../../../src/mocks/backend/invariants.ts#L381) |  |  | backend/invariants#closeEnough | 1 |  |  |
-| [`backend/invariants#checkInventoryGl`](../../../src/mocks/backend/invariants.ts#L146) |  |  | backend/invariants#glBalance, backend/invariants#numericCheck | 1 |  |  |
-| [`backend/invariants#checkLockDate`](../../../src/mocks/backend/invariants.ts#L279) |  |  |  |  |  |  |
-| [`backend/invariants#checkOpeningBalanceEquity`](../../../src/mocks/backend/invariants.ts#L291) |  |  | backend/invariants#numericCheck | 1 |  |  |
-| [`backend/invariants#checkPartyAllocation`](../../../src/mocks/backend/invariants.ts#L174) |  |  | backend/balances#customerBalance, backend/balances#customerStatement, backend/balances#supplierBalance, backend/balances#supplierStatement,… | 4 |  |  |
-| [`backend/invariants#checkShiftVariance`](../../../src/mocks/backend/invariants.ts#L325) |  |  | backend/invariants#closeEnough | 1 |  |  |
-| [`backend/invariants#checkSourceRefIntegrity`](../../../src/mocks/backend/invariants.ts#L246) |  |  |  |  |  |  |
-| [`backend/invariants#checkTrialBalance`](../../../src/mocks/backend/invariants.ts#L94) |  |  | backend/invariants#numericCheck | 7 |  |  |
-| [`backend/invariants#checkVatControl`](../../../src/mocks/backend/invariants.ts#L153) |  |  | backend/invariants#glBalance, backend/invariants#invoiceVatBase, backend/invariants#numericCheck | 3 |  |  |
-| [`backend/invariants#closeEnough`](../../../src/mocks/backend/invariants.ts#L37) |  |  |  |  |  |  |
-| [`backend/invariants#glBalance`](../../../src/mocks/backend/invariants.ts#L52) |  |  | backend/accounts#accountFor | 1 |  |  |
-| [`backend/invariants#invoiceVatBase`](../../../src/mocks/backend/invariants.ts#L154) |  |  |  | 1 |  |  |
-| [`backend/invariants#numericCheck`](../../../src/mocks/backend/invariants.ts#L41) |  |  | backend/invariants#closeEnough |  |  |  |
-| [`backend/invariants#runAllInvariants`](../../../src/mocks/backend/invariants.ts#L401) |  |  | backend/invariants#checkAllocationsWithinTotal, backend/invariants#checkArApControl, backend/invariants#checkBalancedEntries, backend/invar… |  |  |  |
-| [`backend/invariants#settledSum`](../../../src/mocks/backend/invariants.ts#L310) |  |  |  | 1 |  |  |
-| [`backend/invariants#tenderSum`](../../../src/mocks/backend/invariants.ts#L308) |  |  |  | 1 |  |  |
+| [`backend/expenses#deleteExpenseCategory`](../../../src/mocks/backend/expenses.ts#L33) | expenses | expenseCategories | persist#mutate |  |  |  |
+| [`backend/expenses#deleteRecurringExpense`](../../../src/mocks/backend/expenses.ts#L165) |  | recurringExpenses | persist#mutate |  |  |  |
+| [`backend/expenses#dueRecurringExpenses`](../../../src/mocks/backend/expenses.ts#L172) | recurringExpenses |  |  |  |  |  |
+| [`backend/expenses#expensePayoutRole`](../../../src/mocks/backend/expenses.ts#L75) |  |  |  |  |  |  |
+| [`backend/expenses#getExpenseById`](../../../src/mocks/backend/expenses.ts#L133) | expenses |  |  |  |  |  |
+| [`backend/expenses#nextMonthDate`](../../../src/mocks/backend/expenses.ts#L144) |  |  | utils#localDateKey |  |  |  |
+| [`backend/expenses#postRecurringExpense`](../../../src/mocks/backend/expenses.ts#L177) |  | recurringExpenses | backend/expenses#nextMonthDate, backend/expenses#recordExpense, persist#mutate |  |  |  |
+| [`backend/expenses#recordExpense`](../../../src/mocks/backend/expenses.ts#L80) | paymentMethods | expenses | backend/core#logActivity, backend/core#postJournal, backend/expenses#expensePayoutRole, backend/expenses#splitTax, backend/expenses#validat… | 1 |  |  |
+| [`backend/expenses#saveExpenseCategory`](../../../src/mocks/backend/expenses.ts#L19) |  | expenseCategories | backend/accounts#accountById, persist#mutate, utils#uid |  |  |  |
+| [`backend/expenses#saveRecurringExpense`](../../../src/mocks/backend/expenses.ts#L150) | expenseCategories | recurringExpenses | persist#mutate, utils#uid |  |  |  |
+| [`backend/expenses#splitTax`](../../../src/mocks/backend/expenses.ts#L45) | taxes |  |  | 3 |  |  |
+| [`backend/expenses#validateExpenseInput`](../../../src/mocks/backend/expenses.ts#L53) | expenseCategories, paymentMethods, suppliers |  |  |  |  |  |
+| [`backend/invariants#apReducedByReturns`](../../../src/mocks/backend/invariants.ts#L306) |  |  |  |  |  |  |
+| [`backend/invariants#arReducedByRefunds`](../../../src/mocks/backend/invariants.ts#L283) |  |  |  |  |  |  |
+| [`backend/invariants#checkAllocationsWithinTotal`](../../../src/mocks/backend/invariants.ts#L518) |  |  |  |  |  |  |
+| [`backend/invariants#checkArApControl`](../../../src/mocks/backend/invariants.ts#L171) |  |  | backend/invariants#glBalance, backend/invariants#numericCheck, backend/invariants#partyBalance | 2 |  |  |
+| [`backend/invariants#checkBalancedEntries`](../../../src/mocks/backend/invariants.ts#L102) |  |  | backend/invariants#closeEnough |  |  |  |
+| [`backend/invariants#checkClearingAccounts`](../../../src/mocks/backend/invariants.ts#L458) |  |  | backend/invariants#glBalance, backend/invariants#numericCheck, backend/invariants#settledSum, backend/invariants#tenderSum | 4 |  |  |
+| [`backend/invariants#checkDraftsIsolated`](../../../src/mocks/backend/invariants.ts#L502) |  |  |  |  |  |  |
+| [`backend/invariants#checkFxConversion`](../../../src/mocks/backend/invariants.ts#L540) |  |  | backend/invariants#closeEnough | 1 |  |  |
+| [`backend/invariants#checkInventoryGl`](../../../src/mocks/backend/invariants.ts#L183) |  |  | backend/invariants#glBalance, backend/invariants#numericCheck | 1 |  |  |
+| [`backend/invariants#checkLockDate`](../../../src/mocks/backend/invariants.ts#L415) |  |  | backend/invariants#lockHistory, backend/invariants#lockOverrideAllowed |  |  |  |
+| [`backend/invariants#checkOpeningBalanceEquity`](../../../src/mocks/backend/invariants.ts#L440) |  |  | backend/invariants#numericCheck | 1 |  |  |
+| [`backend/invariants#checkPartyAllocation`](../../../src/mocks/backend/invariants.ts#L242) |  |  | backend/invariants#apReducedByReturns, backend/invariants#arReducedByRefunds, backend/invariants#closeEnough, backend/invariants#nonDocumen… | 6 |  |  |
+| [`backend/invariants#checkShiftVariance`](../../../src/mocks/backend/invariants.ts#L478) |  |  | backend/invariants#closeEnough | 1 |  |  |
+| [`backend/invariants#checkSourceRefIntegrity`](../../../src/mocks/backend/invariants.ts#L348) |  |  | backend/invariants#isAllocationFxEntry |  |  |  |
+| [`backend/invariants#checkTrialBalance`](../../../src/mocks/backend/invariants.ts#L131) |  |  | backend/invariants#numericCheck | 7 |  |  |
+| [`backend/invariants#checkVatControl`](../../../src/mocks/backend/invariants.ts#L204) |  |  | backend/currency#convertLinesToBase, backend/invariants#glBalance, backend/invariants#invoiceVatBase, backend/invariants#numericCheck, back… | 5 |  |  |
+| [`backend/invariants#closeEnough`](../../../src/mocks/backend/invariants.ts#L39) |  |  |  |  |  |  |
+| [`backend/invariants#glBalance`](../../../src/mocks/backend/invariants.ts#L75) |  |  | backend/invariants#roleAccount | 1 |  |  |
+| [`backend/invariants#invoiceVatBase`](../../../src/mocks/backend/invariants.ts#L207) |  |  |  | 1 |  |  |
+| [`backend/invariants#isAllocationFxEntry`](../../../src/mocks/backend/invariants.ts#L340) |  |  |  |  |  |  |
+| [`backend/invariants#lockHistory`](../../../src/mocks/backend/invariants.ts#L387) |  |  |  |  |  |  |
+| [`backend/invariants#lockOverrideAllowed`](../../../src/mocks/backend/invariants.ts#L402) |  |  |  |  |  |  |
+| [`backend/invariants#nonDocumentNet`](../../../src/mocks/backend/invariants.ts#L266) |  |  | backend/invariants#roleAccount | 1 |  |  |
+| [`backend/invariants#numericCheck`](../../../src/mocks/backend/invariants.ts#L46) |  |  | backend/invariants#closeEnough |  |  |  |
+| [`backend/invariants#outstandingBase`](../../../src/mocks/backend/invariants.ts#L286) |  |  | backend/invariants#arReducedByRefunds | 1 |  |  |
+| [`backend/invariants#partyBalance`](../../../src/mocks/backend/invariants.ts#L88) |  |  | backend/balances#customerBalance, backend/balances#supplierBalance, backend/invariants#roleAccount |  |  |  |
+| [`backend/invariants#partyStatementEnd`](../../../src/mocks/backend/invariants.ts#L93) |  |  | backend/balances#customerStatement, backend/balances#supplierStatement, backend/invariants#roleAccount |  |  |  |
+| [`backend/invariants#refundVatBase`](../../../src/mocks/backend/invariants.ts#L211) |  |  | backend/currency#convertLinesToBase | 2 |  |  |
+| [`backend/invariants#roleAccount`](../../../src/mocks/backend/invariants.ts#L66) |  |  | backend/accounts#accountFor |  |  |  |
+| [`backend/invariants#runAllInvariants`](../../../src/mocks/backend/invariants.ts#L560) |  |  | backend/invariants#checkAllocationsWithinTotal, backend/invariants#checkArApControl, backend/invariants#checkBalancedEntries, backend/invar… |  |  |  |
+| [`backend/invariants#settledSum`](../../../src/mocks/backend/invariants.ts#L463) |  |  |  | 1 |  |  |
+| [`backend/invariants#tenderSum`](../../../src/mocks/backend/invariants.ts#L461) |  |  |  | 1 |  |  |
+| [`backend/invariants#vatSettlementEntryIds`](../../../src/mocks/backend/invariants.ts#L196) |  |  |  |  |  |  |
 | [`backend/inventory#activeBatchesFor`](../../../src/mocks/backend/inventory.ts#L73) | productBatches |  |  |  |  |  |
-| [`backend/inventory#applyStockCount`](../../../src/mocks/backend/inventory.ts#L361) |  | stockAdjustments, stockCounts | backend/core#logActivity, backend/inventory#buildLines, backend/inventory#postAdjustment, db#nextNumber, events#emit, persist#mutate, utils… |  |  |  |
+| [`backend/inventory#applyStockCount`](../../../src/mocks/backend/inventory.ts#L368) |  | stockAdjustments, stockCounts | backend/core#logActivity, backend/inventory#buildLines, backend/inventory#postAdjustment, db#nextNumber, events#emit, persist#mutate, utils… |  |  |  |
 | [`backend/inventory#assertApproval`](../../../src/mocks/backend/inventory.ts#L218) | settings |  |  | 1 |  |  |
-| [`backend/inventory#backToCounting`](../../../src/mocks/backend/inventory.ts#L352) |  | stockCounts | persist#mutate |  |  |  |
+| [`backend/inventory#backToCounting`](../../../src/mocks/backend/inventory.ts#L359) |  | stockCounts | persist#mutate |  |  |  |
 | [`backend/inventory#buildLines`](../../../src/mocks/backend/inventory.ts#L30) |  |  | backend/core#productById | 1 |  |  |
-| [`backend/inventory#completeStockAdjustment`](../../../src/mocks/backend/inventory.ts#L259) |  | stockAdjustments | backend/core#logActivity, backend/inventory#buildLines, backend/inventory#postAdjustment, events#emit, persist#mutate |  |  |  |
+| [`backend/inventory#completeStockAdjustment`](../../../src/mocks/backend/inventory.ts#L259) |  | stockAdjustments | backend/core#logActivity, backend/inventory#assertApproval, backend/inventory#buildLines, backend/inventory#postAdjustment, events#emit, pe… |  |  |  |
 | [`backend/inventory#consumeFefo`](../../../src/mocks/backend/inventory.ts#L119) |  |  | backend/inventory#activeBatchesFor, backend/inventory#isBatchExpired, utils#localDateKey | 3 |  | stock |
-| [`backend/inventory#draftReturnToSupplier`](../../../src/mocks/backend/inventory.ts#L432) |  | debitNoteDrafts | backend/core#logActivity, db#nextNumber, persist#mutate, utils#uid |  |  |  |
+| [`backend/inventory#draftReturnToSupplier`](../../../src/mocks/backend/inventory.ts#L439) |  | debitNoteDrafts | backend/core#logActivity, db#nextNumber, persist#mutate, utils#uid |  |  |  |
 | [`backend/inventory#isBatchExpired`](../../../src/mocks/backend/inventory.ts#L79) |  |  |  |  |  |  |
 | [`backend/inventory#isBatchNearExpiry`](../../../src/mocks/backend/inventory.ts#L83) |  |  | backend/inventory#isBatchExpired |  |  |  |
 | [`backend/inventory#postAdjustment`](../../../src/mocks/backend/inventory.ts#L153) |  |  | backend/core#applyStockChange, backend/core#postJournal, backend/core#productById, backend/inventory#consumeFefo, backend/inventory#receive… | 3 |  |  |
 | [`backend/inventory#receiveBatch`](../../../src/mocks/backend/inventory.ts#L95) |  | productBatches | utils#uid |  |  | stock |
 | [`backend/inventory#recordStockAdjustment`](../../../src/mocks/backend/inventory.ts#L228) |  | stockAdjustments | backend/core#logActivity, backend/inventory#assertApproval, backend/inventory#buildLines, backend/inventory#postAdjustment, backend/invento… |  |  |  |
-| [`backend/inventory#scopedProductIds`](../../../src/mocks/backend/inventory.ts#L293) | products |  |  |  |  |  |
-| [`backend/inventory#setStockCountLine`](../../../src/mocks/backend/inventory.ts#L330) | stockCounts |  | persist#mutate | 1 |  |  |
-| [`backend/inventory#startStockCount`](../../../src/mocks/backend/inventory.ts#L305) |  | stockCounts | backend/core#logActivity, backend/core#productById, backend/inventory#scopedProductIds, db#nextNumber, persist#mutate, utils#uid |  |  |  |
-| [`backend/inventory#submitStockCountForReview`](../../../src/mocks/backend/inventory.ts#L343) |  | stockCounts | persist#mutate |  |  |  |
+| [`backend/inventory#scopedProductIds`](../../../src/mocks/backend/inventory.ts#L300) | products |  |  |  |  |  |
+| [`backend/inventory#setStockCountLine`](../../../src/mocks/backend/inventory.ts#L337) | stockCounts |  | persist#mutate | 1 |  |  |
+| [`backend/inventory#startStockCount`](../../../src/mocks/backend/inventory.ts#L312) |  | stockCounts | backend/core#logActivity, backend/core#productById, backend/inventory#scopedProductIds, db#nextNumber, persist#mutate, utils#uid |  |  |  |
+| [`backend/inventory#submitStockCountForReview`](../../../src/mocks/backend/inventory.ts#L350) |  | stockCounts | persist#mutate |  |  |  |
 | [`backend/inventory#validateStockIn`](../../../src/mocks/backend/inventory.ts#L135) |  |  | backend/accounts#accountById |  |  |  |
-| [`backend/inventory#writeOffBatches`](../../../src/mocks/backend/inventory.ts#L397) | productBatches |  | backend/inventory#recordStockAdjustment | 1 |  |  |
+| [`backend/inventory#writeOffBatches`](../../../src/mocks/backend/inventory.ts#L404) | productBatches |  | backend/inventory#recordStockAdjustment | 1 |  |  |
 | [`backend/journal#advanceRecurrence`](../../../src/mocks/backend/journal.ts#L206) |  | journalTemplates | persist#mutate, utils#localDateKey |  |  |  |
 | [`backend/journal#deleteJournalTemplate`](../../../src/mocks/backend/journal.ts#L198) |  | journalTemplates | backend/core#logActivity, persist#mutate |  |  |  |
 | [`backend/journal#editDraftJournal`](../../../src/mocks/backend/journal.ts#L116) |  |  | backend/core#updateDraftJournal, backend/journal#toPostingLines, backend/journal#validateManualLines |  |  |  |
-| [`backend/journal#payVatSettlement`](../../../src/mocks/backend/journal.ts#L280) | journalEntries |  | backend/accounts#accountFor, backend/vouchers#recordPaymentVoucher |  |  |  |
-| [`backend/journal#postVatSettlement`](../../../src/mocks/backend/journal.ts#L247) |  |  | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, backend/journal#vatTotalsForPeriod |  |  |  |
+| [`backend/journal#payVatSettlement`](../../../src/mocks/backend/journal.ts#L313) | journalEntries |  | backend/accounts#accountFor, backend/vouchers#recordPaymentVoucher |  |  |  |
+| [`backend/journal#postVatSettlement`](../../../src/mocks/backend/journal.ts#L273) |  |  | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, backend/journal#settledVatPeriods, backend/journal#vatSett… |  |  |  |
 | [`backend/journal#recordManualJournal`](../../../src/mocks/backend/journal.ts#L89) |  |  | backend/core#draftJournal, backend/core#logActivity, backend/core#postJournal, backend/journal#toPostingLines, backend/journal#validateManu… |  |  |  |
 | [`backend/journal#reverseJournal`](../../../src/mocks/backend/journal.ts#L130) |  | journalEntries | backend/core#logActivity, backend/core#postJournal, persist#mutate |  |  |  |
 | [`backend/journal#saveJournalTemplate`](../../../src/mocks/backend/journal.ts#L181) |  | journalTemplates | backend/core#logActivity, backend/journal#validateTemplateLines, persist#mutate, utils#uid |  |  |  |
+| [`backend/journal#settledVatPeriods`](../../../src/mocks/backend/journal.ts#L257) | journalEntries |  | utils#localDateKey |  |  |  |
 | [`backend/journal#splitLineByCostCenters`](../../../src/mocks/backend/journal.ts#L49) |  |  |  | 3 |  |  |
 | [`backend/journal#toPostingLines`](../../../src/mocks/backend/journal.ts#L76) |  |  |  |  |  |  |
 | [`backend/journal#validateManualLines`](../../../src/mocks/backend/journal.ts#L17) | accounts, settings |  |  |  |  |  |
 | [`backend/journal#validateTemplateLines`](../../../src/mocks/backend/journal.ts#L170) | accounts |  |  |  |  |  |
+| [`backend/journal#vatSettlementDescription`](../../../src/mocks/backend/journal.ts#L244) |  |  |  |  |  |  |
 | [`backend/journal#vatTotalsForPeriod`](../../../src/mocks/backend/journal.ts#L225) | journalEntries |  | backend/accounts#accountFor, utils#localDateKey | 3 |  |  |
 | [`backend/opening#buildOpeningLines`](../../../src/mocks/backend/opening.ts#L57) |  |  | backend/accounts#accountFor, utils#sum | 1 |  |  |
-| [`backend/opening#closeOpeningBalanceEquity`](../../../src/mocks/backend/opening.ts#L125) |  |  | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, backend/opening#openingBalanceEquityNet |  |  |  |
+| [`backend/opening#closeOpeningBalanceEquity`](../../../src/mocks/backend/opening.ts#L137) |  |  | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, backend/opening#closeSourceId, backend/opening#openingBala… |  |  |  |
+| [`backend/opening#closeSourceId`](../../../src/mocks/backend/opening.ts#L126) | journalEntries |  | utils#uid |  |  |  |
 | [`backend/opening#hasFirstUsePosted`](../../../src/mocks/backend/opening.ts#L37) | journalEntries |  |  |  |  |  |
 | [`backend/opening#openingBalanceEquityNet`](../../../src/mocks/backend/opening.ts#L42) | journalEntries |  | backend/accounts#accountFor | 1 |  |  |
-| [`backend/opening#postOpeningBalancesAndClose`](../../../src/mocks/backend/opening.ts#L152) |  |  | backend/opening#closeOpeningBalanceEquity, backend/opening#postOpeningEntry |  |  |  |
+| [`backend/opening#postOpeningBalancesAndClose`](../../../src/mocks/backend/opening.ts#L164) |  |  | backend/opening#closeOpeningBalanceEquity, backend/opening#postOpeningEntry |  |  |  |
 | [`backend/opening#postOpeningEntry`](../../../src/mocks/backend/opening.ts#L104) |  |  | backend/core#logActivity, backend/core#postJournal, backend/opening#buildOpeningLines |  |  |  |
-| [`backend/opening#postOpeningStockDefault`](../../../src/mocks/backend/opening.ts#L214) |  |  | backend/opening#postOpeningStockForBranch |  |  |  |
-| [`backend/opening#postOpeningStockForBranch`](../../../src/mocks/backend/opening.ts#L174) | branches |  | backend/accounts#accountFor, backend/core#applyStockChange, backend/core#logActivity, backend/core#postJournal, backend/core#productById, b… | 2 |  |  |
-| [`backend/opening#postPartyOpeningBalance`](../../../src/mocks/backend/opening.ts#L230) | settings |  | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, utils#uid |  |  |  |
-| [`backend/opening#reversePartyOpeningBalance`](../../../src/mocks/backend/opening.ts#L272) | payments | journalEntries | backend/core#logActivity, backend/core#postJournal |  |  |  |
-| [`backend/payments#allocatedTotal`](../../../src/mocks/backend/payments.ts#L81) |  |  | utils#sum |  |  |  |
-| [`backend/payments#allocatePayment`](../../../src/mocks/backend/payments.ts#L314) | customers, suppliers | payments | backend/core#logActivity, backend/core#postJournal, backend/payments#applyAllocationToDocument, backend/payments#validateAllocations, event… | 3 |  |  |
-| [`backend/payments#applyAllocationToDocument`](../../../src/mocks/backend/payments.ts#L108) |  | invoices, purchaseOrders |  | 2 |  |  |
-| [`backend/payments#getOpenDocumentsFor`](../../../src/mocks/backend/payments.ts#L76) |  |  | backend/payments#openDocumentsFor |  |  |  |
-| [`backend/payments#openDocumentsFor`](../../../src/mocks/backend/payments.ts#L29) | invoices, purchaseOrders |  | backend/purchases#purchaseOutstanding | 6 |  |  |
-| [`backend/payments#recordPayment`](../../../src/mocks/backend/payments.ts#L195) | customers, suppliers | payments | backend/accounts#settlementAccountFor, backend/core#logActivity, backend/core#postJournal, backend/currency#isBaseCurrency, backend/payment… | 9 |  |  |
-| [`backend/payments#unallocatedAmount`](../../../src/mocks/backend/payments.ts#L94) |  |  | utils#sum | 2 |  |  |
-| [`backend/payments#unallocatedCreditFor`](../../../src/mocks/backend/payments.ts#L100) | payments |  | utils#sum |  |  |  |
-| [`backend/payments#unallocatePayment`](../../../src/mocks/backend/payments.ts#L372) |  | payments | backend/core#logActivity, backend/payments#applyAllocationToDocument, events#emit, persist#mutate |  |  |  |
-| [`backend/payments#validateAllocations`](../../../src/mocks/backend/payments.ts#L139) |  |  | backend/payments#allocatedTotal, backend/payments#openDocumentsFor, utils#uid | 8 |  |  |
+| [`backend/opening#postOpeningStockDefault`](../../../src/mocks/backend/opening.ts#L226) |  |  | backend/opening#postOpeningStockForBranch |  |  |  |
+| [`backend/opening#postOpeningStockForBranch`](../../../src/mocks/backend/opening.ts#L186) | branches |  | backend/accounts#accountFor, backend/core#applyStockChange, backend/core#logActivity, backend/core#postJournal, backend/core#productById, b… | 2 |  |  |
+| [`backend/opening#postPartyOpeningBalance`](../../../src/mocks/backend/opening.ts#L242) | settings |  | backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, utils#uid |  |  |  |
+| [`backend/opening#reversePartyOpeningBalance`](../../../src/mocks/backend/opening.ts#L284) | payments | journalEntries | backend/core#logActivity, backend/core#postJournal |  |  |  |
+| [`backend/payments#allocatedTotal`](../../../src/mocks/backend/payments.ts#L82) |  |  | utils#sum |  |  |  |
+| [`backend/payments#allocatePayment`](../../../src/mocks/backend/payments.ts#L376) | customers, suppliers | payments | backend/core#logActivity, backend/core#postJournal, backend/core#preflightJournal, backend/payments#allocationFxLines, backend/payments#app… | 2 |  |  |
+| [`backend/payments#allocationFxLines`](../../../src/mocks/backend/payments.ts#L350) |  |  | backend/payments#documentRate, utils#sum | 2 |  |  |
+| [`backend/payments#applyAllocationToDocument`](../../../src/mocks/backend/payments.ts#L122) |  | invoices, purchaseOrders |  | 2 |  |  |
+| [`backend/payments#documentRate`](../../../src/mocks/backend/payments.ts#L332) | invoices, purchaseOrders |  |  |  |  |  |
+| [`backend/payments#getOpenDocumentsFor`](../../../src/mocks/backend/payments.ts#L77) |  |  | backend/payments#openDocumentsFor |  |  |  |
+| [`backend/payments#openDocumentsFor`](../../../src/mocks/backend/payments.ts#L30) | invoices, purchaseOrders |  | backend/purchases#purchaseOutstanding | 6 |  |  |
+| [`backend/payments#recordPayment`](../../../src/mocks/backend/payments.ts#L211) | customers, suppliers | payments | backend/accounts#settlementAccountFor, backend/core#logActivity, backend/core#postJournal, backend/core#preflightJournal, backend/currency#… | 9 |  |  |
+| [`backend/payments#unallocatedAmount`](../../../src/mocks/backend/payments.ts#L95) |  |  | utils#sum | 2 |  |  |
+| [`backend/payments#unallocatedCreditFor`](../../../src/mocks/backend/payments.ts#L108) | invoices, payments, refunds |  | utils#sum | 1 |  |  |
+| [`backend/payments#unallocatePayment`](../../../src/mocks/backend/payments.ts#L425) |  | payments | backend/core#logActivity, backend/payments#applyAllocationToDocument, events#emit, persist#mutate |  |  |  |
+| [`backend/payments#validateAllocations`](../../../src/mocks/backend/payments.ts#L153) |  |  | backend/payments#allocatedTotal, backend/payments#openDocumentsFor, utils#uid | 9 |  |  |
 | [`backend/posting-trace#clearPostingTraces`](../../../src/mocks/backend/posting-trace.ts#L152) |  |  |  |  |  |  |
 | [`backend/posting-trace#debugAccountingEnabled`](../../../src/mocks/backend/posting-trace.ts#L46) |  |  |  |  |  |  |
 | [`backend/posting-trace#postingTraceFor`](../../../src/mocks/backend/posting-trace.ts#L148) |  |  |  |  |  |  |
 | [`backend/posting-trace#recentPostingTraces`](../../../src/mocks/backend/posting-trace.ts#L143) |  |  |  |  |  |  |
 | [`backend/posting-trace#recordPostingTrace`](../../../src/mocks/backend/posting-trace.ts#L103) |  |  | backend/posting-trace#debugAccountingEnabled, backend/posting-trace#stepsFromAnnotations |  |  |  |
 | [`backend/posting-trace#stepsFromAnnotations`](../../../src/mocks/backend/posting-trace.ts#L60) |  |  |  |  |  |  |
-| [`backend/purchases#allocateLandedCosts`](../../../src/mocks/backend/purchases.ts#L187) |  |  | utils#sum | 5 |  |  |
-| [`backend/purchases#baseQty`](../../../src/mocks/backend/purchases.ts#L105) |  |  |  | 1 |  |  |
-| [`backend/purchases#baseUnitCost`](../../../src/mocks/backend/purchases.ts#L110) |  |  |  |  |  |  |
-| [`backend/purchases#cancelPurchase`](../../../src/mocks/backend/purchases.ts#L378) |  | purchaseOrders | backend/core#logActivity, persist#mutate |  |  |  |
-| [`backend/purchases#computePurchaseTotals`](../../../src/mocks/backend/purchases.ts#L47) | taxes |  | backend/purchases#taxRateFor |  |  |  |
-| [`backend/purchases#confirmPurchase`](../../../src/mocks/backend/purchases.ts#L372) | purchaseOrders |  | backend/purchases#lineRemaining, backend/purchases#receivePurchase |  |  |  |
-| [`backend/purchases#duplicateSupplierInvoice`](../../../src/mocks/backend/purchases.ts#L84) | purchaseOrders |  |  |  |  |  |
-| [`backend/purchases#getDebitNoteDrafts`](../../../src/mocks/backend/purchases.ts#L536) | debitNoteDrafts |  |  |  |  |  |
-| [`backend/purchases#lineRemaining`](../../../src/mocks/backend/purchases.ts#L215) |  |  | backend/purchases#baseQty | 1 |  |  |
-| [`backend/purchases#missingSupplierInvoice`](../../../src/mocks/backend/purchases.ts#L79) |  |  |  |  |  |  |
-| [`backend/purchases#postDebitNoteFromDraft`](../../../src/mocks/backend/purchases.ts#L547) | productBatches, purchaseOrders | debitNoteDrafts | backend/purchases#recordPurchaseReturn, persist#mutate |  |  |  |
-| [`backend/purchases#purchaseLineAccountId`](../../../src/mocks/backend/purchases.ts#L27) | categories, settings |  | backend/accounts#accountFor, backend/core#productById |  |  |  |
-| [`backend/purchases#purchaseOutstanding`](../../../src/mocks/backend/purchases.ts#L74) |  |  |  | 1 |  |  |
-| [`backend/purchases#receivePurchase`](../../../src/mocks/backend/purchases.ts#L228) | suppliers | purchaseOrders | backend/core#applyStockChange, backend/core#logActivity, backend/core#postJournal, backend/core#productById, backend/inventory#receiveBatch… | 12 |  |  |
-| [`backend/purchases#recordPurchaseReturn`](../../../src/mocks/backend/purchases.ts#L396) |  | productBatches, purchaseOrders, purchaseReturns | backend/accounts#settlementAccountFor, backend/core#applyStockChange, backend/core#logActivity, backend/core#postJournal, backend/core#prod… | 14 |  |  |
-| [`backend/purchases#returnedQtyByProduct`](../../../src/mocks/backend/purchases.ts#L387) | purchaseReturns |  |  |  |  |  |
-| [`backend/purchases#savePurchase`](../../../src/mocks/backend/purchases.ts#L115) |  | purchaseOrders | backend/branches#branchPrefix, backend/branches#defaultCostCenterFor, backend/core#logActivity, backend/core#purchaseTaxRate, backend/purch… |  |  |  |
-| [`backend/purchases#sendPurchaseToSupplier`](../../../src/mocks/backend/purchases.ts#L174) |  | purchaseOrders | backend/core#logActivity, persist#mutate |  |  |  |
-| [`backend/purchases#supplierOutstandingTotal`](../../../src/mocks/backend/purchases.ts#L523) | purchaseOrders |  | utils#sum |  |  |  |
-| [`backend/purchases#taxRateFor`](../../../src/mocks/backend/purchases.ts#L36) | taxes |  |  |  |  |  |
-| [`backend/purchases#validateLines`](../../../src/mocks/backend/purchases.ts#L92) | suppliers |  | backend/core#productById |  |  |  |
+| [`backend/purchases#allocateLandedCosts`](../../../src/mocks/backend/purchases.ts#L180) |  |  | utils#sum | 8 |  |  |
+| [`backend/purchases#applyReceipt`](../../../src/mocks/backend/purchases.ts#L385) |  | purchaseOrders | backend/core#applyStockChange, backend/core#logActivity, backend/core#postJournal, backend/core#productById, backend/inventory#receiveBatch… | 3 |  |  |
+| [`backend/purchases#baseQty`](../../../src/mocks/backend/purchases.ts#L107) |  |  |  | 1 |  |  |
+| [`backend/purchases#baseUnitCost`](../../../src/mocks/backend/purchases.ts#L112) |  |  |  |  |  |  |
+| [`backend/purchases#cancelPurchase`](../../../src/mocks/backend/purchases.ts#L490) |  | purchaseOrders | backend/core#logActivity, persist#mutate |  |  |  |
+| [`backend/purchases#computePurchaseTotals`](../../../src/mocks/backend/purchases.ts#L49) | taxes |  | backend/purchases#taxRateFor |  |  |  |
+| [`backend/purchases#confirmPurchase`](../../../src/mocks/backend/purchases.ts#L484) | purchaseOrders |  | backend/purchases#lineRemaining, backend/purchases#receivePurchase |  |  |  |
+| [`backend/purchases#duplicateSupplierInvoice`](../../../src/mocks/backend/purchases.ts#L86) | purchaseOrders |  |  |  |  |  |
+| [`backend/purchases#getDebitNoteDrafts`](../../../src/mocks/backend/purchases.ts#L666) | debitNoteDrafts |  |  |  |  |  |
+| [`backend/purchases#lineRemaining`](../../../src/mocks/backend/purchases.ts#L212) |  |  | backend/purchases#baseQty | 1 |  |  |
+| [`backend/purchases#missingSupplierInvoice`](../../../src/mocks/backend/purchases.ts#L81) |  |  |  |  |  |  |
+| [`backend/purchases#newOtherSupplierBill`](../../../src/mocks/backend/purchases.ts#L362) |  |  | backend/branches#branchPrefix, db#nextNumber, utils#uid |  |  |  |
+| [`backend/purchases#planReceipt`](../../../src/mocks/backend/purchases.ts#L240) | suppliers |  | backend/core#preflightJournal, backend/core#productById, backend/purchases#allocateLandedCosts, backend/purchases#baseQty, backend/purchase… | 10 |  |  |
+| [`backend/purchases#postDebitNoteFromDraft`](../../../src/mocks/backend/purchases.ts#L677) | productBatches, purchaseOrders | debitNoteDrafts | backend/purchases#recordPurchaseReturn, persist#mutate |  |  |  |
+| [`backend/purchases#purchaseLineAccountId`](../../../src/mocks/backend/purchases.ts#L29) | categories, settings |  | backend/accounts#accountFor, backend/core#productById |  |  |  |
+| [`backend/purchases#purchaseOutstanding`](../../../src/mocks/backend/purchases.ts#L76) |  |  |  | 1 |  |  |
+| [`backend/purchases#receivePurchase`](../../../src/mocks/backend/purchases.ts#L476) | purchaseOrders |  | backend/purchases#applyReceipt, backend/purchases#planReceipt |  |  |  |
+| [`backend/purchases#recordPurchaseReturn`](../../../src/mocks/backend/purchases.ts#L508) |  | productBatches, purchaseOrders, purchaseReturns | backend/accounts#settlementAccountFor, backend/core#applyStockChange, backend/core#logActivity, backend/core#postJournal, backend/core#pref… | 16 |  |  |
+| [`backend/purchases#remainingAfter`](../../../src/mocks/backend/purchases.ts#L323) |  |  | backend/purchases#baseQty, backend/purchases#lineRemaining | 2 |  |  |
+| [`backend/purchases#returnedQtyByProduct`](../../../src/mocks/backend/purchases.ts#L499) | purchaseReturns |  |  |  |  |  |
+| [`backend/purchases#savePurchase`](../../../src/mocks/backend/purchases.ts#L117) |  | purchaseOrders | backend/branches#branchPrefix, backend/branches#defaultCostCenterFor, backend/core#logActivity, backend/core#purchaseTaxRate, backend/purch… |  |  |  |
+| [`backend/purchases#sendPurchaseToSupplier`](../../../src/mocks/backend/purchases.ts#L167) |  | purchaseOrders | backend/core#logActivity, persist#mutate |  |  |  |
+| [`backend/purchases#supplierOutstandingTotal`](../../../src/mocks/backend/purchases.ts#L653) | purchaseOrders |  | utils#sum |  |  |  |
+| [`backend/purchases#taxRateFor`](../../../src/mocks/backend/purchases.ts#L38) | taxes |  |  |  |  |  |
+| [`backend/purchases#validateLines`](../../../src/mocks/backend/purchases.ts#L94) | suppliers |  | backend/core#productById |  |  |  |
 | [`backend/revaluation#defaultRevaluationRates`](../../../src/mocks/backend/revaluation.ts#L63) | exchangeRates |  | backend/currency#activeCurrencies |  |  |  |
 | [`backend/revaluation#fcLinesFor`](../../../src/mocks/backend/revaluation.ts#L20) | accounts, journalEntries |  |  |  |  |  |
 | [`backend/revaluation#firstOfNextMonth`](../../../src/mocks/backend/revaluation.ts#L74) |  |  |  |  |  |  |
 | [`backend/revaluation#openFcBalances`](../../../src/mocks/backend/revaluation.ts#L17) | accounts, customers, journalEntries, suppliers |  | backend/revaluation#fcLinesFor, utils#sum | 8 |  |  |
 | [`backend/revaluation#postRevaluation`](../../../src/mocks/backend/revaluation.ts#L87) |  |  | backend/core#logActivity, backend/core#postJournal, backend/revaluation#firstOfNextMonth, backend/revaluation#openFcBalances | 1 |  |  |
-| [`backend/sales#baseQty`](../../../src/mocks/backend/sales.ts#L81) |  |  |  | 1 |  |  |
-| [`backend/sales#fc`](../../../src/mocks/backend/sales.ts#L179) |  |  |  |  |  |  |
-| [`backend/sales#paymentMethodById`](../../../src/mocks/backend/sales.ts#L44) | paymentMethods |  |  |  |  |  |
-| [`backend/sales#prepareSale`](../../../src/mocks/backend/sales.ts#L86) | customers, settings |  | backend/branches#defaultCostCenterFor, backend/core#productById, backend/core#userById, backend/currency#convertLinesToBase, backend/curren… | 9 |  |  |
-| [`backend/sales#previewSaleJournal`](../../../src/mocks/backend/sales.ts#L231) | accounts |  | backend/accounts#accountFor, backend/sales#prepareSale | 2 |  |  |
-| [`backend/sales#recordRefund`](../../../src/mocks/backend/sales.ts#L404) | products, shifts | invoices, refunds | backend/accounts#settlementAccountFor, backend/core#applyStockChange, backend/core#logActivity, backend/core#postJournal, backend/core#prod… | 13 |  |  |
-| [`backend/sales#recordSale`](../../../src/mocks/backend/sales.ts#L241) | customers, paymentMethods, shifts | invoices, productBatches | backend/branches#branchPrefix, backend/branches#defaultCostCenterFor, backend/core#applyStockChange, backend/core#logActivity, backend/core… | 6 |  |  |
-| [`backend/sales#returnedQtyByLine`](../../../src/mocks/backend/sales.ts#L396) | refunds |  |  |  |  |  |
-| [`backend/sales#taxForLine`](../../../src/mocks/backend/sales.ts#L59) | settings, taxes |  | backend/core#salesTaxRate |  |  |  |
-| [`backend/sales#tenderAccountId`](../../../src/mocks/backend/sales.ts#L40) |  |  | backend/accounts#accountFor |  |  |  |
-| [`backend/sales#toBaseAmt`](../../../src/mocks/backend/sales.ts#L180) |  |  | backend/currency#toBase |  |  |  |
-| [`backend/settlements#estimatedFeeFor`](../../../src/mocks/backend/settlements.ts#L120) | paymentMethods |  |  | 1 |  |  |
-| [`backend/settlements#getCardSettlementById`](../../../src/mocks/backend/settlements.ts#L113) | cardSettlements |  |  |  |  |  |
-| [`backend/settlements#recordCardSettlement`](../../../src/mocks/backend/settlements.ts#L58) |  | cardSettlements | backend/core#logActivity, backend/core#postJournal, backend/settlements#unsettledTenderGroups, db#nextNumber, events#emit, persist#mutate, … | 4 |  |  |
-| [`backend/settlements#settledKeys`](../../../src/mocks/backend/settlements.ts#L16) | cardSettlements |  |  |  |  |  |
-| [`backend/settlements#unsettledTenderGroups`](../../../src/mocks/backend/settlements.ts#L23) | invoices, paymentMethods |  | backend/settlements#settledKeys, utils#localDateKey | 2 |  |  |
+| [`backend/sales#arFc`](../../../src/mocks/backend/sales.ts#L568) |  |  |  |  |  |  |
+| [`backend/sales#baseQty`](../../../src/mocks/backend/sales.ts#L106) |  |  |  | 1 |  |  |
+| [`backend/sales#cashBackBaseFor`](../../../src/mocks/backend/sales.ts#L475) |  |  | backend/currency#toBase |  |  |  |
+| [`backend/sales#fc`](../../../src/mocks/backend/sales.ts#L204) |  |  |  |  |  |  |
+| [`backend/sales#paymentMethodById`](../../../src/mocks/backend/sales.ts#L67) | paymentMethods |  |  |  |  |  |
+| [`backend/sales#prepareSale`](../../../src/mocks/backend/sales.ts#L111) | customers, settings |  | backend/branches#defaultCostCenterFor, backend/core#productById, backend/core#userById, backend/currency#convertLinesToBase, backend/curren… | 9 |  |  |
+| [`backend/sales#previewSaleJournal`](../../../src/mocks/backend/sales.ts#L272) | accounts |  | backend/accounts#accountFor, backend/sales#prepareSale | 2 |  |  |
+| [`backend/sales#recordRefund`](../../../src/mocks/backend/sales.ts#L498) | products, shifts | invoices, refunds | backend/accounts#settlementAccountFor, backend/core#applyStockChange, backend/core#logActivity, backend/core#postJournal, backend/core#pref… | 15 |  |  |
+| [`backend/sales#recordSale`](../../../src/mocks/backend/sales.ts#L282) | customers, paymentMethods, shifts | invoices, productBatches | backend/branches#branchPrefix, backend/branches#defaultCostCenterFor, backend/core#applyStockChange, backend/core#logActivity, backend/core… | 7 |  |  |
+| [`backend/sales#refundBaseSplit`](../../../src/mocks/backend/sales.ts#L459) | refunds |  | backend/currency#convertLinesToBase, utils#sum | 4 |  |  |
+| [`backend/sales#refundCreditedBase`](../../../src/mocks/backend/sales.ts#L485) | invoices, refunds |  | backend/currency#toBase, backend/sales#cashBackBaseFor, utils#sum | 2 |  |  |
+| [`backend/sales#returnedQtyByLine`](../../../src/mocks/backend/sales.ts#L443) | refunds |  |  |  |  |  |
+| [`backend/sales#saleTenderBases`](../../../src/mocks/backend/sales.ts#L53) |  |  | backend/currency#toBase, utils#sum | 4 |  |  |
+| [`backend/sales#taxForLine`](../../../src/mocks/backend/sales.ts#L82) | settings, taxes |  | backend/core#salesTaxRate |  |  |  |
+| [`backend/sales#tenderAccountId`](../../../src/mocks/backend/sales.ts#L41) |  |  | backend/accounts#accountFor |  |  |  |
+| [`backend/sales#toBaseAmt`](../../../src/mocks/backend/sales.ts#L205) |  |  | backend/currency#toBase |  |  |  |
+| [`backend/settlements#estimatedFeeFor`](../../../src/mocks/backend/settlements.ts#L129) | paymentMethods |  |  | 1 |  |  |
+| [`backend/settlements#getCardSettlementById`](../../../src/mocks/backend/settlements.ts#L122) | cardSettlements |  |  |  |  |  |
+| [`backend/settlements#recordCardSettlement`](../../../src/mocks/backend/settlements.ts#L63) |  | cardSettlements | backend/core#logActivity, backend/core#postJournal, backend/core#preflightJournal, backend/settlements#unsettledTenderGroups, db#nextNumber… | 4 |  |  |
+| [`backend/settlements#settledKeys`](../../../src/mocks/backend/settlements.ts#L17) | cardSettlements |  |  |  |  |  |
+| [`backend/settlements#unsettledTenderGroups`](../../../src/mocks/backend/settlements.ts#L24) | invoices, paymentMethods |  | backend/sales#saleTenderBases, backend/settlements#settledKeys, utils#localDateKey | 2 |  |  |
 | [`backend/setup#applyBranches`](../../../src/mocks/backend/setup.ts#L101) |  | branches, settings | backend/branches#createBranch, persist#mutate |  |  |  |
 | [`backend/setup#applyBusinessTypeUnitDefaults`](../../../src/mocks/backend/setup.ts#L23) |  | units | persist#mutate, utils#uid |  |  |  |
 | [`backend/setup#applyCoaTemplate`](../../../src/mocks/backend/setup.ts#L43) | journalEntries | accounts | fixtures/accounts#buildAccounts, persist#mutate |  |  |  |
@@ -236,13 +262,14 @@ The executable spec the Rust `shared/` and `domains/` port. Rounding counts show
 | [`backend/transfers#rejectTransfer`](../../../src/mocks/backend/transfers.ts#L193) |  |  | backend/core#applyStockChange, backend/core#logActivity, backend/core#postJournal, backend/core#productById, backend/transfers#baseQty, bac… | 2 |  |  |
 | [`backend/transfers#sendTransfer`](../../../src/mocks/backend/transfers.ts#L68) |  |  | backend/branches#branchById, backend/core#applyStockChange, backend/core#logActivity, backend/core#postJournal, backend/core#productById, b… | 2 | 1 |  |
 | [`backend/transfers#transferById`](../../../src/mocks/backend/transfers.ts#L25) | stockTransfers |  |  |  |  |  |
-| [`backend/vouchers#getVoucherById`](../../../src/mocks/backend/vouchers.ts#L147) | vouchers |  |  |  |  |  |
-| [`backend/vouchers#KIND_LABEL`](../../../src/mocks/backend/vouchers.ts#L27) |  |  |  |  |  |  |
-| [`backend/vouchers#methodAccount`](../../../src/mocks/backend/vouchers.ts#L21) | paymentMethods |  |  |  |  |  |
-| [`backend/vouchers#recordOwnerVoucher`](../../../src/mocks/backend/vouchers.ts#L120) |  | vouchers | backend/accounts#accountById, backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, backend/vouchers#KIND_LABEL,… |  |  |  |
-| [`backend/vouchers#recordPaymentVoucher`](../../../src/mocks/backend/vouchers.ts#L60) |  | vouchers | backend/accounts#accountById, backend/core#logActivity, backend/core#postJournal, backend/vouchers#KIND_LABEL, backend/vouchers#methodAccou… |  |  |  |
-| [`backend/vouchers#recordReceiptVoucher`](../../../src/mocks/backend/vouchers.ts#L32) |  | vouchers | backend/accounts#accountById, backend/core#logActivity, backend/core#postJournal, backend/vouchers#KIND_LABEL, backend/vouchers#methodAccou… |  |  |  |
-| [`backend/vouchers#recordTransferVoucher`](../../../src/mocks/backend/vouchers.ts#L88) |  | vouchers | backend/accounts#accountById, backend/core#logActivity, backend/core#postJournal, backend/vouchers#KIND_LABEL, db#nextNumber, events#emit, … | 2 |  |  |
+| [`backend/vouchers#getVoucherById`](../../../src/mocks/backend/vouchers.ts#L157) | vouchers |  |  |  |  |  |
+| [`backend/vouchers#KIND_LABEL`](../../../src/mocks/backend/vouchers.ts#L28) |  |  |  |  |  |  |
+| [`backend/vouchers#methodAccount`](../../../src/mocks/backend/vouchers.ts#L22) | paymentMethods |  |  |  |  |  |
+| [`backend/vouchers#recordOwnerVoucher`](../../../src/mocks/backend/vouchers.ts#L132) |  |  | backend/accounts#accountById, backend/accounts#accountFor, backend/core#logActivity, backend/core#postJournal, backend/vouchers#KIND_LABEL,… |  |  |  |
+| [`backend/vouchers#recordPaymentVoucher`](../../../src/mocks/backend/vouchers.ts#L76) |  |  | backend/accounts#accountById, backend/core#logActivity, backend/core#postJournal, backend/expenses#expensePayoutRole, backend/vouchers#KIND… |  |  |  |
+| [`backend/vouchers#recordReceiptVoucher`](../../../src/mocks/backend/vouchers.ts#L45) |  |  | backend/accounts#accountById, backend/core#logActivity, backend/core#postJournal, backend/vouchers#KIND_LABEL, backend/vouchers#methodAccou… |  |  |  |
+| [`backend/vouchers#recordTransferVoucher`](../../../src/mocks/backend/vouchers.ts#L102) |  |  | backend/accounts#accountById, backend/core#logActivity, backend/core#postJournal, backend/vouchers#KIND_LABEL, backend/vouchers#saveVoucher… | 2 |  |  |
+| [`backend/vouchers#saveVoucher`](../../../src/mocks/backend/vouchers.ts#L37) |  | vouchers | backend/core#preflightJournal, db#nextNumber, persist#mutate |  |  |  |
 | [`db#blankDb`](../../../src/mocks/db.ts#L145) |  |  |  |  |  |  |
 | [`db#nextNumber`](../../../src/mocks/db.ts#L249) | settings | counters |  |  |  | numbering |
 | [`db#resetDb`](../../../src/mocks/db.ts#L227) |  |  | db#blankDb |  |  |  |

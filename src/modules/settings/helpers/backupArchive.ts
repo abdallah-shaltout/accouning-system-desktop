@@ -8,7 +8,8 @@
  * `crypto.json` (salt/iv/iterations — not secret, just parameters). Without a password, `data.json`
  * and `attachments/*` are stored as normal zip entries.
  */
-import { unzipSync, zipSync } from 'fflate';
+import { unzipSync, zipSync, type UnzipFileFilter } from 'fflate';
+import { ApiError } from '@/modules/core/services/backend';
 import type { MockDb } from '@/mocks/db';
 import type { AttachmentRecord } from '@/mocks/attachments';
 import { decryptBytes, encryptBytes, sha256Hex } from './backupCrypto';
@@ -216,24 +217,37 @@ export interface ParsedArchive {
 }
 
 /** Reads `manifest.json` (always plaintext) without decrypting anything else. */
+const MANIFEST_MISSING = 'ملف النسخة الاحتياطية غير صالح: manifest.json مفقود';
+
+/** `unzipSync`, but bytes that are not a zip at all read as "no manifest" — a `VALIDATION` with the
+ * Arabic text (17-backup §3.1, the same text/code Rust returns), never fflate's raw English
+ * "invalid zip data" (Part 04 Wave 2, L1 `backup/backup-restore-browser-archive`). */
+function unzipArchive(bytes: Uint8Array, filter?: UnzipFileFilter): Record<string, Uint8Array> {
+  try {
+    return filter ? unzipSync(bytes, { filter }) : unzipSync(bytes);
+  } catch {
+    throw new ApiError(MANIFEST_MISSING, 'VALIDATION');
+  }
+}
+
 export function readManifest(bytes: Uint8Array): BackupManifest {
-  const files = unzipSync(bytes, { filter: (f) => f.name === 'manifest.json' });
+  const files = unzipArchive(bytes, (f) => f.name === 'manifest.json');
   const raw = files['manifest.json'];
-  if (!raw) throw new Error('ملف النسخة الاحتياطية غير صالح: manifest.json مفقود');
+  if (!raw) throw new ApiError(MANIFEST_MISSING, 'VALIDATION');
   return JSON.parse(new TextDecoder().decode(raw)) as BackupManifest;
 }
 
 /** Full parse: for an unencrypted archive, decodes `data.json` + attachments right away. */
 export function parseArchive(bytes: Uint8Array): ParsedArchive {
-  const files = unzipSync(bytes);
+  const files = unzipArchive(bytes);
   const manifestRaw = files['manifest.json'];
-  if (!manifestRaw) throw new Error('ملف النسخة الاحتياطية غير صالح: manifest.json مفقود');
+  if (!manifestRaw) throw new ApiError(MANIFEST_MISSING, 'VALIDATION');
   const manifest = JSON.parse(new TextDecoder().decode(manifestRaw)) as BackupManifest;
 
   if (manifest.encrypted) {
     const encryptedPayload = files['payload.enc'];
     const cryptoRaw = files['crypto.json'];
-    if (!encryptedPayload || !cryptoRaw) throw new Error('ملف النسخة الاحتياطية مشفّر لكن بياناته مفقودة');
+    if (!encryptedPayload || !cryptoRaw) throw new ApiError('ملف النسخة الاحتياطية مشفّر لكن بياناته مفقودة', 'VALIDATION');
     const crypto = JSON.parse(new TextDecoder().decode(cryptoRaw)) as BackupCrypto;
     return { manifest, encryptedPayload, crypto };
   }
@@ -252,7 +266,7 @@ export async function decryptArchive(parsed: ParsedArchive, password: string): P
 
 function decodePayloadFiles(files: Record<string, Uint8Array>): BackupData {
   const dataRaw = files['data.json'];
-  if (!dataRaw) throw new Error('ملف النسخة الاحتياطية غير صالح: data.json مفقود');
+  if (!dataRaw) throw new ApiError('ملف النسخة الاحتياطية غير صالح: data.json مفقود', 'VALIDATION');
   const dbData = JSON.parse(new TextDecoder().decode(dataRaw)) as MockDb;
 
   const attachments: ArchiveAttachment[] = [];

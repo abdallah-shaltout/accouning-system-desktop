@@ -18,7 +18,7 @@ import { num0 } from '@/modules/core/helpers/numbers';
 import { round2 } from '@/modules/invoices/helpers/totals';
 import type { ProductBatch } from '@/modules/products/types';
 import { createPurchaseReturn, getActiveBatches, getPurchaseOrder } from '../services/purchaseService';
-import type { RefundMethod } from '../types';
+import type { PurchaseLine, RefundMethod } from '../types';
 
 const route = useRoute('purchase-return');
 const router = useRouter();
@@ -46,6 +46,14 @@ watch(data, async (d) => {
   }
 });
 
+/**
+ * Return quantities are in the BASE unit — what `createPurchaseReturn` takes, `returnedQty` counts and
+ * stock holds (as on `PurchaseReceivePage`) — so a line bought in boxes shows its bought qty and cost
+ * per base unit here, not per box.
+ */
+const boughtBase = (l: PurchaseLine) => round2(l.qty * (l.unitFactor ?? 1));
+const baseCost = (l: PurchaseLine) => l.costPrice / (l.unitFactor || 1);
+
 /** Can't return more than was bought (minus earlier returns), nor more than is still in stock. */
 function maxReturn(productId: string, bought: number) {
   const d = data.value!;
@@ -57,12 +65,12 @@ function maxReturn(productId: string, bought: number) {
 const totals = computed(() => {
   const d = data.value;
   if (!d) return { sub: 0, tax: 0, total: 0 };
-  const sub = round2(d.lines.reduce((a, l) => a + num0(qty.value[l.productId]) * l.costPrice, 0));
+  const sub = round2(d.lines.reduce((a, l) => a + num0(qty.value[l.productId]) * baseCost(l), 0));
   const tax = round2((sub * d.taxRate) / 100);
   return { sub, tax, total: round2(sub + tax) };
 });
 const count = computed(() => Object.values(qty.value).reduce((a, n) => a + num0(n), 0));
-const invalid = computed(() => data.value?.lines.some((l) => num0(qty.value[l.productId]) > maxReturn(l.productId, l.qty)) ?? false);
+const invalid = computed(() => data.value?.lines.some((l) => num0(qty.value[l.productId]) > maxReturn(l.productId, boughtBase(l))) ?? false);
 
 const refundOptions: { value: RefundMethod; label: string }[] = [
   { value: 'credit', label: 'خصم من رصيد المورد (آجل)' },
@@ -114,11 +122,11 @@ async function submit() {
             </tr>
           </thead>
           <tbody class="bg-background">
-            <tr v-for="l in data.lines" :key="l.productId" class="border-b border-border last:border-0" :class="maxReturn(l.productId, l.qty) <= 0 && 'opacity-50'">
+            <tr v-for="l in data.lines" :key="l.productId" class="border-b border-border last:border-0" :class="maxReturn(l.productId, boughtBase(l)) <= 0 && 'opacity-50'">
               <td class="px-4 py-2">{{ data.products[l.productId]?.name }}</td>
-              <td class="px-3 py-2"><span class="num">{{ formatNumber(l.qty) }}</span></td>
+              <td class="px-3 py-2"><span class="num">{{ formatNumber(boughtBase(l)) }}</span></td>
               <td class="px-3 py-2"><span class="num text-text-secondary">{{ formatNumber(data.products[l.productId]?.stockQty) }}</span></td>
-              <td class="px-3 py-2"><MoneyText :value="l.costPrice" plain /></td>
+              <td class="px-3 py-2"><MoneyText :value="baseCost(l)" plain /></td>
               <td class="px-3 py-2">
                 <select v-if="data.products[l.productId]?.trackBatches && batchesByProduct[l.productId]?.length" v-model="batchId[l.productId]" class="control h-8 text-xs">
                   <option value="">أقدم صلاحية (تلقائي)</option>
@@ -131,12 +139,12 @@ async function submit() {
                   v-model.number="qty[l.productId]"
                   type="number"
                   min="0"
-                  :max="maxReturn(l.productId, l.qty)"
-                  :disabled="maxReturn(l.productId, l.qty) <= 0"
+                  :max="maxReturn(l.productId, boughtBase(l))"
+                  :disabled="maxReturn(l.productId, boughtBase(l)) <= 0"
                   class="control h-8 w-20"
-                  :aria-invalid="num0(qty[l.productId]) > maxReturn(l.productId, l.qty) || undefined"
+                  :aria-invalid="num0(qty[l.productId]) > maxReturn(l.productId, boughtBase(l)) || undefined"
                 />
-                <span class="ms-2 text-xs text-text-secondary">حد <span class="num">{{ formatNumber(maxReturn(l.productId, l.qty)) }}</span></span>
+                <span class="ms-2 text-xs text-text-secondary">حد <span class="num">{{ formatNumber(maxReturn(l.productId, boughtBase(l))) }}</span></span>
               </td>
             </tr>
           </tbody>

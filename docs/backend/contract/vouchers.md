@@ -6,7 +6,7 @@
 
 | Function | Params | Returns | Disposition | Writes | Reads (other) | Shared | DTO types |
 |---|---|---|---|---|---|---|---|
-| [`createCardSettlement`](../../../src/modules/vouchers/services/voucherService.ts#L84) | `input: CardSettlementInput` | `Promise<CardSettlement>` | **port** — reads and writes backend data | activity, audit, cardSettlements, counters, journalEntries | accounts, branches, fiscalYears, invoices, paymentMethods, settings | activity, ledger, numbering, period | CardSettlement, CardSettlementInput |
+| [`createCardSettlement`](../../../src/modules/vouchers/services/voucherService.ts#L84) | `input: CardSettlementInput` | `Promise<CardSettlement>` | **port** — reads and writes backend data | activity, audit, cardSettlements, counters, journalEntries | accounts, branches, fiscalYears, invoices, paymentMethods, settings | activity, currency, ledger, numbering, period | CardSettlement, CardSettlementInput |
 | [`createOwnerVoucher`](../../../src/modules/vouchers/services/voucherService.ts#L48) | `input: OwnerVoucherInput` | `Promise<Voucher>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries, vouchers | accounts, branches, fiscalYears, settings | activity, ledger, numbering, period | OwnerVoucherInput, Voucher |
 | [`createPaymentVoucher`](../../../src/modules/vouchers/services/voucherService.ts#L36) | `input: PaymentVoucherInput` | `Promise<Voucher>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries, vouchers | accounts, branches, fiscalYears, paymentMethods, settings | activity, ledger, numbering, period | PaymentVoucherInput, Voucher |
 | [`createReceiptVoucher`](../../../src/modules/vouchers/services/voucherService.ts#L30) | `input: ReceiptVoucherInput` | `Promise<Voucher>` | **port** — reads and writes backend data | activity, audit, counters, journalEntries, vouchers | accounts, branches, fiscalYears, paymentMethods, settings | activity, ledger, numbering, period | ReceiptVoucherInput, Voucher |
@@ -14,7 +14,7 @@
 | [`estimateSettlementFee`](../../../src/modules/vouchers/services/voucherService.ts#L78) | `groups: UnsettledTenderGroup[]` | `Promise<number>` | **port** — reads backend data |  | paymentMethods |  | UnsettledTenderGroup |
 | [`getCardSettlement`](../../../src/modules/vouchers/services/voucherService.ts#L96) | `id: string` | `Promise<CardSettlement>` | **port** — reads backend data |  | cardSettlements |  | CardSettlement |
 | [`getCardSettlements`](../../../src/modules/vouchers/services/voucherService.ts#L90) |  | `Promise<CardSettlement[]>` | **port** — reads backend data |  | cardSettlements |  | CardSettlement |
-| [`getUnsettledTenderGroups`](../../../src/modules/vouchers/services/voucherService.ts#L72) |  | `Promise<UnsettledTenderGroup[]>` | **port** — reads backend data |  | cardSettlements, invoices, paymentMethods |  | UnsettledTenderGroup |
+| [`getUnsettledTenderGroups`](../../../src/modules/vouchers/services/voucherService.ts#L72) |  | `Promise<UnsettledTenderGroup[]>` | **port** — reads backend data |  | cardSettlements, invoices, paymentMethods | currency | UnsettledTenderGroup |
 | [`getVoucher`](../../../src/modules/vouchers/services/voucherService.ts#L64) | `id: string` | `Promise<Voucher>` | **port** — reads backend data |  | vouchers |  | Voucher |
 | [`getVouchers`](../../../src/modules/vouchers/services/voucherService.ts#L54) | `filter?: VoucherFilter` | `Promise<Voucher[]>` | **port** — reads backend data |  | vouchers |  | Voucher, VoucherFilter |
 

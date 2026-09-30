@@ -2,12 +2,13 @@
 /**
  * 21.03 §02-setup (Part 02 handoff §9): the first-run device-role screen — public, blank layout,
  * exactly like `/welcome` (`src/modules/users/pages/WelcomePage.vue`). Reached only when
- * `usesRust('setup')` and the router guard's `ensureDeviceSetupState()` finds `configured: false`
- * (`src/router/index.ts` — needs a manager edit, see this wave's final report).
+ * `usesRust('setup')` and the router guard (`src/router/index.ts`, `deviceStateForNavigation`) finds
+ * `configured: false`.
  *
- * Flow: role choice -> (main) provisioning progress -> once connected, `hasLegacySnapshot()` shows
- * `LegacyImportCard` with a "start fresh" fallback, else straight to `/welcome`; (terminal) the
- * pairing form -> `/login` on success.
+ * Flow: role choice -> (main) provisioning progress -> once connected, `/welcome`; (terminal) the
+ * pairing form -> `/login` on success. The one-time legacy import card lives on `/welcome` only
+ * (plan 21 Part 04 E-2): a Main PC restarted between provisioning and importing lands there, never
+ * here, so a copy on this page would be both a duplicate and not enough.
  */
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -18,12 +19,10 @@ import { getBackendStatus } from '@/modules/core/services/backend';
 import { APP_NAME_AR } from '@/modules/core/helpers/brand';
 import DeviceRoleChoice from '../components/DeviceRoleChoice.vue';
 import TerminalPairingForm from '../components/TerminalPairingForm.vue';
-import LegacyImportCard from '../components/LegacyImportCard.vue';
 import { ensureDeviceSetupState, provisionMainDevice, refreshDeviceSetupState } from '../services/deviceService';
-import { hasLegacySnapshot } from '../services/legacyImportService';
 import type { DeviceSetupState } from '../types';
 
-type Step = 'loading' | 'choice' | 'provisioning' | 'terminal-pairing' | 'import-or-fresh' | 'error';
+type Step = 'loading' | 'choice' | 'provisioning' | 'terminal-pairing' | 'error';
 
 const router = useRouter();
 const step = ref<Step>('loading');
@@ -44,20 +43,18 @@ onMounted(async () => {
   try {
     const state = await ensureDeviceSetupState();
     deviceState.value = state;
-    step.value = state.configured ? 'import-or-fresh' : 'choice';
-    if (state.configured) await afterConnected();
+    if (state.configured) afterConnected();
+    else step.value = 'choice';
   } catch (err) {
     error.value = errorMessage(err);
     step.value = 'error';
   }
 });
 
-async function afterConnected(): Promise<void> {
-  if (await hasLegacySnapshot()) {
-    step.value = 'import-or-fresh';
-  } else {
-    router.replace({ name: 'welcome' });
-  }
+/** The router guard takes it from here: `/welcome` on an empty company (legacy import, start
+ * company), `/login` once it has users. */
+function afterConnected(): void {
+  router.replace({ name: 'welcome' });
 }
 
 function chooseTerminal(): void {
@@ -90,16 +87,12 @@ async function chooseMain(): Promise<void> {
     stopPolling();
     deviceState.value = state;
     await refreshDeviceSetupState();
-    await afterConnected();
+    afterConnected();
   } catch (err) {
     stopPolling();
     error.value = errorMessage(err);
     step.value = 'error';
   }
-}
-
-function startFresh(): void {
-  router.replace({ name: 'welcome' });
 }
 </script>
 
@@ -122,13 +115,6 @@ function startFresh(): void {
 
       <div v-else-if="step === 'terminal-pairing'" class="mx-auto max-w-sm">
         <TerminalPairingForm />
-      </div>
-
-      <div v-else-if="step === 'import-or-fresh'" class="space-y-4">
-        <LegacyImportCard @imported="() => router.replace({ name: 'login' })" />
-        <div class="text-center">
-          <AppButton variant="secondary" size="sm" @click="startFresh">ابدأ من جديد</AppButton>
-        </div>
       </div>
 
       <div v-else-if="step === 'error'" class="space-y-4 text-center">

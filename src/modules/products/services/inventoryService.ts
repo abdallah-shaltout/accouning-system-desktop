@@ -75,10 +75,10 @@ export const createStockAdjustment = wrap('products.createStockAdjustment', asyn
   return clone(recordStockAdjustment(input, session.userId, asDraft));
 });
 
-export const completeAdjustment = wrap('products.completeAdjustment', async function completeAdjustment(id: string): Promise<StockAdjustment> {
-  if (usesRust('products')) return backendCall('products_complete_adjustment', { id });
+export const completeAdjustment = wrap('products.completeAdjustment', async function completeAdjustment(id: string, approvedBy?: string): Promise<StockAdjustment> {
+  if (usesRust('products')) return backendCall('products_complete_adjustment', { id, approvedBy });
   await delay();
-  return clone(completeStockAdjustment(id, session.userId));
+  return clone(completeStockAdjustment(id, session.userId, approvedBy));
 });
 
 export const deleteDraftAdjustment = wrap('products.deleteDraftAdjustment', async function deleteDraftAdjustment(id: string): Promise<void> {

@@ -120,6 +120,9 @@ function isHidden(userId: string | undefined, insightId: string, today: string):
 // --- Cache ------------------------------------------------------------------------------------
 
 let cache: Insight[] | null = null;
+/** The numeral system `cache` was formatted with — messages/metrics embed formatted numbers, so a
+ * numerals switch must recompute (the Rust path keys its mirror by numerals the same way). */
+let cacheNumerals: string | null = null;
 
 function invalidate() {
   cache = null;
@@ -146,7 +149,7 @@ function computeAll(role?: Role): Insight[] {
       [],
     );
   }
-  if (cache) return cache;
+  if (cache && cacheNumerals === numeralSystem.value) return cache;
   const ctx = { today: localDateKey(new Date()), role: undefined, thresholds: getThresholds() };
   const all: Insight[] = [];
   for (const rule of INSIGHT_RULES) {
@@ -157,6 +160,7 @@ function computeAll(role?: Role): Insight[] {
     }
   }
   cache = all;
+  cacheNumerals = numeralSystem.value;
   return all;
 }
 

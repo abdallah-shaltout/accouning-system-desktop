@@ -95,7 +95,10 @@ export const getPartyGroups = wrap('parties.getPartyGroups', async function getP
 
 // --- Customers -------------------------------------------------------------------------------
 
-function withComputed(c: Customer): Customer {
+/** A customer as every read returns it: `balance`/`unallocatedCredit` computed on read (party
+ * types), never the stored record's stale fields. Exported for the invoice detail/print reads,
+ * whose embedded `customer` is the same `Customer` (Rust: `parties::service::read::get_customer`). */
+export function withComputed(c: Customer): Customer {
   return { ...clone(c), balance: customerBalance(c.id), unallocatedCredit: unallocatedCreditFor('customer', c.id) };
 }
 
@@ -268,7 +271,8 @@ export const getLinkedNetBalance = wrap('parties.getLinkedNetBalance', async fun
   if (usesRust('parties')) return (await backendCall('parties_get_linked_net_balance', { customerId, supplierId })) ?? undefined; // contract-ok: null→undefined at the switch line
   await delay(80);
   if (!customerId || !supplierId) return undefined;
-  return customerBalance(customerId) - supplierBalance(supplierId);
+  // BUG-0021: round2 the difference (one rounding rule) — a raw float subtraction leaked `-521.0100000000002`.
+  return round2(customerBalance(customerId) - supplierBalance(supplierId));
 });
 
 // --- History (docs/v2/08 §3 "السجل") ------------------------------------------------------------

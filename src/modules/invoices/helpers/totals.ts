@@ -187,6 +187,34 @@ export function computeInvoiceTotals(
   };
 }
 
+/**
+ * A sales refund's share of one invoice line (G-25, ACC-0003): the refund reverses exactly the
+ * proportional part of the net and VAT `computeInvoiceTotals` snapshotted on the line at sale time
+ * (after line discount → invoice discount → VAT, in whatever tax mode the sale used) — no VAT is
+ * recomputed, so refunded net + refunded VAT = refunded gross, and a tax-inclusive price is never
+ * taxed a second time. Cumulative rounding: the amount already refunded for `alreadyReturned` units
+ * is `round2(total × q / qty)` (the whole snapshot once `q` reaches `qty`), and this refund takes the
+ * difference — so any sequence of partial refunds sums to the line's net and VAT exactly.
+ *
+ * ACC-0017: the GROSS share is what gets rounded (`round2(gross × q / qty)`), with the VAT share
+ * `round2(vat × q / qty)` and net = gross − VAT. Rounding net and VAT separately let a unit drift a
+ * halala off its price (2 × 100 inclusive, net 173.91 / VAT 26.09, refunded 100.01 then 99.99);
+ * rounding the gross gives each unit back exactly what it cost, and the totals still telescope.
+ */
+export function refundLineShare(
+  line: { qty: number; net: number; vat: number },
+  alreadyReturned: number,
+  returning: number,
+): { net: number; vat: number } {
+  const gross = round2(line.net + line.vat);
+  const refundedUpTo = (q: number) =>
+    q >= line.qty ? { gross, vat: line.vat } : { gross: round2((gross * q) / line.qty), vat: round2((line.vat * q) / line.qty) };
+  const before = refundedUpTo(alreadyReturned);
+  const after = refundedUpTo(alreadyReturned + returning);
+  const vat = round2(after.vat - before.vat);
+  return { net: round2(round2(after.gross - before.gross) - vat), vat };
+}
+
 // =================================================================================================
 // Legacy v1 engine — kept working, unchanged behavior, for callers outside this phase's surface
 // (modules/invoices/controllers/usePosStore.ts, CheckoutModal.vue — the POS cart hasn't been

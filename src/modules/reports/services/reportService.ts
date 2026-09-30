@@ -953,6 +953,8 @@ export const getLowStockReport = wrap('reports.getLowStockReport', async functio
 export const getDeadStockReport = wrap('reports.getDeadStockReport', async function getDeadStockReport(days = 60): Promise<DeadStockRow[]> {
   if (usesRust('reports')) return backendCall('reports_get_dead_stock_report', { days });
   await delay();
+  // Decision R-8 (13b-reports-operational.md): a negative window is invalid input on both backends.
+  if (days < 0) throw new ApiError('عدد الأيام غير صالح', 'VALIDATION');
   const today = localDateKey(new Date());
   const lastSaleByProduct = new Map<string, string>();
   for (const m of db.stockMovements) {

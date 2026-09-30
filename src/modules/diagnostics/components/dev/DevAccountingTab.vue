@@ -26,6 +26,7 @@ import {
   getPostingTrace,
   isReproRecording,
   listRecentDocuments,
+  reproRecordingRefusal,
   startReproRecording,
   stopReproRecording,
   type AccountingDocSummary,
@@ -37,6 +38,9 @@ import type { PostingTrace } from '@/mocks';
 import { useToast } from '@/modules/core/controllers/useToast';
 
 const recording = ref(false);
+// Plan 21 Part 04 E-5 (16 D-5, P4-11): on the real backend recording is refused — the buttons are
+// disabled and the refusal says where a Rust-side regression case goes instead.
+const recordingRefusal = reproRecordingRefusal();
 onMounted(async () => {
   recording.value = await isReproRecording();
 });
@@ -173,12 +177,18 @@ function stepKindLabel(kind: string): string {
           <h3 class="text-body-sm font-medium">مصحح الحسابات — اختر مستنداً</h3>
         </div>
         <div class="flex items-center gap-2">
-          <AppButton :variant="recording ? 'danger' : 'secondary'" size="sm" @click="toggleRecording">
+          <AppButton :variant="recording ? 'danger' : 'secondary'" size="sm" :disabled="!!recordingRefusal" @click="toggleRecording">
             {{ recording ? 'إيقاف تسجيل إعادة الإنتاج' : 'بدء تسجيل إعادة الإنتاج' }}
           </AppButton>
-          <AppButton variant="ghost" size="sm" @click="exportBundle">تصدير حالة لإعادة الإنتاج</AppButton>
+          <AppButton variant="ghost" size="sm" :disabled="!!recordingRefusal" @click="exportBundle">تصدير حالة لإعادة الإنتاج</AppButton>
         </div>
       </div>
+      <p v-if="recordingRefusal" class="text-caption text-text-secondary">
+        {{ recordingRefusal }}. حالة الانحدار لإصلاح محاسبي في الخادم هي حالة تكافؤ في
+        <span class="num" dir="ltr">scripts/parity/cases/</span>
+        مع اختبار في
+        <span class="num" dir="ltr">src-tauri/tests/domain_*.rs</span>.
+      </p>
       <AppCombobox v-model="selectedId" :options="docOptions" placeholder="اختر قيداً…" search-placeholder="بحث برقم القيد أو البيان…" />
 
       <Tabs v-if="selectedId" default-value="trace">

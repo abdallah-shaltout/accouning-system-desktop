@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 import { ConfigProvider } from 'reka-ui';
 import CommandPalette from '@/modules/core/components/CommandPalette.vue';
 import ToastContainer from '@/modules/core/components/ToastContainer.vue';
@@ -8,6 +8,7 @@ import { initPrintResultListener } from '@/modules/core/services/printService';
 import ServerFailureScreen from '@/modules/settings/components/ServerFailureScreen.vue';
 import { useBackendHealth } from '@/modules/settings/controllers/useBackendHealth';
 import { isClosingWithBackup } from '@/modules/settings/services/backupService';
+import { isNavigationHeldForDatabase } from '@/modules/setup/services/deviceService';
 import DiagOverlay from '@/modules/diagnostics/components/DiagOverlay.vue';
 
 // Phase 14 (docs/v2/12-documents-pdf-excel.md §5): one-time listener for the
@@ -19,6 +20,17 @@ onMounted(() => void initPrintResultListener());
 // before `settings` is Rust-backed (`useBackendHealth.start()`'s own gate).
 const health = useBackendHealth();
 onMounted(() => health.start());
+
+// Plan 21 Part 04 E-2 (2): the router guard held the navigation because the database was down
+// (`mustHoldForDatabase`) — once it is connected again, reload so the boot path re-runs on real data.
+// Nothing is lost: a held navigation never rendered a page. Watches every poll result (a new object
+// each time), not just `connected` flipping, so a hold that started after the last poll still resolves.
+watch(
+  () => health.status,
+  (status) => {
+    if (status?.connected && isNavigationHeldForDatabase()) window.location.reload();
+  },
+);
 
 const isDev = import.meta.env.DEV;
 </script>

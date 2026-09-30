@@ -12,10 +12,21 @@ import { backendCall, usesRust } from '@/modules/core/services/backend';
 
 import { wrap } from '@/modules/diagnostics/services/defineService';
 
-/** Wipes the persisted snapshot — caller is expected to reload the app afterward. */
+/** Wipes the persisted snapshot — caller is expected to reload the app afterward. Refuses in Rust
+ * mode (`clearSnapshot`, Part 04 E-3): that snapshot is the user's legacy data (P4-9). */
 export const resetToEmpty = wrap('core.resetToEmpty', async function resetToEmpty(): Promise<void> {
   await clearSnapshot();
 });
+
+/**
+ * Whether the welcome page may offer "explore with demo data" (Part 04 E-2 (3)). Always on the mock
+ * (the browser build). On the real backend only in dev builds: `setup_import_snapshot` refuses
+ * `mode: 'demo'` in a release build, because demo books imported into a real company's empty
+ * database could never be removed again (a release build has no wipe, 00-import step 1).
+ */
+export function canLoadDemoData(): boolean {
+  return import.meta.env.DEV || !usesRust('setup');
+}
 
 /**
  * Reseeds fresh demo data. In a Tauri build (`usesRust('setup')`), the mock seed only builds the

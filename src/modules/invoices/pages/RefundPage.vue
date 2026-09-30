@@ -14,7 +14,7 @@ import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { formatNumber } from '@/modules/core/helpers/format';
 import { num0 } from '@/modules/core/helpers/numbers';
-import { invoiceOutstanding, round2 } from '../helpers/totals';
+import { invoiceOutstanding, refundLineShare, round2 } from '../helpers/totals';
 import { createRefund, getInvoice } from '../services/invoiceService';
 import type { RefundMethod } from '../types';
 
@@ -49,10 +49,15 @@ const returnable = (lineId: string, sold: number) => sold - (data.value?.returne
 const estimate = computed(() => {
   const d = data.value;
   if (!d) return { net: 0, tax: 0, total: 0, toAccount: 0, cash: 0 };
-  const net = round2(
-    d.lines.reduce((a, l) => a + num0(qty.value[l.id]) * (l.price - l.discount / l.qty), 0) * (1 - d.discountRate / 100),
-  );
-  const tax = round2((net * d.taxRate) / 100);
+  let net = 0;
+  let tax = 0;
+  for (const l of d.lines) {
+    const returning = num0(qty.value[l.id]);
+    if (!returning) continue;
+    const share = refundLineShare({ qty: l.qty, net: l.net ?? 0, vat: l.vat ?? 0 }, d.returnedQty[l.id] ?? 0, returning);
+    net = round2(net + share.net);
+    tax = round2(tax + share.vat);
+  }
   const total = round2(net + tax);
   const toAccount = Math.min(total, invoiceOutstanding(d));
   return { net, tax, total, toAccount, cash: round2(total - toAccount) };

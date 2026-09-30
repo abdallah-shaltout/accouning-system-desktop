@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **1227 files / 213,178 lines** (json 4, md 137, rust 377, ts 252, vue 457).
+Indexed: **1281 files / 228,070 lines** (json 4, md 184, rust 384, ts 252, vue 457).
 
 **Lookup order:** Where-to-find → Open diagnostics → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -96,19 +96,19 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **accounting** | 13 / 3496 | commands 1, components 1, pages 7, routes 1, services 1, types 2 | 8 | yes |
 | **analytics** | 9 / 499 | components 5, pages 1, routes 1, services 1, types 1 | 1 |  |
 | **approvals** | 6 / 286 | commands 1, pages 1, routes 1, services 1, types 2 | 1 | yes |
-| **core** | 353 / 20197 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 12, types 8 | 5 |  |
-| **diagnostics** | 21 / 2193 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 2 | 0 | yes |
+| **core** | 353 / 20430 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 12, types 8 | 5 |  |
+| **diagnostics** | 21 / 2220 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 2 | 0 | yes |
 | **expenses** | 9 / 991 | pages 5, routes 1, services 1, types 2 | 5 |  |
-| **invoices** | 58 / 7718 | commands 1, components 36, controllers 3, helpers 3, pages 10, routes 1, services 2, types 2 | 11 | yes |
-| **parties** | 12 / 1921 | components 1, helpers 3, pages 3, routes 1, services 1, types 2, validators 1 | 8 |  |
+| **invoices** | 58 / 7763 | commands 1, components 36, controllers 3, helpers 3, pages 10, routes 1, services 2, types 2 | 11 | yes |
+| **parties** | 12 / 1925 | components 1, helpers 3, pages 3, routes 1, services 1, types 2, validators 1 | 8 |  |
 | **payments** | 7 / 921 | pages 3, routes 1, services 1, types 2 | 3 |  |
-| **products** | 33 / 5352 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 2, validators 1 | 16 |  |
-| **purchases** | 12 / 1803 | commands 1, components 1, pages 6, routes 1, services 1, types 2 | 7 | yes |
-| **reports** | 45 / 6391 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 2 | 28 | yes |
-| **settings** | 39 / 5667 | commands 1, components 6, controllers 4, helpers 2, pages 16, routes 1, services 4, types 5 | 19 | yes |
-| **setup** | 25 / 2551 | components 15, pages 3, routes 1, services 3, types 2, validators 1 | 3 |  |
+| **products** | 33 / 5373 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 2, validators 1 | 16 |  |
+| **purchases** | 12 / 1815 | commands 1, components 1, pages 6, routes 1, services 1, types 2 | 7 | yes |
+| **reports** | 45 / 6393 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 2 | 28 | yes |
+| **settings** | 39 / 5701 | commands 1, components 6, controllers 4, helpers 2, pages 16, routes 1, services 4, types 5 | 19 | yes |
+| **setup** | 25 / 2586 | components 15, pages 3, routes 1, services 3, types 2, validators 1 | 3 |  |
 | **templates** | 5 / 969 | pages 2, services 1, types 2 | 0 |  |
-| **users** | 12 / 1013 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 2, validators 1 | 4 |  |
+| **users** | 12 / 1032 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 2, validators 1 | 4 |  |
 | **vouchers** | 10 / 879 | commands 1, pages 5, routes 1, services 1, types 2 | 5 | yes |
 
 ## Service API (the seam — pages call only these)
@@ -118,11 +118,11 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | accounting | `accountingService` | `signedBalance`, `getAccounts`, `accountPath`, `rolledBalance`, `saveAccount`, `deleteAccount`, `reparentAccount`, `getJournalEntries`, `getJournalEntriesForSource`, `getJournalEntriesPaged`, `getJournalEntry`, `createJournalEntry`, `updateJournalDraft`, `postJournalDraft`, `deleteJournalDraft`, `reverseJournalEntry`, `getFiscalYears`, `getCurrentFiscalYear`, `saveFiscalYear`, `getLockDate`, `saveLockDate`, `getCloseYearPreChecks`, `closeYear`, `reopenYear`, `getJournalTemplates`, `getJournalTemplate`, `createOrUpdateJournalTemplate`, `removeJournalTemplate`, `loadTemplateIntoEntry`, `postRecurringTemplate`, `getVatPeriodTotals`, `submitVatSettlement`, `payVatSettlementNow` |
 | analytics | `analyticsService` | `getSalesAnalytics`, `getProductAnalytics`, `getCustomerAnalytics` |
 | approvals | `approvalService` | `submitApprovalRequest`, `getApprovalRequests`, `getPendingApprovalCount`, `approveRequest`, `rejectRequest` |
-| core | `attachmentService` | `fetchAttachments`, `fetchAttachment`, `saveAttachment`, `removeAttachment`, `uid` |
-| core | `backend` | `usesRust`, `backendCall`, `initBackendBridge`, `getBackendStatus`, `ApiError` |
-| core | `backendMirror` | `mirrored`, `clearMirrors` |
+| core | `attachmentService` | `newAttachmentId`, `fetchAttachments`, `fetchAttachment`, `fetchAttachmentsByIds`, `saveAttachment`, `removeAttachment`, `uid` |
+| core | `backend` | `usesRust`, `usesRustEverywhere`, `setParityTransport`, `backendCall`, `initBackendBridge`, `ALL_BACKEND_DOMAINS`, `getBackendStatus`, `ApiError` |
+| core | `backendMirror` | `mirrored`, `mirrorsSettled`, `clearMirrors` |
 | core | `dashboardService` | `getInTransitTransfers`, `getPendingApprovalRequests`, `getLastBackupFailedAt`, `getJournalDraftCount`, `getStockValueSnapshot`, `hasAnyProducts`, `onLedgerChanged`, `getDashboardSummary`, `getLowStockProducts`, `getRecentInvoices`, `getRecentActivity`, `getHomeKpis`, `getTopProducts`, `getTopCustomers` |
-| core | `devToolsService` | `resetToEmpty`, `reloadDemoData` |
+| core | `devToolsService` | `canLoadDemoData`, `resetToEmpty`, `reloadDemoData` |
 | core | `geoService` | `getRegions`, `getCities`, `getDistricts`, `getLabels`, `searchPlaces` |
 | core | `insightEngine` | `getThresholds`, `setThresholds`, `dismissInsight`, `snoozeInsight`, `clearDismissal`, `getInsights`, `getInsightsFor`, `getInsightsForEntity`, `getProductInlineHints`, `forceRefresh` |
 | core | `insightRules` | `INSIGHT_ICONS`, `INSIGHT_RULES` |
@@ -130,7 +130,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | core | `pdfService` | `render`, `renderAndSave`, `renderPreview`, `sampleInvoicePayload`, `buildLabelItems`, `renderLabels`, `renderLabelsAndSave`, `renderGenericReport`, `renderGenericReportAndSave`, `renderReportPdf`, `saveReportPdf`, `renderLabelsPreview` |
 | core | `printService` | `listPrinters`, `printReceipt`, `testPrint`, `initPrintResultListener` |
 | core | `saveFile` | `saveFile` |
-| diagnostics | `accountingDebugService` | `listRecentDocuments`, `getPostingTrace`, `getJournalEntryRaw`, `getBalancesAround`, `getInvariantResults`, `getDriftReport`, `explainAccountBalance`, `startReproRecording`, `stopReproRecording`, `isReproRecording`, `exportReproBundle` |
+| diagnostics | `accountingDebugService` | `reproRecordingRefusal`, `listRecentDocuments`, `getPostingTrace`, `getJournalEntryRaw`, `getBalancesAround`, `getInvariantResults`, `getDriftReport`, `explainAccountBalance`, `startReproRecording`, `stopReproRecording`, `isReproRecording`, `exportReproBundle` |
 | diagnostics | `actionJournal` | `isRecording`, `startRecording`, `stopRecording`, `recordServiceCall`, `currentJournal`, `buildReproBundle`, `debugRecordingAvailable` |
 | diagnostics | `auditService` | `getAuditEntries`, `getAuditEntities`, `getAuditEntityKinds` |
 | diagnostics | `defineService` | `serviceRegistry`, `wrap` |
@@ -141,7 +141,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | expenses | `expenseService` | `getExpenseCategories`, `saveExpenseCategory`, `deleteExpenseCategory`, `getExpenses`, `getExpense`, `createExpense`, `getRecurringExpenses`, `saveRecurringExpense`, `deleteRecurringExpense`, `getDueRecurringExpenses`, `postDueRecurringExpense` |
 | invoices | `invoiceImageService` | `saveInvoiceImage`, `copyInvoiceImage` |
 | invoices | `invoiceService` | `isOverdue`, `getInvoices`, `getInvoicesPaged`, `getInvoice`, `previewSale`, `createSale`, `createRefund`, `getRefund`, `getInvoicePrintData`, `getCurrentShift`, `getShifts`, `getShift`, `openPosShift`, `getXReport`, `closePosShift`, `forceClosePosShift`, `recordCashInOut`, `getHeldSales`, `holdSale`, `resumeHeldSale`, `discardHeldSale`, `getQuotations`, `getQuotation`, `saveQuotation`, `setQuotationStatus`, `convertQuotationToInvoice` |
-| parties | `partyService` | `findDuplicates`, `checkDuplicates`, `getPartyGroups`, `getCustomers`, `getCustomer`, `saveCustomer`, `getCustomerStatement`, `getSuppliers`, `getSupplier`, `saveSupplier`, `getSupplierStatement`, `linkPartyRecords`, `unlinkPartyRecord`, `getLinkedNetBalance`, `getPartyHistory`, `getPartyAging`, `ApiError`, `uid` |
+| parties | `partyService` | `withComputed`, `findDuplicates`, `checkDuplicates`, `getPartyGroups`, `getCustomers`, `getCustomer`, `saveCustomer`, `getCustomerStatement`, `getSuppliers`, `getSupplier`, `saveSupplier`, `getSupplierStatement`, `linkPartyRecords`, `unlinkPartyRecord`, `getLinkedNetBalance`, `getPartyHistory`, `getPartyAging`, `ApiError`, `uid` |
 | payments | `paymentService` | `getPayments`, `getPaymentsPaged`, `getPayment`, `createPayment`, `allocateExistingPayment`, `removeAllocation`, `getOpenDocuments` |
 | products | `catalogService` | `onCatalogChanged`, `getCategories`, `saveCategory`, `deleteCategory`, `getUnits`, `saveUnit`, `applyUnitPreset`, `deleteUnit`, `getPriceLists`, `savePriceList`, `deletePriceList`, `setPriceListValues`, `getCustomFieldDefs`, `saveCustomFieldDef`, `deleteCustomFieldDef`, `reorderCustomFieldDefs` |
 | products | `inventoryService` | `adjustmentValue`, `getStockAdjustments`, `getStockAdjustment`, `createStockAdjustment`, `completeAdjustment`, `deleteDraftAdjustment`, `getStockMovements`, `getStockMovementsPaged`, `getBatches`, `getExpiryReport`, `batchAlertTone`, `writeOffExpiredBatches`, `returnBatchesToSupplier`, `getDebitNoteDrafts`, `getStockCounts`, `getStockCount`, `createStockCount`, `updateStockCountLine`, `submitCountForReview`, `resumeCounting`, `completeStockCount` |
@@ -153,7 +153,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | settings | `branchesService` | `getBranches`, `createBranch`, `updateBranch`, `deactivateBranch`, `reactivateBranch`, `getCostCenters`, `createCostCenter`, `updateCostCenter`, `deleteCostCenter`, `getCurrencies`, `getExchangeRates`, `createCurrency`, `updateCurrency`, `saveExchangeRate`, `isBaseCurrencyLocked`, `setBaseCurrency`, `getRevaluationPreview`, `getDefaultRevaluationRates`, `postRevaluation` |
 | settings | `networkService` | `getLanSharingStatus`, `enableLanSharing`, `disableLanSharing`, `rotatePairingCode`, `reconnectBackend` |
 | settings | `settingsService` | `getSettings`, `updateSettings`, `getTaxes`, `saveTax`, `deleteTax`, `getPaymentMethods`, `savePaymentMethod`, `reorderPaymentMethods`, `deletePaymentMethod` |
-| setup | `deviceService` | `refreshDeviceSetupState`, `ensureDeviceSetupState`, `isFreshInstallCached`, `getDeviceSetupState`, `provisionMainDevice`, `pairTerminalDevice` |
+| setup | `deviceService` | `refreshDeviceSetupState`, `ensureDeviceSetupState`, `deviceStateForNavigation`, `isFreshInstallCached`, `mustHoldForDatabase`, `isNavigationHeldForDatabase`, `getDeviceSetupState`, `provisionMainDevice`, `pairTerminalDevice` |
 | setup | `legacyImportService` | `hasLegacySnapshot`, `inspectLegacySnapshot`, `importLegacySnapshot` |
 | setup | `setupService` | `ensureEmptyCompanyShell`, `persistProgress`, `getOnboardingProgress`, `saveOnboardingProgress`, `markStepDone`, `markStepSkipped`, `applyBusinessTypeDefaults`, `isBaseCurrencyLocked`, `applyCountryTax`, `applyFiscalYear`, `applyBranches`, `previewCoaTemplate`, `applyCoaTemplate`, `applyPaymentMethods`, `getOpeningBalanceEquityNet`, `isFirstUsePosted`, `postOpeningBalances`, `postOpeningStock`, `recloseOpeningBalanceEquity`, `postPartyOpening`, `reversePartyOpening`, `finishOnboarding`, `uid` |
 | templates | `templateService` | `listTemplates`, `getTemplate`, `getDefaultTemplate`, `saveTemplate`, `setAsDefault`, `duplicateTemplate`, `deleteTemplate`, `resetTemplateToDefaults`, `exportTemplate`, `importTemplate`, `createTemplate` |
@@ -298,22 +298,22 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 |---|---|---|
 | **accounting** | core (108), users (6), mocks (4), parties (4), reports (3), settings (2), diagnostics (1), invoices (1) | 10 |
 | **analytics** | core (18), diagnostics (1), mocks (1) | 1 |
-| **app** | core (16), settings (7), diagnostics (4), users (4), accounting (2), approvals (2), invoices (2), purchases (2), reports (2), setup (2), vouchers (2), analytics (1), expenses (1), mocks (1), parties (1), payments (1), products (1) | 1 |
+| **app** | core (16), settings (7), diagnostics (4), users (4), setup (3), accounting (2), approvals (2), invoices (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), mocks (1), parties (1), payments (1), products (1) | 1 |
 | **approvals** | core (14), mocks (2), diagnostics (1), users (1) | 5 |
-| **core** | mocks (20), users (20), products (14), invoices (13), settings (12), diagnostics (10), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), approvals (1), payments (1), reports (1), setup (1) | 18 |
+| **core** | mocks (21), users (20), products (14), invoices (13), settings (12), diagnostics (11), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), approvals (1), payments (1), reports (1), setup (1) | 18 |
 | **diagnostics** | core (31), mocks (5), accounting (1) | 18 |
 | **expenses** | core (61), accounting (3), users (3), mocks (2), parties (2), settings (2), diagnostics (1) | 2 |
-| **invoices** | core (222), products (11), settings (11), mocks (9), users (9), parties (8), reports (6), approvals (2), diagnostics (2), accounting (1), payments (1) | 10 |
-| **mocks** | core (14), invoices (9), accounting (8), products (8), settings (6), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), setup (2), users (1) | 18 |
+| **invoices** | core (222), products (11), settings (11), mocks (9), parties (9), users (9), reports (6), approvals (2), diagnostics (2), accounting (1), payments (1) | 10 |
+| **mocks** | core (15), invoices (9), accounting (8), products (8), settings (7), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), setup (2), users (1) | 18 |
 | **parties** | core (63), mocks (6), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
 | **payments** | core (44), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
-| **products** | core (211), mocks (14), users (13), settings (8), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
-| **purchases** | core (81), products (5), users (4), invoices (3), mocks (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
+| **products** | core (212), mocks (14), users (13), settings (9), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
+| **purchases** | core (81), mocks (5), products (5), users (4), invoices (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
 | **reports** | core (165), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
-| **settings** | core (196), users (19), mocks (15), diagnostics (9), invoices (6), products (3), templates (2) | 12 |
-| **setup** | core (74), mocks (9), settings (4), diagnostics (3), accounting (2), products (2), parties (1), users (1) | 5 |
+| **settings** | core (197), users (19), mocks (15), diagnostics (10), invoices (6), products (3), templates (2) | 12 |
+| **setup** | core (74), mocks (9), diagnostics (4), settings (4), accounting (2), products (2), parties (1), users (1) | 5 |
 | **templates** | core (18), diagnostics (1), mocks (1) | 3 |
-| **users** | core (40), mocks (5), products (3), diagnostics (2), setup (1) | 15 |
+| **users** | core (40), mocks (5), products (3), diagnostics (2), setup (2) | 15 |
 | **vouchers** | core (50), mocks (3), accounting (2), settings (2), users (2), diagnostics (1), invoices (1) | 3 |
 
 **Most-used npm packages** (files importing): `vue (425)`, `@lucide/vue (174)`, `reka-ui (118)`, `vue-router (100)`, `@vueuse/core (79)`, `@tauri-apps/api (18)`, `pinia (10)`, `class-variance-authority (9)`, `zod (6)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `modern-screenshot (1)`, `tailwind-merge (1)` … +1 more
@@ -366,6 +366,11 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | `approvals_get_pending_approval_count` | `domains::approvals::commands::approvals_get_pending_approval_count` | `src-tauri/src/domains/approvals/commands.rs` | yes | `src/modules/approvals/services/approvalService.ts` |
 | `approvals_approve_request` | `domains::approvals::commands::approvals_approve_request` | `src-tauri/src/domains/approvals/commands.rs` | yes | `src/modules/approvals/services/approvalService.ts` |
 | `approvals_reject_request` | `domains::approvals::commands::approvals_reject_request` | `src-tauri/src/domains/approvals/commands.rs` | yes | `src/modules/approvals/services/approvalService.ts` |
+| `attachments_fetch_attachments` | `domains::attachments::commands::attachments_fetch_attachments` | `src-tauri/src/domains/attachments/commands.rs` | yes | `src/modules/core/services/attachmentService.ts` |
+| `attachments_fetch_attachment` | `domains::attachments::commands::attachments_fetch_attachment` | `src-tauri/src/domains/attachments/commands.rs` | yes | `src/modules/core/services/attachmentService.ts` |
+| `attachments_fetch_attachments_by_ids` | `domains::attachments::commands::attachments_fetch_attachments_by_ids` | `src-tauri/src/domains/attachments/commands.rs` | yes | `src/modules/core/services/attachmentService.ts` |
+| `attachments_save_attachment` | `domains::attachments::commands::attachments_save_attachment` | `src-tauri/src/domains/attachments/commands.rs` | yes | `src/modules/core/services/attachmentService.ts` |
+| `attachments_remove_attachment` | `domains::attachments::commands::attachments_remove_attachment` | `src-tauri/src/domains/attachments/commands.rs` | yes | `src/modules/core/services/attachmentService.ts` |
 | `dashboard_get_dashboard_summary` | `domains::dashboard::commands::dashboard_get_dashboard_summary` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
 | `dashboard_get_home_kpis` | `domains::dashboard::commands::dashboard_get_home_kpis` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
 | `dashboard_get_low_stock_products` | `domains::dashboard::commands::dashboard_get_low_stock_products` | `src-tauri/src/domains/dashboard/commands.rs` | yes | `src/modules/core/services/dashboardService.ts` |
@@ -642,7 +647,7 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 
 **Plugins:** `single_instance`, `opener`, `fs`, `dialog`, `log`. Frontend plugin use: `@tauri-apps/api (18)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `@tauri-apps/plugin-opener (2)`
 
-**Rust module tree:** `core/mod.rs → pub mod auth`, `core/mod.rs → pub mod db`, `core/mod.rs → pub mod device`, `core/mod.rs → pub mod diag`, `core/mod.rs → pub mod dto`, `core/mod.rs → pub mod error`, `core/mod.rs → pub mod events`, `core/mod.rs → pub mod grants`, `core/mod.rs → pub mod ipc`, `core/mod.rs → pub mod lock`, `core/mod.rs → pub mod poller`, `core/mod.rs → pub mod settings`, `core/mod.rs → pub mod state`, `core/mod.rs → pub mod status`, `core/mod.rs → pub mod terminal`, `core/mod.rs → pub mod tx`, `domains/accounting/commands/mod.rs → pub mod accounts`, `domains/accounting/commands/mod.rs → pub mod journal`, `domains/accounting/commands/mod.rs → pub mod period`, `domains/accounting/commands/mod.rs → pub mod templates`, `domains/accounting/dto/mod.rs → pub mod accounts`, `domains/accounting/dto/mod.rs → pub mod journal`, `domains/accounting/dto/mod.rs → pub mod period`, `domains/accounting/dto/mod.rs → pub mod templates`, `domains/accounting/mod.rs → pub mod commands`, `domains/accounting/mod.rs → pub mod dto`, `domains/accounting/mod.rs → pub mod service`, `domains/accounting/mod.rs → pub mod undo`, `domains/accounting/mod.rs → pub mod undo_period`, `domains/accounting/service/mod.rs → pub mod accounts`, `domains/accounting/service/mod.rs → pub mod journal`, `domains/accounting/service/mod.rs → pub mod journal_reads`, `domains/accounting/service/mod.rs → pub mod period`, `domains/accounting/service/mod.rs → pub mod rows`, `domains/accounting/service/mod.rs → pub mod templates`, `domains/accounting/service/mod.rs → pub mod vat`, `domains/analytics/mod.rs → pub mod commands`, `domains/analytics/mod.rs → pub mod dto`, `domains/analytics/mod.rs → pub mod service`, `domains/analytics/service/mod.rs → pub mod common`, `domains/analytics/service/mod.rs → pub mod customers`, `domains/analytics/service/mod.rs → pub mod products`, `domains/analytics/service/mod.rs → pub mod sales`, `domains/approvals/mod.rs → pub mod commands`, `domains/approvals/mod.rs → pub mod dto`, `domains/approvals/mod.rs → pub mod service`, `domains/dashboard/mod.rs → pub mod commands`, `domains/dashboard/mod.rs → pub mod dto`, `domains/dashboard/mod.rs → pub mod service`, `domains/dashboard/service/insights/mod.rs → pub mod common`, `domains/dashboard/service/insights/mod.rs → pub mod engine`, `domains/dashboard/service/insights/mod.rs → pub mod hints`, `domains/dashboard/service/insights/mod.rs → pub mod rules`, `domains/dashboard/service/insights/rules/mod.rs → pub mod accounting`, `domains/dashboard/service/insights/rules/mod.rs → pub mod cash`, `domains/dashboard/service/insights/rules/mod.rs → pub mod receivables`, `domains/dashboard/service/insights/rules/mod.rs → pub mod sales`, `domains/dashboard/service/insights/rules/mod.rs → pub mod stock`, `domains/dashboard/service/mod.rs → pub mod common`, `domains/dashboard/service/mod.rs → pub mod feed` … +309 more
+**Rust module tree:** `core/mod.rs → pub mod auth`, `core/mod.rs → pub mod db`, `core/mod.rs → pub mod device`, `core/mod.rs → pub mod diag`, `core/mod.rs → pub mod dto`, `core/mod.rs → pub mod error`, `core/mod.rs → pub mod events`, `core/mod.rs → pub mod grants`, `core/mod.rs → pub mod ipc`, `core/mod.rs → pub mod lock`, `core/mod.rs → pub mod poller`, `core/mod.rs → pub mod settings`, `core/mod.rs → pub mod state`, `core/mod.rs → pub mod status`, `core/mod.rs → pub mod terminal`, `core/mod.rs → pub mod tx`, `domains/accounting/commands/mod.rs → pub mod accounts`, `domains/accounting/commands/mod.rs → pub mod journal`, `domains/accounting/commands/mod.rs → pub mod period`, `domains/accounting/commands/mod.rs → pub mod templates`, `domains/accounting/dto/mod.rs → pub mod accounts`, `domains/accounting/dto/mod.rs → pub mod journal`, `domains/accounting/dto/mod.rs → pub mod period`, `domains/accounting/dto/mod.rs → pub mod templates`, `domains/accounting/mod.rs → pub mod commands`, `domains/accounting/mod.rs → pub mod dto`, `domains/accounting/mod.rs → pub mod service`, `domains/accounting/mod.rs → pub mod undo`, `domains/accounting/mod.rs → pub mod undo_period`, `domains/accounting/service/mod.rs → pub mod accounts`, `domains/accounting/service/mod.rs → pub mod journal`, `domains/accounting/service/mod.rs → pub mod journal_reads`, `domains/accounting/service/mod.rs → pub mod period`, `domains/accounting/service/mod.rs → pub mod rows`, `domains/accounting/service/mod.rs → pub mod templates`, `domains/accounting/service/mod.rs → pub mod vat`, `domains/analytics/mod.rs → pub mod commands`, `domains/analytics/mod.rs → pub mod dto`, `domains/analytics/mod.rs → pub mod service`, `domains/analytics/service/mod.rs → pub mod common`, `domains/analytics/service/mod.rs → pub mod customers`, `domains/analytics/service/mod.rs → pub mod products`, `domains/analytics/service/mod.rs → pub mod sales`, `domains/approvals/mod.rs → pub mod commands`, `domains/approvals/mod.rs → pub mod dto`, `domains/approvals/mod.rs → pub mod service`, `domains/attachments/mod.rs → pub mod commands`, `domains/attachments/mod.rs → pub mod dto`, `domains/attachments/mod.rs → pub mod service`, `domains/dashboard/mod.rs → pub mod commands`, `domains/dashboard/mod.rs → pub mod dto`, `domains/dashboard/mod.rs → pub mod service`, `domains/dashboard/service/insights/mod.rs → pub mod common`, `domains/dashboard/service/insights/mod.rs → pub mod engine`, `domains/dashboard/service/insights/mod.rs → pub mod hints`, `domains/dashboard/service/insights/mod.rs → pub mod rules`, `domains/dashboard/service/insights/rules/mod.rs → pub mod accounting`, `domains/dashboard/service/insights/rules/mod.rs → pub mod cash`, `domains/dashboard/service/insights/rules/mod.rs → pub mod receivables`, `domains/dashboard/service/insights/rules/mod.rs → pub mod sales` … +315 more
 
 **Contract gaps:** invoked-but-unregistered — · registered-but-never-invoked — · defined-but-unregistered — · registered-but-undefined —
 
@@ -655,20 +660,20 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `attachments.ts` | `putAttachment`, `getAttachment`, `deleteAttachment`, `listAttachments`, `getAllAttachmentRecords`, `replaceAllAttachments` | core, settings |
 | `backend/accounts.ts` | `accountFor`, `accountById`, `settlementAccountFor`, `revenueAccountFor`, `cogsAccountFor`, `purchaseAccountFor`, `saleTaxIdFor`, `purchaseTaxIdFor` | core, invoices, reports |
 | `backend/approvals.ts` | `requestApproval`, `decideApproval`, `listApprovalRequests`, `pendingApprovalCount` | approvals |
-| `backend/balances.ts` | `customerBalance`, `supplierBalance`, `customerBalanceFc`, `supplierBalanceFc`, `customerStatement`, `supplierStatement` | core, invoices, parties, reports |
+| `backend/balances.ts` | `customerBalance`, `supplierBalance`, `customerBalanceFc`, `supplierBalanceFc`, `customerStatement`, `supplierStatement` | core, invoices, parties, purchases, reports |
 | `backend/branches.ts` | `branchById`, `activeBranches`, `branchesEnabled`, `currenciesEnabled`, `costCentersEnabled`, `listBranches`, `createBranch`, `updateBranch`, `deactivateBranch`, `reactivateBranch`, `branchPrefix`, `listCostCenters`, `costCenterById`, `createCostCenter`, `updateCostCenter`, `deleteCostCenter`, `defaultCostCenterFor` | settings |
-| `backend/core.ts` | `resolvePosting`, `assertOpenPeriod`, `postJournal`, `draftJournal`, `updateDraftJournal`, `deleteDraftJournal`, `postDraftJournal`, `productById`, `applyStockChange`, `logActivity`, `logAudit`, `diffFields`, `salesTaxRate`, `purchaseTaxRate`, `userById`, `closeYearPreChecks`, `closeFiscalYear`, `reopenFiscalYear` | accounting, invoices, parties, products, settings, users |
+| `backend/core.ts` | `resolvePosting`, `assertOpenPeriod`, `preflightJournal`, `postJournal`, `draftJournal`, `updateDraftJournal`, `deleteDraftJournal`, `postDraftJournal`, `productById`, `applyStockChange`, `logActivity`, `logAudit`, `diffFields`, `salesTaxRate`, `purchaseTaxRate`, `userById`, `closeYearPreChecks`, `closeFiscalYear`, `reopenFiscalYear` | accounting, invoices, parties, products, settings, users |
 | `backend/currency.ts` | `baseCurrency`, `isBaseCurrency`, `currencyByCode`, `activeCurrencies`, `createCurrency`, `updateCurrency`, `isBaseCurrencyLocked`, `setBaseCurrency`, `saveExchangeRate`, `latestRate`, `requireRate`, `convertLinesToBase`, `toBase` | settings, setup |
-| `backend/expenses.ts` | `saveExpenseCategory`, `deleteExpenseCategory`, `recordExpense`, `getExpenseById`, `saveRecurringExpense`, `deleteRecurringExpense`, `dueRecurringExpenses`, `postRecurringExpense` | expenses |
+| `backend/expenses.ts` | `saveExpenseCategory`, `deleteExpenseCategory`, `expensePayoutRole`, `recordExpense`, `getExpenseById`, `saveRecurringExpense`, `deleteRecurringExpense`, `dueRecurringExpenses`, `postRecurringExpense` | expenses |
 | `backend/invariants.ts` | `checkBalancedEntries`, `checkTrialBalance`, `checkArApControl`, `checkInventoryGl`, `checkVatControl`, `checkPartyAllocation`, `checkSourceRefIntegrity`, `checkLockDate`, `checkOpeningBalanceEquity`, `checkClearingAccounts`, `checkShiftVariance`, `checkDraftsIsolated`, `checkAllocationsWithinTotal`, `checkFxConversion`, `runAllInvariants` | — |
 | `backend/inventory.ts` | `activeBatchesFor`, `isBatchExpired`, `isBatchNearExpiry`, `receiveBatch`, `consumeFefo`, `recordStockAdjustment`, `completeStockAdjustment`, `startStockCount`, `setStockCountLine`, `submitStockCountForReview`, `backToCounting`, `applyStockCount`, `writeOffBatches`, `draftReturnToSupplier` | products, purchases |
 | `backend/journal.ts` | `splitLineByCostCenters`, `recordManualJournal`, `editDraftJournal`, `reverseJournal`, `saveJournalTemplate`, `deleteJournalTemplate`, `advanceRecurrence`, `vatTotalsForPeriod`, `postVatSettlement`, `payVatSettlement` | accounting |
 | `backend/opening.ts` | `hasFirstUsePosted`, `openingBalanceEquityNet`, `buildOpeningLines`, `postOpeningEntry`, `closeOpeningBalanceEquity`, `postOpeningBalancesAndClose`, `postOpeningStockForBranch`, `postOpeningStockDefault`, `postPartyOpeningBalance`, `reversePartyOpeningBalance` | setup |
-| `backend/payments.ts` | `getOpenDocumentsFor`, `allocatedTotal`, `unallocatedAmount`, `unallocatedCreditFor`, `recordPayment`, `allocatePayment`, `unallocatePayment` | core, parties, payments, reports |
+| `backend/payments.ts` | `getOpenDocumentsFor`, `allocatedTotal`, `unallocatedAmount`, `unallocatedCreditFor`, `recordPayment`, `allocatePayment`, `unallocatePayment` | core, parties, payments, purchases, reports |
 | `backend/posting-trace.ts` | `recordPostingTrace`, `recentPostingTraces`, `postingTraceFor`, `clearPostingTraces` | — |
 | `backend/purchases.ts` | `computePurchaseTotals`, `purchaseOutstanding`, `missingSupplierInvoice`, `duplicateSupplierInvoice`, `baseQty`, `baseUnitCost`, `savePurchase`, `sendPurchaseToSupplier`, `receivePurchase`, `confirmPurchase`, `cancelPurchase`, `returnedQtyByProduct`, `recordPurchaseReturn`, `supplierOutstandingTotal`, `getDebitNoteDrafts`, `postDebitNoteFromDraft` | purchases |
 | `backend/revaluation.ts` | `openFcBalances`, `defaultRevaluationRates`, `postRevaluation` | settings |
-| `backend/sales.ts` | `previewSaleJournal`, `recordSale`, `returnedQtyByLine`, `recordRefund` | invoices |
+| `backend/sales.ts` | `saleTenderBases`, `previewSaleJournal`, `recordSale`, `returnedQtyByLine`, `refundCreditedBase`, `recordRefund` | invoices |
 | `backend/settlements.ts` | `unsettledTenderGroups`, `recordCardSettlement`, `getCardSettlementById`, `estimatedFeeFor` | vouchers |
 | `backend/setup.ts` | `applyBusinessTypeUnitDefaults`, `applyCoaTemplate`, `previewCoaTemplate`, `setFiscalYear`, `applyBranches`, `applyPaymentMethods` | setup |
 | `backend/shifts.ts` | `currentOpenShift`, `openShift`, `recordShiftMovement`, `shiftSummary`, `closeShift`, `forceCloseShift`, `cashAccountName` | invoices |
@@ -677,7 +682,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `db.ts` | `resetDb`, `nextNumber` | core, invoices, settings |
 | `events.ts` | `on`, `off`, `emit` | core, invoices, parties, products |
 | `index.ts` | `bootMockDb`, `isBooted` | accounting, analytics, approvals, core, diagnostics, expenses, invoices, main, parties, payments, products, purchases, reports, settings, setup, templates, users, vouchers |
-| `persist.ts` | `flushSnapshot`, `mutate`, `loadSnapshot`, `readPersistedSnapshot`, `clearSnapshot` | accounting, core, invoices, parties, products, settings, setup, users |
+| `persist.ts` | `flushSnapshot`, `mutate`, `loadSnapshot`, `readPersistedSnapshot`, `readLegacyImportMarker`, `writeLegacyImportMarker`, `clearSnapshot` | accounting, core, invoices, parties, products, settings, setup, users |
 | `seed/accounts.ts` | `seedAccounts`, `postOpeningCapital` | — |
 | `seed/branches9.ts` | `seedBranches9` | — |
 | `seed/catalog.ts` | `seedCatalog`, `postOpeningStock` | — |
@@ -687,7 +692,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `seed/purchases8.ts` | `seedPurchases8` | — |
 | `seed/settings.ts` | `seedSettings` | — |
 | `seed/shifts.ts` | `seedShifts` | — |
-| `utils.ts` | `setLatencyMode`, `getLatencyMode`, `delay`, `clone`, `sum`, `uid`, `bumpIdCounter`, `padNumber`, `localDateKey`, `inDateRange`, `includesText`, `createRandom` | core, settings |
+| `utils.ts` | `setLatencyMode`, `getLatencyMode`, `delay`, `clone`, `sum`, `uid`, `bumpIdCounter`, `resetIdCounters`, `padNumber`, `localDateKey`, `inDateRange`, `includesText`, `createRandom` | core, settings |
 
 ## Shared UI kit (reuse before building — src/modules/core)
 
@@ -748,9 +753,9 @@ _none_
 |---|---|
 | Desktop shell | Tauri v2 — product `Equal`, identifier `com.abdallah.accounting-app` (never change) |
 | Rust crates | `tauri`, `tauri-plugin-opener`, `serde`, `serde_json`, `tauri-plugin-fs`, `tauri-plugin-dialog`, `migration`, `sea-orm`, `rust_decimal`, `rust_decimal_macros`, `uuid`, `chrono`, `chrono-tz`, `argon2`, `keyring`, `thiserror`, `serde_with`, `async-trait`, `log`, `tokio`, `tauri-plugin-log`, `typst`, `typst-pdf`, `typst-library`, `typst-layout`, `typst-syntax`, `typst-utils`, `typst-svg`, `qrcode`, `image`, `ecow`, `time`, `lopdf`, `resvg`, `usvg`, `tiny-skia`, `tauri-plugin-single-instance`, `tauri-plugin-autostart`, `getrandom`, `ts-rs` … +9 more |
-| Rust extra binaries | `typst_spike`, `pdf_smoke`, `report_smoke`, `thermal_smoke` |
+| Rust extra binaries | `typst_spike`, `pdf_smoke`, `report_smoke`, `thermal_smoke`, `parity_host` |
 | Frontend deps | `@fontsource-variable/cairo`, `@fontsource/ibm-plex-sans-arabic`, `@fontsource/noto-naskh-arabic`, `@fontsource/tajawal`, `@lucide/vue`, `@tailwindcss/vite`, `@tauri-apps/api`, `@tauri-apps/plugin-dialog`, `@tauri-apps/plugin-fs`, `@tauri-apps/plugin-opener`, `@vueuse/core`, `bwip-js`, `class-variance-authority`, `clsx`, `exceljs`, `fflate`, `libphonenumber-js`, `modern-screenshot`, `pinia`, `reka-ui`, `tailwind-merge`, `tailwindcss`, `tw-animate-css`, `uqr`, `vue`, `vue-router`, `vue-sonner`, `zod` |
-| Dev deps | `@tauri-apps/cli`, `@types/node`, `@vitejs/plugin-vue`, `typescript`, `vite`, `vue-tsc` |
+| Dev deps | `@tauri-apps/cli`, `@types/node`, `@vitejs/plugin-vue`, `fake-indexeddb`, `typescript`, `vite`, `vue-tsc` |
 
 | Command | Runs |
 |---|---|
@@ -760,11 +765,13 @@ _none_
 | `bun run tauri` | `tauri` |
 | `bun run stop` | `node scripts/stop-dev.js` |
 | `bun run desktop` | `node scripts/stop-dev.js && tauri dev` |
+| `bun run desktop:e2e` | `node scripts/desktop-e2e.js` |
 | `bun run scaffold` | `node scripts/scaffold.js` |
 | `bun run build:android` | `cd src-tauri/gen/android && ./gradlew.bat assembleArm64Debug` |
 | `bun run verify:mocks` | `bun run scripts/verify/run.ts` |
 | `bun run verify:replay` | `bun run scripts/verify/replay.ts` |
 | `bun run verify:export-snapshot` | `bun run scripts/verify/export-snapshot.ts` |
+| `bun run parity` | `bun run scripts/parity/run.ts` |
 | `bun run check` | `node scripts/check-text-tokens.js && node scripts/check-rtl.js && bun run scripts/check-contrast.ts && node scripts/check-ui-rules.js && node scripts/check-routes.js` |
 | `bun run memory` | `bun run scripts/memory/run.ts` |
 | `bun run memory:check` | `bun run scripts/memory/run.ts --check` |
@@ -804,6 +811,32 @@ _none_
 | `docs/backend/contract/vouchers.md` | Contract — `vouchers` |
 | `docs/design_system.md` | Design System — "Linear-style" Light/Dark |
 | `docs/diagnostics/ISSUES.md` | سجل المشاكل (Issues) — ملف مُولَّد |
+| `docs/diagnostics/issues/ACC-0003-refund-over-refunds-vat.md` |  |
+| `docs/diagnostics/issues/ACC-0004-landed-cost-rounding.md` |  |
+| `docs/diagnostics/issues/ACC-0005-non-stock-receipt-inventory.md` |  |
+| `docs/diagnostics/issues/ACC-0006-draft-adjustment-approval.md` |  |
+| `docs/diagnostics/issues/ACC-0007-vat-double-settlement.md` |  |
+| `docs/diagnostics/issues/ACC-0008-reopen-mirror-date.md` |  |
+| `docs/diagnostics/issues/ACC-0009-fx-refund-base-conversion.md` |  |
+| `docs/diagnostics/issues/ACC-0010-refund-credit-allocation.md` |  |
+| `docs/diagnostics/issues/ACC-0011-purchase-return-variance-sign.md` |  |
+| `docs/diagnostics/issues/ACC-0012-other-supplier-landed-cost-document.md` |  |
+| `docs/diagnostics/issues/ACC-0013-purchases-atomic-refusal.md` |  |
+| `docs/diagnostics/issues/ACC-0014-refused-posting-leaves-no-trace.md` |  |
+| `docs/diagnostics/issues/ACC-0015-allocate-later-fx-tagging.md` |  |
+| `docs/diagnostics/issues/ACC-0016-fc-sale-tenders-to-base.md` |  |
+| `docs/diagnostics/issues/ACC-0017-refund-gross-rounding.md` |  |
+| `docs/diagnostics/issues/ACC-0018-fx-allocation-within-total.md` |  |
+| `docs/diagnostics/issues/ACC-0019-lock-date-history.md` |  |
+| `docs/diagnostics/issues/ACC-0020-vat-settlement-control.md` |  |
+| `docs/diagnostics/issues/ACC-0021-party-allocation-non-document-lines.md` |  |
+| `docs/diagnostics/issues/ACC-0022-missing-role-accounts.md` |  |
+| `docs/diagnostics/issues/ACC-0023-opening-equity-mid-wizard.md` |  |
+| `docs/diagnostics/issues/ACC-0024-card-expense-clearing.md` |  |
+| `docs/diagnostics/issues/ACC-0030-opening-reclose-source.md` |  |
+| `docs/diagnostics/issues/ACC-0031-payment-voucher-card-payout.md` |  |
+| `docs/diagnostics/issues/ACC-0032-refund-non-base-unit.md` |  |
+| `docs/diagnostics/issues/ACC-0033-quotation-unit-conversion.md` |  |
 | `docs/diagnostics/issues/BUG-0001-onboarding-flow-crashed-unhandled-except.md` |  |
 | `docs/diagnostics/issues/BUG-0002-setup-wizard-eg-flow-crashed-unhandled-e.md` |  |
 | `docs/diagnostics/issues/BUG-0004-purchases-flow-crashed-unhandled-excepti.md` |  |
@@ -822,6 +855,8 @@ _none_
 | `docs/diagnostics/issues/BUG-0017-failed-to-fetch-dynamically-imported-mod.md` |  |
 | `docs/diagnostics/issues/BUG-0018-failed-to-execute-structuredclone-on-win.md` |  |
 | `docs/diagnostics/issues/BUG-0019-failed-to-fetch-dynamically-imported-mod.md` |  |
+| `docs/diagnostics/issues/BUG-0020-purchase-detail-stale-supplier-balance.md` |  |
+| `docs/diagnostics/issues/BUG-0021-linked-net-balance-float-noise.md` |  |
 | `docs/diagnostics/issues/DBG-0001-example-entry.md` |  |
 | `docs/diagnostics/issues/PERF-0001-onboarding-flow-ran-218-slower-than-base.md` |  |
 | `docs/diagnostics/issues/PERF-0002-setup-wizard-eg-flow-ran-567-slower-than.md` |  |
@@ -917,5 +952,24 @@ _none_
 | `plans/pending/21-rust-backend/03-domains/15-templates.md` | 21 · 03.15 — `templates` (Typst print-template designer store, D9) |
 | `plans/pending/21-rust-backend/03-domains/16-diagnostics.md` | 21 · 03.16 — `diagnostics` (audit-log reads, support-bundle data, debug-build accounting debugger) |
 | `plans/pending/21-rust-backend/03-domains/17-backup.md` | 21 · 03.17 — `backup` (backup/restore through SQL in the existing archive format, auto backup on the Main PC, automatic backup before pending migrations) |
+| `plans/pending/21-rust-backend/04-INTEGRATION-AND-AUDIT.md` | 21 · Part 04 — Integration, parity and cutover (the app runs on Rust) |
+| `plans/pending/21-rust-backend/04-integration-and-audit/phase-a-contract-checks.md` | 04 · Phase A — Static contract checks (cheap gates before the parity diff) |
+| `plans/pending/21-rust-backend/04-integration-and-audit/phase-b-parity-harness.md` | 04 · Phase B — Parity harness (the same TS services, run on the mock and on Rust, diffed) |
+| `plans/pending/21-rust-backend/04-integration-and-audit/phase-b2-parity-cases.md` | 04 · Phase B2 — Parity cases per domain lane, and the fix loop until 0 diffs |
+| `plans/pending/21-rust-backend/04-integration-and-audit/phase-c-rust-invariants.md` | 04 · Phase C — Rust invariants on every test DB (and after every parity step) |
+| `plans/pending/21-rust-backend/04-integration-and-audit/phase-d-tauri-e2e-path.md` | 04 · Phase D — Tauri e2e path (built and checked here, run in the final testing plan) |
+| `plans/pending/21-rust-backend/04-integration-and-audit/phase-e-cutover-and-audit.md` | 04 · Phase E — The single cutover, the Rust-mode boot path, and the final accounting audit |
 | `plans/pending/21-rust-backend/README.md` | 21 — Real backend (Tauri + Rust + SeaORM + MariaDB) |
 | `plans/pending/22-invoice-templates/README.md` | 22 — Invoice templates: 10 × A4, 10 × mobile image, thermal unchanged |
+| `plans/pending/23-subscription-platform/01-pricing-and-tiers.md` | 01 — Pricing and tiers (decided 2026-09-29) |
+| `plans/pending/23-subscription-platform/02-architecture.md` | 02 — Architecture (index) |
+| `plans/pending/23-subscription-platform/EXECUTE-PROMPT.md` | Execute prompt (paste into a fresh session) |
+| `plans/pending/23-subscription-platform/phase-0-app-docs.md` | Phase 0 — App docs (goals, requirements, specs, rules) |
+| `plans/pending/23-subscription-platform/phase-a-server-foundation.md` | Phase A — `apps/backend` foundation |
+| `plans/pending/23-subscription-platform/phase-b-server-billing-licensing.md` | Phase B — Billing, subscriptions, devices, licenses, credits |
+| `plans/pending/23-subscription-platform/phase-c-server-ops.md` | Phase C — Releases, telemetry, diagnostics, feedback, metrics |
+| `plans/pending/23-subscription-platform/phase-d-dashboard.md` | Phase D — `apps/dashboard` (admin console + customer portal) |
+| `plans/pending/23-subscription-platform/phase-e-desktop-licensing.md` | Phase E — Desktop licensing, limits, credits, activation (this repo) |
+| `plans/pending/23-subscription-platform/phase-f-desktop-updates-telemetry.md` | Phase F — Auto-update, heartbeat, telemetry, diagnostics pull, feedback (this repo) |
+| `plans/pending/23-subscription-platform/phase-g-launch.md` | Phase G — Validation, keys, deploy, final gate |
+| `plans/pending/23-subscription-platform/README.md` | 23 — Subscription platform (freemium licensing, dashboard, updates, telemetry) |

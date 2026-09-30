@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { analyze } from './analyze';
+import { runChecks } from './checks';
 import { config } from './config';
 import { extract } from './extract';
 import { render } from './render';
@@ -33,7 +34,13 @@ if (process.argv.includes('--check')) {
     console.error(`backend contract is stale (${[...stale, ...orphans].join(', ')}) — run \`bun run contract\`.`);
     process.exit(1);
   }
-  console.log(`backend contract is up to date: ${counts} (${ms} ms).`);
+  const violations = runChecks(inventory);
+  if (violations.length) {
+    console.error(`backend contract has ${violations.length} rule violation(s):`);
+    for (const v of violations) console.error(`  [${v.rule}] ${v.source}: ${v.detail}`);
+    process.exit(1);
+  }
+  console.log(`backend contract is up to date: ${counts} (${ms} ms). Rule checks (A-2, A-4): 0 violations.`);
 } else {
   fs.mkdirSync(outDir, { recursive: true });
   for (const rel of stale) fs.writeFileSync(path.join(config.root, rel), files[rel]);

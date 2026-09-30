@@ -9,10 +9,11 @@ import type { Closure, Disposition, FnFacts, Inventory, ServiceFn } from './type
 
 const snake = (s: string) => s.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 
-function closureOf(startId: string, facts: Map<string, FnFacts>): Closure {
+function closureOf(startId: string, facts: Map<string, FnFacts>, wrappedByFnId: Map<string, string>): Closure {
   const seen = new Set<string>();
   const stack = [startId];
   const acc = { tables: new Set<string>(), writes: new Set<string>(), mockFns: new Set<string>(), mockRefs: new Set<string>(), invokes: new Set<string>(), platform: new Set<string>(), capabilities: new Set<string>() };
+  const switchSites: import('./types').SwitchSite[] = [];
   while (stack.length) {
     const id = stack.pop()!;
     if (seen.has(id)) continue;
@@ -24,14 +25,18 @@ function closureOf(startId: string, facts: Map<string, FnFacts>): Closure {
     f.mockRefs.forEach((t) => acc.mockRefs.add(t));
     f.invokes.forEach((t) => acc.invokes.add(t));
     f.platform.forEach((t) => acc.platform.add(t));
+    switchSites.push(...f.switchSites);
     if (id !== startId && f.file.startsWith(config.mocksDir + '/')) acc.mockFns.add(id);
     for (const [cap, ids] of Object.entries(config.capabilities)) if (ids.includes(id)) acc.capabilities.add(cap);
-    stack.push(...f.calls);
+    // Don't walk into another wrap()-registered service's body — that service's own switch line is
+    // verified independently (A-2 shouldn't count a callee's gated backendCall as also covering the
+    // caller, e.g. core.getInsightsForEntity calling core.getInsightsFor).
+    for (const c of f.calls) if (c === startId || !wrappedByFnId.has(c)) stack.push(c);
   }
   const sorted = (s: Set<string>) => [...s].sort();
   return {
     tables: sorted(acc.tables), writes: sorted(acc.writes), mockFns: sorted(acc.mockFns), mockRefs: sorted(acc.mockRefs),
-    invokes: sorted(acc.invokes), platform: sorted(acc.platform), capabilities: sorted(acc.capabilities),
+    invokes: sorted(acc.invokes), platform: sorted(acc.platform), capabilities: sorted(acc.capabilities), switchSites,
   };
 }
 
@@ -47,7 +52,7 @@ export function analyze(x: Extracted): Inventory {
   const typeNames = new Set(x.types.map((t) => t.name));
   const services: ServiceFn[] = x.wrapped.map((w) => {
     const [module, fnName] = w.source.split('.');
-    const closure = closureOf(w.fnId, x.facts);
+    const closure = closureOf(w.fnId, x.facts, x.wrappedByFnId);
     const override = config.overrides[w.source];
     const { disposition, reason } = override ?? suggest(closure);
     const words = `${w.params.map((p) => p.type).join(' ')} ${w.returns}`.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? [];
@@ -62,6 +67,7 @@ export function analyze(x: Extracted): Inventory {
       returns: w.returns,
       dtoTypes: [...new Set(words.filter((t) => typeNames.has(t)))].sort(),
       serviceCalls: [...new Set(w.calls.map((c) => x.wrappedByFnId.get(c)).filter((s): s is string => !!s && s !== w.source))].sort(),
+      switchSites: closure.switchSites,
       closure,
       disposition,
       dispositionReason: override ? `override: ${reason}` : reason,

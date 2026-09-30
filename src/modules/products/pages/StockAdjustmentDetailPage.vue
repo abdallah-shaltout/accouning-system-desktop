@@ -14,7 +14,10 @@ import { useConfirm } from '@/modules/core/controllers/useConfirm';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { formatDateTime, formatNumber } from '@/modules/core/helpers/format';
 import { ADJUSTMENT_TYPE } from '@/modules/core/helpers/labels';
+import { ApiError } from '@/modules/core/services/backend';
+import { useSettingsStore } from '@/modules/settings/controllers/useSettingsStore';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
+import ApprovalPinDialog from '../components/ApprovalPinDialog.vue';
 import { adjustmentValue, completeAdjustment, deleteDraftAdjustment, getStockAdjustment } from '../services/inventoryService';
 import { getProducts } from '../services/productService';
 import type { Product } from '../types';
@@ -24,17 +27,25 @@ const router = useRouter();
 const auth = useAuthStore();
 const toast = useToast();
 const confirm = useConfirm();
+const settingsStore = useSettingsStore();
 const id = String(route.params.id);
 
 const adj = useAsync(() => getStockAdjustment(id));
 const products = ref<Map<string, Product>>(new Map());
 onMounted(async () => {
-  products.value = new Map((await getProducts({ includeInactive: true })).map((p) => [p.id, p]));
+  const [prods] = await Promise.all([getProducts({ includeInactive: true }), settingsStore.load()]);
+  products.value = new Map(prods.map((p) => [p.id, p]));
 });
 
 const a = computed(() => adj.data.value);
 const busy = ref(false);
 const isDraft = computed(() => a.value?.status === 'DRAFT');
+
+// Completing a draft posts it, so it needs the same manager approval as a direct adjustment (ACC-0006).
+const approvalOpen = ref(false);
+const approvalThreshold = computed(() => settingsStore.settings?.inventoryApprovalThreshold ?? 0);
+const approvalValue = computed(() => (a.value?.lines ?? []).reduce((acc, l) => acc + Math.abs(l.qtyChange) * (l.unitCost ?? 0), 0));
+const needsApproval = computed(() => a.value?.type !== 'STOCKTAKE' && approvalThreshold.value > 0 && approvalValue.value >= approvalThreshold.value);
 
 async function complete() {
   const ok = await confirm({
@@ -43,13 +54,22 @@ async function complete() {
     confirmText: 'اعتماد',
   });
   if (!ok) return;
+  if (needsApproval.value) {
+    approvalOpen.value = true;
+    return;
+  }
+  await runComplete();
+}
+
+async function runComplete(approvedBy?: string) {
   busy.value = true;
   try {
-    await completeAdjustment(id);
+    await completeAdjustment(id, approvedBy);
     toast.success('تم اعتماد التسوية', a.value?.number);
     adj.reload();
   } catch (err) {
-    toast.error(err);
+    if (!approvedBy && err instanceof ApiError && err.code === 'FORBIDDEN') approvalOpen.value = true;
+    else toast.error(err);
   } finally {
     busy.value = false;
   }
@@ -127,6 +147,7 @@ async function remove() {
         </table>
       </AppCard>
       <p v-if="isDraft" class="mt-3 text-xs text-text-secondary">المسودة لا تؤثر على المخزون أو الحسابات حتى يتم اعتمادها.</p>
+      <ApprovalPinDialog v-model:open="approvalOpen" :value="approvalValue" :threshold="approvalThreshold" :summary="a ? `${ADJUSTMENT_TYPE[a.type].label} ${a.number}` : undefined" @approved="runComplete" />
     </template>
   </div>
 </template>
