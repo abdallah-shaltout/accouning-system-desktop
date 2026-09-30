@@ -1,5 +1,5 @@
 import type { Invoice, JournalPreviewLine, Refund, RefundInput, RefundMethod, SaleInput, Tender } from '@/modules/invoices/types';
-import { computeInvoiceTotals, invoiceOutstanding, paymentStatusFor, round2 as round2Totals } from '@/modules/invoices/helpers/totals';
+import { computeInvoiceTotals, invoiceOutstanding, paymentStatusFor, refundLineShare, round2 as round2Totals } from '@/modules/invoices/helpers/totals';
 import type { PaymentMethod } from '@/modules/settings/types';
 import { db, nextNumber } from '../db';
 import { emit } from '../events';
@@ -11,6 +11,7 @@ import {
   applyStockChange,
   logActivity,
   postJournal,
+  preflightJournal,
   productById,
   salesTaxRate,
   userById,
@@ -19,7 +20,7 @@ import {
 } from './core';
 import { consumeFefo } from './inventory';
 import { recordShiftMovement } from './shifts';
-import { convertLinesToBase, isBaseCurrency, requireRate, toBase } from './currency';
+import { convertLinesToBase, isBaseCurrency, latestRate, requireRate, toBase } from './currency';
 
 const METHOD_LABEL: Record<string, string> = {
   cash: 'نقداً',
@@ -37,8 +38,30 @@ const METHOD_LABEL: Record<string, string> = {
  * `src/mocks/backend/settlements.ts` now closes the loop: its card-settlement voucher (Dr bank +
  * Dr cardFees / Cr cardClearing-or-walletClearing) clears this balance once the bank deposit arrives.
  */
-function tenderAccountId(method: PaymentMethod): string {
-  return accountFor(method.accountRole).id;
+function tenderAccountId(method: PaymentMethod, ctx?: { branchId: string; currency: string }): string {
+  return accountFor(method.accountRole, ctx).id;
+}
+
+/**
+ * ACC-0016: base-currency amounts of a foreign-currency sale's tenders, at the sale's rate. The
+ * receivable keeps `toBase(receivable)` (the conversion its FC tag and `openDocumentsFor` use);
+ * the tenders share the rest of the sale's base total — each `toBase(amount)`, with any rounding
+ * gap on the largest tender — so the entry balances to the halala. Recomputable from a saved
+ * invoice (`tenders`, `grandTotal`, `exchangeRate`), which is how card settlements
+ * (`settlements.ts`) read an FC invoice's card/wallet tenders in base.
+ */
+export function saleTenderBases(tenderAmounts: number[], grandTotal: number, rate: number, totalBase = toBase(grandTotal, rate)): number[] {
+  if (!tenderAmounts.length) return [];
+  const receivable = round2(grandTotal - round2Totals(sum(tenderAmounts, (a) => a)));
+  const target = round2(totalBase - toBase(receivable, rate));
+  const bases = tenderAmounts.map((a) => toBase(a, rate));
+  const diff = round2(target - sum(bases, (b) => b));
+  if (diff !== 0) {
+    let largest = 0;
+    for (let i = 1; i < tenderAmounts.length; i++) if (Math.abs(tenderAmounts[i]) > Math.abs(tenderAmounts[largest])) largest = i;
+    bases[largest] = round2(bases[largest] + diff);
+  }
+  return bases;
 }
 
 function paymentMethodById(id: string): PaymentMethod {
@@ -72,6 +95,8 @@ interface PreparedSale {
   posting: PostingLine[];
   /** v2 phase 9: FC rate used (1 when the sale is in the base currency). */
   rate: number;
+  /** ACC-0016: each tender's amount in base currency (= `tenders[i].amount` for a base-currency sale). */
+  tenderBases: number[];
 }
 
 /**
@@ -180,12 +205,28 @@ function prepareSale(input: SaleInput, userId: string): PreparedSale {
   const toBaseAmt = (amount: number) => (currency ? toBase(amount, rate) : amount);
 
   // One posting line per tender, each to its own method's account (C3 fix: card/wallet tenders go
-  // to their clearing account, not straight to bank — see `tenderAccountId` above). Tenders are
-  // always collected in the base currency (POS "accept foreign cash" is a separate tender-level
-  // conversion handled by the caller before this point — see `modules/invoices/services`).
+  // to their clearing account, not straight to bank — see `tenderAccountId` above). A tender is in
+  // the sale's currency (like every other amount on the invoice). ACC-0016: on a foreign-currency
+  // sale each tender posts its base amount at the sale's rate (`saleTenderBases`), tagged with its
+  // FC amount like a payment's settlement line, to the method's account for that currency when one
+  // exists (an FC cash/bank account — the same resolution `recordPayment` uses).
+  const tenderBases = currency
+    ? saleTenderBases(
+        resolvedTenders.map((t) => t.amount),
+        grandTotal,
+        rate,
+      )
+    : resolvedTenders.map((t) => t.amount);
   const tenderLines: PostingLine[] = resolvedTenders
-    .filter((t) => t.amount > 0)
-    .map((t) => ({ accountId: tenderAccountId(t.method), debit: t.amount, description: t.reference ? `${t.method.name} — ${t.reference}` : t.method.name, ...dim }));
+    .map((t, i) => ({ t, base: tenderBases[i] }))
+    .filter(({ t }) => t.amount > 0)
+    .map(({ t, base }) => ({
+      accountId: tenderAccountId(t.method, currency ? { branchId, currency } : undefined),
+      debit: base,
+      description: t.reference ? `${t.method.name} — ${t.reference}` : t.method.name,
+      ...dim,
+      ...fc(t.amount),
+    }));
 
   // vatByCategory (docs/v2/06 §3 step 5) posts sales net per category to the same `sales` role for
   // now — a separate revenue account per category (e.g. 4120 zero-rated sales) is a per-product/
@@ -225,7 +266,7 @@ function prepareSale(input: SaleInput, userId: string): PreparedSale {
     { role: 'cogs', debit: costTotal, ...dim },
     { role: 'inventory', credit: costTotal, ...dim },
   ];
-  return { totals, tenders: resolvedTenders, paidAmount, costTotal, posting, rate };
+  return { totals, tenders: resolvedTenders, paidAmount, costTotal, posting, rate, tenderBases };
 }
 
 export function previewSaleJournal(input: SaleInput, userId: string): JournalPreviewLine[] {
@@ -239,7 +280,11 @@ export function previewSaleJournal(input: SaleInput, userId: string): JournalPre
 }
 
 export function recordSale(input: SaleInput, userId: string, date = new Date().toISOString()): Invoice {
-  const { totals, tenders, paidAmount, posting, rate } = prepareSale(input, userId);
+  const { totals, tenders, paidAmount, posting, rate, tenderBases } = prepareSale(input, userId);
+  // ACC-0014: every refusal the posting can raise (closed period / lock date, unresolvable
+  // account, unbalanced entry) runs BEFORE the invoice is saved, its number taken or stock moved —
+  // so a refused sale leaves no trace (the Rust backend's transaction gives the same guarantee).
+  preflightJournal({ date, lines: posting });
   const lineTaxes = input.lines.map((l) => taxForLine(l.taxId));
   const branchId = input.branchId ?? DEFAULT_BRANCH_ID;
   const currency = input.currency && !isBaseCurrency(input.currency) ? input.currency : undefined;
@@ -370,8 +415,10 @@ export function recordSale(input: SaleInput, userId: string, date = new Date().t
 
   // Shift movement log (docs/v2/06 §5 "Every cash tender... is recorded as a shift movement") — only
   // the cash portion; card/bank tenders don't touch the drawer. No-op if no shift is open (desk sales).
+  // The drawer counts base currency: an FC sale's cash tender records its base amount (ACC-0016,
+  // the same rule ACC-0009 set for FC cash refunds).
   const cashMethodIds = new Set(db.paymentMethods.filter((m) => m.accountRole === 'cash').map((m) => m.id));
-  const cashTendered = sum(tenders.filter((t) => cashMethodIds.has(t.paymentMethodId)), (t) => t.amount);
+  const cashTendered = round2(tenders.reduce((a, t, i) => (cashMethodIds.has(t.paymentMethodId) ? a + tenderBases[i] : a), 0));
   if (input.shiftId && cashTendered > 0) {
     recordShiftMovement(db.shifts.find((s) => s.id === input.shiftId)?.terminalId ?? '', 'SALE_CASH', cashTendered, userId, {
       refId: invoice.id,
@@ -401,6 +448,53 @@ export function returnedQtyByLine(invoiceId: string): Map<string, number> {
   return map;
 }
 
+/**
+ * ACC-0009: a foreign-currency invoice's refund posts to the base-currency ledger at the ORIGINAL
+ * invoice's rate (`invoice.exchangeRate`, the rate its sale posted with), never in raw invoice-
+ * currency amounts. The net/VAT split is converted CUMULATIVELY per invoice — base refunded so far =
+ * `convertLinesToBase([Σ refunded net, Σ refunded VAT], rate)` (the sale's own conversion rule) and
+ * this refund takes the difference — so any sequence of partial refunds ends on exactly the sale's
+ * base-currency revenue and VAT. `invariants.ts`'s `vat-output` reads refunded VAT the same way.
+ */
+function refundBaseSplit(invoiceId: string, subTotal: number, taxAmount: number, rate: number): { net: number; vat: number } {
+  const prior = db.refunds.filter((r) => r.invoiceId === invoiceId);
+  const beforeNet = sum(prior, (r) => r.subTotal);
+  const beforeVat = sum(prior, (r) => r.taxAmount);
+  const [bNet, bVat] = convertLinesToBase([beforeNet, beforeVat], rate);
+  const [aNet, aVat] = convertLinesToBase([round2(beforeNet + subTotal), round2(beforeVat + taxAmount)], rate);
+  return { net: round2(aNet - bNet), vat: round2(aVat - bVat) };
+}
+
+/**
+ * Base amount a refund's cash-back leg carries at the invoice's rate — the one rule both
+ * `recordRefund` (posting) and `refundCreditedBase` (ACC-0010, the customer-credit balance) use.
+ * `totalBase` is the refund's telescoped base total (`refundBaseSplit`'s net + VAT). With nothing
+ * settled against the receivable the whole refund is cash-back; otherwise the cash-back is
+ * `toBase(cashBack)` and the receivable leg absorbs the rounding cent.
+ */
+function cashBackBaseFor(settledToReceivable: number, cashBack: number, totalBase: number, rate: number): number {
+  return settledToReceivable > 0 ? Math.min(toBase(cashBack, rate), totalBase) : totalBase;
+}
+
+/**
+ * ACC-0010: the base-currency customer credit a `customer_credit` refund left on the party — exactly
+ * what `recordRefund` credited to the receivable for it (an FC invoice's credit at the invoice's own
+ * rate, including the telescoped rounding). `unallocatedCreditFor` (payments.ts) adds it to the
+ * party's unallocated credit.
+ */
+export function refundCreditedBase(refund: Refund): number {
+  const credited = refund.creditedToAccount ?? 0;
+  if (!(credited > 0)) return 0;
+  const invoice = db.invoices.find((i) => i.id === refund.invoiceId);
+  if (!invoice?.currency || !invoice.exchangeRate) return credited;
+  const rate = invoice.exchangeRate;
+  const all = db.refunds.filter((r) => r.invoiceId === refund.invoiceId);
+  const prior = all.slice(0, all.indexOf(refund));
+  const before = sum(prior, (r) => r.grandTotal);
+  const totalBase = round2(toBase(round2(before + refund.grandTotal), rate) - toBase(before, rate));
+  return cashBackBaseFor(refund.settledToReceivable, refund.cashBack, totalBase, rate);
+}
+
 export function recordRefund(input: RefundInput, userId: string, date = new Date().toISOString()): Refund {
   const invoice = db.invoices.find((i) => i.id === input.invoiceId);
   if (!invoice) throw new ApiError('الفاتورة غير موجودة', 'NOT_FOUND');
@@ -414,33 +508,30 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
   }
 
   const returned = returnedQtyByLine(invoice.id);
-  let net = 0;
+  // G-25 (ACC-0003): a refund reverses exactly its proportional share of each line's net and VAT as
+  // the sale's VAT engine snapshotted them (`refundLineShare`) — never re-taxes a tax-inclusive
+  // price — so net + VAT = refunded gross and a full refund reverses the sale's revenue/VAT exactly.
+  let subTotal = 0;
+  let taxAmount = 0;
   let cost = 0;
   for (const line of lines) {
     const invLine = invoice.lines.find((l) => l.id === line.invoiceLineId);
     if (!invLine) throw new ApiError('سطر الفاتورة غير موجود');
     const remaining = invLine.qty - (returned.get(invLine.id) ?? 0);
     if (line.qty > remaining) throw new ApiError(`لا يمكن إرجاع أكثر من ${remaining} من "${invLine.name}"`);
-    net += line.qty * (invLine.price - invLine.discount / invLine.qty);
+    if (invLine.net === undefined || invLine.vat === undefined) throw new ApiError(`سطر الفاتورة "${invLine.name}" بلا تفصيل ضريبي — لا يمكن حساب المرتجع`);
+    const share = refundLineShare({ qty: invLine.qty, net: invLine.net, vat: invLine.vat }, returned.get(invLine.id) ?? 0, line.qty);
+    subTotal = round2(subTotal + share.net);
+    taxAmount = round2(taxAmount + share.vat);
     const product = db.products.find((p) => p.id === invLine.productId);
-    if (product?.type === 'product') cost += line.qty * invLine.costPrice;
+    if (product?.type === 'product') cost += baseQty({ qty: line.qty, unitFactor: invLine.unitFactor }) * invLine.costPrice;
   }
 
-  // Is this the last return for the invoice? Then use exact remainders so no cents are left over.
+  // Is this the last return for the invoice? (Its line shares already end on the exact remainders.)
   const isFinal = invoice.lines.every((invLine) => {
     const returning = lines.find((l) => l.invoiceLineId === invLine.id)?.qty ?? 0;
     return (returned.get(invLine.id) ?? 0) + returning >= invLine.qty;
   });
-  const previous = db.refunds.filter((r) => r.invoiceId === invoice.id);
-  let subTotal: number;
-  let taxAmount: number;
-  if (isFinal) {
-    subTotal = round2(invoice.subTotal - invoice.discountAmount - sum(previous, (r) => r.subTotal));
-    taxAmount = round2(invoice.taxAmount - sum(previous, (r) => r.taxAmount));
-  } else {
-    subTotal = round2(net * (1 - invoice.discountRate / 100));
-    taxAmount = round2((subTotal * invoice.taxRate) / 100);
-  }
   const grandTotal = round2(subTotal + taxAmount);
   const settledToReceivable = Math.min(grandTotal, invoiceOutstanding(invoice));
   const cashBack = round2(grandTotal - settledToReceivable);
@@ -449,6 +540,93 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
   const refundMethod: RefundMethod = input.refundMethod ?? (invoice.paymentMethod === 'credit' ? 'cash' : (invoice.paymentMethod as RefundMethod));
   const creditedToAccount = refundMethod === 'customer_credit' ? cashBack : 0;
   const paidOut = refundMethod === 'customer_credit' ? 0 : cashBack;
+
+  // ACC-0009 (docs/v2/10 §2): an FC invoice's refund converts to base at the invoice's own rate
+  // (`refundBaseSplit`). The receivable and customer-credit legs stay at that rate (AR is carried at
+  // the document's rate, exactly like a payment allocation). Cash/card/bank paid back in the invoice
+  // currency goes out at TODAY's rate (`latestRate`, falling back to the invoice rate) to the FC
+  // settlement account when one exists — same as `recordPayment` — and the gap between that and the
+  // obligation at the invoice's rate is realized FX (`fxGain`/`fxLoss`), exactly as payments book it.
+  const invoiceRate = invoice.currency && invoice.exchangeRate ? invoice.exchangeRate : undefined;
+  let subTotalBase = subTotal;
+  let taxBase = taxAmount;
+  let settledBase = settledToReceivable;
+  let cashBackBase = cashBack;
+  let paidOutBase = paidOut;
+  let payoutRate: number | undefined;
+  if (invoiceRate) {
+    ({ net: subTotalBase, vat: taxBase } = refundBaseSplit(invoice.id, subTotal, taxAmount, invoiceRate));
+    const totalBase = round2(subTotalBase + taxBase);
+    cashBackBase = cashBackBaseFor(settledToReceivable, cashBack, totalBase, invoiceRate);
+    settledBase = round2(totalBase - cashBackBase);
+    if (paidOut > 0) {
+      payoutRate = latestRate(invoice.currency!, date) ?? invoiceRate;
+      paidOutBase = payoutRate === invoiceRate ? cashBackBase : toBase(paidOut, payoutRate);
+    }
+  }
+  const fxGainLoss = paidOut > 0 ? round2(cashBackBase - paidOutBase) : 0; // + = gain
+  const arFc = (amountFc: number) => (invoiceRate ? { currency: invoice.currency, amountFc, rate: invoiceRate } : {});
+
+  // v2 phase 7 (§4 "Restock toggle per line: default on. Off = the item is damaged, so it's written
+  // off (5120) instead of going back to stock"). A1/A2's re-averaging applies on restock (the value
+  // moves the same way it hit the GL); a write-off removes the line's cost from inventory instead.
+  // Valued here, before anything is saved; the restock itself (`applyStockChange`) runs below.
+  // ACC-0032: `line.qty` counts the invoice line's own unit (a box), while stock, `costPrice` and
+  // the sale's COGS are all per BASE unit — so the restock/write-off moves `qty × unitFactor` base
+  // units (the same `baseQty` the sale took out), never `line.qty` of them.
+  let restockValue = 0;
+  let writeOffValue = 0;
+  const restocks: { product: ReturnType<typeof productById>; qty: number; value: number }[] = [];
+  for (const line of lines) {
+    const invLine = invoice.lines.find((l) => l.id === line.invoiceLineId)!;
+    if (invLine.isFreeText) continue;
+    const product = productById(invLine.productId);
+    if (product.type !== 'product') continue;
+    const qty = baseQty({ qty: line.qty, unitFactor: invLine.unitFactor });
+    const value = round2(qty * invLine.costPrice);
+    if (line.restock === false) {
+      writeOffValue = round2(writeOffValue + value);
+      // Written-off returns never re-enter stock — no applyStockChange call, only the write-off
+      // journal line below moves value out of `cogs`'s reversal into `inventoryWriteOff`.
+    } else {
+      restockValue = round2(restockValue + value);
+      restocks.push({ product, qty, value });
+    }
+  }
+
+  // Refund-method settlement (docs/v2/06 §4 "Default: against the invoice's outstanding amount
+  // first. Then the rest goes to cash, the original card, a bank transfer, or customer credit"):
+  // customer credit posts the leftover as an extra credit to the customer's receivable sub-ledger
+  // (an unallocated balance, same shape Phase 4's payments/allocation reads — see
+  // `src/mocks/backend/balances.ts`'s `customerBalance`), instead of paying out a settlement account.
+  const settlementMethod = refundMethod === 'cash' ? 'cash' : refundMethod === 'card' ? 'card' : 'bank_transfer';
+  const fxLine: PostingLine[] =
+    fxGainLoss > 0
+      ? [{ role: 'fxGain', credit: fxGainLoss, description: 'فرق عملة محقق' }]
+      : fxGainLoss < 0
+        ? [{ role: 'fxLoss', debit: -fxGainLoss, description: 'فرق عملة محقق' }]
+        : [];
+  const settlementLines: PostingLine[] =
+    creditedToAccount > 0
+      ? [{ role: 'receivable', credit: round2(settledBase + cashBackBase), partyKind: 'customer', partyId: invoice.customerId, ...arFc(round2(settledToReceivable + creditedToAccount)) }]
+      : [
+          { role: 'receivable', credit: settledBase, partyKind: 'customer', partyId: invoice.customerId, ...(settledToReceivable > 0 ? arFc(settledToReceivable) : {}) },
+          invoiceRate
+            ? { accountId: settlementAccountFor(settlementMethod, { currency: invoice.currency }).id, credit: paidOutBase, ...(paidOut > 0 ? { currency: invoice.currency, amountFc: paidOut, rate: payoutRate } : {}) }
+            : { accountId: settlementAccountFor(settlementMethod).id, credit: paidOut },
+          ...fxLine,
+        ];
+  const postingLines: PostingLine[] = [
+    { role: 'salesReturns', debit: subTotalBase },
+    { role: 'vatOutput', debit: taxBase },
+    ...settlementLines,
+    { role: 'inventory', debit: restockValue },
+    { role: 'inventoryWriteOff', debit: writeOffValue },
+    { role: 'cogs', credit: round2(restockValue + writeOffValue) },
+  ];
+  // ACC-0014: every refusal the posting can raise runs before the refund is saved, its number
+  // taken or stock moved back — a refused refund leaves no trace.
+  preflightJournal({ date, lines: postingLines });
 
   const id = uid('ref');
   const refund: Refund = {
@@ -472,54 +650,14 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
     if (isFinal) invoice.status = 'REFUNDED';
     invoice.paymentStatus = paymentStatusFor(invoice.grandTotal - invoice.refundedAmount, invoice.paidAmount);
   });
-
-  // v2 phase 7 (§4 "Restock toggle per line: default on. Off = the item is damaged, so it's written
-  // off (5120) instead of going back to stock"). A1/A2's re-averaging applies on restock (the value
-  // moves the same way it hit the GL); a write-off removes the line's cost from inventory instead.
-  let restockValue = 0;
-  let writeOffValue = 0;
-  for (const line of lines) {
-    const invLine = invoice.lines.find((l) => l.id === line.invoiceLineId)!;
-    if (invLine.isFreeText) continue;
-    const product = productById(invLine.productId);
-    if (product.type !== 'product') continue;
-    const value = round2(line.qty * invLine.costPrice);
-    if (line.restock === false) {
-      writeOffValue = round2(writeOffValue + value);
-      // Written-off returns never re-enter stock — no applyStockChange call, only the write-off
-      // journal line below moves value out of `cogs`'s reversal into `inventoryWriteOff`.
-    } else {
-      restockValue = round2(restockValue + value);
-      applyStockChange(product, line.qty, value, 'refund', refund, date);
-    }
-  }
-
-  // Refund-method settlement (docs/v2/06 §4 "Default: against the invoice's outstanding amount
-  // first. Then the rest goes to cash, the original card, a bank transfer, or customer credit"):
-  // customer credit posts the leftover as an extra credit to the customer's receivable sub-ledger
-  // (an unallocated balance, same shape Phase 4's payments/allocation reads — see
-  // `src/mocks/backend/balances.ts`'s `customerBalance`), instead of paying out a settlement account.
-  const settlementLines: PostingLine[] =
-    creditedToAccount > 0
-      ? [{ role: 'receivable', credit: round2(settledToReceivable + creditedToAccount), partyKind: 'customer', partyId: invoice.customerId }]
-      : [
-          { role: 'receivable', credit: settledToReceivable, partyKind: 'customer', partyId: invoice.customerId },
-          { accountId: settlementAccountFor(refundMethod === 'cash' ? 'cash' : refundMethod === 'card' ? 'card' : 'bank_transfer').id, credit: paidOut },
-        ];
+  for (const r of restocks) applyStockChange(r.product, r.qty, r.value, 'refund', refund, date);
 
   postJournal({
     date,
     description: `مرتجع مبيعات ${refund.number} على الفاتورة ${invoice.number}`,
     type: 'SYSTEM',
     sourceRef: { kind: 'refund', id: refund.id, number: refund.number },
-    lines: [
-      { role: 'salesReturns', debit: subTotal },
-      { role: 'vatOutput', debit: taxAmount },
-      ...settlementLines,
-      { role: 'inventory', debit: restockValue },
-      { role: 'inventoryWriteOff', debit: writeOffValue },
-      { role: 'cogs', credit: round2(restockValue + writeOffValue) },
-    ],
+    lines: postingLines,
     createdBy: userId,
   });
 
@@ -527,7 +665,7 @@ export function recordRefund(input: RefundInput, userId: string, date = new Date
   // recorded as a shift movement") when returned from the till with an open shift.
   if (refundMethod === 'cash' && paidOut > 0) {
     const shift = db.shifts.find((s) => s.status === 'OPEN' && db.invoices.find((i) => i.id === invoice.id)?.shiftId === s.id) ?? db.shifts.find((s) => s.status === 'OPEN');
-    if (shift) recordShiftMovement(shift.terminalId, 'REFUND_CASH', paidOut, userId, { refId: refund.id, refNumber: refund.number, at: date });
+    if (shift) recordShiftMovement(shift.terminalId, 'REFUND_CASH', paidOutBase, userId, { refId: refund.id, refNumber: refund.number, at: date });
   }
 
   logActivity('refund', `مرتجع ${refund.number} على الفاتورة ${invoice.number} بقيمة ${grandTotal.toFixed(2)}`, userId, date, { name: 'invoice', params: { id: invoice.id } });

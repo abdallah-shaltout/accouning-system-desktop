@@ -240,11 +240,44 @@ export function vatTotalsForPeriod(from: string, to: string): VatPeriodTotals {
   return { outputVat, inputVat, net: round2(outputVat - inputVat) };
 }
 
+/** The settlement entry's description — also the stored record of the period it settled (D-A6). */
+function vatSettlementDescription(from: string, to: string): string {
+  return `تسوية ضريبة القيمة المضافة — من ${from} إلى ${to}`;
+}
+
+const VAT_SETTLEMENT_PERIOD_RE = /من (\d{4}-\d{2}-\d{2}) إلى (\d{4}-\d{2}-\d{2})$/;
+
+/**
+ * D-A6: the periods already closed by a live VAT settlement, derived from the settlement entries
+ * themselves (no separate "settled periods" record that could drift from the GL). A settlement is
+ * a posted `VAT_SETTLEMENT` entry dated `to` whose immutable description carries `من {from} إلى {to}`
+ * (`vatSettlementDescription`); an unparsable description falls back to the entry's own day. A
+ * reversed settlement (or a reversal entry) no longer counts, so voiding one frees its period.
+ */
+function settledVatPeriods(): { entry: JournalEntry; from: string; to: string }[] {
+  return db.journalEntries
+    .filter((e) => e.type === 'VAT_SETTLEMENT' && !e.reversed && !e.reversalOfId)
+    .map((entry) => {
+      const match = VAT_SETTLEMENT_PERIOD_RE.exec(entry.description);
+      const day = localDateKey(entry.date);
+      return { entry, from: match?.[1] ?? day, to: match?.[2] ?? day };
+    });
+}
+
 /**
  * Posts the settlement entry: Dr output VAT (closes it), Cr input VAT (closes it), the
- * difference to VAT payable (2155) — a debit there when refundable.
+ * difference to VAT payable (2155) — a debit there when refundable. Refuses (`CONFLICT`) a period
+ * that overlaps one already settled (D-A6): `vatTotalsForPeriod` reads the GL, so a second
+ * settlement over the same days would close the same VAT movement into `vatPayable` twice.
  */
 export function postVatSettlement(from: string, to: string, userId: string, isAdmin = false): JournalEntry {
+  const overlap = settledVatPeriods().find((p) => from <= p.to && to >= p.from);
+  if (overlap) {
+    throw new ApiError(
+      `الفترة تتداخل مع تسوية ضريبة سابقة ${overlap.entry.number} (من ${overlap.from} إلى ${overlap.to}) — لا يمكن تسوية نفس الحركة الضريبية مرتين`,
+      'CONFLICT',
+    );
+  }
   const totals = vatTotalsForPeriod(from, to);
   if (totals.outputVat === 0 && totals.inputVat === 0) throw new ApiError('لا توجد حركة ضريبية في هذه الفترة');
   const outputAccount = accountFor('vatOutput');
@@ -259,7 +292,7 @@ export function postVatSettlement(from: string, to: string, userId: string, isAd
 
   const entry = postJournal({
     date: to,
-    description: `تسوية ضريبة القيمة المضافة — من ${from} إلى ${to}`,
+    description: vatSettlementDescription(from, to),
     type: 'VAT_SETTLEMENT',
     lines,
     createdBy: userId,

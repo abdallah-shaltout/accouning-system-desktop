@@ -20,6 +20,8 @@ import { round2 } from '@/modules/core/helpers/numbers';
 import { accountFor } from './accounts';
 import { customerBalance, customerStatement, supplierBalance, supplierStatement } from './balances';
 import { unallocatedCreditFor } from './payments';
+import { convertLinesToBase } from './currency';
+import { ApiError } from '../utils';
 
 export interface InvariantResult {
   /** Stable key, e.g. 'balanced-entries', 'ar-control'. Used for the `ACC-` issue stub and for
@@ -35,7 +37,10 @@ export interface InvariantResult {
 }
 
 function closeEnough(a: number, b: number, tolerance = 0.01): boolean {
-  return Math.abs(a - b) <= tolerance;
+  // `+ 1e-9`: a difference of exactly one tolerance step (4849.52 − 4849.51) is 0.01000000000022 in
+  // binary floating point; the Rust port compares exact decimals (`shared::invariants::close_enough`),
+  // so without the epsilon the two copies disagree on the boundary.
+  return Math.abs(a - b) <= tolerance + 1e-9;
 }
 
 function numericCheck(key: string, doc: string, label: string, expected: number, actual: number, tolerance = 0.01): InvariantResult {
@@ -49,14 +54,46 @@ function numericCheck(key: string, doc: string, label: string, expected: number,
   };
 }
 
-function glBalance(db: MockDb, role: Parameters<typeof accountFor>[0]): number {
-  const id = accountFor(role).id;
+type Role = Parameters<typeof accountFor>[0];
+
+/**
+ * ACC-0022: the role's account, or `undefined` when the chart has none (the `basic` template has no
+ * card/wallet clearing account; an empty company has no chart yet). `runAllInvariants` must never
+ * throw: a role with no account has had nothing posted to it, so its GL balance is 0 and each check
+ * compares that 0 with its own documents — a pass when there are none, a real failure when documents
+ * exist that the ledger can't carry.
+ */
+function roleAccount(role: Role): ReturnType<typeof accountFor> | undefined {
+  try {
+    return accountFor(role);
+  } catch (e) {
+    if (e instanceof ApiError && e.code === 'NOT_FOUND') return undefined;
+    throw e;
+  }
+}
+
+function glBalance(db: MockDb, role: Role, skipEntry?: (e: MockDb['journalEntries'][number]) => boolean): number {
+  const id = roleAccount(role)?.id;
+  if (!id) return 0;
   return round2(
     db.journalEntries
+      .filter((e) => !skipEntry?.(e))
       .flatMap((e) => e.lines)
       .filter((l) => l.accountId === id)
       .reduce((a, l) => a + l.debit - l.credit, 0),
   );
+}
+
+/** A party's balance, or 0 when the chart has no receivable/payable account (nothing can be posted to it). */
+function partyBalance(kind: 'customer' | 'supplier', id: string): number {
+  if (!roleAccount(kind === 'customer' ? 'receivable' : 'payable')) return 0;
+  return kind === 'customer' ? customerBalance(id) : supplierBalance(id);
+}
+
+function partyStatementEnd(kind: 'customer' | 'supplier', id: string): number {
+  if (!roleAccount(kind === 'customer' ? 'receivable' : 'payable')) return 0;
+  const st = kind === 'customer' ? customerStatement(id) : supplierStatement(id);
+  return st.at(-1)?.balance ?? 0;
 }
 
 /** 1. Every entry: Σ debit = Σ credit; no line is both debit and credit; ≥ 2 lines. Returns three
@@ -133,9 +170,9 @@ export function checkTrialBalance(db: MockDb): InvariantResult[] {
 /** 3. GL(receivable) = Σ customer sub-ledgers; GL(payable) = Σ supplier sub-ledgers. */
 export function checkArApControl(db: MockDb): InvariantResult[] {
   const arGl = glBalance(db, 'receivable');
-  const arSum = round2(db.customers.reduce((a, c) => a + customerBalance(c.id), 0));
+  const arSum = round2(db.customers.reduce((a, c) => a + partyBalance('customer', c.id), 0));
   const apGl = -glBalance(db, 'payable');
-  const apSum = round2(db.suppliers.reduce((a, s) => a + supplierBalance(s.id), 0));
+  const apSum = round2(db.suppliers.reduce((a, s) => a + partyBalance('supplier', s.id), 0));
   return [
     { ...numericCheck('ar-control', '§4.3', 'AR GL = Σ customer balances', arSum, arGl), doc: '§4.3' },
     { ...numericCheck('ap-control', '§4.3', 'AP GL = Σ supplier balances', apSum, apGl), doc: '§4.3' },
@@ -149,11 +186,38 @@ export function checkInventoryGl(db: MockDb): InvariantResult {
   return { ...numericCheck('inventory-gl', '§4.4', 'inventory GL = Σ product.stockValue', invSum, invGl), doc: '§4.4' };
 }
 
-/** 5. Output/input VAT GL = Σ VAT on documents for all time (no period filter — see scripts/verify/sales.ts). */
+/**
+ * ACC-0020: a VAT settlement (`postVatSettlement`, journal.ts) closes the period's output/input VAT
+ * into `vatPayable` — it is not document VAT, so the VAT control check leaves it (and a reversal of
+ * one) out of the ledger side. The payment to the authority (`payVatSettlement`) posts Dr
+ * `vatPayable` / Cr cash-bank and never touches either VAT account, so it needs no exclusion.
+ * Ported as `vat_settlement_entry_ids` (`src-tauri/src/shared/invariants/ledger.rs`).
+ */
+function vatSettlementEntryIds(db: MockDb): Set<string> {
+  const ids = new Set(db.journalEntries.filter((e) => e.type === 'VAT_SETTLEMENT').map((e) => e.id));
+  for (const e of db.journalEntries) if (e.reversalOfId && ids.has(e.reversalOfId)) ids.add(e.id);
+  return ids;
+}
+
+/** 5. Output/input VAT GL = Σ VAT on documents for all time (no period filter — see scripts/verify/sales.ts),
+ * ledger side net of VAT settlements (ACC-0020). */
 export function checkVatControl(db: MockDb): InvariantResult[] {
+  const settlementIds = vatSettlementEntryIds(db);
+  const isSettlement = (e: MockDb['journalEntries'][number]) => settlementIds.has(e.id);
   const invoiceVatBase = (i: MockDb['invoices'][number]) => (i.currency && i.exchangeRate ? round2(i.taxAmount * i.exchangeRate) : i.taxAmount);
-  const outputVatFromDocs = round2(db.invoices.reduce((a, i) => a + invoiceVatBase(i), 0) - db.refunds.reduce((a, r) => a + r.taxAmount, 0));
-  const outputVatLedger = -glBalance(db, 'vatOutput');
+  // ACC-0009: an FC invoice's refunds post their VAT in base at the invoice's rate, converted
+  // cumulatively per invoice (`refundBaseSplit` in sales.ts) — so Σ refunded VAT in base is the VAT
+  // share of `convertLinesToBase([Σ refunded net, Σ refunded VAT], rate)`, exactly.
+  const refundVatBase = (invoiceId: string) => {
+    const refunds = db.refunds.filter((r) => r.invoiceId === invoiceId);
+    const vat = round2(refunds.reduce((a, r) => a + r.taxAmount, 0));
+    const inv = db.invoices.find((i) => i.id === invoiceId);
+    if (!inv?.currency || !inv.exchangeRate) return vat;
+    return convertLinesToBase([round2(refunds.reduce((a, r) => a + r.subTotal, 0)), vat], inv.exchangeRate)[1];
+  };
+  const refundedInvoiceIds = [...new Set(db.refunds.map((r) => r.invoiceId))];
+  const outputVatFromDocs = round2(db.invoices.reduce((a, i) => a + invoiceVatBase(i), 0) - refundedInvoiceIds.reduce((a, id) => a + refundVatBase(id), 0));
+  const outputVatLedger = -glBalance(db, 'vatOutput', isSettlement);
 
   const recoverablePos = db.purchaseOrders.filter((p) => p.status === 'RECEIVED' && !p.vatNotRecoverable);
   const recoverablePoIds = new Set(recoverablePos.map((p) => p.id));
@@ -162,7 +226,7 @@ export function checkVatControl(db: MockDb): InvariantResult[] {
       db.purchaseReturns.filter((r) => recoverablePoIds.has(r.purchaseOrderId)).reduce((a, r) => a + r.taxAmount, 0) +
       db.expenses.reduce((a, e) => a + e.taxAmount, 0),
   );
-  const inputVatLedger = glBalance(db, 'vatInput');
+  const inputVatLedger = glBalance(db, 'vatInput', isSettlement);
 
   return [
     { ...numericCheck('vat-output', '§4.5', 'output VAT GL = Σ document VAT', outputVatFromDocs, outputVatLedger), doc: '§4.5' },
@@ -170,15 +234,15 @@ export function checkVatControl(db: MockDb): InvariantResult[] {
   ];
 }
 
+/** Entry sources whose party lines the allocation check already reads through their documents
+ * (outstanding, refunds/returns settled to the party, payments' unallocated credit). */
+const DOCUMENT_SOURCE_KINDS = new Set(['invoice', 'refund', 'payment', 'purchaseOrder', 'purchaseReturn']);
+
 /** 6. For every party: Σ document outstanding − unallocated credit ± opening balance = sub-ledger balance. */
 export function checkPartyAllocation(db: MockDb): InvariantResult[] {
   const results: InvariantResult[] = [];
 
-  const custStatementMismatch = db.customers.filter((c) => {
-    const st = customerStatement(c.id);
-    const last = st.at(-1)?.balance ?? 0;
-    return !closeEnough(last, customerBalance(c.id));
-  });
+  const custStatementMismatch = db.customers.filter((c) => !closeEnough(partyStatementEnd('customer', c.id), partyBalance('customer', c.id)));
   results.push({
     key: 'customer-statement',
     doc: '§4.6',
@@ -186,11 +250,7 @@ export function checkPartyAllocation(db: MockDb): InvariantResult[] {
     message: `customer statement running balance = customerBalance() (${custStatementMismatch.length} mismatched: ${custStatementMismatch.map((c) => c.name).join(', ')})`,
   });
 
-  const supStatementMismatch = db.suppliers.filter((s) => {
-    const st = supplierStatement(s.id);
-    const last = st.at(-1)?.balance ?? 0;
-    return !closeEnough(last, supplierBalance(s.id));
-  });
+  const supStatementMismatch = db.suppliers.filter((s) => !closeEnough(partyStatementEnd('supplier', s.id), partyBalance('supplier', s.id)));
   results.push({
     key: 'supplier-statement',
     doc: '§4.6',
@@ -198,15 +258,43 @@ export function checkPartyAllocation(db: MockDb): InvariantResult[] {
     message: `supplier statement running balance = supplierBalance() (${supStatementMismatch.length} mismatched: ${supStatementMismatch.map((s) => s.name).join(', ')})`,
   });
 
+  // ACC-0021: party lines with no invoice/refund/purchase/return/payment behind them — an opening
+  // balance (and its reversal), a credit expense on a supplier, a manual AR/AP line (B1 write-off or
+  // reclassification), an FX revaluation — are part of the party's balance in full, less what a
+  // payment allocated to an opening balance (`targetKind: 'opening'`, which also left the payment's
+  // unallocated credit). Ported as `non_document_net` (`src-tauri/src/shared/invariants/parties.rs`).
+  const nonDocumentNet = (kind: 'customer' | 'supplier', partyId: string): number => {
+    const account = roleAccount(kind === 'customer' ? 'receivable' : 'payable');
+    if (!account) return 0;
+    let net = 0;
+    for (const e of db.journalEntries) {
+      if (e.sourceRef && DOCUMENT_SOURCE_KINDS.has(e.sourceRef.kind)) continue;
+      for (const l of e.lines) {
+        if (l.accountId !== account.id || l.partyKind !== kind || l.partyId !== partyId) continue;
+        net += kind === 'customer' ? l.debit - l.credit : l.credit - l.debit;
+      }
+    }
+    const openingAllocated = db.payments
+      .filter((p) => p.targetType === kind && p.targetId === partyId)
+      .reduce((a, p) => a + p.allocations.filter((al) => al.targetKind === 'opening').reduce((s, al) => s + al.amount, 0), 0);
+    return round2(net - openingAllocated);
+  };
+
   const arReducedByRefunds = (invoiceId: string) => db.refunds.filter((r) => r.invoiceId === invoiceId).reduce((a, r) => a + r.settledToReceivable, 0);
+  // ACC-0009: an FC invoice's outstanding is in its own currency — compare it to the (base-currency)
+  // ledger at the invoice's rate, the same conversion `openDocumentsFor` (payments.ts) shows.
+  const outstandingBase = (i: MockDb['invoices'][number]) => {
+    const fc = i.grandTotal - arReducedByRefunds(i.id) - i.paidAmount;
+    return i.currency && i.exchangeRate ? round2(fc * i.exchangeRate) : fc;
+  };
   const custAllocationMismatch = db.customers.filter((c) => {
     const outstanding = round2(
       db.invoices
         .filter((i) => i.customerId === c.id && i.status !== 'DRAFT')
-        .reduce((a, i) => a + (i.grandTotal - arReducedByRefunds(i.id) - i.paidAmount), 0),
+        .reduce((a, i) => a + outstandingBase(i), 0),
     );
     const credit = unallocatedCreditFor('customer', c.id);
-    return !closeEnough(round2(outstanding - credit), customerBalance(c.id));
+    return !closeEnough(round2(outstanding + nonDocumentNet('customer', c.id) - credit), partyBalance('customer', c.id));
   });
   results.push({
     key: 'customer-allocation',
@@ -224,7 +312,7 @@ export function checkPartyAllocation(db: MockDb): InvariantResult[] {
         .reduce((a, p) => a + (p.grandTotal - apReducedByReturns(p.id) - p.paidAmount), 0),
     );
     const credit = unallocatedCreditFor('supplier', s.id);
-    return !closeEnough(round2(outstanding - credit), supplierBalance(s.id));
+    return !closeEnough(round2(outstanding + nonDocumentNet('supplier', s.id) - credit), partyBalance('supplier', s.id));
   });
   results.push({
     key: 'supplier-allocation',
@@ -241,6 +329,20 @@ const SYSTEM_SOURCE_KINDS = new Set([
   'shift', 'expense', 'voucher', 'settlement', 'fxReval', 'opening',
 ]);
 
+/**
+ * ACC-0015: a payment's "allocate later" realized-FX entry (09 §3.3, `allocationFxLines` in
+ * payments.ts) is a designed second entry on the same payment, not a second posting of it: it moves
+ * no money — only the party's control account and fxGain/fxLoss. It doesn't count toward
+ * `one-active-entry`; the payment's own entry (which always hits a cash/bank account) must still be
+ * unique. Ported as `is_allocation_fx_entry` (`src-tauri/src/shared/invariants/documents.rs`).
+ */
+const ALLOCATION_FX_ROLES = new Set(['receivable', 'payable', 'fxGain', 'fxLoss']);
+function isAllocationFxEntry(db: MockDb, e: MockDb['journalEntries'][number]): boolean {
+  if (e.sourceRef?.kind !== 'payment') return false;
+  const roles = e.lines.map((l) => db.accounts.find((a) => a.id === l.accountId)?.systemRole);
+  return roles.some((r) => r === 'fxGain' || r === 'fxLoss') && roles.every((r) => r !== undefined && ALLOCATION_FX_ROLES.has(r));
+}
+
 /** 7. Every posted document has exactly one active entry (or an entry + reversal pair); every
  * sourceRef resolves. Returns three results (kept separate, matching the original verify script). */
 export function checkSourceRefIntegrity(db: MockDb): InvariantResult[] {
@@ -251,7 +353,7 @@ export function checkSourceRefIntegrity(db: MockDb): InvariantResult[] {
     const key = `${e.sourceRef.kind}:${e.sourceRef.id}`;
     bySource.set(key, [...(bySource.get(key) ?? []), e]);
   }
-  const multiActive = [...bySource.entries()].filter(([, entries]) => entries.filter((e) => !e.reversed).length > 1);
+  const multiActive = [...bySource.entries()].filter(([, entries]) => entries.filter((e) => !e.reversed && !isAllocationFxEntry(db, e)).length > 1);
   const reversalsResolve = db.journalEntries.filter((e) => e.reversalOfId && !db.journalEntries.some((o) => o.id === e.reversalOfId));
   return [
     {
@@ -275,20 +377,71 @@ export function checkSourceRefIntegrity(db: MockDb): InvariantResult[] {
   ];
 }
 
-/** 8. No entry is dated inside a locked period unless its creation time is before the lock. */
+/**
+ * ACC-0019: when each lock date took effect. `saveLockDate` (accountingService.ts; Rust
+ * `save_lock_date`) records every change in the activity feed as `تحديد تاريخ القفل {date}` /
+ * `إزالة تاريخ القفل` (kind `settings`) — the only record of when a lock was set. Oldest first.
+ */
+const LOCK_SET_MESSAGE = /^تحديد تاريخ القفل (\d{4}-\d{2}-\d{2})$/;
+const LOCK_CLEARED_MESSAGE = 'إزالة تاريخ القفل';
+function lockHistory(db: MockDb): { at: number; lockDate: string | undefined }[] {
+  const out: { at: number; lockDate: string | undefined }[] = [];
+  for (const a of db.activity) {
+    if (a.kind !== 'settings') continue;
+    const set = LOCK_SET_MESSAGE.exec(a.message);
+    if (set) out.push({ at: Date.parse(a.date), lockDate: set[1] });
+    else if (a.message === LOCK_CLEARED_MESSAGE) out.push({ at: Date.parse(a.date), lockDate: undefined });
+  }
+  return out.sort((x, y) => x.at - y.at);
+}
+
+/** Postings the period guard lets through on purpose (docs/v2/02 B2 "only `accounting.postToClosedPeriod`
+ * can override"): opening and year-close entries and the FX-revaluation auto-reversal always pass
+ * `allowClosedPeriod`; a manual entry (post, reversal, draft post) or a VAT settlement passes it when
+ * the user who posted it is an admin. */
+function lockOverrideAllowed(db: MockDb, e: MockDb['journalEntries'][number]): boolean {
+  if (e.type === 'OPENING' || e.type === 'CLOSING' || e.sourceRef?.kind === 'fxReval') return true;
+  if (e.type !== 'MANUAL' && e.type !== 'VAT_SETTLEMENT') return false;
+  return db.users.find((u) => u.id === (e.postedBy ?? e.createdBy))?.role === 'admin';
+}
+
+/** 8. No entry is dated inside a locked period unless its creation time is before the lock (ACC-0019):
+ * an offender is an entry posted while a lock covering its date was already in force — the lock in
+ * force at posting time comes from the lock history, not today's lock date, so setting or moving a
+ * lock over existing history is never an offence. A lock change recorded at the very same instant as
+ * the posting could have come before or after it, so the entry counts only if every possible lock
+ * state at that instant covers it. With no recorded history the lock's start is unknown and nothing
+ * is flagged. */
 export function checkLockDate(db: MockDb): InvariantResult {
   const lockDate = db.settings.accounting?.lockDate;
-  const lockedButPosted = lockDate ? db.journalEntries.filter((e) => e.date.slice(0, 10) <= lockDate) : [];
+  const history = lockHistory(db);
+  const lockedButPosted = history.length
+    ? db.journalEntries.filter((e) => {
+        if (lockOverrideAllowed(db, e)) return false;
+        const at = Date.parse(e.postedAt ?? e.createdAt);
+        const before = history.filter((h) => h.at < at).at(-1)?.lockDate;
+        const candidates = [before, ...history.filter((h) => h.at === at).map((h) => h.lockDate)];
+        const day = e.date.slice(0, 10);
+        return candidates.every((c) => c !== undefined && day <= c);
+      })
+    : [];
   return {
     key: 'lock-date',
     doc: '§4.8',
     passed: lockedButPosted.length === 0,
-    message: `no entry dated inside the locked period (lockDate=${lockDate ?? 'none'}, ${lockedButPosted.length} offenders)`,
+    message: `no entry posted into a locked period after the lock (lockDate=${lockDate ?? 'none'}, ${lockedButPosted.length} offenders)`,
   };
 }
 
-/** 9. openingBalanceEquity = 0 once onboarding is complete. */
+/** 9. openingBalanceEquity = 0 once onboarding is complete (ACC-0023). While the setup wizard is
+ * still running (`settings.onboarding` present without `finishedAt`) opening entries legitimately
+ * sit in 3900 until the wizard re-closes it, so the check isn't enforced yet. A company with no
+ * onboarding record never ran the wizard (the demo seed, an import) and is treated as complete. */
 export function checkOpeningBalanceEquity(db: MockDb): InvariantResult {
+  const onboarding = db.settings.onboarding;
+  if (onboarding && !onboarding.finishedAt) {
+    return { key: 'opening-balance-equity', doc: '§4.9', passed: true, message: 'onboarding in progress — openingBalanceEquity (3900) not enforced yet' };
+  }
   const account = db.accounts.find((a) => a.systemRole === 'openingBalanceEquity');
   let obeNet = 0;
   if (account) {
@@ -357,15 +510,21 @@ export function checkDraftsIsolated(db: MockDb): InvariantResult {
   };
 }
 
-/** Allocations ≤ document total: every payment allocation never exceeds the target document's grand total. */
+/** Allocations ≤ document total: every payment allocation never exceeds the target document's grand
+ * total. ACC-0018: compared in the DOCUMENT's currency — a document's `grandTotal` is in its own
+ * currency, an allocation's `amount` is the base amount posted to AR/AP at the document's rate and
+ * `amountFc` is what it settles of the document, the same figure `applyAllocationToDocument`
+ * (payments.ts) adds to `paidAmount` (`amountFc ?? amount`). */
 export function checkAllocationsWithinTotal(db: MockDb): InvariantResult {
   const offenders: string[] = [];
   for (const p of db.payments) {
     for (const a of p.allocations) {
-      const invoice = db.invoices.find((i) => i.id === a.targetId);
-      const po = db.purchaseOrders.find((o) => o.id === a.targetId);
+      if (a.targetKind === 'opening') continue;
+      const invoice = a.targetKind === 'invoice' ? db.invoices.find((i) => i.id === a.targetId) : undefined;
+      const po = a.targetKind === 'purchaseOrder' ? db.purchaseOrders.find((o) => o.id === a.targetId) : undefined;
       const total = invoice?.grandTotal ?? po?.grandTotal;
-      if (total !== undefined && a.amount > total + 0.01) offenders.push(`${p.id}->${a.targetId} (${a.amount} > ${total})`);
+      const settled = a.amountFc ?? a.amount;
+      if (total !== undefined && settled > total + 0.01) offenders.push(`${p.id}->${a.targetId} (${settled} > ${total})`);
     }
   }
   return {

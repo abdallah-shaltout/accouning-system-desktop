@@ -117,6 +117,18 @@ export function postOpeningEntry(input: OpeningEntryInput): JournalEntry {
 }
 
 /**
+ * ACC-0030: the source id a 3900 closing entry is filed under. A `sourceRef` names ONE document with
+ * one active entry (`one-active-entry`, docs/v2/02 §4.7) — but the wizard re-closes 3900 after
+ * opening stock (or a changed opening entry) moves it again, and that second closing is a separate
+ * posting, not a replacement of the first. The first close keeps the fixed `onboarding-close` id
+ * (what imports and older data use); each re-close gets its own id.
+ */
+function closeSourceId(): string {
+  const firstDone = db.journalEntries.some((e) => e.sourceRef?.kind === 'opening' && e.sourceRef.id === 'onboarding-close');
+  return firstDone ? uid('opening-close') : 'onboarding-close';
+}
+
+/**
  * Closes 3900 to zero (docs/v2/05 §3 "Closing 3900", invariant 9): moves whatever balance sits on
  * `openingBalanceEquity` (from the opening entry above AND/or the opening stock-in postings) to
  * `capital` or `ownerCurrent`. A debit balance on 3900 (assets > liabilities+equity supplied) means
@@ -135,7 +147,7 @@ export function closeOpeningBalanceEquity(date: string, target: 'capital' | 'own
     date,
     description: 'إقفال حساب الأرصدة الافتتاحية (3900) إلى ' + (target === 'capital' ? 'رأس المال' : 'جاري المالك'),
     type: 'CLOSING',
-    sourceRef: { kind: 'opening', id: 'onboarding-close', number: 'OPENING-CLOSE' },
+    sourceRef: { kind: 'opening', id: closeSourceId(), number: 'OPENING-CLOSE' },
     lines,
     createdBy,
     allowClosedPeriod: true,

@@ -3,7 +3,8 @@ import { db, nextNumber } from '../db';
 import { emit } from '../events';
 import { mutate } from '../persist';
 import { ApiError, localDateKey, round2, uid } from '../utils';
-import { logActivity, postJournal, type PostingLine } from './core';
+import { logActivity, postJournal, preflightJournal, type PostingLine } from './core';
+import { saleTenderBases } from './sales';
 
 /**
  * Card settlement (docs/v2/09-purchases-payments-expenses.md §2 "Card settlement") — completes the
@@ -30,14 +31,18 @@ export function unsettledTenderGroups(): UnsettledTenderGroup[] {
   for (const inv of db.invoices) {
     if (inv.status !== 'COMPLETED' || !inv.tenders?.length) continue;
     const day = localDateKey(inv.date);
-    for (const t of inv.tenders) {
+    // ACC-0016: a foreign-currency invoice's tenders posted their BASE amounts to the clearing
+    // account (`saleTenderBases`, sales.ts) — the settlement clears those same base amounts.
+    const amounts = inv.currency && inv.exchangeRate ? saleTenderBases(inv.tenders.map((t) => t.amount), inv.grandTotal, inv.exchangeRate) : inv.tenders.map((t) => t.amount);
+    for (const [i, t] of inv.tenders.entries()) {
+      const amount = amounts[i];
       const method = methodById.get(t.paymentMethodId);
       if (!method) continue;
       const key = `${day}::${method.id}`;
       if (already.has(key)) continue;
       const existing = totals.get(key);
       if (existing) {
-        existing.total = round2(existing.total + t.amount);
+        existing.total = round2(existing.total + amount);
         existing.tenderCount += 1;
       } else {
         totals.set(key, {
@@ -45,7 +50,7 @@ export function unsettledTenderGroups(): UnsettledTenderGroup[] {
           paymentMethodId: method.id,
           paymentMethodName: method.name,
           accountRole: method.accountRole as 'cardClearing' | 'walletClearing',
-          total: round2(t.amount),
+          total: round2(amount),
           tenderCount: 1,
         });
       }
@@ -70,28 +75,32 @@ export function recordCardSettlement(input: CardSettlementInput, userId: string)
   const feeAmount = round2(grossAmount - input.depositAmount);
   if (feeAmount < -0.005) throw new ApiError('مبلغ الإيداع أكبر من إجمالي العمليات المختارة');
 
+  // Group by clearing role so cardClearing and walletClearing each get their own credit line when a
+  // settlement mixes both (rare, but the picker doesn't forbid it).
+  const byRole = new Map<'cardClearing' | 'walletClearing', number>();
+  for (const s of selected) byRole.set(s.role, round2((byRole.get(s.role) ?? 0) + s.amount));
+
+  const depositAmount = round2(input.depositAmount);
+  const lines: PostingLine[] = [{ role: 'bank', debit: depositAmount }];
+  if (feeAmount > 0) lines.push({ role: 'cardFees', debit: feeAmount });
+  for (const [role, amount] of byRole) lines.push({ role, credit: amount });
+  if (feeAmount < 0) lines.push({ role: 'bank', debit: -feeAmount }); // deposit exceeded gross (rare: a correction/bonus) — extra goes to bank too
+  // ACC-0014: the posting's refusals (closed period / lock date, balance) run before the settlement
+  // takes a number or is saved — a refused settlement leaves no trace.
+  preflightJournal({ date: input.date, lines });
+
   const settlement: CardSettlement = {
     id: uid('stl'),
     number: nextNumber('cardSettlement'),
     date: input.date,
     groups: selected.map((s) => ({ date: s.date, paymentMethodId: s.paymentMethodId, amount: s.amount })),
     grossAmount,
-    depositAmount: round2(input.depositAmount),
+    depositAmount,
     feeAmount,
     note: input.note,
     createdBy: userId,
   };
   mutate(() => db.cardSettlements.push(settlement));
-
-  // Group by clearing role so cardClearing and walletClearing each get their own credit line when a
-  // settlement mixes both (rare, but the picker doesn't forbid it).
-  const byRole = new Map<'cardClearing' | 'walletClearing', number>();
-  for (const s of selected) byRole.set(s.role, round2((byRole.get(s.role) ?? 0) + s.amount));
-
-  const lines: PostingLine[] = [{ role: 'bank', debit: settlement.depositAmount }];
-  if (feeAmount > 0) lines.push({ role: 'cardFees', debit: feeAmount });
-  for (const [role, amount] of byRole) lines.push({ role, credit: amount });
-  if (feeAmount < 0) lines.push({ role: 'bank', debit: -feeAmount }); // deposit exceeded gross (rare: a correction/bonus) — extra goes to bank too
 
   postJournal({
     date: input.date,

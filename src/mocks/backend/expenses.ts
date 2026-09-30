@@ -1,4 +1,5 @@
 import type { Expense, ExpenseCategory, ExpenseCategoryInput, ExpenseInput, RecurringExpense, RecurringExpenseInput } from '@/modules/expenses/types';
+import type { PaymentMethod as PaymentMethodRow } from '@/modules/settings/types';
 import { db, nextNumber } from '../db';
 import { emit } from '../events';
 import { mutate } from '../persist';
@@ -62,7 +63,20 @@ function validateExpenseInput(input: ExpenseInput): ExpenseCategory {
   return category;
 }
 
-/** Posts one expense: Dr expense[cc] + vatInput / Cr method account or payable[supplier] (docs/v2 §4). */
+/**
+ * ACC-0024: the account an expense paid with a payment method is credited to. Card and wallet
+ * methods carry a CLEARING role — money customers paid by card/wallet that the acquirer hasn't
+ * deposited yet (docs/v2/02 C3); only customer tenders go in and only a card settlement takes them
+ * out. Money the business itself pays with its card leaves the bank, so it is credited there, the
+ * same way `settlementAccountFor` (accounts.ts) settles every non-cash payment. Ported as
+ * `expense_payout_role` (`src-tauri/src/domains/expenses/service/expenses.rs`). Payment vouchers
+ * (`recordPaymentVoucher`, ACC-0031) pay out by the same rule.
+ */
+export function expensePayoutRole(accountRole: PaymentMethodRow['accountRole']): PaymentMethodRow['accountRole'] {
+  return accountRole === 'cardClearing' || accountRole === 'walletClearing' ? 'bank' : accountRole;
+}
+
+/** Posts one expense: Dr expense[cc] + vatInput / Cr method account (bank for card/wallet, ACC-0024) or payable[supplier] (docs/v2 §4). */
 export function recordExpense(input: ExpenseInput, userId: string): Expense {
   const category = validateExpenseInput(input);
   const { net, vat } = splitTax(input.amount, input.isTaxInvoice, input.taxId);
@@ -96,7 +110,7 @@ export function recordExpense(input: ExpenseInput, userId: string): Expense {
   const paidFrom = input.paidFrom;
   if (paidFrom.kind === 'method') {
     const method = db.paymentMethods.find((m) => m.id === paidFrom.paymentMethodId)!;
-    lines.push({ role: method.accountRole, credit: expense.amount });
+    lines.push({ role: expensePayoutRole(method.accountRole), credit: expense.amount });
   } else {
     lines.push({ role: 'payable', credit: expense.amount, partyKind: 'supplier', partyId: paidFrom.supplierId });
   }

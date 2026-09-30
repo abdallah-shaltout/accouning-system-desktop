@@ -2,10 +2,12 @@ import type {
   DebitNoteLine,
   LandedCostLine,
   PurchaseLine,
+  PurchaseLineInput,
   PurchaseOrder,
   PurchaseOrderInput,
   PurchaseReturn,
   PurchaseReturnInput,
+  ReceiveLineInput,
   ReceivePurchaseInput,
 } from '@/modules/purchases/types';
 import { computeInvoiceTotals, paymentStatusFor, round2 as round2Totals } from '@/modules/invoices/helpers/totals';
@@ -16,7 +18,7 @@ import { mutate } from '../persist';
 import { ApiError, round2, sum, uid } from '../utils';
 import { accountFor, settlementAccountFor } from './accounts';
 import { activeBatchesFor, receiveBatch } from './inventory';
-import { applyStockChange, logActivity, postJournal, productById, purchaseTaxRate, DEFAULT_BRANCH_ID, type PostingLine } from './core';
+import { applyStockChange, logActivity, postJournal, preflightJournal, productById, purchaseTaxRate, DEFAULT_BRANCH_ID, type PostingLine } from './core';
 import { branchPrefix, defaultCostCenterFor } from './branches';
 
 /**
@@ -117,55 +119,46 @@ export function savePurchase(input: PurchaseOrderInput, userId: string, existing
   const taxRate = purchaseTaxRate();
   const totals = computePurchaseTotals(input.lines, input.invoiceDiscount, taxRate);
 
+  const found = existingId ? db.purchaseOrders.find((p) => p.id === existingId) : undefined;
+  if (existingId && !found) throw new ApiError('أمر الشراء غير موجود', 'NOT_FOUND');
+  if (found && found.status !== 'DRAFT') throw new ApiError('لا يمكن تعديل أمر شراء تم إرساله أو استلامه أو إلغاؤه');
+
+  // ACC-0013: build the order as it will be saved, and (confirm) plan + validate its receipt, BEFORE
+  // writing anything — a refused receipt (closed period, …) must not leave a saved draft or a
+  // consumed document number behind (the Rust backend rolls the whole command back).
+  const branchId = found ? found.branchId : (input.branchId ?? DEFAULT_BRANCH_ID);
+  const fields = {
+    supplierId: input.supplierId,
+    date: input.date,
+    lines: input.lines.map((l) => ({ ...l })),
+    note: input.note,
+    invoiceDiscount: input.invoiceDiscount,
+    landedCosts: (input.landedCosts ?? []).map((l) => ({ id: uid('lc'), ...l })),
+    supplierInvoiceNo: input.supplierInvoiceNo,
+    supplierInvoiceDate: input.supplierInvoiceDate,
+    attachmentIds: input.attachmentIds,
+    costCenterId: defaultCostCenterFor(branchId, input.costCenterId),
+    ...totals,
+  };
+  const candidate: PurchaseOrder = found
+    ? { ...found, ...fields }
+    : { id: uid('po'), number: '', status: 'DRAFT', paymentStatus: 'UNPAID', paidAmount: 0, returnedAmount: 0, branchId, currency: input.currency, exchangeRate: input.exchangeRate, ...fields };
+  const receiptInput: ReceivePurchaseInput | undefined = input.confirm
+    ? { date: input.date, lines: candidate.lines.map((l) => ({ productId: l.productId, receivedQty: baseQty(l) })) }
+    : undefined;
+  const receipt = receiptInput ? planReceipt(candidate, receiptInput) : undefined;
+
   let po: PurchaseOrder;
-  if (existingId) {
-    const found = db.purchaseOrders.find((p) => p.id === existingId);
-    if (!found) throw new ApiError('أمر الشراء غير موجود', 'NOT_FOUND');
-    if (found.status !== 'DRAFT') throw new ApiError('لا يمكن تعديل أمر شراء تم إرساله أو استلامه أو إلغاؤه');
-    mutate(() =>
-      Object.assign(found, {
-        supplierId: input.supplierId,
-        date: input.date,
-        lines: input.lines.map((l) => ({ ...l })),
-        note: input.note,
-        invoiceDiscount: input.invoiceDiscount,
-        landedCosts: (input.landedCosts ?? []).map((l) => ({ id: uid('lc'), ...l })),
-        supplierInvoiceNo: input.supplierInvoiceNo,
-        supplierInvoiceDate: input.supplierInvoiceDate,
-        attachmentIds: input.attachmentIds,
-        costCenterId: defaultCostCenterFor(found.branchId, input.costCenterId),
-        ...totals,
-      }),
-    );
+  if (found) {
+    mutate(() => Object.assign(found, fields));
     po = found;
   } else {
-    const branchId = input.branchId ?? DEFAULT_BRANCH_ID;
-    po = {
-      id: uid('po'),
-      number: `${branchPrefix(branchId)}${nextNumber('purchaseOrder')}`,
-      supplierId: input.supplierId,
-      date: input.date,
-      status: 'DRAFT',
-      lines: input.lines.map((l) => ({ ...l })),
-      ...totals,
-      paymentStatus: 'UNPAID',
-      paidAmount: 0,
-      returnedAmount: 0,
-      note: input.note,
-      invoiceDiscount: input.invoiceDiscount,
-      landedCosts: (input.landedCosts ?? []).map((l) => ({ id: uid('lc'), ...l })),
-      supplierInvoiceNo: input.supplierInvoiceNo,
-      supplierInvoiceDate: input.supplierInvoiceDate,
-      attachmentIds: input.attachmentIds,
-      costCenterId: defaultCostCenterFor(branchId, input.costCenterId),
-      branchId,
-      currency: input.currency,
-      exchangeRate: input.exchangeRate,
-    };
-    mutate(() => db.purchaseOrders.push(po));
+    po = { ...candidate, number: `${branchPrefix(branchId!)}${nextNumber('purchaseOrder')}` };
+    const created = po;
+    mutate(() => db.purchaseOrders.push(created));
   }
 
-  if (input.confirm) receivePurchase(po.id, { date: input.date, lines: po.lines.map((l) => ({ productId: l.productId, receivedQty: baseQty(l) })) }, userId);
+  if (receipt && receiptInput) applyReceipt(po, receipt, receiptInput, userId);
   else logActivity('purchase', `حفظ أمر الشراء ${po.number} كمسودة`, userId, input.date, { name: 'purchase', params: { id: po.id } });
   return po;
 }
@@ -187,10 +180,10 @@ export function sendPurchaseToSupplier(id: string, userId: string): PurchaseOrde
 function allocateLandedCosts(
   po: PurchaseOrder,
   received: { productId: string; qty: number; value: number }[],
-): { shareByProduct: Map<string, number>; ownSupplierTotal: number; otherSupplierLines: { supplierId: string; amount: number }[] } {
+): { shareByProduct: Map<string, number>; ownSupplierTotal: number; otherSupplierLines: { supplierId: string; label: string; amount: number }[] } {
   const shareByProduct = new Map<string, number>();
   let ownSupplierTotal = 0;
-  const otherSupplierLines: { supplierId: string; amount: number }[] = [];
+  const otherSupplierLines: { supplierId: string; label: string; amount: number }[] = [];
   const stockLines = received.filter((r) => r.qty > 0);
   const totalValue = sum(stockLines, (r) => r.value);
   const totalQty = round2(stockLines.reduce((a, r) => a + r.qty, 0));
@@ -198,16 +191,20 @@ function allocateLandedCosts(
   for (const lc of po.landedCosts ?? []) {
     if (!(lc.amount > 0)) continue;
     if (!lc.supplierId || lc.supplierId === po.supplierId) ownSupplierTotal = round2(ownSupplierTotal + lc.amount);
-    else otherSupplierLines.push({ supplierId: lc.supplierId, amount: round2(lc.amount) });
+    else otherSupplierLines.push({ supplierId: lc.supplierId, label: lc.label, amount: round2(lc.amount) });
 
     if (!stockLines.length) continue;
     const weight = lc.spreadBy === 'qty' ? (r: (typeof stockLines)[number]) => r.qty : (r: (typeof stockLines)[number]) => r.value;
     const base = lc.spreadBy === 'qty' ? totalQty : totalValue;
     if (!(base > 0)) continue;
-    for (const r of stockLines) {
-      const share = round2((lc.amount * weight(r)) / base);
-      shareByProduct.set(r.productId, round2((shareByProduct.get(r.productId) ?? 0) + share));
-    }
+    // Rule (ACC-0004): each share is round2'd and the rounding remainder goes to the largest-weight line (ties → first), so the shares sum exactly to the landed cost.
+    const shares = stockLines.map((r) => round2((lc.amount * weight(r)) / base));
+    let largest = 0;
+    stockLines.forEach((r, i) => {
+      if (weight(r) > weight(stockLines[largest])) largest = i;
+    });
+    shares[largest] = round2(shares[largest] + round2(round2(lc.amount) - shares.reduce((a, s) => a + s, 0)));
+    stockLines.forEach((r, i) => shareByProduct.set(r.productId, round2((shareByProduct.get(r.productId) ?? 0) + shares[i])));
   }
   return { shareByProduct, ownSupplierTotal, otherSupplierLines };
 }
@@ -217,17 +214,30 @@ function lineRemaining(line: PurchaseLine): number {
 }
 
 /**
- * v2 §2 receiving flow (docs/v2/09-purchases-payments-expenses.md §1-§2): "Confirm receipt" posts
- * stock + AP at the ORDER prices (never the storekeeper's own guess). One posting per document —
- * a PO can only be received once (short delivery uses "إنشاء أمر متبقٍ" for the difference instead
- * of a second receipt on the same document). Landed costs (own-supplier AP add-on + other-supplier
- * AP lines) are folded into this same posting; each stock line's unit cost includes its landed-cost
- * share (review E4), so `applyStockChange`'s `valueChange` — and therefore `GL(inventory)` — already
- * reflects it exactly.
+ * Everything one receipt writes, computed and validated up front (ACC-0013): `planReceipt` raises
+ * every refusal a receipt can hit — status/qty guards, a missing other-supplier, the posting's
+ * period/balance check, the backorder's own validation — and mutates nothing; `applyReceipt` then
+ * only writes. So a refused receipt leaves no stock, PO-line, counter or row change behind, the
+ * same as the Rust backend's rolled-back transaction.
  */
-export function receivePurchase(id: string, input: ReceivePurchaseInput, userId: string): PurchaseOrder {
-  const po = db.purchaseOrders.find((p) => p.id === id);
-  if (!po) throw new ApiError('أمر الشراء غير موجود', 'NOT_FOUND');
+interface ReceiptPlan {
+  date: string;
+  byProduct: Map<string, ReceiveLineInput>;
+  landedCosts: LandedCostLine[];
+  received: { productId: string; qty: number; isService: boolean; postedValue: number; landedShare: number }[];
+  supplierName: string;
+  vatNotRecoverable: boolean;
+  vatOnReceipt: number;
+  apAmount: number;
+  receivedSubTotal: number;
+  postingLines: PostingLine[];
+  /** ACC-0012: one open payable document per landed-cost line billed by another supplier; `lineIndex` is its `Cr payable` line in `postingLines`. */
+  otherSupplierBills: { supplierId: string; supplierName: string; label: string; amount: number; lineIndex: number }[];
+  /** Set when a short receipt asked for a backorder — already validated like any new order. */
+  backorderLines?: PurchaseLineInput[];
+}
+
+function planReceipt(po: PurchaseOrder, input: ReceivePurchaseInput): ReceiptPlan {
   if (po.status !== 'DRAFT' && po.status !== 'ORDERED') throw new ApiError('تم استلام أمر الشراء هذا بالفعل أو تم إلغاؤه');
   if (!input.lines.length) throw new ApiError('لا توجد كميات للاستلام');
 
@@ -251,50 +261,31 @@ export function receivePurchase(id: string, input: ReceivePurchaseInput, userId:
       const poLine = po.lines.find((l) => l.productId === r.productId)!;
       const product = productById(r.productId);
       const unitCost = baseUnitCost(poLine);
-      return { productId: r.productId, qty: r.receivedQty, value: round2(r.receivedQty * unitCost), isService: product.type === 'service' };
+      // Rule (ACC-0005): a non-stock line (service, or a product with stockMode 'none') is expensed to its purchase account, never debited to inventory.
+      return { productId: r.productId, qty: r.receivedQty, value: round2(r.receivedQty * unitCost), isService: product.type === 'service' || product.stockMode === 'none' };
     });
   const { shareByProduct, ownSupplierTotal, otherSupplierLines } = allocateLandedCosts({ ...po, landedCosts }, receivedValued.filter((r) => !r.isService));
+  // Rule (ACC-0012): the other supplier becomes the owner of a real payable document, so it has to exist.
+  const otherSupplierNames = otherSupplierLines.map((o) => {
+    const s = db.suppliers.find((x) => x.id === o.supplierId);
+    if (!s) throw new ApiError('مورد التكلفة الإضافية غير موجود');
+    return s.name;
+  });
 
-  const date = input.date;
   let inventoryValue = 0;
   const serviceByAccount = new Map<string, number>();
-  const receivedLineDetails: { productId: string; qty: number }[] = [];
-
-  for (const rv of receivedValued) {
-    const poLine = po.lines.find((l) => l.productId === rv.productId)!;
-    const product = productById(rv.productId);
-    if (product.type === 'service') {
+  const received = receivedValued.map((rv) => {
+    if (rv.isService) {
       const accId = purchaseLineAccountId(rv.productId);
       serviceByAccount.set(accId, round2((serviceByAccount.get(accId) ?? 0) + rv.value));
-      poLine.receivedQty = round2((poLine.receivedQty ?? 0) + rv.qty);
-      continue;
+      return { productId: rv.productId, qty: rv.qty, isService: true, postedValue: rv.value, landedShare: 0 };
     }
     const landedShare = shareByProduct.get(rv.productId) ?? 0;
     const postedValue = round2(rv.value + landedShare);
     inventoryValue += postedValue;
-    poLine.receivedQty = round2((poLine.receivedQty ?? 0) + rv.qty);
-    poLine.landedCostShare = round2((poLine.landedCostShare ?? 0) + landedShare);
-    receivedLineDetails.push({ productId: rv.productId, qty: rv.qty });
-
-    // Receipt re-averages: value += posted amount (order price + this line's landed-cost share), so
-    // stockValue stays exactly Σ posted GL amounts (review A1/A2 + E4).
-    applyStockChange(product, rv.qty, postedValue, 'purchase', po, date, po.branchId ?? DEFAULT_BRANCH_ID);
-
-    if (product.trackBatches) {
-      const requested = byProduct.get(rv.productId)?.batches?.filter((b) => b.qty > 0) ?? [];
-      const unitCostWithLanded = round2(postedValue / rv.qty);
-      if (requested.length) {
-        for (const b of requested) receiveBatch(product.id, b.qty, unitCostWithLanded, b.batchNo.trim() || `RCV-${Date.now()}`, b.expiryDate, date, po);
-      } else {
-        receiveBatch(product.id, rv.qty, unitCostWithLanded, `RCV-${po.number}`, undefined, date, po);
-      }
-    }
-  }
+    return { productId: rv.productId, qty: rv.qty, isService: false, postedValue, landedShare };
+  });
   inventoryValue = round2(inventoryValue);
-
-  const allReceived = po.lines.every((l) => lineRemaining(l) <= 0.0001);
-  mutate(() => (po.status = 'RECEIVED'));
-  mutate(() => (po.receivedDate = date));
 
   // Non-VAT supplier (review E3): input VAT isn't claimed — it's added to inventory/expense cost instead.
   const supplier = db.suppliers.find((s) => s.id === po.supplierId);
@@ -303,24 +294,120 @@ export function receivePurchase(id: string, input: ReceivePurchaseInput, userId:
   const vatOnReceipt = round2(po.taxAmount * Math.min(1, receivedRatio));
 
   // When VAT isn't recoverable, its amount is added to cost instead of claimed as vatInput — but the
-  // stock has already been moved via `applyStockChange` above at `postedValue` (order price + landed
-  // share only, no VAT top-up), so the extra can't be folded into the `inventory` GL line without
-  // also drifting `GL(inventory)` away from `Σ product.stockValue` (review A1/A2). Instead it's its
-  // own line, straight to the freightIn/COGS-adjacent role that already stands in for "cost, not a
-  // dedicated account" elsewhere in this file (`purchaseLineAccountId`'s own fallback) — never routed
-  // through `applyStockChange`, so no separate stockValue bookkeeping is needed for it.
+  // stock is moved via `applyStockChange` at `postedValue` (order price + landed share only, no VAT
+  // top-up), so the extra can't be folded into the `inventory` GL line without also drifting
+  // `GL(inventory)` away from `Σ product.stockValue` (review A1/A2). Instead it's its own line,
+  // straight to the freightIn/COGS-adjacent role that already stands in for "cost, not a dedicated
+  // account" elsewhere in this file (`purchaseLineAccountId`'s own fallback) — never routed through
+  // `applyStockChange`, so no separate stockValue bookkeeping is needed for it.
   const dim = { branchId: po.branchId ?? DEFAULT_BRANCH_ID, costCenterId: po.costCenterId };
-  const lines: PostingLine[] = [{ role: 'inventory', debit: inventoryValue, ...dim }, ...[...serviceByAccount.entries()].map(([accountId, amount]) => ({ accountId, debit: amount, ...dim }))];
+  const postingLines: PostingLine[] = [{ role: 'inventory', debit: inventoryValue, ...dim }, ...[...serviceByAccount.entries()].map(([accountId, amount]) => ({ accountId, debit: amount, ...dim }))];
   if (vatNotRecoverable) {
-    if (vatOnReceipt > 0) lines.push({ role: 'freightIn', debit: vatOnReceipt, description: 'ضريبة مدخلات غير مستردة (مورد بدون رقم ضريبي) — أُضيفت إلى التكلفة', ...dim });
+    if (vatOnReceipt > 0) postingLines.push({ role: 'freightIn', debit: vatOnReceipt, description: 'ضريبة مدخلات غير مستردة (مورد بدون رقم ضريبي) — أُضيفت إلى التكلفة', ...dim });
   } else {
-    lines.push({ role: 'vatInput', debit: vatOnReceipt, ...dim });
+    postingLines.push({ role: 'vatInput', debit: vatOnReceipt, ...dim });
   }
   const apAmount = round2(sum(receivedValued, (r) => r.value) + vatOnReceipt + ownSupplierTotal);
-  lines.push({ role: 'payable', credit: apAmount, partyKind: 'supplier' as const, partyId: po.supplierId, ...dim });
-  for (const other of otherSupplierLines) {
-    lines.push({ role: 'payable', credit: other.amount, partyKind: 'supplier' as const, partyId: other.supplierId, ...dim });
+  postingLines.push({ role: 'payable', credit: apAmount, partyKind: 'supplier' as const, partyId: po.supplierId, ...dim });
+  const otherSupplierBills = otherSupplierLines.map((other, i) => {
+    const lineIndex = postingLines.length;
+    postingLines.push({ role: 'payable', credit: other.amount, partyKind: 'supplier' as const, partyId: other.supplierId, ...dim });
+    return { ...other, supplierName: otherSupplierNames[i], lineIndex };
+  });
+  preflightJournal({ date: input.date, lines: postingLines });
+
+  // The short-delivery backorder ("إنشاء أمر متبقٍ") is validated here like any new order, so a
+  // refused backorder refuses the whole receipt instead of leaving it posted without one.
+  const addedByLine = new Map<PurchaseLine, number>();
+  for (const r of received) addedByLine.set(po.lines.find((l) => l.productId === r.productId)!, r.qty);
+  const remainingAfter = (l: PurchaseLine) => {
+    const added = addedByLine.get(l);
+    return added === undefined ? lineRemaining(l) : round2(baseQty(l) - round2((l.receivedQty ?? 0) + added));
+  };
+  const allReceived = po.lines.every((l) => remainingAfter(l) <= 0.0001);
+  let backorderLines: PurchaseLineInput[] | undefined;
+  if (input.createBackorder && !allReceived) {
+    const shortLines = po.lines
+      .filter((l) => remainingAfter(l) > 0.0001)
+      .map((l) => ({ productId: l.productId, qty: round2(remainingAfter(l) / (l.unitFactor ?? 1)), costPrice: l.costPrice, unitId: l.unitId, unitFactor: l.unitFactor, taxId: l.taxId }));
+    if (shortLines.length) {
+      validateLines({ supplierId: po.supplierId, lines: shortLines });
+      backorderLines = shortLines;
+    }
   }
+
+  return {
+    date: input.date,
+    byProduct,
+    landedCosts,
+    received,
+    supplierName: supplier?.name ?? '',
+    vatNotRecoverable,
+    vatOnReceipt,
+    apAmount,
+    receivedSubTotal: round2(sum(receivedValued, (r) => r.value)),
+    postingLines,
+    otherSupplierBills,
+    backorderLines,
+  };
+}
+
+/**
+ * Rule (ACC-0012): a landed-cost line billed by ANOTHER supplier (a shipper, a customs broker) is
+ * that supplier's own bill — a RECEIVED purchase order with no stock lines whose total is the
+ * landed amount — so the shipper's `Cr payable` has an open document behind it (open documents,
+ * payment allocation, `supplier-allocation`). Its cost is already inside the receipt's inventory
+ * posting; this document carries only the liability, and its GL line stays in the receipt's entry.
+ */
+function newOtherSupplierBill(po: PurchaseOrder, bill: ReceiptPlan['otherSupplierBills'][number], date: string): PurchaseOrder {
+  const branchId = po.branchId ?? DEFAULT_BRANCH_ID;
+  return {
+    id: uid('po'),
+    number: `${branchPrefix(branchId)}${nextNumber('purchaseOrder')}`,
+    supplierId: bill.supplierId,
+    date,
+    status: 'RECEIVED',
+    lines: [],
+    subTotal: bill.amount,
+    taxRate: 0,
+    taxAmount: 0,
+    grandTotal: bill.amount,
+    paymentStatus: 'UNPAID',
+    paidAmount: 0,
+    returnedAmount: 0,
+    note: `تكلفة إضافية "${bill.label}" على أمر الشراء ${po.number}`,
+    receivedDate: date,
+    costCenterId: po.costCenterId,
+    branchId,
+  };
+}
+
+function applyReceipt(po: PurchaseOrder, plan: ReceiptPlan, input: ReceivePurchaseInput, userId: string): PurchaseOrder {
+  const { date } = plan;
+  for (const r of plan.received) {
+    const poLine = po.lines.find((l) => l.productId === r.productId)!;
+    const product = productById(r.productId);
+    poLine.receivedQty = round2((poLine.receivedQty ?? 0) + r.qty);
+    if (r.isService) continue;
+    poLine.landedCostShare = round2((poLine.landedCostShare ?? 0) + r.landedShare);
+
+    // Receipt re-averages: value += posted amount (order price + this line's landed-cost share), so
+    // stockValue stays exactly Σ posted GL amounts (review A1/A2 + E4).
+    applyStockChange(product, r.qty, r.postedValue, 'purchase', po, date, po.branchId ?? DEFAULT_BRANCH_ID);
+
+    if (product.trackBatches) {
+      const requested = plan.byProduct.get(r.productId)?.batches?.filter((b) => b.qty > 0) ?? [];
+      const unitCostWithLanded = round2(r.postedValue / r.qty);
+      if (requested.length) {
+        for (const b of requested) receiveBatch(product.id, b.qty, unitCostWithLanded, b.batchNo.trim() || `RCV-${Date.now()}`, b.expiryDate, date, po);
+      } else {
+        receiveBatch(product.id, r.qty, unitCostWithLanded, `RCV-${po.number}`, undefined, date, po);
+      }
+    }
+  }
+
+  mutate(() => (po.status = 'RECEIVED'));
+  mutate(() => (po.receivedDate = date));
 
   // A PO's totals describe exactly what's billed against it — i.e. what's posted to AP (the
   // `purchaseOutstanding`/supplier-balance invariant depends on this exactly). A short delivery
@@ -328,15 +415,22 @@ export function receivePurchase(id: string, input: ReceivePurchaseInput, userId:
   // unreceived remainder becomes its own fresh DRAFT (below) with its own totals — never double-
   // counted, and one posting per document is preserved either way (short with no backorder simply
   // closes this PO out at less than originally ordered, same as a supplier under-shipping for good).
-  const receivedSubTotal = round2(sum(receivedValued, (r) => r.value));
   mutate(() => {
-    po.subTotal = receivedSubTotal;
-    po.taxAmount = vatOnReceipt;
-    po.grandTotal = apAmount;
-    po.vatNotRecoverable = vatNotRecoverable;
+    po.subTotal = plan.receivedSubTotal;
+    po.taxAmount = plan.vatOnReceipt;
+    po.grandTotal = plan.apAmount;
+    po.vatNotRecoverable = plan.vatNotRecoverable;
     if (input.supplierInvoiceNo !== undefined) po.supplierInvoiceNo = input.supplierInvoiceNo;
     if (input.supplierInvoiceDate !== undefined) po.supplierInvoiceDate = input.supplierInvoiceDate;
-    if (landedCosts.length && !po.landedCosts?.length) po.landedCosts = landedCosts;
+    if (plan.landedCosts.length && !po.landedCosts?.length) po.landedCosts = plan.landedCosts;
+  });
+
+  // ACC-0012: each other-supplier landed cost gets its own payable document; its number is drawn
+  // before the journal's (the Rust port's fixed counter order) and named on its `Cr payable` line.
+  const bills = plan.otherSupplierBills.map((b) => ({ ...b, doc: newOtherSupplierBill(po, b, date) }));
+  const postingLines = plan.postingLines.map((l, i) => {
+    const bill = bills.find((b) => b.lineIndex === i);
+    return bill ? { ...l, description: `تكلفة إضافية "${bill.label}" — ${bill.doc.number}` } : l;
   });
 
   postJournal({
@@ -344,28 +438,46 @@ export function receivePurchase(id: string, input: ReceivePurchaseInput, userId:
     description: `استلام أمر شراء ${po.number}`,
     type: 'SYSTEM',
     sourceRef: { kind: 'purchaseOrder', id: po.id, number: po.number },
-    lines,
+    lines: postingLines,
     createdBy: userId,
   });
 
-  logActivity('purchase', `استلام أمر الشراء ${po.number} من ${supplier?.name ?? ''} بقيمة ${apAmount.toFixed(2)}`, userId, date, { name: 'purchase', params: { id: po.id } });
+  logActivity('purchase', `استلام أمر الشراء ${po.number} من ${plan.supplierName} بقيمة ${plan.apAmount.toFixed(2)}`, userId, date, { name: 'purchase', params: { id: po.id } });
+  for (const bill of bills) {
+    mutate(() => db.purchaseOrders.push(bill.doc));
+    logActivity('purchase', `مستحق ${bill.doc.number} لـ ${bill.supplierName} بقيمة ${bill.amount.toFixed(2)} — تكلفة إضافية على أمر الشراء ${po.number}`, userId, date, {
+      name: 'purchase',
+      params: { id: bill.doc.id },
+    });
+  }
   emit('parties:changed');
 
   // v2 §1 "short delivery → إنشاء أمر متبقٍ" — a DRAFT backorder PO for exactly the shortfall,
   // linked back via `backorderOfId`. One posting per document is preserved: the backorder is its
   // own fresh DRAFT, received separately later.
-  if (input.createBackorder && !allReceived) {
-    const shortLines = po.lines
-      .filter((l) => lineRemaining(l) > 0.0001)
-      .map((l) => ({ productId: l.productId, qty: round2(lineRemaining(l) / (l.unitFactor ?? 1)), costPrice: l.costPrice, unitId: l.unitId, unitFactor: l.unitFactor, taxId: l.taxId }));
-    if (shortLines.length) {
-      const backorder = savePurchase({ supplierId: po.supplierId, date, note: `أمر متبقٍ من ${po.number}`, confirm: false, lines: shortLines }, userId);
-      mutate(() => (backorder.backorderOfId = po.id));
-      logActivity('purchase', `إنشاء أمر متبقٍ ${backorder.number} من ${po.number}`, userId, date, { name: 'purchase', params: { id: backorder.id } });
-    }
+  if (plan.backorderLines) {
+    const backorder = savePurchase({ supplierId: po.supplierId, date, note: `أمر متبقٍ من ${po.number}`, confirm: false, lines: plan.backorderLines }, userId);
+    mutate(() => (backorder.backorderOfId = po.id));
+    logActivity('purchase', `إنشاء أمر متبقٍ ${backorder.number} من ${po.number}`, userId, date, { name: 'purchase', params: { id: backorder.id } });
   }
 
   return po;
+}
+
+/**
+ * v2 §2 receiving flow (docs/v2/09-purchases-payments-expenses.md §1-§2): "Confirm receipt" posts
+ * stock + AP at the ORDER prices (never the storekeeper's own guess). One posting per document —
+ * a PO can only be received once (short delivery uses "إنشاء أمر متبقٍ" for the difference instead
+ * of a second receipt on the same document). Landed costs (own-supplier AP add-on + other-supplier
+ * AP lines) are folded into this same posting; each stock line's unit cost includes its landed-cost
+ * share (review E4), so `applyStockChange`'s `valueChange` — and therefore `GL(inventory)` — already
+ * reflects it exactly.
+ */
+export function receivePurchase(id: string, input: ReceivePurchaseInput, userId: string): PurchaseOrder {
+  const po = db.purchaseOrders.find((p) => p.id === id);
+  if (!po) throw new ApiError('أمر الشراء غير موجود', 'NOT_FOUND');
+  const plan = planReceipt(po, input);
+  return applyReceipt(po, plan, input, userId);
 }
 
 /** Legacy alias — the v1 "confirm" name, now meaning "receive everything ordered, at order prices, today". Kept for callers (seed history, tests) that post a PO in one step. */
@@ -422,6 +534,67 @@ export function recordPurchaseReturn(input: PurchaseReturnInput, userId: string,
   // E1: refund method defaults to staying on the supplier's account (credit) — never hard-coded to cash.
   const refundMethod = input.refundMethod ?? 'credit';
 
+  // A1/A2: value −= qty × purchase price. If that would leave a negative value, or a non-zero
+  // value with zero quantity, the difference goes to inventoryVariance (5110) instead of silently
+  // drifting the GL away from Σ product.stockValue. Planned against a running per-product
+  // qty/value (what each line would see after the earlier lines moved) so nothing is written until
+  // the posting below is known to go through (ACC-0013).
+  let inventoryValue = 0;
+  let variance = 0;
+  const serviceByAccount = new Map<string, number>();
+  const running = new Map<string, { qty: number; value: number }>();
+  const stockMoves: { line: DebitNoteLine; valueOut: number }[] = [];
+  for (const line of lines) {
+    const product = productById(line.productId);
+    if (product.type === 'service') {
+      const accId = purchaseLineAccountId(line.productId);
+      const amount = round2(line.qty * line.costPrice);
+      serviceByAccount.set(accId, round2((serviceByAccount.get(accId) ?? 0) + amount));
+      continue;
+    }
+    const onHand = running.get(product.id) ?? { qty: product.stockQty, value: product.stockValue };
+    const atPurchasePrice = round2(line.qty * line.costPrice);
+    const newQty = round2(onHand.qty - line.qty);
+    const newValue = round2(onHand.value - atPurchasePrice);
+    let valueOut = atPurchasePrice;
+    if (newValue < 0 || (newQty <= 0.0001 && Math.abs(newValue) > 0.001)) {
+      // Guard: don't let the line's own posted value push stockValue negative / leave a stray
+      // balance at zero qty — take exactly what's there and book the rest as variance.
+      valueOut = onHand.value;
+      variance = round2(variance + (atPurchasePrice - valueOut));
+    }
+    inventoryValue += valueOut;
+    // `applyStockChange` leaves a non-stock (stockMode 'none') product untouched — so does the plan.
+    if (product.stockMode !== 'none') running.set(product.id, { qty: round2(onHand.qty - line.qty), value: round2(onHand.value - valueOut) });
+    stockMoves.push({ line, valueOut });
+  }
+  inventoryValue = round2(inventoryValue);
+
+  const retDim = { branchId: po.branchId ?? DEFAULT_BRANCH_ID, costCenterId: po.costCenterId };
+  const postingLines: PostingLine[] = [
+    { role: 'payable', debit: settledToPayable, partyKind: 'supplier', partyId: po.supplierId, ...retDim },
+    { accountId: settlementAccountFor(refundMethod).id, debit: refundMethod === 'credit' ? 0 : cashBack, ...retDim },
+    { role: 'payable', debit: refundMethod === 'credit' ? cashBack : 0, partyKind: 'supplier', partyId: po.supplierId, ...retDim },
+    { role: 'inventory', credit: inventoryValue, ...retDim },
+    ...[...serviceByAccount.entries()].map(([accountId, amount]) => ({ accountId, credit: amount, ...retDim })),
+  ];
+  // E3: a non-VAT supplier's receipt never debited vatInput (the VAT was added to cost instead), so
+  // the debit note must not credit vatInput either — it credits the same freightIn "cost, not a
+  // dedicated account" line the receipt used, matching what was actually debited there.
+  if (po.vatNotRecoverable) {
+    if (totals.taxAmount > 0) postingLines.push({ role: 'freightIn', credit: totals.taxAmount });
+  } else {
+    postingLines.push({ role: 'vatInput', credit: totals.taxAmount });
+  }
+  // Rule (ACC-0011): the supplier's side is always qty × purchase price (Dr payable/refund); the
+  // inventory side is what's actually on the books (`valueOut`). A positive variance means the
+  // supplier owes back MORE than the stock removed was carried at, so the difference is a CREDIT
+  // to inventoryVariance (a gain); a negative one (more value on the books than the price) is a
+  // DEBIT (a loss). Either way the entry balances by construction.
+  if (variance > 0) postingLines.push({ role: 'inventoryVariance', credit: variance });
+  else if (variance < 0) postingLines.push({ role: 'inventoryVariance', debit: -variance });
+  preflightJournal({ date, lines: postingLines });
+
   const ret: PurchaseReturn = {
     id: uid('pr'),
     number: nextNumber('purchaseReturn'),
@@ -442,31 +615,8 @@ export function recordPurchaseReturn(input: PurchaseReturnInput, userId: string,
     po.paymentStatus = paymentStatusFor(po.grandTotal - po.returnedAmount, po.paidAmount);
   });
 
-  // A1/A2: value −= qty × purchase price. If that would leave a negative value, or a non-zero
-  // value with zero quantity, the difference goes to inventoryVariance (5110) instead of silently
-  // drifting the GL away from Σ product.stockValue.
-  let inventoryValue = 0;
-  let variance = 0;
-  const serviceByAccount = new Map<string, number>();
-  for (const line of lines) {
+  for (const { line, valueOut } of stockMoves) {
     const product = productById(line.productId);
-    if (product.type === 'service') {
-      const accId = purchaseLineAccountId(line.productId);
-      const amount = round2(line.qty * line.costPrice);
-      serviceByAccount.set(accId, round2((serviceByAccount.get(accId) ?? 0) + amount));
-      continue;
-    }
-    const atPurchasePrice = round2(line.qty * line.costPrice);
-    const newQty = round2(product.stockQty - line.qty);
-    const newValue = round2(product.stockValue - atPurchasePrice);
-    let valueOut = atPurchasePrice;
-    if (newValue < 0 || (newQty <= 0.0001 && Math.abs(newValue) > 0.001)) {
-      // Guard: don't let the line's own posted value push stockValue negative / leave a stray
-      // balance at zero qty — take exactly what's there and book the rest as variance.
-      valueOut = product.stockValue;
-      variance = round2(variance + (atPurchasePrice - valueOut));
-    }
-    inventoryValue += valueOut;
     applyStockChange(product, -line.qty, -valueOut, 'purchase_return', ret, date, po.branchId ?? DEFAULT_BRANCH_ID);
 
     // v2 §4 batch picking: draw the returned qty from the chosen batch (or FEFO-oldest if unspecified).
@@ -485,26 +635,6 @@ export function recordPurchaseReturn(input: PurchaseReturnInput, userId: string,
       }
     }
   }
-  inventoryValue = round2(inventoryValue);
-
-  const retDim = { branchId: po.branchId ?? DEFAULT_BRANCH_ID, costCenterId: po.costCenterId };
-  const postingLines: PostingLine[] = [
-    { role: 'payable', debit: settledToPayable, partyKind: 'supplier', partyId: po.supplierId, ...retDim },
-    { accountId: settlementAccountFor(refundMethod).id, debit: refundMethod === 'credit' ? 0 : cashBack, ...retDim },
-    { role: 'payable', debit: refundMethod === 'credit' ? cashBack : 0, partyKind: 'supplier', partyId: po.supplierId, ...retDim },
-    { role: 'inventory', credit: inventoryValue, ...retDim },
-    ...[...serviceByAccount.entries()].map(([accountId, amount]) => ({ accountId, credit: amount, ...retDim })),
-  ];
-  // E3: a non-VAT supplier's receipt never debited vatInput (the VAT was added to cost instead), so
-  // the debit note must not credit vatInput either — it credits the same freightIn "cost, not a
-  // dedicated account" line the receipt used, matching what was actually debited there.
-  if (po.vatNotRecoverable) {
-    if (totals.taxAmount > 0) postingLines.push({ role: 'freightIn', credit: totals.taxAmount });
-  } else {
-    postingLines.push({ role: 'vatInput', credit: totals.taxAmount });
-  }
-  if (variance > 0) postingLines.push({ role: 'inventoryVariance', debit: variance });
-  else if (variance < 0) postingLines.push({ role: 'inventoryVariance', credit: -variance });
 
   postJournal({
     date,

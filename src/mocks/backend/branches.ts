@@ -60,7 +60,12 @@ function nextCashCode(): string {
 /** Creates the branch's own cash-drawer account: "111x الصندوق — <branch>" (docs/v2/10 §1), via the same role/shape the seeded main cash account uses. */
 function createBranchCashAccount(branch: Branch): Account {
   const account: Account = {
-    id: uid('acc'),
+    // `uid('acc')`'s bare counter ('acc-1', 'acc-2', …) collides with the chart-of-accounts fixture's
+    // own ids (`acc-<code>`, e.g. `acc-1`/`acc-2` for the root "1" الأصول / "2" الالتزامات groups —
+    // src/mocks/fixtures/accounts.ts `buildAccounts`), since this was the only `uid('acc')` call site
+    // before manual CoA creation. A distinct prefix keeps every branch cash account's id out of that
+    // namespace no matter how many root/group codes exist.
+    id: uid('bacc'),
     code: nextCashCode(),
     name: `الصندوق — ${branch.name}`,
     parentId: cashParentId(),

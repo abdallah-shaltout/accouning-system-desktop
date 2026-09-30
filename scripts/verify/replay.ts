@@ -29,7 +29,10 @@
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { db } from '../../src/mocks/db';
+import { createPinia, setActivePinia } from 'pinia';
+import { db, session } from '../../src/mocks/db';
+import { bumpIdCounter, resetIdCounters } from '../../src/mocks/utils';
+import { useAuthStore } from '../../src/modules/users/controllers/useAuthStore';
 import { runAllInvariants } from '../../src/mocks/backend/invariants';
 import { serviceRegistry } from '../../src/modules/diagnostics/services/defineService';
 import type { ActionJournalEntry, ReproBundle } from '../../src/modules/diagnostics/services/actionJournal';
@@ -57,6 +60,49 @@ async function importAllServices(): Promise<void> {
 function restoreSnapshot(snapshot: unknown): void {
   if (!snapshot || typeof snapshot !== 'object') throw new Error('bundle.startSnapshot is missing or not an object');
   Object.assign(db, snapshot);
+  resyncIdCounters(snapshot);
+}
+
+/**
+ * `uid()`'s counters are module state, not part of the snapshot. The app resyncs them when it loads
+ * a snapshot (`persist.ts`), so a recorded bundle's new records got fresh ids; replay must do the
+ * same, or the first `uid('pay')` after restoring a snapshot that already holds `pay-1` hands out
+ * `pay-1` again (and every case in one `verify:replay` run inherits the previous case's counters).
+ * Same walk as `persist.ts`'s `resyncIdCounters` / `scripts/parity/pass.ts`.
+ */
+function resyncIdCounters(data: unknown): void {
+  resetIdCounters();
+  const idPattern = /^([a-z]+)-(\d+)$/;
+  const visited = new Set<unknown>();
+  const walk = (value: unknown): void => {
+    if (!value || typeof value !== 'object' || visited.has(value)) return;
+    visited.add(value);
+    if (Array.isArray(value)) {
+      for (const item of value) walk(item);
+      return;
+    }
+    const id = (value as { id?: unknown }).id;
+    if (typeof id === 'string') {
+      const m = idPattern.exec(id);
+      if (m) bumpIdCounter(m[1], Number(m[2]));
+    }
+    for (const key of Object.keys(value)) walk((value as Record<string, unknown>)[key]);
+  };
+  walk(data);
+}
+
+/**
+ * Services read the signed-in user from the Pinia auth store (e.g. `reopenYear`'s admin gate,
+ * `canPostToClosedPeriod`) and the mock backend from `session.userId`. Headless there is no app,
+ * so give replay a fresh Pinia and sign in as the snapshot's first active admin — the role every
+ * bundle is recorded under (`/dev/diagnostics` is an admin/dev tool). A bundle whose snapshot has
+ * no admin replays signed-out, as before.
+ */
+function restoreSession(): void {
+  setActivePinia(createPinia());
+  const admin = db.users.find((u) => u.role === 'admin' && u.active);
+  session.userId = admin?.id ?? '';
+  useAuthStore().$patch({ user: admin ? { ...admin } : null });
 }
 
 interface StepResult {
@@ -72,6 +118,7 @@ interface StepResult {
 
 async function replayBundle(bundle: ReproBundle): Promise<{ steps: StepResult[]; firstBreak?: StepResult }> {
   restoreSnapshot(bundle.startSnapshot);
+  restoreSession();
   const registry = serviceRegistry();
   const steps: StepResult[] = [];
   let firstBreak: StepResult | undefined;

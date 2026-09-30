@@ -92,6 +92,15 @@ export function bumpIdCounter(prefix: string, atLeast: number): void {
   if ((idCounters[prefix] ?? 0) < atLeast) idCounters[prefix] = atLeast;
 }
 
+/**
+ * Parity harness only (plan 21 Part 04, B-8): forgets every `uid()` counter so that restoring the
+ * same base snapshot (then resyncing with `bumpIdCounter`) hands out the same new ids on every run
+ * of a case — `bun run parity --mock-only`'s determinism check needs that. Never called by the app.
+ */
+export function resetIdCounters(): void {
+  for (const prefix of Object.keys(idCounters)) delete idCounters[prefix];
+}
+
 export function padNumber(n: number, width = 6): string {
   return String(n).padStart(width, '0');
 }

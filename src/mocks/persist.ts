@@ -6,13 +6,23 @@
  * Boot sequence (see `bootMockDb()` below, called once from `main.ts`):
  *   - snapshot found  -> load it (through `migrations` if its stored version is older than current)
  *   - no snapshot     -> leave `db` empty; the welcome screen decides (demo seed / empty company)
+ *
+ * Rust mode (plan 21 Part 04, E-3, P4-9 — `usesRustEverywhere()`): the snapshot is no longer the
+ * app's data, it is the user's **legacy** data waiting for its one-time import. `main.ts` skips
+ * `bootMockDb()`, `mutate()`/`flushSnapshot()` never write it and `clearSnapshot()` refuses, so the
+ * app can neither overwrite nor delete it. `readPersistedSnapshot()` still reads it for the importer,
+ * and the import marker (`LEGACY_IMPORT_MARKER_KEY`) is a separate record in the same store.
  */
+import { usesRustEverywhere } from '@/modules/core/services/backend';
 import { db, type MockDb } from './db';
-import { bumpIdCounter, clone } from './utils';
+import { ApiError, bumpIdCounter, clone } from './utils';
 
 const DB_NAME = 'mock-db';
 const STORE_NAME = 'snapshot';
 const SNAPSHOT_KEY = 'current';
+/** P4-9 / E-4: the "legacy data already imported" marker — its own key next to `current`, which it
+ * never touches (the app never deletes the legacy snapshot). */
+const LEGACY_IMPORT_MARKER_KEY = 'legacyImportedAt';
 
 /** Bump this whenever `MockDb`'s shape changes in a way old snapshots can't be loaded as-is. */
 export const SCHEMA_VERSION = 1;
@@ -58,7 +68,7 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-async function idbGet(key: string): Promise<Snapshot | undefined> {
+async function idbGet<T>(key: string): Promise<T | undefined> {
   const conn = await openDb();
   return new Promise((resolve, reject) => {
     const tx = conn.transaction(STORE_NAME, 'readonly');
@@ -69,7 +79,7 @@ async function idbGet(key: string): Promise<Snapshot | undefined> {
   });
 }
 
-async function idbSet(key: string, value: Snapshot): Promise<void> {
+async function idbSet(key: string, value: unknown): Promise<void> {
   const conn = await openDb();
   return new Promise((resolve, reject) => {
     const tx = conn.transaction(STORE_NAME, 'readwrite');
@@ -103,6 +113,13 @@ let saving: Promise<void> | null = null;
 let pendingSaveResolvers: (() => void)[] = [];
 
 function writeSnapshotNow(): Promise<void> {
+  // E-3: in Rust mode the stored snapshot is the user's legacy data (P4-9) — never overwrite it.
+  if (usesRustEverywhere()) {
+    const resolvers = pendingSaveResolvers;
+    pendingSaveResolvers = [];
+    resolvers.forEach((r) => r());
+    return Promise.resolve();
+  }
   const snapshot: Snapshot = { version: SCHEMA_VERSION, savedAt: new Date().toISOString(), data: clone(db) };
   saving = idbSet(SNAPSHOT_KEY, snapshot)
     .catch((err) => {
@@ -144,10 +161,12 @@ export function flushSnapshot(): Promise<void> {
 /**
  * Thin wrapper services use around writes: runs `fn`, then schedules a debounced snapshot.
  * `fn` runs synchronously (the mock backend is all synchronous), so this returns its result.
+ * In Rust mode (E-3) nothing is scheduled: the in-memory `db` is not the app's data there, and
+ * writing it would overwrite the legacy snapshot before it is imported.
  */
 export function mutate<T>(fn: () => T): T {
   const result = fn();
-  scheduleSnapshot();
+  if (!usesRustEverywhere()) scheduleSnapshot();
   return result;
 }
 
@@ -159,7 +178,7 @@ export function mutate<T>(fn: () => T): T {
  */
 export async function loadSnapshot(): Promise<boolean> {
   try {
-    const snapshot = await idbGet(SNAPSHOT_KEY);
+    const snapshot = await idbGet<Snapshot>(SNAPSHOT_KEY);
     if (!snapshot) return false;
     const data = snapshot.version < SCHEMA_VERSION ? runMigrations(snapshot.data, snapshot.version) : snapshot.data;
     Object.assign(db, clone(data));
@@ -190,10 +209,15 @@ function resyncIdCounters(data: MockDb): void {
       for (const item of value) walk(item);
       return;
     }
-    const id = (value as { id?: unknown }).id;
-    if (typeof id === 'string') {
-      const match = idPattern.exec(id);
-      if (match) bumpIdCounter(match[1], Number(match[2]));
+    // `entityId` too: an audit row whose link names no entity gets a placeholder `uid('unk')`
+    // (`core.ts` `entityFromLink`) that exists only there — without it the counter restarted at
+    // `unk-1` after a reload and re-issued placeholders already used by older rows (Part 04 Wave 2).
+    for (const field of ['id', 'entityId'] as const) {
+      const id = (value as Record<string, unknown>)[field];
+      if (typeof id === 'string') {
+        const match = idPattern.exec(id);
+        if (match) bumpIdCounter(match[1], Number(match[2]));
+      }
     }
     for (const key of Object.keys(value)) walk((value as Record<string, unknown>)[key]);
   }
@@ -208,11 +232,34 @@ function resyncIdCounters(data: MockDb): void {
  * private IndexedDB plumbing (`idbGet`/`SNAPSHOT_KEY`) itself.
  */
 export async function readPersistedSnapshot(): Promise<Snapshot | undefined> {
-  return idbGet(SNAPSHOT_KEY);
+  return idbGet<Snapshot>(SNAPSHOT_KEY);
 }
 
-/** Dev-menu "reset data": clears the persisted snapshot. Caller is responsible for reloading the app. */
+/** The P4-9 import marker's stored shape. */
+export interface LegacyImportMarker {
+  importedAt: string;
+}
+
+/** E-4 (P4-9): when this PC's legacy snapshot was imported into the real database, or `undefined`
+ * if it never was. Read by `setup/services/legacyImportService.ts` to hide the import card. */
+export async function readLegacyImportMarker(): Promise<LegacyImportMarker | undefined> {
+  return idbGet<LegacyImportMarker>(LEGACY_IMPORT_MARKER_KEY);
+}
+
+/** E-4 (P4-9): records a successful legacy import under its own key. Never touches `current`: the
+ * legacy snapshot stays on this PC, untouched, after the import. */
+export async function writeLegacyImportMarker(importedAt: string): Promise<void> {
+  const marker: LegacyImportMarker = { importedAt };
+  await idbSet(LEGACY_IMPORT_MARKER_KEY, marker);
+}
+
+/** Dev-menu "reset data": clears the persisted snapshot. Caller is responsible for reloading the app.
+ * Refuses in Rust mode (E-3): there the snapshot is legacy data that may not be imported yet, and
+ * deleting it would lose it for good (zero data loss, P4-9). */
 export async function clearSnapshot(): Promise<void> {
+  if (usesRustEverywhere()) {
+    throw new ApiError('إعادة التعيين غير متاحة مع قاعدة البيانات الحقيقية — بيانات الإصدار السابق على هذا الجهاز لا تُحذف', 'FORBIDDEN');
+  }
   if (debounceTimer) {
     clearTimeout(debounceTimer);
     debounceTimer = null;

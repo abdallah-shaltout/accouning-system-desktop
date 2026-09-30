@@ -215,7 +215,7 @@ function postAdjustment(adj: StockAdjustment, userId: string) {
  * approvals inbox — that's Phase 13b). Stocktake lines are approved as a whole through its own
  * review-screen flow (`applyStockCount`), so this guard only applies to STOCK_IN/LOSS.
  */
-function assertApproval(input: StockAdjustmentInput, lines: StockAdjustmentLine[]): void {
+function assertApproval(input: Pick<StockAdjustmentInput, 'type' | 'approvedBy'>, lines: StockAdjustmentLine[]): void {
   if (input.type === 'STOCKTAKE') return;
   const threshold = db.settings.inventoryApprovalThreshold;
   if (!threshold || threshold <= 0) return;
@@ -256,12 +256,12 @@ export function recordStockAdjustment(input: StockAdjustmentInput, userId: strin
  * drafts don't have this concern (their qty is a direct movement, not a count), but still honor
  * whatever `systemQty` was captured at creation for the same reason.
  */
-export function completeStockAdjustment(id: string, userId: string): StockAdjustment {
+export function completeStockAdjustment(id: string, userId: string, approvedBy?: string): StockAdjustment {
   const adj = db.stockAdjustments.find((a) => a.id === id);
   if (!adj) throw new ApiError('التسوية غير موجودة', 'NOT_FOUND');
   if (adj.status !== 'DRAFT') throw new ApiError('التسوية مكتملة بالفعل');
   const snapshot = new Map(adj.lines.map((l) => [l.productId, l.systemQty ?? 0]));
-  adj.lines = buildLines(
+  const lines = buildLines(
     {
       type: adj.type,
       date: adj.date,
@@ -271,9 +271,16 @@ export function completeStockAdjustment(id: string, userId: string): StockAdjust
     },
     snapshot,
   );
+  // Rule (ACC-0006): completing a draft posts it, so it passes the same approval threshold / manager-PIN check as a direct adjustment.
+  assertApproval({ type: adj.type, approvedBy }, lines);
   mutate(() => {
+    adj.lines = lines;
     adj.date = new Date().toISOString();
     adj.status = 'COMPLETED';
+    if (approvedBy) {
+      adj.approvedBy = approvedBy;
+      adj.approvedAt = new Date().toISOString();
+    }
   });
   postAdjustment(adj, userId);
   logActivity('stock', `اعتماد ${TYPE_LABEL[adj.type]} ${adj.number}`, userId, adj.date, { name: 'adjustment', params: { id: adj.id } });

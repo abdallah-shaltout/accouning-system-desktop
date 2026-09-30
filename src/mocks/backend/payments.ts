@@ -5,9 +5,10 @@ import { emit } from '../events';
 import { mutate } from '../persist';
 import { ApiError, round2, sum, uid } from '../utils';
 import { settlementAccountFor } from './accounts';
-import { DEFAULT_BRANCH_ID, logActivity, postJournal, type PostingLine } from './core';
+import { DEFAULT_BRANCH_ID, logActivity, postJournal, preflightJournal, type PostingLine } from './core';
 import { purchaseOutstanding } from './purchases';
 import { isBaseCurrency } from './currency';
+import { refundCreditedBase } from './sales';
 
 /**
  * Payments with allocation (docs/v2/02-accounting-review.md C1, docs/v2/09-purchases-payments-
@@ -96,13 +97,26 @@ export function unallocatedAmount(payment: Payment): number {
   return Math.max(0, round2(payment.amount - cashConsumed));
 }
 
-/** Σ unallocated credit across every RECEIVED/PAID payment for a party — shown on the party page. */
+/**
+ * Σ unallocated credit on a party — shown on the party page. Every RECEIVED/PAID payment's
+ * unallocated money, plus (customers, ACC-0010) every refund kept as customer credit
+ * (`refund.creditedToAccount`): docs/v2/02-accounting-review.md D4 "keep as customer credit (an
+ * unallocated credit on the party)" — `recordRefund` posts it as a credit to the customer's
+ * receivable, so it is the same kind of balance as an overpayment. In base currency: an FC
+ * invoice's credit at the invoice's own rate, the rate `recordRefund` posts it at.
+ */
 export function unallocatedCreditFor(targetType: 'customer' | 'supplier', targetId: string): number {
   const type = targetType === 'customer' ? 'RECEIVED' : 'PAID';
-  return sum(
+  const fromPayments = sum(
     db.payments.filter((p) => p.type === type && p.targetType === targetType && p.targetId === targetId),
     unallocatedAmount,
   );
+  if (targetType !== 'customer') return fromPayments;
+  const fromRefunds = sum(
+    db.refunds.filter((r) => (r.creditedToAccount ?? 0) > 0 && db.invoices.find((i) => i.id === r.invoiceId)?.customerId === targetId),
+    refundCreditedBase,
+  );
+  return round2(fromPayments + fromRefunds);
 }
 
 function applyAllocationToDocument(alloc: PaymentAllocation, sign: 1 | -1, date: string): void {
@@ -169,7 +183,9 @@ function validateAllocations(payment: Payment, inputs: PaymentAllocationInput[])
       if (fcSettled > doc.fcOutstanding + 0.005) throw new ApiError(`الكمية المخصصة لـ ${doc.number} أكبر من المتبقي عليه (${doc.fcOutstanding.toFixed(2)} ${doc.currency})`);
       const arAmount = round2(fcSettled * doc.rate); // posts against AR/AP at the DOCUMENT's rate
       if (arAmount > doc.outstanding + 0.01) throw new ApiError(`المبلغ المخصص لـ ${doc.number} أكبر من المتبقي عليه (${doc.outstanding.toFixed(2)})`);
-      const fxGainLoss = round2(cashAmount - arAmount); // + = gain (cash side stronger than the invoice's rate)
+      // + = gain. RECEIVED: more base cash came in than the receivable carried. PAID (ACC-0015):
+      // less base cash went out than the payable carried — so the sign flips for a supplier payment.
+      const fxGainLoss = payment.type === 'RECEIVED' ? round2(cashAmount - arAmount) : round2(arAmount - cashAmount);
       remaining = round2(remaining - cashAmount);
       rows.push({
         id: uid('alloc'),
@@ -210,9 +226,10 @@ export function recordPayment(input: PaymentInput, userId: string): Payment {
     partyName = supplier.name;
   }
 
+  // ACC-0014: the number is taken only once every check that can refuse has passed (below).
   const payment: Payment = {
     id: uid('pay'),
-    number: nextNumber('payment'),
+    number: '',
     date: input.date,
     type: input.type,
     targetType: input.type === 'RECEIVED' ? 'customer' : 'supplier',
@@ -278,6 +295,11 @@ export function recordPayment(input: PaymentInput, userId: string): Payment {
           ...(fxLine ? [fxLine] : []),
         ];
 
+  // ACC-0014: every refusal the posting can raise (closed period / lock date, unresolvable account,
+  // unbalanced entry) runs BEFORE the payment is saved, its number taken or any document's paid
+  // amount touched — a refused payment leaves no trace (the Rust transaction's guarantee).
+  preflightJournal({ date: input.date, lines: posting });
+  payment.number = nextNumber('payment');
   mutate(() => {
     db.payments.push(payment);
     for (const alloc of allocations) applyAllocationToDocument(alloc, 1, payment.date);
@@ -306,16 +328,66 @@ export function recordPayment(input: PaymentInput, userId: string): Payment {
   return payment;
 }
 
+/** The exchange rate an FC allocation's target document was booked at (its AR/AP rate). */
+function documentRate(alloc: PaymentAllocation): number | undefined {
+  if (alloc.targetKind === 'invoice') return db.invoices.find((i) => i.id === alloc.targetId)?.exchangeRate;
+  if (alloc.targetKind === 'purchaseOrder') return db.purchaseOrders.find((p) => p.id === alloc.targetId)?.exchangeRate;
+  return undefined;
+}
+
+/**
+ * ACC-0015: the entry an "allocate later" realizes FX with. When the payment was recorded, this
+ * money posted as unallocated — the base cash against the control account, with no FC tag (it was
+ * not tied to a document's rate yet). Allocating it to an FC document now:
+ *  - releases that untagged cash from the control account (Dr AR / Cr AP),
+ *  - settles the document at ITS OWN rate, FC-tagged (Cr AR / Dr AP `amount`, `amountFc` at the
+ *    document's rate) — so the party's FC balance goes DOWN by the FC settled and every tagged line
+ *    converts at its own rate (`fx-conversion`),
+ *  - books the gap to `fxGain`/`fxLoss` (`fxGainLoss`, + = gain for either direction).
+ * The net GL effect is the same small control ± FX delta as before; only the tagging changed. Only
+ * rows that realized FX are included: a zero-FX allocation still posts nothing (09 §3.3).
+ */
+function allocationFxLines(payment: Payment, rows: PaymentAllocation[]): PostingLine[] {
+  const received = payment.type === 'RECEIVED';
+  const dim = { branchId: payment.branchId };
+  const control = received
+    ? { role: 'receivable' as const, partyKind: 'customer' as const, partyId: payment.targetId }
+    : { role: 'payable' as const, partyKind: 'supplier' as const, partyId: payment.targetId };
+  const fx = round2(sum(rows, (r) => r.fxGainLoss ?? 0));
+  // Base cash each row consumed: RECEIVED cash = AR + gain, PAID cash = AP − gain.
+  const cash = round2(sum(rows, (r) => (received ? r.amount + (r.fxGainLoss ?? 0) : r.amount - (r.fxGainLoss ?? 0))));
+  const release: PostingLine = received ? { ...control, debit: cash, ...dim } : { ...control, credit: cash, ...dim };
+  const settle: PostingLine[] = rows.map((r) => {
+    const rate = documentRate(r);
+    const fc = payment.currency && rate && r.amountFc !== undefined ? { currency: payment.currency, amountFc: r.amountFc, rate } : {};
+    return received ? { ...control, credit: r.amount, ...dim, ...fc } : { ...control, debit: r.amount, ...dim, ...fc };
+  });
+  const description = 'فرق عملة محقق (تخصيص لاحق)';
+  const fxLine: PostingLine = fx > 0 ? { role: 'fxGain', credit: fx, description, ...dim } : { role: 'fxLoss', debit: -fx, description, ...dim };
+  return [release, ...settle, fxLine];
+}
+
 /**
  * Allocate more of an already-recorded payment's unallocated money to open documents — "allocate
- * later" (docs/v2/08 §3 "المدفوعات", docs/v2/09 §3 "unallocated"). No new GL entry: only the
- * sub-ledger `allocations[]` and the target documents' `paidAmount` change.
+ * later" (docs/v2/08 §3 "المدفوعات", docs/v2/09 §3 "unallocated"). No GL entry unless the
+ * allocation realizes FX (`allocationFxLines`): only the sub-ledger `allocations[]` and the target
+ * documents' `paidAmount` change.
  */
 export function allocatePayment(paymentId: string, inputs: PaymentAllocationInput[], userId: string): Payment {
   const payment = db.payments.find((p) => p.id === paymentId);
   if (!payment) throw new ApiError('السند غير موجود', 'NOT_FOUND');
   const newRows = validateAllocations(payment, inputs);
   if (!newRows.length) throw new ApiError('لم يتم إدخال أي تخصيص');
+
+  // v2 phase 9 realized FX ("allocate later"): the original payment's GL entry is never edited after
+  // posting — linking unallocated money to an FC document gets its own small entry instead.
+  const fxRows = newRows.filter((r) => r.fxGainLoss);
+  const newFx = round2(sum(fxRows, (r) => r.fxGainLoss ?? 0));
+  const fxDate = new Date().toISOString();
+  const fxPosting = newFx ? allocationFxLines(payment, fxRows) : undefined;
+  // ACC-0014: the FX entry's refusals (period lock, balance) run before any allocation is saved.
+  if (fxPosting) preflightJournal({ date: fxDate, lines: fxPosting });
+
   mutate(() => {
     payment.allocations.push(...newRows);
     for (const alloc of newRows) applyAllocationToDocument(alloc, 1, payment.date);
@@ -325,33 +397,14 @@ export function allocatePayment(paymentId: string, inputs: PaymentAllocationInpu
     }
   });
 
-  // v2 phase 9 realized FX ("allocate later"): the original payment's GL entry posted the FULL
-  // cash amount against receivable/payable as unallocated (no FX assumed yet). Allocating it now
-  // to an FC document re-values that slice at the document's own rate — the difference needs its
-  // own small FX entry (the original entry is never edited after posting).
-  const newFx = round2(sum(newRows, (r) => r.fxGainLoss ?? 0));
-  if (newFx) {
-    // At record time, this money posted as unallocated — a full base-currency credit (RECEIVED) or
-    // debit (PAID) to the control account. Linking it now to an FC document re-values that slice to
-    // the document's own rate (`arAmount` in validateAllocations); `newFx` is exactly the gap, so it
-    // partially REVERSES the control account by `newFx` (a gain means the control account was
-    // over-credited/over-debited by that much) and books the FX account for the same amount.
-    const dim = { branchId: payment.branchId };
-    const newFc = round2(sum(newRows, (r) => r.amountFc ?? 0)) || undefined;
-    const fc = newFc !== undefined && payment.currency ? { currency: payment.currency, amountFc: newFc, rate: payment.rate } : {};
-    const controlLine: PostingLine =
-      payment.type === 'RECEIVED'
-        ? { role: 'receivable' as const, debit: newFx > 0 ? newFx : 0, credit: newFx < 0 ? -newFx : 0, partyKind: 'customer' as const, partyId: payment.targetId, ...dim, ...fc }
-        : { role: 'payable' as const, credit: newFx > 0 ? newFx : 0, debit: newFx < 0 ? -newFx : 0, partyKind: 'supplier' as const, partyId: payment.targetId, ...dim, ...fc };
-    const fxLine: PostingLine =
-      newFx > 0 ? { role: 'fxGain', credit: newFx, description: 'فرق عملة محقق (تخصيص لاحق)', ...dim } : { role: 'fxLoss', debit: -newFx, description: 'فرق عملة محقق (تخصيص لاحق)', ...dim };
+  if (fxPosting) {
     mutate(() => (payment.fxGainLoss = round2((payment.fxGainLoss ?? 0) + newFx)));
     postJournal({
-      date: new Date().toISOString(),
+      date: fxDate,
       description: `فرق عملة محقق — تخصيص لاحق على سند ${payment.number}`,
       type: 'SYSTEM',
       sourceRef: { kind: 'payment', id: payment.id, number: payment.number },
-      lines: [controlLine, fxLine],
+      lines: fxPosting,
       createdBy: userId,
     });
   }

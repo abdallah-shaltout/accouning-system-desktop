@@ -11,6 +11,8 @@
  * `onupgradeneeded` once per version bump regardless of which caller's `open()` call arrives first.
  */
 
+import { ApiError } from './utils';
+
 const DB_NAME = 'mock-db';
 const DB_VERSION = 2;
 const STORE_NAME = 'attachments';
@@ -50,7 +52,13 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
+/** Same limit and message as the Rust `attachments_save_attachment` (server-side re-check). */
+const MAX_BLOB_SIZE = 10 * 1024 * 1024;
+
 export async function putAttachment(record: AttachmentRecord): Promise<void> {
+  if (record.blob.size > MAX_BLOB_SIZE) {
+    throw new ApiError(`الملف أكبر من الحد المسموح (${MAX_BLOB_SIZE / 1024 / 1024} ميجابايت)`, 'VALIDATION');
+  }
   const conn = await openDb();
   return new Promise((resolve, reject) => {
     const tx = conn.transaction(STORE_NAME, 'readwrite');

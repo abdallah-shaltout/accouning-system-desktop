@@ -116,6 +116,20 @@ export function assertOpenPeriod(date: string, allowClosedPeriod = false): void 
 }
 
 /**
+ * Every refusal `postJournal` can raise — closed period / lock date, an unresolvable account, an
+ * unbalanced entry, fewer than two non-zero lines — without posting anything. A write path calls
+ * this with its finished posting lines BEFORE it mutates any row, stock or counter, so a refused
+ * posting leaves no partial state behind (ACC-0013: the Rust backend's transaction rolls back; the
+ * mock has no transaction, so it has to refuse first). `postJournal` runs the same checks.
+ */
+export function preflightJournal(opts: { date: string; lines: PostingLine[]; allowClosedPeriod?: boolean }): ReturnType<typeof resolvePosting> {
+  assertOpenPeriod(opts.date, opts.allowClosedPeriod);
+  const resolved = resolvePosting(opts.lines);
+  if (resolved.lines.length < 2) throw new ApiError('يجب أن يحتوي القيد على سطرين على الأقل');
+  return resolved;
+}
+
+/**
  * Posts a journal entry. This is the mock backend's single choke point for every ledger posting
  * (sales, purchases, payments, inventory, manual journal all funnel through it), so it's where
  * `mutate()` (debounced IndexedDB snapshot), the fiscal-period check and the `ledger:changed`
@@ -133,9 +147,7 @@ export function postJournal(opts: {
   templateId?: string;
   correlationId?: string;
 }): JournalEntry {
-  assertOpenPeriod(opts.date, opts.allowClosedPeriod);
-  const { lines, totalDebit, totalCredit, tracePairs } = resolvePosting(opts.lines);
-  if (lines.length < 2) throw new ApiError('يجب أن يحتوي القيد على سطرين على الأقل');
+  const { lines, totalDebit, totalCredit, tracePairs } = preflightJournal(opts);
   const now = new Date().toISOString();
   const entry: JournalEntry = {
     id: uid('je'),
@@ -631,7 +643,12 @@ export function closeFiscalYear(fiscalYearId: string, userId: string): { fiscalY
   return { fiscalYear: fy, closingEntry, nextYear };
 }
 
-/** Reopens a closed year: reverses the closing entry and unlocks the year. Admin-only (checked by the caller/service). */
+/**
+ * Reopens a closed year: reverses the closing entry and unlocks the year. Admin-only (checked by
+ * the caller/service). D-A2: the mirror is dated at the closing entry's own date (the year's end),
+ * not "now" — it must land inside the reopened year so that year's revenue/expense balances come
+ * back (and the year can be closed again), and the following year is not misstated by it.
+ */
 export function reopenFiscalYear(fiscalYearId: string, userId: string): FiscalYear {
   const fy = db.fiscalYears.find((f) => f.id === fiscalYearId);
   if (!fy) throw new ApiError('السنة المالية غير موجودة', 'NOT_FOUND');
@@ -640,7 +657,7 @@ export function reopenFiscalYear(fiscalYearId: string, userId: string): FiscalYe
     const closing = db.journalEntries.find((e) => e.id === fy.closingEntryId);
     if (closing && !closing.reversed) {
       const reversal = postJournal({
-        date: new Date().toISOString(),
+        date: closing.date,
         description: `عكس قيد إقفال السنة المالية ${fy.name}`,
         type: 'CLOSING',
         lines: closing.lines.map((l) => ({
