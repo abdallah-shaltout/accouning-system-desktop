@@ -1,7 +1,7 @@
 ---
 id: ACC-0014
 kind: accounting
-status: fixed
+status: verified
 area: invoices
 first_seen: 2026-09-29
 last_seen: 2026-09-29

@@ -1,7 +1,7 @@
 ---
 id: ACC-0018
 kind: accounting
-status: fixed
+status: verified
 area: payments
 first_seen: 2026-09-29
 last_seen: 2026-09-29

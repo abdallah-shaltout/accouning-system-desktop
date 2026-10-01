@@ -1,7 +1,7 @@
 ---
 id: ACC-0033
 kind: accounting
-status: fixed
+status: verified
 area: invoices
 first_seen: 2026-09-30
 last_seen: 2026-09-30
