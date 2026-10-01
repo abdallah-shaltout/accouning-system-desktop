@@ -165,6 +165,7 @@ async fn first_list_seeds_exactly_the_two_defaults() {
     .await
     .expect("second list must succeed");
     assert_eq!(again.len(), 2, "seeding must be idempotent");
+    db.finish().await;
 }
 
 /// A real two-connection race (two overlapping transactions, not just two sequential ones) against
@@ -265,6 +266,7 @@ async fn two_concurrent_first_calls_seed_once() {
         .await
         .unwrap();
     assert_eq!(count, 1, "the branch-row lock must let only the first transaction's re-count see zero rows");
+    db.finish().await;
 }
 
 // --- get / getDefault -----------------------------------------------------------------------------
@@ -312,6 +314,7 @@ async fn get_with_unknown_soft_deleted_and_unparsable_ids_returns_none() {
     .await
     .expect("get must succeed");
     assert!(after_delete.is_none(), "a soft-deleted row must look not-found");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -351,6 +354,7 @@ async fn get_default_falls_back_to_first_row_when_none_flagged() {
     .expect("getDefault must succeed")
     .expect("must fall back to the first row");
     assert_eq!(default.id.to_string(), standard_id, "must fall back to the first row in list order");
+    db.finish().await;
 }
 
 // --- save -----------------------------------------------------------------------------------------
@@ -380,6 +384,7 @@ async fn save_updates_design_fields_and_ignores_kind_and_default() {
 
     assert_eq!(saved.name, "اسم جديد");
     assert!(saved.is_default, "isDefault from the client must be ignored — server authority (T-7)");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -401,6 +406,7 @@ async fn save_unknown_id_is_not_found() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "القالب غير موجود");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -426,6 +432,7 @@ async fn unknown_option_keys_survive_a_save_round_trip() {
     .expect("save must succeed");
 
     assert_eq!(saved.options.get("futureKey").unwrap(), &serde_json::json!("keep me"));
+    db.finish().await;
 }
 
 // --- setAsDefault -----------------------------------------------------------------------------------
@@ -457,6 +464,7 @@ async fn set_as_default_leaves_exactly_one_default() {
     let defaults: Vec<_> = after.iter().filter(|t| t.is_default).collect();
     assert_eq!(defaults.len(), 1, "exactly one default must remain");
     assert_eq!(defaults[0].id.to_string(), simplified_id);
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -472,6 +480,7 @@ async fn set_as_default_unknown_id_is_a_no_op() {
     })
     .await
     .expect("must be a silent no-op, not an error");
+    db.finish().await;
 }
 
 // --- duplicate -------------------------------------------------------------------------------------
@@ -503,6 +512,7 @@ async fn duplicate_adds_copy_suffix_not_default_options_copied() {
     assert!(!copy.is_default);
     assert_eq!(copy.options, seeded[0].options);
     assert_ne!(copy.id, seeded[0].id);
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -520,6 +530,7 @@ async fn duplicate_unknown_id_returns_none() {
     .await
     .expect("must succeed");
     assert!(result.is_none());
+    db.finish().await;
 }
 
 // --- delete ----------------------------------------------------------------------------------------
@@ -548,6 +559,7 @@ async fn delete_all_then_list_reseeds() {
         .await
         .expect("list must re-seed (Q-1)");
     assert_eq!(after.len(), 2, "deleting every template must bring back the two defaults");
+    db.finish().await;
 }
 
 // --- reset -----------------------------------------------------------------------------------------
@@ -593,6 +605,7 @@ async fn reset_restores_options_and_clears_custom_source_keeps_name() {
     assert_eq!(reset.name, "معدّل", "name must be kept, only options/customSource reset");
     assert!(reset.custom_source.is_none());
     assert_eq!(reset.options.get("accentColor").unwrap(), &serde_json::json!("#4f46e5"));
+    db.finish().await;
 }
 
 // --- import ----------------------------------------------------------------------------------------
@@ -626,6 +639,7 @@ async fn import_valid_creates_new_non_default_template() {
     assert_eq!(imported.name, "مستورد");
     assert!(!imported.is_default);
     assert_eq!(imported.base_template_id, BaseTemplateId::InvoiceStandard);
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -654,6 +668,7 @@ async fn import_invalid_shapes_are_all_the_same_validation_error() {
         assert_eq!(err.to_string(), "ملف القالب غير صالح");
         assert!(matches!(err, AppError::Validation { .. }));
     }
+    db.finish().await;
 }
 
 // --- create ----------------------------------------------------------------------------------------
@@ -673,6 +688,7 @@ async fn create_uses_default_options() {
     assert_eq!(created.name, "قالب جديد");
     assert!(!created.is_default);
     assert_eq!(serde_json::Value::Object(created.options.clone()), service::default_options());
+    db.finish().await;
 }
 
 // --- access control --------------------------------------------------------------------------------
@@ -693,6 +709,7 @@ async fn cashier_cannot_write_but_can_read() {
     // Tauri `State` to invoke directly. A cashier has `Access::None` on `Area::Settings`
     // (`core/auth.rs` role_access table), so `templates_save_template`/etc. would return
     // `FORBIDDEN` before reaching `service::save_template` in production.
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -706,6 +723,7 @@ async fn no_session_write_is_unauthorized() {
     })
     .await;
     assert!(matches!(result, Err(AppError::Unauthorized { .. })), "with_tx's require_user gate must reject with no session at all");
+    db.finish().await;
 }
 
 // --- invariants -------------------------------------------------------------------------------------
@@ -726,6 +744,7 @@ async fn template_writes_never_break_accounting_invariants() {
         .await
         .expect("invariants must run");
     assert!(report.iter().all(|r| r.passed), "template writes touch no ledger/stock data — invariants must stay green");
+    db.finish().await;
 }
 
 // --- default_options() fixture ----------------------------------------------------------------------

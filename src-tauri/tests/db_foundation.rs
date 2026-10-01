@@ -16,63 +16,69 @@ use support::TestDb;
 #[tokio::test]
 async fn id_round_trips_through_a_uuid_column_and_sorts_by_generation_order() {
     let test_db = TestDb::fresh().await;
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
 
-    conn.execute(Statement::from_string(
-        conn.get_database_backend(),
-        "CREATE TABLE id_order_test (id UUID PRIMARY KEY, seq INT NOT NULL)".to_string(),
-    ))
-    .await
-    .unwrap();
-
-    // Generate 1,000 ids in order, but insert them in a shuffled (reversed) order — proves the
-    // native UUID column's ORDER BY reflects generation order (UUIDv7 time-ordering), not
-    // insertion order.
-    let mut generated: Vec<Id> = (0..1000).map(|_| Id::new()).collect();
-    let mut insert_order = generated.clone();
-    insert_order.reverse();
-
-    for (seq, id) in insert_order.iter().enumerate() {
-        let stmt = Statement::from_sql_and_values(
+        conn.execute(Statement::from_string(
             conn.get_database_backend(),
-            "INSERT INTO id_order_test (id, seq) VALUES (?, ?)",
-            [id.to_string().into(), (seq as i64).into()],
-        );
-        conn.execute(stmt).await.unwrap();
+            "CREATE TABLE id_order_test (id UUID PRIMARY KEY, seq INT NOT NULL)".to_string(),
+        ))
+        .await
+        .unwrap();
+
+        // Generate 1,000 ids in order, but insert them in a shuffled (reversed) order — proves the
+        // native UUID column's ORDER BY reflects generation order (UUIDv7 time-ordering), not
+        // insertion order.
+        let mut generated: Vec<Id> = (0..1000).map(|_| Id::new()).collect();
+        let mut insert_order = generated.clone();
+        insert_order.reverse();
+
+        for (seq, id) in insert_order.iter().enumerate() {
+            let stmt = Statement::from_sql_and_values(
+                conn.get_database_backend(),
+                "INSERT INTO id_order_test (id, seq) VALUES (?, ?)",
+                [id.to_string().into(), (seq as i64).into()],
+            );
+            conn.execute(stmt).await.unwrap();
+        }
+
+        let stmt = Statement::from_string(conn.get_database_backend(), "SELECT id FROM id_order_test ORDER BY id".to_string());
+        let rows = conn.query_all(stmt).await.unwrap();
+        let read_back: Vec<Id> = rows.iter().map(|r| r.try_get::<Id>("", "id").unwrap()).collect();
+
+        generated.sort(); // Id's own Ord agrees with UUIDv7 generation order.
+        assert_eq!(read_back, generated, "ORDER BY id on a native UUID column must match UUIDv7 generation order");
     }
-
-    let stmt = Statement::from_string(conn.get_database_backend(), "SELECT id FROM id_order_test ORDER BY id".to_string());
-    let rows = conn.query_all(stmt).await.unwrap();
-    let read_back: Vec<Id> = rows.iter().map(|r| r.try_get::<Id>("", "id").unwrap()).collect();
-
-    generated.sort(); // Id's own Ord agrees with UUIDv7 generation order.
-    assert_eq!(read_back, generated, "ORDER BY id on a native UUID column must match UUIDv7 generation order");
+    test_db.finish().await;
 }
 
 #[tokio::test]
 async fn errno_mapping_against_a_real_db() {
     let test_db = TestDb::fresh().await;
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
 
-    conn.execute(Statement::from_string(
-        conn.get_database_backend(),
-        "CREATE TABLE uniq_test (id INT PRIMARY KEY, code VARCHAR(20) NOT NULL, UNIQUE KEY uq_uniq_test_code (code))".to_string(),
-    ))
-    .await
-    .unwrap();
-    conn.execute(Statement::from_string(conn.get_database_backend(), "INSERT INTO uniq_test (id, code) VALUES (1, 'A')".to_string()))
+        conn.execute(Statement::from_string(
+            conn.get_database_backend(),
+            "CREATE TABLE uniq_test (id INT PRIMARY KEY, code VARCHAR(20) NOT NULL, UNIQUE KEY uq_uniq_test_code (code))".to_string(),
+        ))
         .await
         .unwrap();
+        conn.execute(Statement::from_string(conn.get_database_backend(), "INSERT INTO uniq_test (id, code) VALUES (1, 'A')".to_string()))
+            .await
+            .unwrap();
 
-    let dup = conn
-        .execute(Statement::from_string(conn.get_database_backend(), "INSERT INTO uniq_test (id, code) VALUES (2, 'A')".to_string()))
-        .await;
-    let err = dup.expect_err("duplicate key must fail");
-    let app_err = AppError::from(err);
-    assert!(matches!(app_err, AppError::Conflict { .. }));
-    assert_eq!(app_err.to_string(), "هذا السجل موجود بالفعل");
+        let dup = conn
+            .execute(Statement::from_string(conn.get_database_backend(), "INSERT INTO uniq_test (id, code) VALUES (2, 'A')".to_string()))
+            .await;
+        let err = dup.expect_err("duplicate key must fail");
+        let app_err = AppError::from(err);
+        assert!(matches!(app_err, AppError::Conflict { .. }));
+        assert_eq!(app_err.to_string(), "هذا السجل موجود بالفعل");
+    }
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -92,15 +98,18 @@ async fn with_tx_commit_persists_data() {
     .await;
     assert!(result.is_ok());
 
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
-    let row = conn
-        .query_one(Statement::from_string(conn.get_database_backend(), "SELECT COUNT(*) AS c FROM probe".to_string()))
-        .await
-        .unwrap()
-        .unwrap();
-    let count: i64 = row.try_get("", "c").unwrap();
+    let count: i64 = {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        let row = conn
+            .query_one(Statement::from_string(conn.get_database_backend(), "SELECT COUNT(*) AS c FROM probe".to_string()))
+            .await
+            .unwrap()
+            .unwrap();
+        row.try_get("", "c").unwrap()
+    };
     assert_eq!(count, 1);
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -120,15 +129,18 @@ async fn with_tx_error_rolls_back() {
     .await;
     assert!(result.is_err());
 
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
-    let row = conn
-        .query_one(Statement::from_string(conn.get_database_backend(), "SELECT COUNT(*) AS c FROM probe".to_string()))
-        .await
-        .unwrap()
-        .unwrap();
-    let count: i64 = row.try_get("", "c").unwrap();
+    let count: i64 = {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        let row = conn
+            .query_one(Statement::from_string(conn.get_database_backend(), "SELECT COUNT(*) AS c FROM probe".to_string()))
+            .await
+            .unwrap()
+            .unwrap();
+        row.try_get("", "c").unwrap()
+    };
     assert_eq!(count, 0, "a rolled-back transaction must leave no trace");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -168,6 +180,8 @@ async fn change_versions_bumped_only_on_commit_and_one_event_after_commit() {
     assert_eq!(seen.get(&ChangeCategory::Ledger).copied(), Some(1), "change_seen must be raised exactly once, only after commit");
     drop(seen);
     let _ = collector; // keep for readability of intent above
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -197,6 +211,7 @@ async fn isolation_level_is_read_committed() {
     })
     .await;
     assert_eq!(result.unwrap(), "READ-COMMITTED");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -213,6 +228,7 @@ async fn with_read_refuses_a_write() {
     })
     .await;
     assert!(result.is_err(), "a write inside with_read's READ ONLY transaction must be refused by the server");
+    test_db.finish().await;
 }
 
 async fn setup_probe_table(test_db: &TestDb) {

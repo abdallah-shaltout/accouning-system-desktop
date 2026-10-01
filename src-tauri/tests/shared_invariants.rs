@@ -276,11 +276,14 @@ async fn build_scenario(test_db: &TestDb) -> Scenario {
 async fn full_scenario_every_invariant_passes() {
     let test_db = TestDb::fresh().await;
     build_scenario(&test_db).await;
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
-    let results = run_all(conn).await.expect("run_all must not error");
-    let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
-    assert!(failed.is_empty(), "expected every invariant to pass, failed: {failed:?}");
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        let results = run_all(conn).await.expect("run_all must not error");
+        let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
+        assert!(failed.is_empty(), "expected every invariant to pass, failed: {failed:?}");
+    }
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -309,15 +312,20 @@ async fn corrupt_a_line_amount_fails_balanced_entries_only() {
         );
         conn.execute(stmt).await.unwrap();
     }
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
-    // The header's own total_debit/total_credit still balance (untouched), but the trial balance
-    // built from journal_lines no longer does — corrupts trial-balance/balance-sheet, not
-    // balanced-entries (which reads the header totals, unchanged here).
-    assert_key_passes(conn, "balanced-entries").await;
-    let results = run_all(conn).await.unwrap();
-    let trial = results.iter().find(|r| r.key == "trial-balance").unwrap();
-    assert!(!trial.passed, "trial-balance must fail after a line-amount corruption");
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        // The header's own total_debit/total_credit still balance (untouched), but the trial
+        // balance built from journal_lines no longer does — corrupts trial-balance/balance-sheet,
+        // not balanced-entries (which reads the header totals, unchanged here).
+        assert_key_passes(conn, "balanced-entries").await;
+        let results = run_all(conn).await.unwrap();
+        let trial = results.iter().find(|r| r.key == "trial-balance").unwrap();
+        assert!(!trial.passed, "trial-balance must fail after a line-amount corruption");
+    }
+    // balance-sheet also reads from journal_lines (assets = liabilities + equity via the same
+    // corrupted line), so it trips alongside trial-balance from this one corruption.
+    test_db.finish_expecting(&["trial-balance", "balance-sheet"], "deliberately corrupts one journal line's debit without touching the entry header").await;
 }
 
 #[tokio::test]
@@ -335,10 +343,13 @@ async fn corrupt_stock_value_fails_inventory_gl_only() {
         );
         conn.execute(stmt).await.unwrap();
     }
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
-    assert_only_key_fails(conn, "inventory-gl").await;
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        assert_only_key_fails(conn, "inventory-gl").await;
+    }
     let _ = scenario.inventory_account_id;
+    test_db.finish_expecting(&["inventory-gl"], "deliberately bumps products.stock_value out of sync with the inventory GL").await;
 }
 
 #[tokio::test]
@@ -397,11 +408,22 @@ async fn corrupt_draft_id_into_posted_entries_fails_drafts_isolated_only() {
         conn.execute(line_stmt2).await.unwrap();
     }
 
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
-    let results = run_all(conn).await.unwrap();
-    let drafts_isolated = results.iter().find(|r| r.key == "drafts-isolated").unwrap();
-    assert!(!drafts_isolated.passed, "drafts-isolated must fail once a draft id leaks into journal_entries");
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        let results = run_all(conn).await.unwrap();
+        let drafts_isolated = results.iter().find(|r| r.key == "drafts-isolated").unwrap();
+        assert!(!drafts_isolated.passed, "drafts-isolated must fail once a draft id leaks into journal_entries");
+    }
+    // The leaked entry's two lines both hit the same account (10 debit / 10 credit), so they net to
+    // zero there — trial-balance/balance-sheet stay unaffected. Only drafts-isolated, which detects
+    // the draft id itself leaking into journal_entries, trips.
+    test_db
+        .finish_expecting(
+            &["drafts-isolated"],
+            "deliberately copies a journal_drafts id straight into journal_entries, bypassing shared::ledger",
+        )
+        .await;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -508,6 +530,7 @@ async fn vat_settlement_is_left_out_of_vat_control() {
     )
     .await;
     assert!(!result_for(&test_db, "vat-output").await.passed, "output VAT with no document behind it must still fail");
+    test_db.finish_expecting(&["vat-output"], "deliberately posts output VAT with no document behind it, on top of a valid VAT settlement").await;
 }
 
 /// ACC-0019: setting a lock date over existing history is not an offence; a posting dated inside
@@ -551,6 +574,7 @@ async fn lock_date_flags_only_postings_made_after_the_lock() {
     let r = result_for(&test_db, "lock-date").await;
     assert!(!r.passed, "a posting made after the lock into the locked period must fail");
     assert!(r.message.contains("1 offenders"), "only the system posting is an offender, got: {}", r.message);
+    test_db.finish_expecting(&["lock-date"], "deliberately back-dates a system posting into a locked period after the lock took effect").await;
 }
 
 /// ACC-0021: a party opening balance and a manual AR line (no invoice/payment behind them) are part
@@ -585,6 +609,7 @@ async fn party_lines_without_documents_reconcile() {
     .await;
     let r = result_for(&test_db, "customer-allocation").await;
     assert!(r.passed, "opening + manual party lines must reconcile, got: {}", r.message);
+    test_db.finish().await;
 }
 
 /// ACC-0023: 3900 is only enforced once onboarding has finished.
@@ -606,6 +631,7 @@ async fn opening_equity_waits_for_onboarding_to_finish() {
 
     exec_sql(&test_db, "UPDATE settings SET onboarding = ?", vec![r#"{"goLiveDate":"2026-01-01","finishedAt":"2026-01-02T00:00:00Z"}"#.into()]).await;
     assert!(!result_for(&test_db, "opening-balance-equity").await.passed, "an unclosed 3900 after onboarding must fail");
+    test_db.finish_expecting(&["opening-balance-equity"], "deliberately leaves 3900 unclosed after onboarding finished").await;
 }
 
 /// ACC-0022: a chart with no receivable/payable/inventory/VAT/clearing accounts (an empty or
@@ -621,9 +647,12 @@ async fn missing_role_accounts_never_error() {
         insert_account(conn, "1000", "ASSET", "cash", "DEBIT", Some("cash")).await;
         insert_account(conn, "4000", "REVENUE", "revenue", "CREDIT", Some("sales")).await;
     }
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
-    let results = run_all(conn).await.expect("run_all must not error when role accounts are missing");
-    let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
-    assert!(failed.is_empty(), "an empty chart has nothing to disagree about, failed: {failed:?}");
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        let results = run_all(conn).await.expect("run_all must not error when role accounts are missing");
+        let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
+        assert!(failed.is_empty(), "an empty chart has nothing to disagree about, failed: {failed:?}");
+    }
+    test_db.finish().await;
 }

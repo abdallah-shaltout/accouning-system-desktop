@@ -334,6 +334,7 @@ async fn update_settings_rejects_blank_store_name() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "اسم المتجر مطلوب");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -355,6 +356,7 @@ async fn update_settings_eg_vat_number_wrong_length_gives_country_specific_messa
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "رقم التسجيل الضريبي يجب أن يكون 9 أرقام");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -376,6 +378,7 @@ async fn update_settings_sa_valid_vat_number_passes() {
     .await
     .expect("valid SA vat number must pass");
     let _ = _row;
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -396,6 +399,7 @@ async fn update_settings_country_change_sets_timezone() {
     .await
     .expect("update must succeed");
     assert_eq!(row.timezone.as_deref(), Some("Africa/Cairo"));
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -421,6 +425,7 @@ async fn update_settings_device_printer_keys_are_not_written_to_the_row() {
     assert!(row.printer.a4_printer_name.is_none());
     // The delta carries it instead, for the command layer to apply to device-settings.json.
     assert_eq!(delta.a4_printer_name, Some(Some("HP LaserJet".to_string())));
+    db.finish().await;
 }
 
 // --- taxes ----------------------------------------------------------------------------------------
@@ -464,6 +469,7 @@ async fn save_tax_validation_messages_in_order() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "سبب الإعفاء مطلوب للضرائب المعفاة");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -487,6 +493,7 @@ async fn save_tax_derives_direction_and_account_role_from_type_never_from_client
     // server must have overridden both based on `type: Input`.
     assert!(matches!(tax.direction, accounting_app_lib::domains::settings::dto::TaxDirection::Purchase));
     assert!(matches!(tax.account_role, Some(TaxAccountRole::VatInput)));
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -514,6 +521,7 @@ async fn save_tax_second_default_clears_the_first_of_the_same_type() {
     let taxes = with_read(&db.state, |tx| Box::pin(async move { service::taxes::list(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
     let first_after = taxes.iter().find(|t| t.name == "أولى").unwrap();
     assert!(!first_after.is_default, "the first default must be cleared when a second one is set");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -537,6 +545,7 @@ async fn delete_tax_refuses_the_default_tax() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "لا يمكن حذف الضريبة الافتراضية — عيّن ضريبة أخرى افتراضية أولاً");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -562,6 +571,7 @@ async fn delete_tax_soft_deletes_and_excludes_from_list() {
 
     let taxes = with_read(&db.state, |tx| Box::pin(async move { service::taxes::list(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
     assert!(taxes.iter().all(|t| t.id != tax.id), "soft-deleted tax must not appear in the list");
+    db.finish().await;
 }
 
 // --- payment methods -------------------------------------------------------------------------------
@@ -611,6 +621,7 @@ async fn reorder_payment_methods_applies_only_to_listed_ids() {
     let a_after = methods.iter().find(|m| m.id == a.id).unwrap();
     assert_eq!(b_after.sort_order, 1);
     assert_eq!(a_after.sort_order, 2);
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -651,6 +662,7 @@ async fn delete_payment_method_refuses_when_can_delete_is_false() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "لا يمكن حذف طريقة الدفع الأساسية — عطّلها بدلاً من ذلك");
+    db.finish().await;
 }
 
 // --- branches --------------------------------------------------------------------------------------
@@ -680,6 +692,7 @@ async fn create_branch_creates_cash_account_1111_and_cost_center() {
     assert_eq!(cash.code, "1111");
     assert_eq!(cash.name, "الصندوق — الرياض");
     assert_eq!(cash.branch_id, Some(branch.id));
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -704,6 +717,7 @@ async fn create_branch_duplicate_code_case_insensitive_is_validation() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "رمز الفرع مستخدم بالفعل");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -721,6 +735,7 @@ async fn deactivate_branch_refuses_the_only_active_branch() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "لا يمكن إلغاء تفعيل الفرع الوحيد النشط");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -749,6 +764,7 @@ async fn deactivate_branch_refuses_when_stock_remains() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "لا يمكن إلغاء تفعيل الفرع — لا يزال يحتوي على مخزون. أنشئ تحويلاً لتفريغه أولاً");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -766,6 +782,7 @@ async fn reactivate_branch_has_no_guard_and_logs_even_when_already_active() {
     // The seeded fixture branch has no cash_account_id, so this exercises the "already active,
     // no cash account to flip" path without needing the cash-account seed.
     assert!(branch.is_err() || branch.is_ok(), "reactivate must not panic on an account-less branch");
+    db.finish().await;
 }
 
 // --- cost centers ------------------------------------------------------------------------------
@@ -798,6 +815,7 @@ async fn delete_cost_center_refuses_branch_cost_center() {
     })
     .await
     .expect("a can_delete=true cost center must delete cleanly");
+    db.finish().await;
 }
 
 // --- currency --------------------------------------------------------------------------------------
@@ -810,6 +828,7 @@ async fn set_base_currency_locked_after_a_posted_journal_entry() {
 
     let locked_before = with_read(&db.state, |tx| Box::pin(async move { service::currency::is_base_currency_locked(tx).await })).await.unwrap();
     assert!(!locked_before);
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -827,6 +846,7 @@ async fn create_currency_refuses_the_base_currency_code() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "هذه هي العملة الأساسية بالفعل");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -868,6 +888,7 @@ async fn save_exchange_rate_same_day_resave_replaces_the_row() {
     assert_eq!(rates.len(), 1, "same-day resave must replace, not append");
     assert_eq!(rates[0].id, second.id);
     assert_eq!(rates[0].rate, dec!(3.80));
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -893,6 +914,7 @@ async fn save_exchange_rate_derives_from_inverse() {
     .await
     .unwrap();
     assert_eq!(rate.rate, dec!(0.25));
+    db.finish().await;
 }
 
 // --- run_all invariants ------------------------------------------------------------------------
@@ -915,4 +937,5 @@ async fn run_all_invariants_green_after_settings_writes() {
     let results = with_read(&db.state, |tx| Box::pin(async move { invariants::run_all(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
     let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
     assert!(failed.is_empty(), "invariants must be green after branch creation: {failed:?}");
+    db.finish().await;
 }

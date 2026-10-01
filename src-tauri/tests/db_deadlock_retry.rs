@@ -14,20 +14,22 @@ use support::TestDb;
 #[tokio::test]
 async fn forced_deadlock_retries_and_succeeds() {
     let test_db = TestDb::fresh().await;
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
-    conn.execute(Statement::from_string(
-        conn.get_database_backend(),
-        "CREATE TABLE deadlock_test (id INT PRIMARY KEY, v INT NOT NULL)".to_string(),
-    ))
-    .await
-    .unwrap();
-    conn.execute(Statement::from_string(
-        conn.get_database_backend(),
-        "INSERT INTO deadlock_test (id, v) VALUES (1, 0), (2, 0)".to_string(),
-    ))
-    .await
-    .unwrap();
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        conn.execute(Statement::from_string(
+            conn.get_database_backend(),
+            "CREATE TABLE deadlock_test (id INT PRIMARY KEY, v INT NOT NULL)".to_string(),
+        ))
+        .await
+        .unwrap();
+        conn.execute(Statement::from_string(
+            conn.get_database_backend(),
+            "INSERT INTO deadlock_test (id, v) VALUES (1, 0), (2, 0)".to_string(),
+        ))
+        .await
+        .unwrap();
+    }
 
     let user = AuthenticatedUser {
         id: Id::new(),
@@ -104,10 +106,16 @@ async fn forced_deadlock_retries_and_succeeds() {
 
     // Both transactions' increments landed exactly once: id=1 and id=2 each +1 from the other
     // connection and +1 from the (retried) `with_tx` closure.
-    let rows = conn
-        .query_all(Statement::from_string(conn.get_database_backend(), "SELECT v FROM deadlock_test WHERE id IN (1, 2) ORDER BY id".to_string()))
-        .await
-        .unwrap();
-    let values: Vec<i32> = rows.iter().map(|r| r.try_get_by_index::<i32>(0).unwrap()).collect();
+    let values: Vec<i32> = {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        let rows = conn
+            .query_all(Statement::from_string(conn.get_database_backend(), "SELECT v FROM deadlock_test WHERE id IN (1, 2) ORDER BY id".to_string()))
+            .await
+            .unwrap();
+        rows.iter().map(|r| r.try_get_by_index::<i32>(0).unwrap()).collect()
+    };
     assert_eq!(values, vec![2, 2]);
+
+    test_db.finish().await;
 }

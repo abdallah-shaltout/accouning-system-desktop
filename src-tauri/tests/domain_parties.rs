@@ -286,6 +286,7 @@ async fn customer_and_supplier_codes_are_independent_and_sequential() {
     .await
     .expect("second customer create must succeed");
     assert_eq!(c2.code, "C-0002");
+    db.finish().await;
 }
 
 /// Validation: blank name refused before the VAT check runs.
@@ -312,6 +313,7 @@ async fn blank_name_is_refused() {
 
     let err = result.expect_err("blank name must be refused");
     assert_eq!(err.to_string(), "الاسم مطلوب");
+    db.finish().await;
 }
 
 /// Deactivating a customer with a posted opening balance on the receivable control account (a
@@ -351,6 +353,7 @@ async fn deactivating_a_customer_with_balance_is_refused() {
     .await
     .expect("deactivating a zero-balance customer must succeed");
     assert!(!deactivated.active);
+    db.finish().await;
 }
 
 /// `get_customers`/`get_suppliers` list order and Arabic-normalizing search.
@@ -384,6 +387,7 @@ async fn get_customers_finds_normalized_arabic_names() {
 
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].name, "أحمد");
+    db.finish().await;
 }
 
 /// Link/unlink: both sides set on link; unlink from the supplier side clears both.
@@ -443,6 +447,7 @@ async fn link_then_unlink_clears_both_sides() {
     .await
     .expect("reload customer must succeed");
     assert_eq!(reloaded_customer.linked_party_id, None);
+    db.finish().await;
 }
 
 /// Aging: `get_party_aging` requires a session for `with_read_ctx`'s clock, but the service
@@ -483,4 +488,5 @@ async fn aging_returns_four_labeled_buckets_even_with_no_documents() {
     assert_eq!(buckets[3].label, "90+ يوم");
     assert!(buckets.iter().all(|b| b.documents.is_empty()));
     assert_eq!(dec!(0), buckets[0].total);
+    db.finish().await;
 }

@@ -171,6 +171,9 @@ async fn entities_match_schema_for_every_table() {
     assert_entity_matches_schema!(conn, "audit", platform::Audit);
     assert_entity_matches_schema!(conn, "approval_requests", platform::ApprovalRequests);
     assert_entity_matches_schema!(conn, "print_templates", platform::PrintTemplates);
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -182,6 +185,9 @@ async fn migrate_up_down_to_zero_up_succeeds() {
 
     migration::Migrator::down(conn, None).await.expect("migrate down to zero must succeed");
     migration::Migrator::up(conn, None).await.expect("migrate back up from zero must succeed");
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -192,13 +198,21 @@ async fn journal_lines_checks_reject_two_sided_and_negative() {
 
     let entry_id = insert_balanced_journal_entry(conn, Decimal::new(1000, 2)).await;
 
+    // A real (balanced, >= 2 line) entry behind the header, so the rejected inserts below leave a
+    // books-consistent entry at the end of the test (phase C, `TestDb::finish()` — min-two-lines).
+    insert_journal_line(conn, entry_id, 0, Decimal::new(1000, 2), Decimal::ZERO).await.expect("the entry's own valid debit line must insert");
+    insert_journal_line(conn, entry_id, 1, Decimal::ZERO, Decimal::new(1000, 2)).await.expect("the entry's own valid credit line must insert");
+
     // Two-sided (both debit and credit > 0) must be rejected by ck_journal_lines_one_sided.
-    let two_sided = insert_journal_line(conn, entry_id, 0, Decimal::new(500, 2), Decimal::new(500, 2)).await;
+    let two_sided = insert_journal_line(conn, entry_id, 2, Decimal::new(500, 2), Decimal::new(500, 2)).await;
     assert!(two_sided.is_err(), "a two-sided journal line must violate ck_journal_lines_one_sided");
 
     // Negative debit must be rejected by ck_journal_lines_non_negative.
-    let negative = insert_journal_line(conn, entry_id, 1, Decimal::new(-100, 2), Decimal::ZERO).await;
+    let negative = insert_journal_line(conn, entry_id, 3, Decimal::new(-100, 2), Decimal::ZERO).await;
     assert!(negative.is_err(), "a negative journal line amount must violate ck_journal_lines_non_negative");
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -209,6 +223,9 @@ async fn journal_entries_balance_check_rejects_unbalanced_totals() {
 
     let result = insert_journal_entry_header(conn, Decimal::new(1000, 2), Decimal::new(900, 2)).await;
     assert!(result.is_err(), "total_debit != total_credit must violate ck_journal_entries_balanced");
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -227,6 +244,9 @@ async fn shifts_open_key_unique_rejects_a_second_open_shift_on_the_same_terminal
     // A CLOSED shift on the same terminal is fine (open_key is NULL for non-OPEN rows).
     let closed = insert_shift(conn, terminal_id, user_id, "CLOSED").await;
     assert!(closed.is_ok(), "a CLOSED shift must not be blocked by the open-shift unique");
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -244,6 +264,9 @@ async fn print_templates_default_key_unique_rejects_a_second_default_per_branch_
     // A non-default template for the same branch/kind is fine.
     let non_default = insert_print_template(conn, branch_id, "invoice", false).await;
     assert!(non_default.is_ok(), "a non-default template must not be blocked by the default-template unique");
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -261,6 +284,9 @@ async fn card_settlement_groups_date_method_unique_rejects_a_duplicate() {
     insert_card_settlement_group(conn, settlement_id, 0, day, payment_method_id).await.expect("first group must succeed");
     let dup = insert_card_settlement_group(conn, settlement_id_2, 0, day, payment_method_id).await;
     assert!(dup.is_err(), "a duplicate (date, payment_method_id) must violate uq_card_settlement_groups_date_method");
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -273,6 +299,11 @@ async fn composite_party_fk_rejects_a_kind_mismatch() {
     let user_id = insert_minimal_user(conn).await;
     let customer_id = insert_minimal_party(conn, "customer").await;
     let entry_id = insert_balanced_journal_entry(conn, Decimal::new(1000, 2)).await;
+
+    // A real (balanced, >= 2 line) entry behind the header, so the rejected insert below leaves a
+    // books-consistent entry at the end of the test (phase C, `TestDb::finish()` — min-two-lines).
+    insert_journal_line(conn, entry_id, 0, Decimal::new(1000, 2), Decimal::ZERO).await.expect("the entry's own valid debit line must insert");
+    insert_journal_line(conn, entry_id, 1, Decimal::ZERO, Decimal::new(1000, 2)).await.expect("the entry's own valid credit line must insert");
 
     // party_kind = 'supplier' pointing at a row that is actually kind='customer' must be rejected
     // by the composite FK (party_id, party_kind) -> parties(id, kind).
@@ -293,6 +324,9 @@ async fn composite_party_fk_rejects_a_kind_mismatch() {
     let result = conn.execute(stmt).await;
     assert!(result.is_err(), "party_kind='supplier' pointing at a customer row must violate the composite FK");
     let _ = user_id;
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -305,6 +339,11 @@ async fn invoice_with_lines_and_tenders_round_trips() {
     let product_id = insert_minimal_product(conn).await;
     let payment_method_id = insert_minimal_payment_method(conn).await;
 
+    // tax_rate/tax_amount are 0 here: this is a bare entity round-trip test (no ledger.rs posting
+    // ever runs for this raw-inserted header), and `shared::invariants::check_vat_control` (which
+    // `TestDb::finish()` now runs) sums every invoice's `tax_amount` and compares it to the VAT
+    // output GL balance — a non-zero tax_amount with no corresponding journal entry would trip that
+    // invariant on a fixture gap, not a real accounting bug.
     let invoice_id = Id::new();
     let stmt = Statement::from_sql_and_values(
         conn.get_database_backend(),
@@ -316,9 +355,9 @@ async fn invoice_with_lines_and_tenders_round_trips() {
             "INV-0001".into(),
             "2026-01-15".into(),
             user_id.to_string().into(),
-            Decimal::new(10000, 2).into(),
-            Decimal::new(1500, 4).into(),
-            Decimal::new(1500, 2).into(),
+            Decimal::new(11500, 2).into(),
+            Decimal::ZERO.into(),
+            Decimal::ZERO.into(),
             Decimal::new(11500, 2).into(),
             Decimal::new(11500, 2).into(),
         ],
@@ -369,6 +408,9 @@ async fn invoice_with_lines_and_tenders_round_trips() {
         sales::InvoiceTenders::find().filter(sales::invoice_tenders::Column::InvoiceId.eq(invoice_id)).all(conn).await.unwrap();
     assert_eq!(tenders.len(), 1);
     assert_eq!(tenders[0].amount, Decimal::new(11500, 2));
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 // --- minimal-row helpers (bare inserts satisfying NOT NULL/FK constraints, nothing more) ---------

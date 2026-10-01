@@ -80,6 +80,7 @@ async fn save_then_fetch_round_trips_bytes_and_meta() {
     assert_eq!(fetched.blob_base64, small_blob_base64());
     assert_eq!(fetched.width, Some(100));
     assert_eq!(fetched.height, Some(200));
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -100,6 +101,7 @@ async fn fetch_unknown_and_unparsable_ids_return_none() {
     .await
     .expect("must succeed");
     assert!(unknown.is_none());
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -156,6 +158,7 @@ async fn fetch_attachments_by_owner_ref_orders_newest_first_and_excludes_others(
         .expect("fetch must succeed");
     assert_eq!(list.len(), 2, "only journal:je-1's own attachments must be returned");
     assert!(list.iter().all(|m| m.owner_ref.as_deref() == Some("journal:je-1")));
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -195,6 +198,7 @@ async fn fetch_attachments_by_ids_batches_and_skips_missing() {
 
     assert_eq!(records.len(), 1, "unknown/unparsable ids must be silently skipped");
     assert_eq!(records[0].id, saved.id);
+    db.finish().await;
 }
 
 // --- size limit ---------------------------------------------------------------------------------------
@@ -231,6 +235,7 @@ async fn oversized_blob_is_rejected_with_arabic_validation_message() {
 
     assert!(matches!(err, AppError::Validation { .. }));
     assert!(err.to_string().contains("أكبر من الحد المسموح"), "must be the Arabic size-limit message, got: {err}");
+    db.finish().await;
 }
 
 /// Part 04 Wave 2 (L1): a present-but-non-UUID id used to be re-keyed silently to a fresh id — the
@@ -267,6 +272,7 @@ async fn non_uuid_client_id_is_refused_not_rekeyed() {
         .await
         .unwrap();
     assert!(rows.is_empty(), "a refused save must store nothing");
+    db.finish().await;
 }
 
 // --- update (upsert) -----------------------------------------------------------------------------------
@@ -325,6 +331,7 @@ async fn saving_with_an_existing_id_overwrites_in_place() {
     assert_eq!(second.id, first.id, "same id must overwrite, not insert a second row");
     assert_eq!(second.name, "v2.png");
     assert_ne!(second.blob_base64, first.blob_base64);
+    db.finish().await;
 }
 
 // --- remove --------------------------------------------------------------------------------------------
@@ -384,6 +391,7 @@ async fn remove_deletes_and_is_idempotent_on_unknown_id() {
     })
     .await
     .expect("second remove must be a no-op, not an error");
+    db.finish().await;
 }
 
 // --- access control --------------------------------------------------------------------------------------
@@ -395,6 +403,7 @@ async fn no_session_is_unauthorized() {
 
     let result = with_tx(&db.state, TxOpts::default(), |tx, _cx| Box::pin(async move { service::fetch_attachments(tx, "customer:x").await })).await;
     assert!(matches!(result, Err(AppError::Unauthorized { .. })), "with_tx's require_user gate must reject with no session at all");
+    db.finish().await;
 }
 
 // --- invariants -------------------------------------------------------------------------------------------
@@ -429,4 +438,5 @@ async fn attachment_writes_never_break_accounting_invariants() {
         .await
         .expect("invariants must run");
     assert!(report.iter().all(|r| r.passed), "attachment writes touch no ledger/stock data — invariants must stay green");
+    db.finish().await;
 }

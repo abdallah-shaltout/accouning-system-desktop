@@ -172,6 +172,14 @@ async fn apply_change_review_a1_worked_example() {
     };
     assert_eq!(qty3, dec!(19));
     assert_eq!(value3, value2 + dec!(50));
+
+    // This test calls `shared::stock::apply_change` directly, on purpose (it's a unit test of the
+    // stock module's own weighted-average-cost math, phase-d-stock.md's "review A1" worked example)
+    // — never through `shared::ledger::post`, so the product's `stock_value` moves with no matching
+    // inventory-account GL posting. A real caller (a domain service) always pairs `apply_change` with
+    // a `post()` of its own (see `shared_invariants.rs`'s `build_scenario`, which does both) — this
+    // file deliberately tests one half in isolation, so `inventory-gl` is expected to stay broken.
+    test_db.finish_expecting(&["inventory-gl"], "apply_change is exercised directly, without the matching shared::ledger::post an app caller always pairs it with").await;
 }
 
 #[tokio::test]
@@ -223,6 +231,8 @@ async fn selling_the_whole_remaining_stock_takes_exactly_stock_value() {
     assert_eq!(qty2, Decimal::ZERO);
     assert_eq!(value2, Decimal::ZERO);
     assert_eq!(cost2, Decimal::ZERO);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -278,6 +288,11 @@ async fn branch_rows_always_sum_to_the_product_totals() {
     let (qty, value, _) = stock_of(conn, product_id).await;
     assert_eq!(branch_qty_sum, qty);
     assert_eq!(branch_value_sum, value);
+    drop(db_guard);
+
+    // `apply_change` called directly (no matching `shared::ledger::post`) — see the comment on
+    // `apply_change_review_a1_worked_example` above; this test's whole point is the branch-row split.
+    test_db.finish_expecting(&["inventory-gl"], "apply_change is exercised directly, without the matching shared::ledger::post an app caller always pairs it with").await;
 }
 
 #[tokio::test]
@@ -311,6 +326,9 @@ async fn service_and_untracked_products_are_a_no_op() {
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
     let movements = stock_movements::Entity::find().filter(stock_movements::Column::ProductId.eq(service_id)).all(conn).await.unwrap();
     assert!(movements.is_empty(), "a service product must never get a stock_movements row");
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -365,6 +383,11 @@ async fn fefo_earliest_expiry_first_undated_last_expired_skipped() {
     })
     .await
     .unwrap();
+
+    // `apply_change`/`receive_batch`/`consume_fefo` called directly (no matching `shared::ledger::
+    // post`) — see the comment on `apply_change_review_a1_worked_example` above; this test's whole
+    // point is FEFO batch ordering/consumption.
+    test_db.finish_expecting(&["inventory-gl"], "apply_change/receive_batch are exercised directly, without the matching shared::ledger::post an app caller always pairs them with").await;
 }
 
 #[tokio::test]
@@ -401,6 +424,11 @@ async fn fefo_shortfall_returns_partial_draws_with_no_error() {
     })
     .await
     .unwrap();
+
+    // `apply_change`/`receive_batch`/`consume_fefo` called directly (no matching `shared::ledger::
+    // post`) — see the comment on `apply_change_review_a1_worked_example` above; this test's whole
+    // point is the shortfall-partial-draw behavior.
+    test_db.finish_expecting(&["inventory-gl"], "apply_change/receive_batch are exercised directly, without the matching shared::ledger::post an app caller always pairs them with").await;
 }
 
 #[tokio::test]
@@ -477,6 +505,12 @@ async fn concurrent_apply_change_on_the_same_product_serializes() {
     let (qty, value, _) = stock_of(conn, product_id).await;
     assert_eq!(qty, dec!(30));
     assert_eq!(value, dec!(300));
+    drop(db_guard);
+
+    // `apply_change` called directly on both sides of the race (no matching `shared::ledger::post`)
+    // — see the comment on `apply_change_review_a1_worked_example` above; this test's whole point is
+    // the row-lock serializing the two concurrent transactions.
+    test_db.finish_expecting(&["inventory-gl"], "apply_change is exercised directly, without the matching shared::ledger::post an app caller always pairs it with").await;
 }
 
 // Only exercised for its side effect (compile-time check that `lock_products` locks a set).
@@ -502,4 +536,6 @@ async fn lock_products_locks_a_set_sorted_by_id() {
     })
     .await
     .unwrap();
+
+    test_db.finish().await;
 }

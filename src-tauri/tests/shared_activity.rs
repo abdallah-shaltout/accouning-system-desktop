@@ -260,6 +260,9 @@ async fn log_writes_audit_and_activity_rows() {
     assert_eq!(activity_row.kind, ActivityKind::Journal);
     assert_eq!(activity_row.message, "قيد جديد");
     assert_eq!(activity_row.audit_id, Some(audit_id));
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -280,6 +283,9 @@ async fn log_falls_back_on_a_list_link() {
     let conn = &db_guard.as_ref().unwrap().connection;
     let audit_row = audit::Entity::find_by_id(audit_id).one(conn).await.unwrap().unwrap();
     assert_eq!(audit_row.entity, "approval", "a list link has no id param, so it must fall back to (kind, new id)");
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -299,6 +305,9 @@ async fn auth_kind_defaults_to_login_action() {
     let conn = &db_guard.as_ref().unwrap().connection;
     let audit_row = audit::Entity::find_by_id(audit_id).one(conn).await.unwrap().unwrap();
     assert_eq!(audit_row.action, AuditAction::Login);
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -342,6 +351,9 @@ async fn undo_happy_path_links_both_rows() {
     let comp = audit::Entity::find_by_id(comp_id).one(conn).await.unwrap().unwrap();
     assert_eq!(original.undone_by, Some(comp_id));
     assert_eq!(comp.undo_of, Some(original_audit_id));
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -385,6 +397,8 @@ async fn undo_twice_gives_conflict() {
     })
     .await;
     assert!(matches!(second, Err(AppError::Conflict { .. })), "undoing an already-undone row must give CONFLICT");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -407,6 +421,8 @@ async fn undo_of_a_non_undoable_row_gives_validation() {
     })
     .await;
     assert!(matches!(result, Err(AppError::Validation { .. })), "a non-undoable row must give VALIDATION, not silently succeed");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -442,6 +458,8 @@ async fn undo_with_empty_reason_gives_validation() {
     })
     .await;
     assert!(matches!(result, Err(AppError::Validation { .. })), "a blank/whitespace-only reason must give VALIDATION");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -495,6 +513,8 @@ async fn undo_unregistered_action_type_gives_internal() {
     })
     .await;
     assert!(matches!(result, Err(AppError::Internal { .. })), "an unregistered action_type must fail fast with INTERNAL");
+
+    test_db.finish().await;
 }
 
 /// Seeds a fiscal year covering `day`, already `is_closed = true` — this test only needs a closed
@@ -578,6 +598,8 @@ async fn closed_year_non_admin_forbidden_admin_succeeds() {
     })
     .await;
     assert!(admin_result.is_ok(), "an admin must be able to undo even in a closed year (D7)");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -621,4 +643,7 @@ async fn a_failing_compensator_rolls_everything_back() {
     use accounting_app_lib::entities::platform::audit::Column;
     let leftover = audit::Entity::find().filter(Column::UndoOf.eq(audit_id)).all(conn).await.unwrap();
     assert!(leftover.is_empty(), "a failed compensation must leave no compensation row behind");
+    drop(db_guard);
+
+    test_db.finish().await;
 }

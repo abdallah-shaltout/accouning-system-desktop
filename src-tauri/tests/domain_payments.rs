@@ -458,6 +458,7 @@ async fn create_payment_receipt_no_allocation_posts_unallocated() {
     })
     .await
     .unwrap();
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -516,6 +517,7 @@ async fn create_payment_receipt_allocated_to_two_invoices_updates_paid_amount() 
     })
     .await
     .unwrap();
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -565,6 +567,7 @@ async fn create_payment_supplier_against_received_po() {
     })
     .await
     .unwrap();
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -618,6 +621,7 @@ async fn create_payment_fx_gain_on_usd_invoice() {
     })
     .await
     .unwrap();
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -656,6 +660,7 @@ async fn create_payment_base_currency_partial_against_fc_invoice_is_refused() {
         AppError::Validation { message } => assert!(message.contains("التخصيص الجزئي بالعملة الأساسية"), "unexpected message: {message}"),
         other => panic!("expected VALIDATION, got {other:?}"),
     }
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -736,6 +741,7 @@ async fn allocate_later_then_remove_allocation_round_trips() {
     })
     .await
     .unwrap();
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -787,6 +793,7 @@ async fn remove_allocation_with_realized_fx_is_refused() {
         AppError::Validation { message } => assert!(message.contains("فرق عملة"), "unexpected message: {message}"),
         other => panic!("expected VALIDATION, got {other:?}"),
     }
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -804,6 +811,7 @@ async fn get_payment_unknown_id_is_not_found() {
         AppError::NotFound { message } => assert_eq!(message, "السند غير موجود"),
         other => panic!("expected NOT_FOUND, got {other:?}"),
     }
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -842,6 +850,7 @@ async fn over_allocation_beyond_payment_amount_is_refused() {
         AppError::Validation { message } => assert_eq!(message, "إجمالي التخصيص أكبر من مبلغ السند"),
         other => panic!("expected VALIDATION, got {other:?}"),
     }
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -914,6 +923,7 @@ async fn list_payments_filters_and_search() {
     .unwrap();
     assert_eq!(party_search.len(), 1);
     assert_eq!(party_search[0].payment.amount, dec!(150));
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -955,6 +965,7 @@ async fn payments_for_invoice_returns_only_received_allocated_ones() {
     .unwrap();
     assert_eq!(payments.len(), 1);
     assert_eq!(payments[0].amount, dec!(500));
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1009,6 +1020,7 @@ async fn create_payment_period_locked_refuses_with_forbidden() {
     })
     .await
     .unwrap();
+    test_db.finish().await;
 }
 
 /// ACC-0015 helper: the payment's journal lines, per entry (ordered by entry number, then position),
@@ -1110,6 +1122,7 @@ async fn allocate_later_fx_entry_tags_the_settled_fc_at_the_invoice_rate() {
     })
     .await
     .unwrap();
+    test_db.finish().await;
 }
 
 /// ACC-0015 (PAID side): paying a USD PO booked at 3.75 with USD bought at 3.80 is a LOSS (more base
@@ -1180,6 +1193,14 @@ async fn allocate_later_supplier_payment_books_fx_loss() {
     })
     .await
     .unwrap();
+    // `check_party_allocation`'s supplier-allocation branch (`src-tauri/src/shared/invariants/
+    // parties.rs`) sums `purchase_orders.grand_total` directly with no FX conversion, unlike its own
+    // customer-allocation branch (which converts an FC invoice's outstanding at `exchange_rate`,
+    // ACC-0009) — the identical asymmetry exists in the mock port
+    // (`src/mocks/backend/invariants.ts`'s `supAllocationMismatch` vs `outstandingBase`), so it's a
+    // pre-existing, shared quirk of the check itself, not a books bug in this FC-PO/FX-loss scenario
+    // (not something phase C may change, per CLAUDE.md's accounting-safety rules).
+    test_db.finish_expecting(&["supplier-allocation"], "an FC purchase order's grand_total is compared to paid_amount with no FX conversion in check_party_allocation, a known mock-mirrored quirk").await;
 }
 
 /// ACC-0014: a payment refused by the lock date (committed in an earlier transaction, like a real
@@ -1271,4 +1292,5 @@ async fn refused_payment_consumes_no_number_and_touches_no_invoice() {
     })
     .await
     .unwrap();
+    test_db.finish().await;
 }

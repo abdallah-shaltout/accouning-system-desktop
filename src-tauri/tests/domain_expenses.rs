@@ -341,6 +341,9 @@ async fn create_expense_cash_no_vat_posts_balanced_entry() {
     let results = invariants::run_all(conn).await.expect("invariants must run");
     let failed: Vec<_> = results.iter().filter(|r| !r.passed).collect();
     assert!(failed.is_empty(), "invariants failed: {failed:?}");
+    drop(db_guard);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -383,6 +386,8 @@ async fn create_expense_tax_invoice_splits_net_and_vat() {
 
     assert_eq!(expense.net_amount, dec!(100));
     assert_eq!(expense.tax_amount, dec!(15));
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -427,6 +432,8 @@ async fn create_expense_credit_posts_to_payable_with_supplier_party() {
         ExpensePaidFrom::Credit { supplier_id } => assert!(!supplier_id.to_string().is_empty()),
         _ => panic!("expected a credit paid_from"),
     }
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -465,6 +472,8 @@ async fn expense_category_validation_messages_in_order() {
     .await
     .expect_err("unknown account must be refused");
     assert!(matches!(err, accounting_app_lib::core::error::AppError::NotFound { message } if message == "الحساب غير موجود في شجرة الحسابات"));
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -554,6 +563,8 @@ async fn expense_category_delete_protected_and_in_use_refusals() {
     .await
     .expect_err("category with an expense must be refused");
     assert!(matches!(err, accounting_app_lib::core::error::AppError::Conflict { .. }));
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -607,6 +618,8 @@ async fn list_expenses_filters_by_category_and_search() {
     })
     .await
     .expect("list/search assertions must pass");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -693,4 +706,6 @@ async fn recurring_expense_crud_and_due_list_and_post_due() {
     })
     .await
     .expect("recurring expense assertions must pass");
+
+    test_db.finish().await;
 }

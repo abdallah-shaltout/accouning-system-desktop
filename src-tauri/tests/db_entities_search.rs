@@ -34,11 +34,28 @@ fn haystack_of(fields: &[&str]) -> String {
     accounting_app_lib::utils::text::search_haystack(&opts)
 }
 
+/// Seeds one minimal non-group `accounts` row (raw SQL, same pattern as `seed_minimal_user`) — a
+/// posting target for the balanced, zero-value journal lines the `journal_entries` fixture below
+/// needs so `TestDb::finish()`'s invariants (`min-two-lines`, §4.1) pass: the row's whole point is
+/// exercising `search_normalized`, not a real posting, so the lines carry no amount.
+async fn seed_minimal_account<C: ConnectionTrait>(conn: &C) -> Id {
+    let account_id = Id::new();
+    let stmt = Statement::from_sql_and_values(
+        conn.get_database_backend(),
+        "INSERT INTO accounts (id, code, name, is_group, kind, subtype, normal_side, allow_manual, active, can_delete) \
+         VALUES (?, ?, 'حساب تجريبي', 0, 'ASSET', 'otherCurrentAsset', 'DEBIT', 1, 1, 1)",
+        [account_id.to_string().into(), format!("ACC{}", support::unique_tail(account_id, 8)).into()],
+    );
+    conn.execute(stmt).await.unwrap();
+    account_id
+}
+
 // --- products ----------------------------------------------------------------------------------
 
 #[tokio::test]
 async fn products_search_normalized_filled_on_insert_and_refreshed_on_update() {
     let test_db = TestDb::fresh().await;
+    {
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -107,6 +124,8 @@ async fn products_search_normalized_filled_on_insert_and_refreshed_on_update() {
     let reloaded = products::Entity::find_by_id(id).one(conn).await.unwrap().unwrap();
     assert_eq!(reloaded.sku, "SKU-002");
     assert_eq!(reloaded.search_normalized.as_deref(), Some(haystack_of(&["أحمد للمواد الغذائية", "SKU-002", "1234567890"]).as_str()));
+    }
+    test_db.finish().await;
 }
 
 // --- parties -------------------------------------------------------------------------------------
@@ -114,6 +133,7 @@ async fn products_search_normalized_filled_on_insert_and_refreshed_on_update() {
 #[tokio::test]
 async fn parties_search_normalized_covers_the_customer_and_supplier_field_union() {
     let test_db = TestDb::fresh().await;
+    {
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -169,6 +189,8 @@ async fn parties_search_normalized_covers_the_customer_and_supplier_field_union(
     let reloaded = parties::Entity::find_by_id(id).one(conn).await.unwrap().unwrap();
     let expected_after = haystack_of(&["مؤسسة النور", "Al Noor Est.", "SUP-001", "0559999999", "300000000000003", "خالد أحمد"]);
     assert_eq!(reloaded.search_normalized.as_deref(), Some(expected_after.as_str()));
+    }
+    test_db.finish().await;
 }
 
 // --- journal_entries -----------------------------------------------------------------------------
@@ -176,10 +198,12 @@ async fn parties_search_normalized_covers_the_customer_and_supplier_field_union(
 #[tokio::test]
 async fn journal_entries_search_normalized_filled_on_insert_and_refreshed_on_update() {
     let test_db = TestDb::fresh().await;
+    {
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
     let user_id = seed_minimal_user(conn).await;
+    let account_id = seed_minimal_account(conn).await;
     let id = Id::new();
     let am = journal_entries::ActiveModel {
         id: Set(id),
@@ -211,6 +235,18 @@ async fn journal_entries_search_normalized_filled_on_insert_and_refreshed_on_upd
     };
     am.insert(conn).await.unwrap();
 
+    // Two balanced, zero-value lines — satisfies the `min-two-lines`/`no-both-sided-lines`
+    // invariants (§4.1) for `TestDb::finish()` without introducing any real posting (the entry's
+    // own `total_debit`/`total_credit` stay 0/0, and 0-value lines move no trial-balance total).
+    for position in 0..2i16 {
+        let line_stmt = Statement::from_sql_and_values(
+            conn.get_database_backend(),
+            "INSERT INTO journal_lines (id, journal_entry_id, position, account_id, debit, credit) VALUES (?, ?, ?, ?, 0, 0)",
+            [Id::new().to_string().into(), id.to_string().into(), position.into(), account_id.to_string().into()],
+        );
+        conn.execute(line_stmt).await.unwrap();
+    }
+
     let loaded = journal_entries::Entity::find_by_id(id).one(conn).await.unwrap().unwrap();
     let expected = haystack_of(&["JE-0001", "قيد افتتاحي للصندوق", "INV-0099"]);
     assert_eq!(loaded.search_normalized.as_deref(), Some(expected.as_str()));
@@ -222,6 +258,8 @@ async fn journal_entries_search_normalized_filled_on_insert_and_refreshed_on_upd
     let reloaded = journal_entries::Entity::find_by_id(id).one(conn).await.unwrap().unwrap();
     let expected_after = haystack_of(&["JE-0001", "قيد تعديل الصندوق", "INV-0099"]);
     assert_eq!(reloaded.search_normalized.as_deref(), Some(expected_after.as_str()));
+    }
+    test_db.finish().await;
 }
 
 // --- vouchers ------------------------------------------------------------------------------------
@@ -229,6 +267,7 @@ async fn journal_entries_search_normalized_filled_on_insert_and_refreshed_on_upd
 #[tokio::test]
 async fn vouchers_search_normalized_filled_on_insert_and_refreshed_on_update() {
     let test_db = TestDb::fresh().await;
+    {
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -274,4 +313,6 @@ async fn vouchers_search_normalized_filled_on_insert_and_refreshed_on_update() {
     let reloaded = vouchers::Entity::find_by_id(id).one(conn).await.unwrap().unwrap();
     let expected_after = haystack_of(&["RV-0001", "سند قبض من العميل", "دفعة نهائية"]);
     assert_eq!(reloaded.search_normalized.as_deref(), Some(expected_after.as_str()));
+    }
+    test_db.finish().await;
 }

@@ -359,6 +359,7 @@ async fn create_product_happy_path_has_empty_prices_and_zero_stock() {
     assert_eq!(product.stock_qty, Decimal::ZERO);
     assert_eq!(product.stock_value, Decimal::ZERO);
     assert_eq!(product.sku, "SKU-001");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -459,6 +460,7 @@ async fn create_product_validation_messages_in_order() {
     dup_input.barcode = Some("BC-DUP".to_string());
     let err = run(&db, &undo, dup_input).await.unwrap();
     assert_eq!(err.to_string(), "الباركود مستخدم لمنتج آخر");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -494,6 +496,7 @@ async fn create_product_with_opening_qty_posts_stock_in_and_activity_order() {
     let results = with_read(&db.state, |tx| Box::pin(async move { invariants::run_all(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
     let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
     assert!(failed.is_empty(), "invariants must all pass, failed: {failed:?}");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -532,6 +535,7 @@ async fn create_product_opening_qty_above_threshold_rolls_back_whole_create() {
     .await
     .unwrap();
     assert!(found.is_none(), "product must not exist after a rolled-back opening adjustment");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -607,6 +611,7 @@ async fn update_product_cost_ignored_with_stock_applied_when_empty() {
         .unwrap()
     };
     assert_eq!(updated2.cost_price, dec!(15), "cost change must be silently ignored once stock > 0");
+    db.finish().await;
 }
 
 // --- Categories / units / price lists / custom fields -------------------------------------------
@@ -644,6 +649,7 @@ async fn category_exact_name_conflict_and_case_variants_allowed() {
     // productCount + delete guard.
     let categories = with_read(&db.state, |tx| Box::pin(async move { catalog::get_categories(tx).await.map_err(Into::into) })).await.unwrap();
     assert!(categories.iter().any(|c| c.id == cat1.id && c.product_count == 0));
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -680,6 +686,7 @@ async fn delete_category_in_use_is_refused_then_freed_after_removal() {
     })
     .await;
     assert!(result.is_err(), "category in use must refuse delete");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -704,6 +711,7 @@ async fn unit_preset_applies_once_and_is_idempotent() {
     .await
     .unwrap();
     assert!(created2.is_empty(), "re-applying the same preset must create nothing");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -744,6 +752,7 @@ async fn price_list_delete_cascades_and_set_values_rolls_back_on_negative() {
 
     let refreshed = with_read(&db.state, move |tx| Box::pin(async move { products::get_product(tx, product.id).await.map_err(Into::into) })).await.unwrap();
     assert_eq!(refreshed.prices, Some(vec![]), "delete_price_list must cascade product_prices rows");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -796,6 +805,7 @@ async fn custom_field_def_requires_options_for_list_type_and_delete_guard() {
     })
     .await;
     assert!(delete_result.is_err(), "deleting a custom field used by a product must be refused");
+    db.finish().await;
 }
 
 // --- Inventory: stock adjustments ----------------------------------------------------------------
@@ -864,6 +874,7 @@ async fn stock_in_each_reason_credits_expected_role() {
     let results = with_read(&db.state, |tx| Box::pin(async move { invariants::run_all(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
     let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
     assert!(failed.is_empty(), "invariants must all pass after each STOCK_IN reason: {failed:?}");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -926,6 +937,7 @@ async fn loss_above_stock_is_refused_and_tracked_product_requires_batch_no() {
     })
     .await;
     assert!(result.is_err(), "STOCK_IN on a tracked product without a batch number must be refused");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -985,6 +997,7 @@ async fn stocktake_gain_and_loss_in_one_entry() {
     let results = with_read(&db.state, |tx| Box::pin(async move { invariants::run_all(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
     let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
     assert!(failed.is_empty(), "invariants must all pass after a mixed STOCKTAKE: {failed:?}");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -1056,6 +1069,7 @@ async fn draft_adjustment_has_no_journal_and_complete_uses_snapshot() {
         .await
     };
     assert!(again.is_err(), "completing an already-completed adjustment must be refused");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -1113,6 +1127,7 @@ async fn delete_draft_adjustment_writes_activity_and_refuses_completed() {
 
     let missing: Result<_, _> = with_read(&db.state, move |tx| Box::pin(async move { adjustments::get_stock_adjustment(tx, draft.id).await.map_err(Into::into) })).await;
     assert!(missing.is_err(), "deleted draft must no longer be readable");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -1200,6 +1215,7 @@ async fn approval_threshold_forbidden_without_grant_posts_with_granted_manager()
         .await
     };
     assert!(granted.is_ok(), "a granted, active manager must be able to approve: {granted:?}");
+    db.finish().await;
 }
 
 /// ACC-0006: completing an above-threshold draft enforces the same manager-approval rule as a
@@ -1285,6 +1301,7 @@ async fn completing_draft_above_threshold_requires_granted_manager() {
     let results = with_read(&db.state, |tx| Box::pin(async move { invariants::run_all(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
     let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
     assert!(failed.is_empty(), "invariants must all pass after an approved draft completion: {failed:?}");
+    db.finish().await;
 }
 
 // --- Movements -------------------------------------------------------------------------------
@@ -1317,6 +1334,7 @@ async fn stock_movements_filter_and_date_desc_order() {
     let rows = with_read(&db.state, move |tx| Box::pin(async move { movements::get_stock_movements(tx, Some(filter)).await.map_err(Into::into) })).await.unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].qty_change, dec!(20));
+    db.finish().await;
 }
 
 // --- Batches / expiry ------------------------------------------------------------------------
@@ -1379,6 +1397,7 @@ async fn write_off_expired_batches_groups_by_product() {
         .await
     };
     assert!(write_off.is_ok(), "write-off of an expired batch must post a LOSS adjustment: {write_off:?}");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -1407,6 +1426,7 @@ async fn empty_batch_selection_for_write_off_and_return_are_refused() {
     })
     .await;
     assert!(result2.is_err());
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -1434,6 +1454,7 @@ async fn return_batches_to_supplier_creates_draft() {
     .await
     .expect("return_batches_to_supplier must create a draft");
     assert_eq!(draft.lines.len(), 1);
+    db.finish().await;
 }
 
 // --- Stock counts ----------------------------------------------------------------------------
@@ -1510,6 +1531,7 @@ async fn stock_count_full_cycle() {
     let results = with_read(&db.state, |tx| Box::pin(async move { invariants::run_all(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
     let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
     assert!(failed.is_empty(), "invariants must all pass after completing a stock count: {failed:?}");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -1530,6 +1552,7 @@ async fn stock_count_empty_scope_is_refused() {
     })
     .await;
     assert!(result.is_err(), "a scope matching no products must be refused");
+    db.finish().await;
 }
 
 // --- Transfers -------------------------------------------------------------------------------
@@ -1653,6 +1676,7 @@ async fn transfer_send_over_branch_stock_is_conflict_full_cycle_otherwise_succee
     let results = with_read(&db.state, |tx| Box::pin(async move { invariants::run_all(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
     let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
     assert!(failed.is_empty(), "invariants must all pass after a transfer send + short receive: {failed:?}");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -1731,4 +1755,5 @@ async fn reject_transfer_returns_full_value_and_requires_reason() {
 
     let after = with_read(&db.state, move |tx| Box::pin(async move { products::get_product(tx, product.id).await.map_err(Into::into) })).await.unwrap();
     assert_eq!(after.stock_qty, dec!(5), "rejecting must return the full quantity to the source branch");
+    db.finish().await;
 }

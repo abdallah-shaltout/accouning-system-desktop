@@ -39,6 +39,7 @@ async fn seed_minimal_branch<C: ConnectionTrait>(conn: &C) -> Id {
 #[tokio::test]
 async fn soft_deleted_category_name_can_be_recreated() {
     let test_db = TestDb::fresh().await;
+    {
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -87,6 +88,8 @@ async fn soft_deleted_category_name_can_be_recreated() {
     let live = categories::Entity::find_live().all(conn).await.unwrap();
     assert_eq!(live.len(), 1);
     assert_eq!(live[0].id, second_id);
+    }
+    test_db.finish().await;
 }
 
 // --- Case-sensitivity: SKU vs. category name (products.md / B-1 collation rules) -------------------
@@ -94,17 +97,21 @@ async fn soft_deleted_category_name_can_be_recreated() {
 #[tokio::test]
 async fn sku_conflicts_case_insensitively_on_products() {
     let test_db = TestDb::fresh().await;
+    {
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
     insert_minimal_product(conn, "SKU-1").await.unwrap();
     let err = insert_minimal_product(conn, "sku-1").await.expect_err("SKU-1 vs sku-1 must conflict (ci collation)");
     assert!(is_duplicate_key_error(&err), "expected a duplicate-key error, got: {err}");
+    }
+    test_db.finish().await;
 }
 
 #[tokio::test]
 async fn category_name_does_not_conflict_case_sensitively() {
     let test_db = TestDb::fresh().await;
+    {
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -141,6 +148,8 @@ async fn category_name_does_not_conflict_case_sensitively() {
         name_live: sea_orm::ActiveValue::NotSet,
     };
     b.insert(conn).await.expect("\"Food\" vs \"food\" must NOT conflict on categories (case-sensitive collation)");
+    }
+    test_db.finish().await;
 }
 
 async fn insert_minimal_product<C: ConnectionTrait>(conn: &C, sku: &str) -> Result<products::Model, DbErr> {
@@ -200,6 +209,7 @@ async fn insert_minimal_product<C: ConnectionTrait>(conn: &C, sku: &str) -> Resu
 #[tokio::test]
 async fn settings_row_with_json_policies_round_trips_field_equal() {
     let test_db = TestDb::fresh().await;
+    {
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -329,6 +339,8 @@ async fn settings_row_with_json_policies_round_trips_field_equal() {
     };
     let err = second.insert(conn).await.expect_err("a second settings row must be rejected");
     assert!(is_duplicate_key_error(&err), "expected a duplicate-key error on the singleton unique, got: {err}");
+    }
+    test_db.finish().await;
 }
 
 // --- DocDate: both shapes round-trip (stock_adjustments.date) ---------------------------------------
@@ -338,6 +350,7 @@ async fn doc_date_round_trips_both_shapes_on_stock_adjustments() {
     use accounting_app_lib::entities::inventory::stock_adjustments;
 
     let test_db = TestDb::fresh().await;
+    {
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -392,6 +405,8 @@ async fn doc_date_round_trips_both_shapes_on_stock_adjustments() {
     let loaded_instant = stock_adjustments::Entity::find_by_id(instant_id).one(conn).await.unwrap().unwrap();
     assert_eq!(loaded_instant.date_key, "2026-09-27T10:00:00.120Z");
     assert_eq!(loaded_instant.date().key(), "2026-09-27T10:00:00.120Z");
+    }
+    test_db.finish().await;
 }
 
 // --- taxes: soft-delete round-trip (no live-name unique on taxes, just the soft_delete mechanism) --
@@ -399,6 +414,7 @@ async fn doc_date_round_trips_both_shapes_on_stock_adjustments() {
 #[tokio::test]
 async fn taxes_soft_delete_and_restore_round_trip() {
     let test_db = TestDb::fresh().await;
+    {
     let db_guard = test_db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -429,6 +445,8 @@ async fn taxes_soft_delete_and_restore_round_trip() {
     let live_after_restore = taxes::Entity::find_live().all(conn).await.unwrap();
     assert_eq!(live_after_restore.len(), 1);
     assert_eq!(live_after_restore[0].rate, dec!(15.0000));
+    }
+    test_db.finish().await;
 }
 
 // --- Migrator up/down/up sanity (part of the phase-b gate) ------------------------------------------
@@ -438,10 +456,13 @@ async fn migrator_up_down_up_succeeds() {
     // `TestDb::fresh()` already runs `Migrator::up` once; this test additionally proves `down` then
     // `up` again succeeds from that same fresh state.
     let test_db = TestDb::fresh().await;
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
 
-    use migration::MigratorTrait;
-    migration::Migrator::down(conn, None).await.expect("migrator down must succeed");
-    migration::Migrator::up(conn, None).await.expect("migrator up (again) must succeed");
+        use migration::MigratorTrait;
+        migration::Migrator::down(conn, None).await.expect("migrator down must succeed");
+        migration::Migrator::up(conn, None).await.expect("migrator up (again) must succeed");
+    }
+    test_db.finish().await;
 }

@@ -124,6 +124,8 @@ async fn audit_entries_come_back_newest_first() {
         assert!(pair[0].at >= pair[1].at, "entries must be sorted by `at` descending");
     }
     assert_eq!(entries[0].message, "ثالث عملية");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -160,6 +162,8 @@ async fn audit_entries_filter_by_user_entity_and_action() {
     .await
     .expect("filter by action");
     assert_eq!(by_action.len(), 2, "both rows were logged with the default Create action");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -183,6 +187,8 @@ async fn audit_entries_search_matches_message_entity_id_and_label_case_insensiti
     .await
     .expect("search must succeed");
     assert!(misses.is_empty());
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -212,6 +218,8 @@ async fn audit_entries_from_to_compare_the_utc_date_slice_not_business_day() {
     .await
     .expect("from must succeed");
     assert!(excluded.is_empty(), "an entry logged today must not match a from=tomorrow filter");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -232,6 +240,8 @@ async fn audit_entities_are_distinct_and_code_point_sorted() {
     assert_eq!(entities, sorted, "entities must already be code-point sorted");
     let unique: std::collections::BTreeSet<_> = entities.iter().collect();
     assert_eq!(unique.len(), entities.len(), "entities must be distinct — no duplicate 'party' rows");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -251,6 +261,8 @@ async fn cashier_cannot_read_audit_entries_forbidden() {
     .await;
 
     assert!(matches!(result, Err(AppError::Forbidden { .. })), "a cashier must not have Users:Read");
+
+    test_db.finish().await;
 }
 
 /// Copied from `domain_settings.rs`/`domain_accounting.rs`'s own `seed_branch_and_settings`/
@@ -345,6 +357,8 @@ async fn any_signed_in_user_gets_a_support_snapshot_without_db() {
 
     assert!(snapshot.db_snapshot.is_none());
     assert_eq!(snapshot.settings_redacted["storeName"], serde_json::json!("متجر تجريبي"));
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -369,6 +383,8 @@ async fn admin_include_db_snapshot_has_no_credentials_table_and_no_password_hash
     assert!(!text.to_lowercase().contains("password_hash"), "no password_hash column may survive into the support bundle's DB snapshot");
     // The seeded branch/settings rows must still be there — proves this isn't an empty/broken export.
     assert!(text.contains("branches"), "the snapshot must still include ordinary business tables");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -388,6 +404,8 @@ async fn cashier_include_db_snapshot_is_forbidden() {
     .await;
 
     assert!(matches!(result, Err(AppError::Forbidden { .. })), "includeDbSnapshot must need Settings:Write (D-2) — checked before any settings-row read");
+
+    test_db.finish().await;
 }
 
 /// `TxCtx` and `ReadCtx` are both built only by `core::tx`'s own helpers — this test file uses
@@ -560,6 +578,8 @@ async fn list_recent_documents_orders_newest_first_and_marks_traced_entries() {
     assert_eq!(docs[0].id, second.id, "the most recently posted entry must come first");
     assert_eq!(docs[1].id, first.id);
     assert!(docs.iter().all(|d| d.has_trace), "both entries were just posted in this process, so the trace ring must still have them");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -574,6 +594,8 @@ async fn posting_trace_is_recorded_on_commit_and_absent_for_a_rolled_back_attemp
     assert_eq!(trace.unwrap().doc_id, entry.id);
 
     assert!(debugger_service::get_posting_trace(&test_db.state.traces, Id::new()).is_none(), "an unknown entry id must return None (Q-4), not an error");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -597,6 +619,8 @@ async fn get_journal_entry_raw_finds_posted_entry_and_returns_none_for_unknown_i
     .await
     .expect("get_journal_entry_raw must succeed even for an unknown id");
     assert!(missing.is_none(), "an unknown id must return None (Q-4), not NOT_FOUND");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -620,6 +644,8 @@ async fn balances_around_follow_number_ordering_on_the_same_day() {
     // cash's Σ(debit-credit) = -100. Including the second (-50 more) = -150.
     assert_eq!(cash_row.before, dec!(-100));
     assert_eq!(cash_row.after, dec!(-150));
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -632,6 +658,8 @@ async fn get_balances_around_returns_empty_for_unknown_entry() {
         .await
         .expect("get_balances_around must succeed");
     assert!(balances.is_empty(), "an unknown entryId must return [] (Q-4), not NOT_FOUND");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -658,6 +686,8 @@ async fn invariant_results_equal_run_all_and_pass_on_a_balanced_fixture() {
         assert_eq!(dto.passed, raw.passed);
     }
     assert!(via_debugger.iter().all(|r| r.passed), "a single balanced manual entry on a clean fixture must pass every invariant");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -671,6 +701,8 @@ async fn drift_report_is_empty_on_a_clean_fixture() {
         .await
         .expect("get_drift_report must succeed");
     assert!(rows.is_empty(), "no customers/suppliers/products exist in this fixture, so no drift row can be emitted");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -692,6 +724,8 @@ async fn explain_account_balance_returns_lines_newest_first() {
     for pair in lines.windows(2) {
         assert!(pair[0].doc_date >= pair[1].doc_date, "rows must be newest-first by docDate");
     }
+
+    test_db.finish().await;
 }
 
 #[tokio::test]

@@ -101,6 +101,9 @@ async fn dataset_schema_is_dumpable() {
     // BLOB/BINARY/VARBINARY/BIT columns).
     let snapshot = dataset::dump_snapshot(conn).await.expect("dump_snapshot must succeed (no binary columns)");
     assert_eq!(snapshot.format, "equal-db");
+    drop(db_guard);
+
+    db.finish().await;
 }
 
 // --- round trip: seed -> build (plain) -> wipe -> load -> tables equal, run_all green -------------
@@ -131,6 +134,9 @@ async fn plain_round_trip_preserves_every_row() {
     let results = invariants::run_all(conn).await.expect("run_all must not error");
     let failed: Vec<_> = results.iter().filter(|r| !r.passed).collect();
     assert!(failed.is_empty(), "invariants failed after round trip: {failed:?}");
+    drop(db_guard);
+
+    db.finish().await;
 }
 
 // --- encrypted round trip; wrong password; missing password; flipped byte -------------------------
@@ -168,6 +174,9 @@ async fn encrypted_archive_round_trips_and_rejects_bad_password() {
         Ok(sum) => assert_ne!(sum, built.manifest.checksum, "a flipped byte must change the recomputed checksum"),
         Err(_) => {} // corruption detected at parse time — also an acceptable outcome.
     }
+    drop(db_guard);
+
+    db.finish().await;
 }
 
 // --- preview notes for versions 1, 50, 114, 115, 116 (build = 115 via the real migrator count) ----
@@ -227,6 +236,9 @@ async fn table_counts_key_order_and_soft_delete_filter() {
     // inserts no attachment rows, not because the count is hardcoded (see domain_attachments.rs for
     // a real, non-zero count).
     assert_eq!(attachments.1, 0, "no attachments were seeded by the importer fixture");
+    drop(db_guard);
+
+    db.finish().await;
 }
 
 // --- auto: terminal role -> not-main; disabled; not due; no folder; due -> written, retention ------
@@ -239,6 +251,8 @@ async fn auto_backup_skips_on_terminal_role() {
     let outcome = auto::run_auto_backup_if_due(&db.state, AutoBackupTrigger::Schedule).await.expect("must not error");
     assert!(!outcome.ran);
     assert_eq!(outcome.skipped, Some(AutoBackupSkipReason::NotMain));
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -277,6 +291,8 @@ async fn auto_backup_skips_when_disabled_or_no_folder() {
     let outcome = auto::run_auto_backup_if_due(&db.state, AutoBackupTrigger::Schedule).await.expect("must not error");
     assert!(!outcome.ran);
     assert_eq!(outcome.skipped, Some(AutoBackupSkipReason::NoFolder));
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -335,6 +351,8 @@ async fn auto_backup_writes_file_and_prunes_retention() {
     assert_eq!(again.skipped, Some(AutoBackupSkipReason::NotDue), "a second tick the same day must not write again: {again:?}");
 
     let _ = std::fs::remove_dir_all(&tmp_dir);
+
+    db.finish().await;
 }
 
 // --- restore: invariant-breaking archive -> rollback, DB unchanged; session cleared ----------------
@@ -352,6 +370,8 @@ async fn restore_refuses_encrypted_archive_without_password() {
 
     let err = restore::restore_from_archive(&db.state, &built.archive_base64, None).await.unwrap_err();
     assert_eq!(err.to_string(), "هذه النسخة مشفّرة — أدخل كلمة المرور");
+
+    db.finish().await;
 }
 
 /// D-7 is checked before the mandatory pre-restore backup writes anything: no session is
@@ -369,6 +389,8 @@ async fn restore_without_session_is_unauthorized_before_any_write() {
 
     let err = restore::restore_from_archive(&db.state, &built.archive_base64, None).await.unwrap_err();
     assert!(matches!(err, accounting_app_lib::core::error::AppError::Unauthorized { .. }), "unexpected error: {err:?}");
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -384,6 +406,8 @@ async fn restore_refuses_on_terminal_role() {
 
     let err = restore::restore_from_archive(&db.state, &built.archive_base64, None).await.unwrap_err();
     assert_eq!(err.to_string(), "الاستعادة متاحة على الجهاز الرئيسي فقط");
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -423,6 +447,9 @@ async fn restore_full_round_trip_ends_session_and_matches_counts() {
     let results = invariants::run_all(conn).await.expect("run_all must not error");
     let failed: Vec<_> = results.iter().filter(|r| !r.passed).collect();
     assert!(failed.is_empty(), "invariants failed after restore: {failed:?}");
+    drop(db_guard);
+
+    db.finish().await;
 }
 
 // --- compatibility with the TS format (§8a) --------------------------------------------------------
@@ -478,6 +505,9 @@ async fn restores_ts_format_plain_archive_through_the_importer() {
     let results = invariants::run_all(conn).await.expect("run_all must not error");
     let failed: Vec<_> = results.iter().filter(|r| !r.passed).collect();
     assert!(failed.is_empty(), "invariants failed after restore: {failed:?}");
+    drop(db_guard);
+
+    db.finish().await;
 }
 
 // --- pre-migration: fresh DB -> None; migrated with one pending -> file written, 10 kept ----------
@@ -491,6 +521,9 @@ async fn pre_migration_backup_is_none_on_fresh_db() {
     let tmp_dir = std::env::temp_dir().join(format!("equal-premigration-test-{}", accounting_app_lib::utils::id::Id::new()));
     let result = backup_before_migrations(conn, &tmp_dir).await.expect("must not error on a fully-migrated DB");
     assert!(result.is_none(), "no pending migrations on a freshly migrated test DB — nothing to back up");
+    drop(db_guard);
+
+    db.finish().await;
 }
 
 // --- upgrade_registry_covers_every_version (unit, mirrors upgrade.rs's own test) -------------------

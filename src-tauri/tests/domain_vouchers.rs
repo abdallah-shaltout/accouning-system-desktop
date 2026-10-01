@@ -403,6 +403,7 @@ async fn receipt_voucher_posts_dr_cash_cr_manual_account() {
     }
 
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -436,6 +437,7 @@ async fn payment_voucher_posts_dr_manual_account_cr_cash() {
         _ => panic!("expected a PAYMENT voucher"),
     }
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -474,6 +476,7 @@ async fn transfer_voucher_with_fee_credits_source_amount_plus_fee() {
         _ => panic!("expected a TRANSFER voucher"),
     }
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -508,6 +511,8 @@ async fn transfer_voucher_without_fee_stores_none() {
         Voucher::Transfer { fee_amount, .. } => assert_eq!(fee_amount, None),
         _ => panic!("expected a TRANSFER voucher"),
     }
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -538,6 +543,8 @@ async fn transfer_voucher_same_accounts_rejected_before_lookup() {
     .await
     .expect_err("same source/destination must be refused");
     assert!(matches!(err, AppError::Validation { message } if message == "اختر حسابين مختلفين للتحويل"));
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -568,6 +575,8 @@ async fn transfer_voucher_fee_without_account_rejected() {
     .await
     .expect_err("fee without an account must be refused");
     assert!(matches!(err, AppError::Validation { message } if message == "اختر حساب العمولة"));
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -602,6 +611,8 @@ async fn record_transfer_voucher_with_preallocated_number_uses_it() {
         Voucher::Transfer { base, .. } => assert_eq!(base.number, "VCH-PRESET-01"),
         _ => panic!("expected a TRANSFER voucher"),
     }
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -661,6 +672,7 @@ async fn owner_voucher_drawings_and_contribution_both_directions() {
         _ => panic!("expected an OWNER voucher"),
     }
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -813,6 +825,8 @@ async fn voucher_amount_and_method_and_account_validation_messages() {
     .await
     .expect_err("non-manual account must be refused on payment");
     assert!(matches!(err, AppError::Validation { ref message } if message.contains("من")));
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -927,6 +941,8 @@ async fn owner_voucher_missing_drawings_role_rejected() {
     .await
     .expect_err("missing drawings role account must be refused");
     assert!(matches!(err, AppError::NotFound { ref message } if message.contains("المسحوبات الشخصية")));
+
+    test_db.finish().await;
 }
 
 // --- get_vouchers / get_voucher -------------------------------------------------------------------
@@ -997,6 +1013,8 @@ async fn get_vouchers_filters_by_kind_date_and_arabic_search_and_orders_desc() {
     })
     .await
     .expect("list/search assertions must pass");
+
+    test_db.finish().await;
 }
 
 // --- Card/wallet settlement ------------------------------------------------------------------------
@@ -1032,6 +1050,8 @@ async fn unsettled_groups_split_by_day_and_method_excluding_cash_and_settled() {
     })
     .await
     .expect("unsettled groups assertions must pass");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1060,6 +1080,8 @@ async fn refunded_invoice_tenders_are_excluded_from_unsettled_groups() {
     })
     .await
     .expect("refunded exclusion assertion must pass");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1093,6 +1115,7 @@ async fn settlement_with_fee_posts_bank_and_card_fees_debit_and_clearing_credit(
     assert_eq!(settlement.fee_amount, dec!(3));
     assert_eq!(settlement.groups.len(), 1);
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1125,6 +1148,8 @@ async fn settlement_deposit_slightly_over_gross_is_allowed() {
     // -0.00 — `Decimal::eq` would accept either spelling, but asserting the normalized form keeps
     // this test honest about that rule too.
     assert_eq!(settlement.fee_amount, Decimal::ZERO);
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1152,6 +1177,8 @@ async fn settlement_deposit_over_gross_by_a_lot_rejected() {
     .await
     .expect_err("deposit far over gross must be refused");
     assert!(matches!(err, AppError::Validation { message } if message == "مبلغ الإيداع أكبر من إجمالي العمليات المختارة"));
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1186,6 +1213,7 @@ async fn settlement_mixed_card_and_wallet_posts_two_credit_lines() {
     assert_eq!(settlement.gross_amount, dec!(150));
     assert_eq!(settlement.groups.len(), 2);
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1214,6 +1242,8 @@ async fn settlement_of_already_settled_group_is_conflict() {
     .await
     .expect_err("re-settling an already-settled group must be refused");
     assert!(matches!(err, AppError::Conflict { message } if message == "أحد العناصر المختارة غير متاح للتسوية (ربما تمت تسويته بالفعل)"));
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1233,6 +1263,8 @@ async fn settlement_no_groups_or_negative_deposit_rejected() {
     .await
     .expect_err("no groups must be refused");
     assert!(matches!(err, AppError::Validation { message } if message == "اختر يوماً واحداً على الأقل للتسوية"));
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1269,6 +1301,8 @@ async fn estimate_settlement_fee_matches_round2_of_sum() {
     })
     .await
     .expect("fee estimate assertion must pass");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1311,6 +1345,8 @@ async fn get_card_settlements_and_get_card_settlement() {
     })
     .await
     .expect("settlement detail assertions must pass");
+
+    test_db.finish().await;
 }
 
 // --- Period lock ------------------------------------------------------------------------------------
@@ -1367,6 +1403,8 @@ async fn voucher_in_closed_period_is_forbidden_and_writes_nothing() {
         .len();
     drop(db_guard);
     assert_eq!(count, 0, "nothing must be written when the period is closed");
+
+    test_db.finish().await;
 }
 
 // --- ACC-0014 / ACC-0016 ------------------------------------------------------------------------
@@ -1480,6 +1518,8 @@ async fn refused_vouchers_leave_no_row_and_consume_no_number() {
         Voucher::Receipt { base, .. } => assert_eq!(base.number, "VCH-000001", "a refused voucher consumed a number"),
         _ => panic!("expected a RECEIPT voucher"),
     }
+
+    test_db.finish().await;
 }
 
 /// ACC-0016: a USD invoice's card tender posted its BASE amount to card clearing (the sale's rate),
@@ -1508,6 +1548,8 @@ async fn unsettled_groups_read_fc_invoice_tenders_in_base() {
     })
     .await
     .expect("FC tender group assertions must pass");
+
+    test_db.finish().await;
 }
 
 /// ACC-0031: a payment voucher paid with the business's card (or wallet) credits the BANK — the
@@ -1560,4 +1602,5 @@ async fn payment_voucher_by_card_or_wallet_credits_bank_not_clearing() {
     .await
     .expect("card/wallet payment vouchers must succeed");
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }

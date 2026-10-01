@@ -236,6 +236,8 @@ async fn balanced_post_persists_entry_and_lines_with_sequential_numbers_and_defa
     assert_eq!(lines.len(), 2);
     assert_eq!(lines[0].branch_id, Some(fixture.branch_id));
     assert_eq!(lines[0].currency.as_deref(), Some("SAR"));
+    drop(db_guard);
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -284,6 +286,7 @@ async fn zero_lines_are_dropped_and_one_kept_line_gives_the_exact_message() {
     })
     .await;
     assert_eq!(result.unwrap_err().to_string(), "يجب أن يحتوي القيد على سطرين على الأقل");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -314,6 +317,7 @@ async fn unbalanced_post_gives_the_exact_arabic_message() {
 
     let err = result.unwrap_err();
     assert_eq!(err.to_string(), "القيد غير متوازن: المدين 100 ≠ الدائن 99.99");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -345,6 +349,7 @@ async fn group_account_is_refused() {
 
     let err = result.unwrap_err();
     assert!(err.to_string().contains("حساب رئيسي (تجميعي) ولا يقبل الترحيل المباشر"));
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -375,6 +380,7 @@ async fn missing_role_gives_the_label_message() {
 
     let err = result.unwrap_err();
     assert!(err.to_string().contains("الصندوق"), "expected the cash role's Arabic label in: {err}");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -462,6 +468,7 @@ async fn period_lock_date_and_closed_year_are_refused_unless_allowed() {
     })
     .await;
     assert!(result.is_ok(), "no covering fiscal year must be allowed, matching the mock");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -553,6 +560,7 @@ async fn reverse_keep_vs_default_dimensions_and_both_reason_variants_and_double_
     .await;
     let err = result.unwrap_err();
     assert_eq!(err.to_string(), "هذا القيد معكوس بالفعل");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -604,6 +612,8 @@ async fn draft_post_draft_keeps_id_and_number_and_removes_the_draft() {
     let conn = &db_guard.as_ref().unwrap().connection;
     let remaining_draft = DraftEntity::find_by_id(draft_id).one(conn).await.unwrap();
     assert!(remaining_draft.is_none(), "the draft row must be gone after post_draft");
+    drop(db_guard);
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -669,6 +679,7 @@ async fn effects_ledger_always_touched_parties_only_with_a_party_line() {
     assert_eq!(test_db.state.change_seen.lock().unwrap().get(&ChangeCategory::Parties).copied(), Some(1));
     let ledger_after_second = test_db.state.change_seen.lock().unwrap().get(&ChangeCategory::Ledger).copied();
     assert_eq!(ledger_after_second, Some(2));
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -718,6 +729,7 @@ async fn trace_ring_gets_the_entry_after_commit_and_nothing_after_a_rollback() {
     .await;
     let entry = result.unwrap();
     assert!(test_db.state.traces.for_entry(entry.id).is_some(), "a committed post's trace must be findable by entry id");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -803,6 +815,8 @@ async fn resolve_account_precedence_and_inactive_soft_deleted_excluded() {
     let resolved_after_delete = accounting_app_lib::shared::ledger::accounts::resolve_account(conn, SystemRole::Cash, &ctx_no_branch).await.unwrap();
     assert_ne!(resolved_after_delete.id, fixture.accounts["neutral"], "a soft-deleted account must be excluded");
     assert_ne!(resolved_after_delete.id, inactive_id, "an inactive account must never be picked");
+    drop(db_guard);
+    test_db.finish().await;
 }
 
 /// Concurrency (a): 20 concurrent posts against the SAME `TestDb` (one pooled connection, many
@@ -849,6 +863,8 @@ async fn twenty_concurrent_posts_get_distinct_sequential_numbers_with_no_gaps() 
     numbers.sort();
     let expected: Vec<String> = (1..=20).map(|n| format!("JE-{n:06}")).collect();
     assert_eq!(numbers, expected, "20 concurrent posts must get 20 distinct sequential numbers with no gaps");
+
+    std::sync::Arc::try_unwrap(test_db).unwrap_or_else(|_| panic!("test_db must have no other Arc clones left by the end of the test")).finish().await;
 }
 
 /// Concurrency (b): transaction A holds the fiscal year's exclusive (X) lock via
@@ -957,4 +973,6 @@ async fn closing_a_year_blocks_a_concurrent_poster_then_refuses_it() {
 
     let err = poster_result.unwrap_err();
     assert!(err.to_string().contains("مقفلة"), "poster must be refused once the year is closed, got: {err}");
+
+    std::sync::Arc::try_unwrap(test_db).unwrap_or_else(|_| panic!("test_db must have no other Arc clones left by the end of the test")).finish().await;
 }

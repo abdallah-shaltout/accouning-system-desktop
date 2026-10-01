@@ -66,6 +66,47 @@ impl TestDb {
 
         TestDb { state, db_url, admin_url, db_name }
     }
+
+    /// Runs `shared::invariants::run_all` on this test's connection and panics listing every
+    /// failing `{ key, message }`, then drops the database (the same cleanup `Drop` always does —
+    /// this just adds the invariants check before that happens). Every `#[tokio::test]` that calls
+    /// `TestDb::fresh()` must end by calling this (or `finish_expecting`, phase-c C-1/C-2): a test
+    /// can otherwise pass while leaving broken books behind (e.g. a receipt that balances but
+    /// misses the inventory account).
+    pub async fn finish(self) {
+        let results = {
+            let db_guard = self.state.db.read().unwrap();
+            let conn = &db_guard.as_ref().expect("test db connection must still be set at finish()").connection;
+            accounting_app_lib::shared::invariants::run_all(conn).await.expect("shared::invariants::run_all must not error")
+        };
+        let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{{ key: {}, message: {} }}", r.key, r.message)).collect();
+        assert!(failed.is_empty(), "TestDb::finish(): the books are broken at the end of this test:\n{}", failed.join("\n"));
+        // `self` drops here, running the existing `Drop` cleanup (release the pool, DROP DATABASE).
+    }
+
+    /// Like [`TestDb::finish`], for tests that deliberately break the books (e.g.
+    /// `tests/shared_invariants.rs`'s `corrupt_*` tests). Passes only if **exactly** the invariant
+    /// keys in `keys` fail — no more, no fewer — so a test claiming to isolate one corruption to one
+    /// key can't silently start tripping a second one. `reason` is folded into the panic message
+    /// (e.g. why this scenario is expected to fail those keys).
+    #[allow(dead_code)]
+    pub async fn finish_expecting(self, keys: &[&str], reason: &str) {
+        let results = {
+            let db_guard = self.state.db.read().unwrap();
+            let conn = &db_guard.as_ref().expect("test db connection must still be set at finish_expecting()").connection;
+            accounting_app_lib::shared::invariants::run_all(conn).await.expect("shared::invariants::run_all must not error")
+        };
+        let expected: std::collections::BTreeSet<&str> = keys.iter().copied().collect();
+        let actually_failed: std::collections::BTreeSet<&str> = results.iter().filter(|r| !r.passed).map(|r| r.key.as_str()).collect();
+        if expected != actually_failed {
+            let messages: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{{ key: {}, message: {} }}", r.key, r.message)).collect();
+            panic!(
+                "TestDb::finish_expecting({reason}): expected exactly {expected:?} to fail, but {actually_failed:?} failed.\nFailures:\n{}",
+                messages.join("\n")
+            );
+        }
+        // `self` drops here, running the existing `Drop` cleanup.
+    }
 }
 
 /// One-connection pool, so session settings (`FOREIGN_KEY_CHECKS`, `GET_LOCK`) apply to every

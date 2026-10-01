@@ -20,7 +20,7 @@ use accounting_app_lib::shared::activity::undo::{UndoRegistry, UndoRequest};
 use accounting_app_lib::shared::invariants;
 use accounting_app_lib::utils::id::Id;
 use rust_decimal_macros::dec;
-use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseTransaction, EntityTrait, PaginatorTrait, QueryFilter, Set};
+use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, DatabaseTransaction, EntityTrait, PaginatorTrait, QueryFilter, Set};
 use std::sync::Arc;
 use support::TestDb;
 
@@ -54,6 +54,24 @@ async fn seed_shell(db: &TestDb) {
     })
     .await
     .expect("seed_company_shell must succeed");
+}
+
+/// Marks `settings.onboarding` as "wizard in progress" (no `finished_at`) — the real wizard's state
+/// the instant it seeds the shell and before it has posted+closed opening balances. A test that
+/// exercises one wizard step in isolation (e.g. `post_opening_stock`/`post_party_opening` alone,
+/// without also calling `post_opening_balances`/`reclose_opening_balance_equity` to close 3900) needs
+/// this so `shared::invariants::check_opening_balance_equity` (ACC-0023) doesn't enforce 3900 = 0
+/// mid-wizard — `seed_company_shell` itself leaves `onboarding: None`, which the check (correctly)
+/// reads as "no wizard ever ran" and enforces immediately, per its own doc comment.
+async fn mark_onboarding_in_progress(db: &TestDb) {
+    let conn = db.state.db.read().unwrap().as_ref().unwrap().connection.clone();
+    conn.execute(sea_orm::Statement::from_sql_and_values(
+        conn.get_database_backend(),
+        "UPDATE settings SET onboarding = ?",
+        [serde_json::json!({ "goLiveDate": "2026-01-01" }).to_string().into()],
+    ))
+    .await
+    .expect("marking onboarding in progress must succeed");
 }
 
 async fn default_branch_id(db: &TestDb) -> Id {
@@ -179,6 +197,7 @@ async fn shell_seeds_expected_rows_exactly_once() {
     seed_shell(&db).await;
     let admin_count = users::Entity::find().count(&conn).await.unwrap();
     assert_eq!(admin_count, 1, "seeding twice must not duplicate the admin user");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -198,6 +217,7 @@ async fn bootstrap_session_set_then_cleared_by_finish() {
     service::progress::clear_bootstrap_session_after_finish(&db.state);
 
     assert!(db.state.session.read().unwrap().is_none(), "finish_onboarding must clear the bootstrap session");
+    db.finish().await;
 }
 
 // --- coa (build_accounts) -----------------------------------------------------------------------
@@ -285,6 +305,7 @@ async fn country_tax_eg_to_sa_switches_currency_rate_and_timezone() {
     .expect("second apply must succeed");
     let usd_count = currencies::Entity::find_by_id("USD".to_string()).count(&conn).await.unwrap();
     assert_eq!(usd_count, 1, "existing extra currency is never re-created");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -306,6 +327,7 @@ async fn country_tax_locked_after_a_posted_journal_entry() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "لا يمكن تغيير الدولة أو العملة الأساسية بعد أول ترحيل");
+    db.finish().await;
 }
 
 /// Posts one trivial manual journal entry through the real posting path — used only to flip the
@@ -375,6 +397,7 @@ async fn fiscal_year_start_jan_1_and_jul_1_and_feb_30_normalization() {
     use accounting_app_lib::entities::org::fiscal_years::Entity as FyEntity;
     let count = FyEntity::find().count(&conn).await.unwrap();
     assert_eq!(count, 1, "every other row deleted, exactly one remains");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -391,6 +414,7 @@ async fn fiscal_year_locked_after_a_posted_journal_entry() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "لا يمكن تغيير السنة المالية بعد بدء الترحيل");
+    db.finish().await;
 }
 
 // --- branches --------------------------------------------------------------------------------
@@ -427,6 +451,7 @@ async fn branches_rename_main_and_create_two_more() {
 
     let settings_row = accounting_app_lib::entities::org::settings::Entity::find().one(&conn).await.unwrap().unwrap();
     assert!(settings_row.features.as_ref().and_then(|f| f.branches).unwrap_or(false));
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -456,6 +481,7 @@ async fn branches_duplicate_code_and_empty_list_texts() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "رمز الفرع \"main\" مستخدم بالفعل");
+    db.finish().await;
 }
 
 // --- coa apply -----------------------------------------------------------------------------------
@@ -491,6 +517,7 @@ async fn coa_apply_keeps_ids_of_shared_codes_and_soft_deletes_the_rest() {
     assert!(dangling.is_none(), "1145 (standard-only) must not exist in the basic template's live set");
     let soft_deleted = AccountEntity::find_including_deleted().filter(AccountColumn::Code.eq("1145")).one(&conn).await.unwrap().expect("1145 row is kept, soft-deleted");
     assert!(soft_deleted.deleted_at.is_some(), "1145 is soft-deleted, not hard-deleted");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -507,6 +534,7 @@ async fn coa_apply_locked_after_a_posted_journal_entry() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "لا يمكن تغيير شجرة الحسابات بعد بدء الترحيل");
+    db.finish().await;
 }
 
 // --- payment methods -----------------------------------------------------------------------------
@@ -543,6 +571,7 @@ async fn payment_methods_replace_and_locked_text() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "لا يمكن تغيير طرق الدفع بعد بدء الترحيل");
+    db.finish().await;
 }
 
 // --- opening balances ------------------------------------------------------------------------
@@ -597,12 +626,14 @@ async fn opening_balances_posts_balanced_entry_with_3900_line_and_closes_to_capi
     let results = with_read(&db.state, |tx| Box::pin(async move { invariants::run_all(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
     let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
     assert!(failed.is_empty(), "invariants must be green after opening balances: {failed:?}");
+    db.finish().await;
 }
 
 #[tokio::test]
 async fn opening_stock_per_branch_posts_movement_and_inventory_entry() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
+    mark_onboarding_in_progress(&db).await;
     log_in(&db, Role::Admin).await;
     let registry = db.state.undo.clone();
 
@@ -624,6 +655,7 @@ async fn opening_stock_per_branch_posts_movement_and_inventory_entry() {
     use accounting_app_lib::entities::journal::journal_entries::{Column as EntryColumn, Entity as EntryEntity};
     let entry = EntryEntity::find().filter(EntryColumn::SourceKind.eq("opening")).filter(EntryColumn::SourceNumber.eq("OPENING-STOCK")).one(&conn).await.unwrap();
     assert!(entry.is_some(), "opening-stock journal entry must exist (total = 60 > 0)");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -645,6 +677,7 @@ async fn opening_stock_unknown_branch_is_not_found() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "الفرع غير موجود");
+    db.finish().await;
 }
 
 /// A minimal live product — `track_batches` optional (used by the batch-receiving opening-stock test).
@@ -771,6 +804,7 @@ async fn party_opening_before_and_after_go_live_counter_account() {
     assert_eq!(net_after_2, net_before_2, "after go-live, 3900 stays put — the counter went to capital");
 
     let _ = entry_id;
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -816,12 +850,14 @@ async fn party_opening_zero_amount_is_none_and_unknown_party_is_not_found() {
     .await
     .unwrap_err();
     assert_eq!(err2.to_string(), "العميل غير موجود");
+    db.finish().await;
 }
 
 #[tokio::test]
 async fn party_opening_audit_row_is_undoable_with_correct_action_type() {
     let db = TestDb::fresh().await;
     seed_shell(&db).await;
+    mark_onboarding_in_progress(&db).await;
     log_in(&db, Role::Admin).await;
     let registry = db.state.undo.clone();
 
@@ -841,6 +877,7 @@ async fn party_opening_audit_row_is_undoable_with_correct_action_type() {
     let audit_row = AuditEntity::find().one(&conn).await.unwrap().expect("one audit row written");
     assert!(audit_row.is_undoable);
     assert_eq!(audit_row.action_type.as_deref(), Some("setup.postPartyOpening"));
+    db.finish().await;
 }
 
 // --- reverse_party_opening --------------------------------------------------------------------
@@ -935,6 +972,7 @@ async fn reverse_party_opening_missing_not_opening_allocated_and_success() {
     use accounting_app_lib::entities::journal::journal_entries::Entity as EntryEntity;
     let original = EntryEntity::find_by_id(entry_id).one(&conn).await.unwrap().unwrap();
     assert!(original.reversed, "the original entry must be flagged reversed");
+    db.finish().await;
 }
 
 /// `customer_id` must be a real customer: `payments (target_id, target_type)` is an FK to
@@ -1054,6 +1092,7 @@ async fn undo_reverses_the_party_opening_via_the_registry() {
 
     let comp_audit = AuditEntity::find_by_id(comp_id).one(&conn).await.unwrap().unwrap();
     assert_eq!(comp_audit.undo_of, Some(audit_row.id), "compensation audit row linked back");
+    db.finish().await;
 }
 
 // --- device (non-Windows stub path) ------------------------------------------------------------
@@ -1144,4 +1183,5 @@ async fn reclose_after_3900_moves_again_uses_its_own_source() {
     let results = with_read(&db.state, |tx| Box::pin(async move { invariants::run_all(tx).await.map_err(accounting_app_lib::core::tx::TxError::App) })).await.unwrap();
     let failed: Vec<String> = results.iter().filter(|r| !r.passed).map(|r| format!("{}: {}", r.key, r.message)).collect();
     assert!(failed.is_empty(), "invariants must be green after the re-close: {failed:?}");
+    db.finish().await;
 }

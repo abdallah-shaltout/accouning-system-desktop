@@ -40,6 +40,7 @@ fn read_fixture(name: &str) -> String {
 #[tokio::test]
 async fn import_order_covers_every_fk() {
     let db = TestDb::fresh().await;
+    {
     let db_guard = db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -82,6 +83,8 @@ async fn import_order_covers_every_fk() {
     }
 
     assert!(uncovered.is_empty(), "FKs not covered by IMPORT_ORDER/DEFERRED:\n{}", uncovered.join("\n"));
+    }
+    db.finish().await;
 }
 
 /// Demo snapshot: imports, `run_all` all passed, `counts` equal the snapshot's `tableCounts`
@@ -90,6 +93,7 @@ async fn import_order_covers_every_fk() {
 #[tokio::test]
 async fn imports_demo_snapshot_cleanly() {
     let db = TestDb::fresh().await;
+    {
     let db_guard = db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -140,6 +144,8 @@ async fn imports_demo_snapshot_cleanly() {
     assert_eq!(scalar("SELECT COUNT(*) AS n FROM product_prices WHERE unit_id IS NULL").await, product_prices, "Product.prices -> product_prices");
     let locked_methods = data["paymentMethods"].as_array().unwrap().iter().filter(|m| m["canDelete"] == serde_json::Value::Bool(false)).count() as i64;
     assert_eq!(scalar("SELECT COUNT(*) AS n FROM payment_methods WHERE can_delete = 0").await, locked_methods, "payment_methods.can_delete");
+    }
+    db.finish().await;
 }
 
 /// The demo snapshot deserializes into `SnapshotV1Envelope` — a no-DB check that names the exact
@@ -164,6 +170,7 @@ context: …{context}…");
 #[tokio::test]
 async fn second_import_into_non_empty_db_conflicts_unless_replace_existing() {
     let db = TestDb::fresh().await;
+    {
     let db_guard = db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -205,6 +212,8 @@ async fn second_import_into_non_empty_db_conflicts_unless_replace_existing() {
     )
     .await;
     assert!(third.is_ok(), "replace_existing must wipe and re-import cleanly in a debug build: {third:?}");
+    }
+    db.finish().await;
 }
 
 /// Credentials: `admin`'s hash verifies `admin123` via `core::auth::verify_password`; stored hash
@@ -212,6 +221,7 @@ async fn second_import_into_non_empty_db_conflicts_unless_replace_existing() {
 #[tokio::test]
 async fn credentials_are_hashed_with_argon2() {
     let db = TestDb::fresh().await;
+    {
     let db_guard = db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -236,6 +246,8 @@ async fn credentials_are_hashed_with_argon2() {
         accounting_app_lib::core::auth::verify_password("admin123", &cred.password_hash).unwrap(),
         "admin123 must verify against the imported hash"
     );
+    }
+    db.finish().await;
 }
 
 /// Edge fixture: `freetext-0` line -> `product_id NULL`; `'onboarding'` source -> the fixed
@@ -245,6 +257,7 @@ async fn credentials_are_hashed_with_argon2() {
 #[tokio::test]
 async fn edge_fixture_quirks() {
     let db = TestDb::fresh().await;
+    {
     let db_guard = db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -285,12 +298,15 @@ async fn edge_fixture_quirks() {
     use accounting_app_lib::entities::org::users;
     let admin = users::Entity::find().one(conn).await.unwrap().expect("the edge fixture's one user must exist");
     assert!(!admin.active, "a user row with no `active` key must import as inactive, like the mock reads it");
+    }
+    db.finish().await;
 }
 
 /// Dangling `invoice.customerId` -> `VALIDATION` text naming `invoices`, nothing committed.
 #[tokio::test]
 async fn dangling_fk_reference_fails_validation_and_rolls_back() {
     let db = TestDb::fresh().await;
+    {
     let db_guard = db.state.db.read().unwrap();
     let conn = &db_guard.as_ref().unwrap().connection;
 
@@ -325,6 +341,8 @@ async fn dangling_fk_reference_fails_validation_and_rolls_back() {
     let err = result.expect_err("a dangling customerId must not import successfully");
     let msg = err.into_app_error().to_string();
     assert_eq!(msg, "تعذر الاستيراد: مرجع غير موجود في invoices — أرسل ملف التشخيص للدعم");
+    }
+    db.finish().await;
 }
 
 /// `IdMap` unit-level sanity (already covered in `idmap.rs`'s own `#[cfg(test)]` module — this

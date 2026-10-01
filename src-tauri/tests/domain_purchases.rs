@@ -552,6 +552,7 @@ async fn save_draft_validation_messages_in_order() {
         AppError::Validation { message } => assert_eq!(message, "سعر التكلفة لا يمكن أن يكون سالباً"),
         other => panic!("expected VALIDATION, got {other:?}"),
     }
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -623,6 +624,7 @@ async fn save_draft_gets_number_and_totals_with_discounts_and_zero_rated_tax() {
     assert_eq!(po.sub_total, dec!(175));
     assert_eq!(po.tax_amount, dec!(0));
     assert_eq!(po.grand_total, dec!(175));
+    test_db.finish().await;
 }
 
 /// m0020 regression (Part 04 parity L2, `p-p6-tracked-batches`): a line's `unitId` is the product's
@@ -672,6 +674,7 @@ async fn non_base_unit_line_keeps_its_product_unit_id() {
     let detail = with_read(&test_db.state, move |tx| Box::pin(async move { read::get_purchase_order(tx, id).await })).await.unwrap();
     assert_eq!(detail.lines[0].unit_id.as_deref(), Some("pu-test-box"));
     assert_eq!(detail.lines[0].unit_factor, Some(dec!(3)));
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -743,6 +746,7 @@ async fn save_update_refused_when_not_draft() {
         AppError::Validation { message } => assert_eq!(message, "لا يمكن تعديل أمر شراء تم إرساله أو استلامه أو إلغاؤه"),
         other => panic!("expected VALIDATION, got {other:?}"),
     }
+    test_db.finish().await;
 }
 
 // === U-5/U-8 send/cancel ============================================================================
@@ -854,6 +858,7 @@ async fn send_and_cancel_status_guards() {
         AppError::Validation { message } => assert_eq!(message, "يمكن إلغاء المسودات والأوامر المرسلة فقط — استخدم مرتجع المشتريات للأوامر المستلمة"),
         other => panic!("expected VALIDATION, got {other:?}"),
     }
+    test_db.finish().await;
 }
 
 // === receive full ===================================================================================
@@ -937,6 +942,7 @@ async fn receive_full_posts_inventory_vat_payable_and_updates_stock() {
     .unwrap();
 
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 // === receive short + backorder ======================================================================
@@ -1049,6 +1055,7 @@ async fn receive_short_creates_backorder_with_shrunk_totals_and_ratio_vat() {
     .unwrap();
 
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 // === landed costs ====================================================================================
@@ -1133,6 +1140,7 @@ async fn landed_costs_own_and_other_supplier_split_by_value() {
     .unwrap();
 
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1223,6 +1231,7 @@ async fn landed_costs_split_100_over_three_equal_lines_puts_remainder_on_first_l
     .unwrap();
 
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 // === non-VAT supplier ================================================================================
@@ -1322,6 +1331,7 @@ async fn non_vat_supplier_receipt_posts_vat_to_freight_in_and_return_credits_it_
     .unwrap();
     assert_eq!(ret.tax_amount, dec!(75));
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 // === tracked product batches =========================================================================
@@ -1455,6 +1465,7 @@ async fn tracked_product_receives_requested_batches_at_landed_cost_and_default_b
     .unwrap();
 
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 /// Helper: re-use the fixture's existing supplier when a second PO needs one without re-seeding the
@@ -1517,6 +1528,7 @@ async fn confirm_receives_everything_outstanding_at_now() {
     assert_eq!(po.status, PurchaseStatus::Received);
     assert_eq!(po.sub_total, dec!(60));
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 // === returns =========================================================================================
@@ -1627,6 +1639,7 @@ async fn return_over_return_and_stock_conflict_messages() {
     }
 
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1720,7 +1733,11 @@ async fn return_stock_conflict_when_qty_exceeds_current_stock() {
         other => panic!("expected CONFLICT, got {other:?}"),
     }
     // No invariants check here: we intentionally hand-edited stock_qty to force the guard, so the
-    // GL/subledger relationship is deliberately out of sync at this point in the test.
+    // GL/subledger relationship is deliberately out of sync at this point in the test. Note:
+    // `finish()` still runs `shared::invariants::run_all` — the Rust port's only inventory-related
+    // check (`inventory-gl`, §4.4) compares GL inventory balance against Σ product.stock_value, which
+    // this test never touches (only stock_qty was hand-edited), so it is expected to stay green.
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1866,6 +1883,7 @@ async fn return_refund_methods_and_variance_guard() {
     .unwrap();
 
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1961,6 +1979,7 @@ async fn return_variance_guard_when_stock_value_is_below_what_return_would_remov
     // Invariants stay green: the variance line balances the posting, and the write-down's own GL
     // entry kept GL(inventory) == Σ stock_value throughout.
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -2118,6 +2137,7 @@ async fn return_batch_drawn_by_id_and_by_fefo() {
     .unwrap();
 
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 // === debit-note draft ================================================================================
@@ -2457,6 +2477,12 @@ async fn debit_note_draft_batch_from_adjustment_conflict_two_pos_conflict_succes
     })
     .await
     .unwrap();
+
+    // The synthetic batches inserted above (`fake_batch_id` etc.) never touched `products.stock_value`
+    // or posted a GL entry, and `inventory-gl` (the Rust port's only inventory-related invariant)
+    // compares GL(inventory) against Σ products.stock_value, not `product_batches` rows — so the
+    // books are still expected to be clean here.
+    test_db.finish().await;
 }
 
 // === ACC-0005: non-stock item receipt is expensed, not debited to inventory ==========================
@@ -2527,6 +2553,7 @@ async fn non_stock_product_receipt_debits_purchase_account_not_inventory() {
     .unwrap();
 
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 // === concurrency ======================================================================================
@@ -2613,6 +2640,7 @@ async fn concurrent_receive_of_the_same_po_one_succeeds_one_refused() {
     assert_eq!(already_done, 1, "the loser must see the already-received/canceled message");
 
     assert_invariants_green(&test_db).await;
+    Arc::try_unwrap(test_db).unwrap_or_else(|_| panic!("test_db Arc must be uniquely owned at the end of the test")).finish().await;
 }
 
 #[tokio::test]
@@ -2694,6 +2722,7 @@ async fn concurrent_returns_of_the_last_returnable_unit_one_gets_over_return_mes
     assert_eq!(over_return, 1, "the loser must see the over-return message");
 
     assert_invariants_green(&test_db).await;
+    Arc::try_unwrap(test_db).unwrap_or_else(|_| panic!("test_db Arc must be uniquely owned at the end of the test")).finish().await;
 }
 
 #[tokio::test]
@@ -2756,6 +2785,11 @@ async fn twenty_parallel_draft_saves_get_distinct_gapless_numbers() {
     numbers.sort();
     let expected: Vec<String> = (1..=20).map(|n| format!("PO-{n:06}")).collect();
     assert_eq!(numbers, expected, "20 concurrent draft saves must get 20 distinct sequential numbers with no gaps");
+
+    // Every spawned clone of the `Arc<TestDb>` has been joined (and dropped) by the loop above, so
+    // `test_db` is uniquely owned again here.
+    assert_invariants_green(&test_db).await;
+    Arc::try_unwrap(test_db).unwrap_or_else(|_| panic!("test_db Arc must be uniquely owned at the end of the test")).finish().await;
 }
 
 // === ACC-0011 / ACC-0012 / ACC-0013 ================================================================
@@ -2827,6 +2861,7 @@ async fn acc_0011_return_variance_is_credited_when_the_supplier_owes_more_than_t
     .unwrap();
 
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -2923,6 +2958,7 @@ async fn acc_0012_other_supplier_landed_cost_becomes_an_open_payable_document() 
 
     // `supplier-allocation`: the shipper's balance (25) = Σ its open documents (25).
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -2981,6 +3017,7 @@ async fn acc_0012_other_supplier_landed_cost_refused_when_that_supplier_does_not
     .await
     .unwrap();
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -3085,4 +3122,5 @@ async fn acc_0013_purchase_writes_refused_by_a_closed_period_leave_no_trace() {
     .unwrap();
 
     assert_invariants_green(&test_db).await;
+    test_db.finish().await;
 }

@@ -62,112 +62,124 @@ async fn seed_settings<C: ConnectionTrait>(conn: &C, base: &str) {
 #[tokio::test]
 async fn base_currency_and_is_base_currency() {
     let test_db = TestDb::fresh().await;
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
-    seed_settings(conn, "SAR").await;
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        seed_settings(conn, "SAR").await;
 
-    assert_eq!(base_currency(conn).await.unwrap(), "SAR");
-    assert!(is_base_currency(conn, None).await.unwrap());
-    assert!(is_base_currency(conn, Some("SAR")).await.unwrap());
-    assert!(!is_base_currency(conn, Some("USD")).await.unwrap());
+        assert_eq!(base_currency(conn).await.unwrap(), "SAR");
+        assert!(is_base_currency(conn, None).await.unwrap());
+        assert!(is_base_currency(conn, Some("SAR")).await.unwrap());
+        assert!(!is_base_currency(conn, Some("USD")).await.unwrap());
+    }
+    test_db.finish().await;
 }
 
 #[tokio::test]
 async fn fixed_rate_wins_over_the_rate_table() {
     let test_db = TestDb::fresh().await;
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
-    seed_settings(conn, "SAR").await;
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        seed_settings(conn, "SAR").await;
 
-    let currency = CurrencyActiveModel {
-        code: Set("USD".to_string()),
-        name_ar: Set("دولار أمريكي".to_string()),
-        symbol: Set("$".to_string()),
-        decimals: Set(2),
-        active: Set(true),
-        fixed: Set(Some(true)),
-        fixed_rate: Set(Some(dec!(3.75))),
-        created_at: Set(chrono::Utc::now()),
-        updated_at: Set(chrono::Utc::now()),
-    };
-    currency.insert(conn).await.unwrap();
+        let currency = CurrencyActiveModel {
+            code: Set("USD".to_string()),
+            name_ar: Set("دولار أمريكي".to_string()),
+            symbol: Set("$".to_string()),
+            decimals: Set(2),
+            active: Set(true),
+            fixed: Set(Some(true)),
+            fixed_rate: Set(Some(dec!(3.75))),
+            created_at: Set(chrono::Utc::now()),
+            updated_at: Set(chrono::Utc::now()),
+        };
+        currency.insert(conn).await.unwrap();
 
-    // Even with a rate-table row present, the fixed rate wins.
-    let rate_row = RateActiveModel {
-        id: Set(Id::new()),
-        currency: Set("USD".to_string()),
-        date: Set(chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()),
-        rate: Set(dec!(3.80)),
-        created_at: Set(chrono::Utc::now()),
-        updated_at: Set(chrono::Utc::now()),
-    };
-    rate_row.insert(conn).await.unwrap();
+        // Even with a rate-table row present, the fixed rate wins.
+        let rate_row = RateActiveModel {
+            id: Set(Id::new()),
+            currency: Set("USD".to_string()),
+            date: Set(chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()),
+            rate: Set(dec!(3.80)),
+            created_at: Set(chrono::Utc::now()),
+            updated_at: Set(chrono::Utc::now()),
+        };
+        rate_row.insert(conn).await.unwrap();
 
-    let rate = latest_rate(conn, "USD", chrono::NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).await.unwrap();
-    assert_eq!(rate, Some(dec!(3.75)));
+        let rate = latest_rate(conn, "USD", chrono::NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).await.unwrap();
+        assert_eq!(rate, Some(dec!(3.75)));
+    }
+    test_db.finish().await;
 }
 
 #[tokio::test]
 async fn latest_rate_respects_the_cutoff_date() {
     let test_db = TestDb::fresh().await;
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
-    seed_settings(conn, "SAR").await;
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        seed_settings(conn, "SAR").await;
 
-    let currency = CurrencyActiveModel {
-        code: Set("EUR".to_string()),
-        name_ar: Set("يورو".to_string()),
-        symbol: Set("€".to_string()),
-        decimals: Set(2),
-        active: Set(true),
-        fixed: Set(Some(false)),
-        fixed_rate: Set(None),
-        created_at: Set(chrono::Utc::now()),
-        updated_at: Set(chrono::Utc::now()),
-    };
-    currency.insert(conn).await.unwrap();
-
-    for (date, rate) in [("2026-01-01", dec!(4.0)), ("2026-03-01", dec!(4.2)), ("2026-09-01", dec!(4.5))] {
-        let row = RateActiveModel {
-            id: Set(Id::new()),
-            currency: Set("EUR".to_string()),
-            date: Set(chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap()),
-            rate: Set(rate),
+        let currency = CurrencyActiveModel {
+            code: Set("EUR".to_string()),
+            name_ar: Set("يورو".to_string()),
+            symbol: Set("€".to_string()),
+            decimals: Set(2),
+            active: Set(true),
+            fixed: Set(Some(false)),
+            fixed_rate: Set(None),
             created_at: Set(chrono::Utc::now()),
             updated_at: Set(chrono::Utc::now()),
         };
-        row.insert(conn).await.unwrap();
+        currency.insert(conn).await.unwrap();
+
+        for (date, rate) in [("2026-01-01", dec!(4.0)), ("2026-03-01", dec!(4.2)), ("2026-09-01", dec!(4.5))] {
+            let row = RateActiveModel {
+                id: Set(Id::new()),
+                currency: Set("EUR".to_string()),
+                date: Set(chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap()),
+                rate: Set(rate),
+                created_at: Set(chrono::Utc::now()),
+                updated_at: Set(chrono::Utc::now()),
+            };
+            row.insert(conn).await.unwrap();
+        }
+
+        let cutoff = chrono::NaiveDate::from_ymd_opt(2026, 4, 1).unwrap();
+        let rate = latest_rate(conn, "EUR", cutoff).await.unwrap();
+        assert_eq!(rate, Some(dec!(4.2)), "must pick the latest rate on or before the cutoff, not after it");
+
+        let before_any = chrono::NaiveDate::from_ymd_opt(2025, 1, 1).unwrap();
+        let rate_before_any = latest_rate(conn, "EUR", before_any).await.unwrap();
+        assert_eq!(rate_before_any, None);
     }
-
-    let cutoff = chrono::NaiveDate::from_ymd_opt(2026, 4, 1).unwrap();
-    let rate = latest_rate(conn, "EUR", cutoff).await.unwrap();
-    assert_eq!(rate, Some(dec!(4.2)), "must pick the latest rate on or before the cutoff, not after it");
-
-    let before_any = chrono::NaiveDate::from_ymd_opt(2025, 1, 1).unwrap();
-    let rate_before_any = latest_rate(conn, "EUR", before_any).await.unwrap();
-    assert_eq!(rate_before_any, None);
+    test_db.finish().await;
 }
 
 #[tokio::test]
 async fn require_rate_message_when_missing() {
     let test_db = TestDb::fresh().await;
-    let db_guard = test_db.state.db.read().unwrap();
-    let conn = &db_guard.as_ref().unwrap().connection;
-    seed_settings(conn, "SAR").await;
+    {
+        let db_guard = test_db.state.db.read().unwrap();
+        let conn = &db_guard.as_ref().unwrap().connection;
+        seed_settings(conn, "SAR").await;
 
-    let currency = CurrencyActiveModel {
-        code: Set("GBP".to_string()),
-        name_ar: Set("جنيه إسترليني".to_string()),
-        symbol: Set("£".to_string()),
-        decimals: Set(2),
-        active: Set(true),
-        fixed: Set(Some(false)),
-        fixed_rate: Set(None),
-        created_at: Set(chrono::Utc::now()),
-        updated_at: Set(chrono::Utc::now()),
-    };
-    currency.insert(conn).await.unwrap();
+        let currency = CurrencyActiveModel {
+            code: Set("GBP".to_string()),
+            name_ar: Set("جنيه إسترليني".to_string()),
+            symbol: Set("£".to_string()),
+            decimals: Set(2),
+            active: Set(true),
+            fixed: Set(Some(false)),
+            fixed_rate: Set(None),
+            created_at: Set(chrono::Utc::now()),
+            updated_at: Set(chrono::Utc::now()),
+        };
+        currency.insert(conn).await.unwrap();
 
-    let err = require_rate(conn, "GBP", chrono::Utc::now().date_naive()).await.unwrap_err();
-    assert_eq!(err.to_string(), "لا يوجد سعر صرف لعملة GBP");
+        let err = require_rate(conn, "GBP", chrono::Utc::now().date_naive()).await.unwrap_err();
+        assert_eq!(err.to_string(), "لا يوجد سعر صرف لعملة GBP");
+    }
+    test_db.finish().await;
 }

@@ -223,6 +223,8 @@ async fn submit_as_cashier_discount_creates_pending_request_with_db_name() {
     })
     .await
     .unwrap();
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -244,6 +246,8 @@ async fn submit_trims_whitespace_only_request_note_to_none() {
     .expect("submit must succeed");
 
     assert_eq!(result.request_note, None, "whitespace-only request note must collapse to None (approvals.ts:25)");
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -284,6 +288,8 @@ async fn submit_write_off_forbidden_for_cashier_ok_for_storekeeper() {
     })
     .await;
     assert!(storekeeper_result.is_ok(), "storekeeper must be able to submit write_off");
+
+    db.finish().await;
 }
 
 // --- list / count ----------------------------------------------------------------------------
@@ -332,6 +338,8 @@ async fn list_is_newest_first_and_filters_by_status() {
     .await
     .unwrap();
     assert_eq!(approved.len(), 0);
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -355,6 +363,8 @@ async fn pending_count_matches_pending_rows() {
 
     let count = with_read(&db.state, |tx| Box::pin(async move { service::pending_count(tx).await }) as BoxFuture<'_, TxResult<u32>>).await.unwrap();
     assert_eq!(count, 1);
+
+    db.finish().await;
 }
 
 // --- decide (approve/reject) -----------------------------------------------------------------
@@ -396,6 +406,8 @@ async fn approve_without_comment_leaves_decision_comment_absent() {
     assert_eq!(result.status, ApprovalStatus::Approved);
     assert_eq!(result.decision_comment, None);
     assert!(result.decided_by.is_some());
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -419,6 +431,8 @@ async fn approve_trims_comment() {
     .expect("approve must succeed");
 
     assert_eq!(result.decision_comment, Some("ok".to_string()));
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -445,6 +459,8 @@ async fn reject_without_comment_or_whitespace_is_validation_error() {
         .unwrap_err();
         assert_eq!(err.to_string(), "أدخل سبب الرفض");
     }
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -464,6 +480,8 @@ async fn decide_unknown_id_is_not_found() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "طلب الاعتماد غير موجود");
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -496,6 +514,8 @@ async fn deciding_twice_is_validation_error() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "تم اتخاذ قرار بشأن هذا الطلب مسبقاً");
+
+    db.finish().await;
 }
 
 // --- concurrency -----------------------------------------------------------------------------
@@ -541,4 +561,6 @@ async fn concurrent_approve_and_reject_exactly_one_wins() {
     let already_decided = [&r1, &r2].iter().filter(|r| matches!(r, Err(e) if e.to_string() == "تم اتخاذ قرار بشأن هذا الطلب مسبقاً")).count();
     assert_eq!(successes, 1, "exactly one decide must succeed");
     assert_eq!(already_decided, 1, "the loser must see the already-decided validation error");
+
+    db.finish().await;
 }

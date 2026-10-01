@@ -316,6 +316,8 @@ async fn save_fiscal_year_refuses_overlap_and_edit_when_closed() {
     })
     .await
     .expect("fiscal year validation test must succeed");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -353,6 +355,7 @@ async fn lock_date_blocks_posting_on_or_before_it() {
     .expect("closure must run");
 
     assert!(outcome, "a post on the lock date must be refused for a non-admin");
+    test_db.finish().await;
 }
 
 // --- Closing wizard ----------------------------------------------------------------------------
@@ -414,6 +417,7 @@ async fn close_year_posts_closing_entry_and_creates_next_year() {
     assert_eq!(result.closing_entry.total_debit, result.closing_entry.total_credit);
     assert!(result.next_year.is_some(), "closing must auto-create the next fiscal year");
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -451,6 +455,7 @@ async fn close_year_twice_is_refused() {
     .expect("closure must run");
 
     assert!(outcome, "closing an already-closed year must be refused");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -512,6 +517,7 @@ async fn reopen_year_requires_admin_and_mirrors_closing_entry() {
     assert!(!fy.is_closed);
     assert!(fy.closing_entry_id.is_none());
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
 
 /// D-A2 / ACC-0008: the reopen mirror is dated at the closing entry's own date (the year's end), so
@@ -568,6 +574,7 @@ async fn reopen_year_mirror_is_dated_at_closing_entry_date_and_year_recloses() {
     .expect("close -> reopen -> close must succeed");
 
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
 
 // --- VAT settlement ------------------------------------------------------------------------
@@ -590,6 +597,7 @@ async fn vat_settlement_zero_movement_is_refused() {
     .expect("closure must run");
 
     assert!(outcome, "zero VAT movement must be refused");
+    test_db.finish().await;
 }
 
 /// Posts `Dr cash (net + vat) / Cr revenue net / Cr vatOutput vat` on `date` — a VAT-bearing sale.
@@ -690,6 +698,18 @@ async fn vat_settlement_refuses_overlapping_period_until_reversed() {
     })
     .await
     .expect("VAT overlap test must succeed");
+
+    // Every period of documented VAT ends up settled here (January settled, voided, resettled;
+    // February settled) — `check_vat_control`'s `vat_settlement_entry_ids` excludes every
+    // VAT_SETTLEMENT entry (and its reversal) from the ledger side (ACC-0020, so a settlement's own
+    // close-out isn't double-counted as "output VAT with no document behind it"), which leaves 0 GL
+    // balance once literally nothing is left unsettled — while `output_vat_from_docs`/
+    // `input_vat_from_docs` sum invoice/PO/expense VAT for all time regardless of settlement status.
+    // The same shape exists in the mock port (`src/mocks/backend/invariants.ts`'s identical
+    // `checkVatControl`/`vatSettlementEntryIds`), so this is a known quirk of the check's design
+    // (not something this phase may change, per CLAUDE.md's accounting-safety rules), not a books bug
+    // introduced by this test or by shared::ledger — every settlement above ties to the cent.
+    test_db.finish_expecting(&["vat-output", "vat-input"], "settles 100% of documented VAT history, tripping check_vat_control's settlement-exclusion quirk").await;
 }
 
 #[tokio::test]
@@ -710,4 +730,5 @@ async fn pay_vat_settlement_now_zero_amount_is_refused() {
     .expect("closure must run");
 
     assert!(outcome, "a zero payment amount must be refused");
+    test_db.finish().await;
 }

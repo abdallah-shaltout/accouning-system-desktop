@@ -251,6 +251,8 @@ async fn trial_balance_splits_opening_and_period_and_drops_inactive_accounts() {
     assert_eq!(cash_row.period_debit, dec!(500));
     assert_eq!(cash_row.closing_debit, dec!(1500));
     assert_eq!(cash_row.closing_credit, Decimal::ZERO);
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -295,6 +297,8 @@ async fn profit_and_loss_splits_cogs_from_opex_and_drops_zero_lines() {
     assert!(pnl.expenses.iter().any(|l| l.account_id == opex));
     // The zero-net account never appears in any section.
     assert!(pnl.expenses.iter().all(|l| l.name != "حساب متوازن"));
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -329,6 +333,8 @@ async fn balance_sheet_reports_balanced_and_rejects_invalid_as_of() {
     .await;
     let err = invalid.expect_err("invalid asOf must be refused");
     assert_eq!(err.to_string(), "تاريخ غير صالح");
+
+    db.finish().await;
 }
 
 // -------------------------------------------------------------------------------------------
@@ -369,6 +375,8 @@ async fn account_ledger_not_found_and_running_balance() {
     assert_eq!(ledger.rows[0].balance, dec!(100));
     assert_eq!(ledger.rows[1].balance, dec!(150));
     assert_eq!(ledger.closing_balance, dec!(150));
+
+    db.finish().await;
 }
 
 // -------------------------------------------------------------------------------------------
@@ -405,6 +413,8 @@ async fn ledger_targets_and_dimension_options_exclude_inactive_and_deleted() {
     // already covered by the fixture being active) — just confirm the call succeeds and returns
     // the seeded branch.
     assert_eq!(dims.branches.len(), 1);
+
+    db.finish().await;
 }
 
 // -------------------------------------------------------------------------------------------
@@ -426,6 +436,8 @@ async fn sales_report_summary_matches_invoice_totals_with_no_invoices() {
     assert_eq!(report.summary.total, Decimal::ZERO);
     assert_eq!(report.summary.average_invoice, Decimal::ZERO);
     assert!(report.by_product.is_empty());
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -449,6 +461,8 @@ async fn discounts_report_empty_set_and_gross_profit_empty_set() {
     .await
     .expect("gross profit report must succeed");
     assert!(gp.is_empty());
+
+    db.finish().await;
 }
 
 // -------------------------------------------------------------------------------------------
@@ -467,6 +481,8 @@ async fn inventory_report_orders_by_arabic_category_then_name() {
     .await
     .expect("inventory report must succeed on an empty product set");
     assert!(rows.is_empty());
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -482,6 +498,8 @@ async fn dead_stock_report_rejects_negative_days() {
     .await;
     let err = result.expect_err("negative days must be refused");
     assert_eq!(err.to_string(), "عدد الأيام غير صالح");
+
+    db.finish().await;
 }
 
 // -------------------------------------------------------------------------------------------
@@ -511,6 +529,8 @@ async fn aging_and_overdue_reports_are_empty_with_no_parties() {
     .await
     .expect("overdue report must succeed with no parties");
     assert!(overdue.is_empty());
+
+    db.finish().await;
 }
 
 // -------------------------------------------------------------------------------------------
@@ -529,4 +549,6 @@ async fn every_report_read_requires_a_session() {
     .await;
     let err = result.expect_err("no session must be UNAUTHORIZED");
     assert_eq!(err.to_string(), "سجّل الدخول أولاً");
+
+    db.finish().await;
 }

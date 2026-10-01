@@ -209,6 +209,8 @@ async fn create_returns_trimmed_username_and_hashed_password() {
     })
     .await
     .unwrap();
+
+    db.finish().await;
 }
 
 async fn login_as_admin(db: &TestDb) {
@@ -253,6 +255,7 @@ async fn create_duplicate_username_case_insensitive_is_conflict() {
     .await
     .unwrap_err();
     assert_eq!(err2.to_string(), "اسم المستخدم مستخدم من قبل");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -269,6 +272,7 @@ async fn create_without_password_is_validation_error() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "كلمة المرور مطلوبة للمستخدم الجديد");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -286,6 +290,7 @@ async fn create_duplicate_and_no_password_reports_conflict_first() {
     .unwrap_err();
     // Uniqueness is step 1, password is step 2 (§3 order) — the duplicate message must win.
     assert_eq!(err.to_string(), "اسم المستخدم مستخدم من قبل");
+    db.finish().await;
 }
 
 // --- update -------------------------------------------------------------------------------------
@@ -304,6 +309,7 @@ async fn update_not_found() {
     .await
     .unwrap_err();
     assert_eq!(err.to_string(), "المستخدم غير موجود");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -336,6 +342,7 @@ async fn update_self_deactivate_and_self_role_change_are_blocked() {
     .await
     .unwrap_err();
     assert_eq!(err2.to_string(), "لا يمكنك إيقاف حسابك أو تغيير صلاحيتك بنفسك");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -397,6 +404,8 @@ async fn update_rename_then_login_with_old_password_works_new_password_replaces(
     })
     .await
     .expect("login with new password must work");
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -433,6 +442,7 @@ async fn update_price_list_id_absent_clears_it_phone_absent_keeps_it() {
     let after = with_read(&db.state, |tx| Box::pin(async move { service::get_user(tx, uid).await })).await.unwrap();
     assert_eq!(after.price_list_id, None, "priceListId absent must always clear it");
     assert_eq!(after.phone, Some("0100000000".to_string()), "phone absent must keep the old value");
+    db.finish().await;
 }
 
 // --- login --------------------------------------------------------------------------------------
@@ -459,6 +469,7 @@ async fn login_unknown_user_and_wrong_password_share_the_same_message() {
 
     assert_eq!(err1.to_string(), "اسم المستخدم أو كلمة المرور غير صحيحة");
     assert_eq!(err1.to_string(), err2.to_string());
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -493,6 +504,7 @@ async fn login_inactive_with_right_password_is_forbidden_wrong_password_is_unaut
     .await
     .unwrap_err();
     assert_eq!(err2.to_string(), "اسم المستخدم أو كلمة المرور غير صحيحة");
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -540,6 +552,8 @@ async fn successful_login_sets_session_and_writes_audit_and_activity() {
     })
     .await
     .unwrap();
+
+    db.finish().await;
 }
 
 #[tokio::test]
@@ -566,6 +580,7 @@ async fn a_failed_login_leaves_the_session_unchanged() {
     .unwrap_err();
 
     assert_eq!(db.state.session.read().unwrap().as_ref().unwrap().id, admin_id, "a failed login must not touch the existing session");
+    db.finish().await;
 }
 
 // --- logout / restore ----------------------------------------------------------------------------
@@ -605,6 +620,7 @@ async fn restore_session_same_id_other_id_deactivated_and_no_session() {
     .await
     .unwrap();
     assert!(other.is_none());
+    db.finish().await;
 }
 
 // --- verify manager pin ---------------------------------------------------------------------------
@@ -645,6 +661,7 @@ async fn verify_manager_pin_role_and_active_gates() {
 
     // Success leaves the session untouched (no session write happens in the service at all).
     assert!(db.state.session.read().unwrap().is_some(), "admin session from login_as_admin must be untouched");
+    db.finish().await;
 }
 
 // --- access ---------------------------------------------------------------------------------------
@@ -704,6 +721,7 @@ async fn access_cashier_can_list_storekeeper_cannot_no_session_is_unauthorized()
         Err(e) => assert_eq!(e.to_string(), "سجّل الدخول أولاً"),
         Ok(()) => panic!("expected UNAUTHORIZED with no session"),
     }
+    db.finish().await;
 }
 
 // --- concurrency -----------------------------------------------------------------------------------
@@ -731,6 +749,7 @@ async fn concurrent_create_with_same_username_yields_exactly_one_conflict() {
     let conflicts = [&r1, &r2].iter().filter(|r| matches!(r, Err(e) if e.to_string() == "اسم المستخدم مستخدم من قبل")).count();
     assert_eq!(successes, 1, "exactly one create must succeed");
     assert_eq!(conflicts, 1, "exactly one create must conflict");
+    db.finish().await;
 }
 
 // --- invariants --------------------------------------------------------------------------------
@@ -753,4 +772,5 @@ async fn invariants_stay_green_after_the_suite() {
         .await
         .expect("invariants must run");
     assert!(report.iter().all(|r| r.passed), "users domain touches no ledger — invariants must stay green: {report:?}");
+    db.finish().await;
 }

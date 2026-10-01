@@ -227,6 +227,7 @@ async fn seed_fixture(conn: &DatabaseTransaction) -> Id {
     seed_role_account(conn, "4200", "salesReturns").await;
     seed_role_account(conn, "5120", "inventoryWriteOff").await;
     seed_role_account(conn, "3900", "openingBalanceEquity").await;
+    seed_role_account(conn, "3100", "capital").await;
 
     seed_payment_method(conn, "نقدي", "cash", "cash", 1).await;
     seed_payment_method(conn, "مدى", "card", "cardClearing", 2).await;
@@ -318,7 +319,17 @@ fn base_product_input(name: &str, sku: &str, cost_price: Decimal, price: Decimal
     }
 }
 
+/// Books opening stock exactly like `domains::setup::service::opening::post_opening_stock` +
+/// `post_opening_balances(.., CloseTarget::Capital)` do together (phase C: `apply_change` alone
+/// moves `products.stock_value` with no matching GL posting, which trips `inventory-gl` once every
+/// `TestDb::fresh()` test runs `shared::invariants::run_all` at `finish()`). Closing 3900 into
+/// capital in the same call — rather than leaving it open and marking onboarding in-progress — keeps
+/// this fixture representing an established shop with reconciled books, matching every other
+/// analytics fixture value in this file (sales, VAT, etc. are all already fully posted).
 async fn stock_in(test_db: &TestDb, product_id: Id, qty: Decimal, unit_cost: Decimal) {
+    use accounting_app_lib::shared::ledger::accounts::SystemRole;
+    use accounting_app_lib::shared::ledger::{post, AccountRef, PostJournal, PostingLine};
+    let value = round2(qty * unit_cost);
     with_tx(&test_db.state, TxOpts::default(), move |tx, cx| {
         Box::pin(async move {
             let mut p = accounting_app_lib::shared::stock::lock_product(tx, product_id).await?;
@@ -327,11 +338,49 @@ async fn stock_in(test_db: &TestDb, product_id: Id, qty: Decimal, unit_cost: Dec
                 cx,
                 &mut p,
                 qty,
-                round2(qty * unit_cost),
+                value,
                 "stock_in",
                 accounting_app_lib::shared::stock::StockRef { id: Id::new(), number: "STK-1".to_string() },
                 &accounting_app_lib::utils::dates::DocDate { day: cx.clock.today(), instant: Some(cx.clock.now) },
                 None,
+            )
+            .await?;
+            post(
+                tx,
+                cx,
+                PostJournal {
+                    date: cx.clock.today().into(),
+                    description: "مخزون افتتاحي".to_string(),
+                    entry_type: accounting_app_lib::entities::journal::journal_entries::JournalEntryType::Opening,
+                    source: None,
+                    lines: vec![
+                        PostingLine::debit(AccountRef::Role(SystemRole::Inventory), value),
+                        PostingLine::credit(AccountRef::Role(SystemRole::OpeningBalanceEquity), value),
+                    ],
+                    allow_closed_period: true,
+                    attachment_ids: vec![],
+                    template_id: None,
+                },
+            )
+            .await?;
+            // Close 3900 into capital right away (like the real wizard's own second step) — this
+            // fixture represents an established shop, not one mid-onboarding.
+            post(
+                tx,
+                cx,
+                PostJournal {
+                    date: cx.clock.today().into(),
+                    description: "إقفال حقوق الملكية الافتتاحية".to_string(),
+                    entry_type: accounting_app_lib::entities::journal::journal_entries::JournalEntryType::Closing,
+                    source: None,
+                    lines: vec![
+                        PostingLine::debit(AccountRef::Role(SystemRole::OpeningBalanceEquity), value),
+                        PostingLine::credit(AccountRef::Role(SystemRole::Capital), value),
+                    ],
+                    allow_closed_period: true,
+                    attachment_ids: vec![],
+                    template_id: None,
+                },
             )
             .await?;
             Ok(())
@@ -441,6 +490,7 @@ async fn sales_analytics_empty_data_gives_no_data_message() {
     assert_eq!(result.trend.len(), 30);
     assert_eq!(result.trend_insight, "لا توجد بيانات كافية بعد لهذه الفترة");
     assert_eq!(result.by_weekday.len(), 7);
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -462,6 +512,7 @@ async fn sales_analytics_days_out_of_bounds_is_validation_error() {
     })
     .await;
     assert!(result.is_err(), "days = 367 must be rejected");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -484,6 +535,7 @@ async fn sales_analytics_trend_reflects_todays_sale() {
     assert_eq!(result.avg_invoice, dec!(230));
     assert_eq!(result.avg_items_per_invoice, dec!(2));
     assert_eq!(result.returns_rate_pct, Decimal::ZERO);
+    test_db.finish().await;
 }
 
 // --- analytics_get_product_analytics ------------------------------------------------------------
@@ -503,6 +555,7 @@ async fn product_analytics_no_sales_gives_insufficient_message() {
 
     assert!(result.top.is_empty());
     assert_eq!(result.insight, "لا توجد مبيعات كافية بعد لهذه الفترة");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -522,6 +575,7 @@ async fn product_analytics_computes_margin_and_top_insight() {
     assert_eq!(result.top.len(), 1);
     assert_eq!(result.top[0].name, "منتج ١");
     assert!(result.insight.contains("منتج ١"));
+    test_db.finish().await;
 }
 
 // --- analytics_get_customer_analytics ------------------------------------------------------------
@@ -546,6 +600,7 @@ async fn customer_analytics_new_customer_and_no_concentration_message() {
     assert_eq!(result.concentration_insight, "عدد العملاء غير كافٍ لحساب التركّز بدقة");
     assert_eq!(result.top_customers.len(), 1);
     assert_eq!(result.top_customers[0].total, dec!(115));
+    test_db.finish().await;
 }
 
 // --- dashboard_get_dashboard_summary --------------------------------------------------------------
@@ -567,6 +622,7 @@ async fn dashboard_summary_reflects_todays_sale_and_low_stock() {
     assert_eq!(summary.today_sales, round2(dec!(95) * dec!(115)));
     assert_eq!(summary.low_stock_count, 1, "stock_qty 5 <= min_stock 10 must count as low stock");
     assert!(summary.cash_on_hand > Decimal::ZERO);
+    test_db.finish().await;
 }
 
 // --- dashboard_get_home_kpis ----------------------------------------------------------------------
@@ -589,6 +645,7 @@ async fn home_kpis_change_pct_null_when_previous_zero_and_current_nonzero() {
     assert_eq!(result.net_sales.previous, Decimal::ZERO);
     assert_eq!(result.net_sales.change_pct, None, "current != 0, previous == 0 -> null (not a divide by zero)");
     assert_eq!(result.sales_trend.len(), 1, "'today' period spans exactly one day");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -606,6 +663,7 @@ async fn home_kpis_change_pct_zero_when_both_zero() {
 
     assert_eq!(result.net_sales.change_pct, Some(Decimal::ZERO));
     assert_eq!(result.sales_trend.len(), 7, "'week' period spans 7 days");
+    test_db.finish().await;
 }
 
 // --- dashboard_get_low_stock_products / recent invoices / recent activity ------------------------
@@ -625,6 +683,7 @@ async fn low_stock_products_ordered_by_stock_ratio() {
 
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].id, fixture.product_id);
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -643,6 +702,7 @@ async fn recent_invoices_includes_all_statuses_newest_first() {
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0].customer_name, Some("أحمد".to_string()), "most recent sale (to the customer) sorts first");
     assert_eq!(rows[1].customer_name, None);
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -658,6 +718,7 @@ async fn recent_activity_excludes_auth_kind() {
     .unwrap();
 
     assert!(rows.iter().all(|r| !matches!(r.entry.kind, accounting_app_lib::core::dto::ActivityKind::Auth)));
+    test_db.finish().await;
 }
 
 // --- dashboard_get_top_products / dashboard_get_top_customers -------------------------------------
@@ -684,6 +745,7 @@ async fn top_products_and_customers_rank_by_profit_and_sales() {
     .unwrap();
     assert_eq!(top_customers.len(), 1);
     assert_eq!(top_customers[0].total, dec!(230));
+    test_db.finish().await;
 }
 
 // --- the six notification reads --------------------------------------------------------------------
@@ -721,6 +783,7 @@ async fn notification_reads_reflect_empty_state() {
 
     let has_products = with_read_ctx(&test_db.state, move |tx, _ctx| Box::pin(async move { feed::has_any_products(tx).await }) as BoxFuture<'_, TxResult<bool>>).await.unwrap();
     assert!(has_products);
+    test_db.finish().await;
 }
 
 // --- insight engine (14b) --------------------------------------------------------------------------
@@ -743,6 +806,7 @@ async fn insight_reorder_fires_when_stock_at_or_below_min() {
     let reorder = insights.iter().find(|i| i.rule_key == "reorder");
     assert!(reorder.is_some(), "reorder insight must fire for the low-stock product");
     assert_eq!(reorder.unwrap().id, "reorder:__none__", "no preferred supplier set");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -761,6 +825,7 @@ async fn insight_role_filtering_hides_manager_only_rules_from_cashier() {
 
     assert!(insights.iter().all(|i| i.roles.contains(&Role::Cashier)), "every returned insight must list the cashier role");
     assert!(insights.iter().find(|i| i.rule_key == "reorder").is_none(), "reorder is storekeeper/manager/admin only");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -862,6 +927,7 @@ async fn insight_a_failing_rule_does_not_stop_the_others() {
     let insights = insights.unwrap();
     assert!(insights.iter().find(|i| i.rule_key == "opening-balance-equity").is_none(), "the failing rule contributes no insight");
     assert!(insights.iter().any(|i| i.rule_key == "backup-overdue"), "an unrelated rule must still have run");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -882,6 +948,7 @@ async fn insight_credit_limit_fires_near_and_over() {
 
     let credit = insights.iter().find(|i| i.rule_key == "credit-limit").expect("credit-limit insight must fire when balance exceeds the limit");
     assert_eq!(credit.severity, accounting_app_lib::domains::dashboard::dto::InsightSeverity::Critical, "balance > limit is critical (over), not just warning (near)");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -902,6 +969,7 @@ async fn insight_backup_overdue_fires_with_no_backup_ever_taken() {
     assert_eq!(backup.message, "لم يتم أخذ أي نسخة احتياطية بعد");
     assert_eq!(backup.value, dec!(9999));
     assert_eq!(backup.metric, None);
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -959,6 +1027,7 @@ async fn insight_year_end_sign_quirk_future_vs_past() {
     assert_eq!(future.message, "السنة المالية \"FUTURE-FY\" انتهت ولم تُقفل بعد", "a future end date reports as 'ended' (quirk Q-1 sign inversion)");
     assert_eq!(future.severity, accounting_app_lib::domains::dashboard::dto::InsightSeverity::Critical);
     assert_eq!(future.value, dec!(5000));
+    test_db.finish().await;
 }
 
 // --- dashboard_get_product_inline_hints -----------------------------------------------------------
@@ -986,6 +1055,7 @@ async fn product_inline_hints_reorder_and_role_filter() {
     .await
     .unwrap();
     assert!(hints_for_accountant.is_empty(), "reorder-item is storekeeper/manager/admin only — an accountant sees nothing");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1016,4 +1086,5 @@ async fn product_inline_hints_empty_for_inactive_product() {
     .await
     .unwrap();
     assert!(hints.is_empty(), "an inactive product yields no inline hints (ie:166)");
+    test_db.finish().await;
 }

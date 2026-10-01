@@ -482,6 +482,8 @@ async fn cash_sale_inclusive_vat_posts_and_updates_stock() {
     })
     .await
     .unwrap();
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -545,6 +547,8 @@ async fn split_tender_cash_and_card() {
     assert_eq!(invoice.paid_amount, dec!(115));
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -605,6 +609,8 @@ async fn credit_sale_sets_due_date_and_partial_payment_status() {
     assert_eq!(invoice.payment_status, accounting_app_lib::domains::invoices::dto::PaymentStatus::Unpaid);
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -666,6 +672,8 @@ async fn credit_limit_blocks_over_limit_sale() {
 
     let err = result.expect_err("a sale exceeding the customer's credit limit must be refused");
     assert!(err.to_string().contains("تجاوز الحد الائتماني"), "unexpected refusal: {err:?}");
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -775,6 +783,8 @@ async fn refund_partial_then_stock_restocked() {
     assert_eq!(refund.grand_total + final_refund.grand_total, invoice.grand_total);
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -815,6 +825,8 @@ async fn shift_open_close_exact_no_variance_entry() {
     assert_eq!(closed.base.variance, Some(Decimal::ZERO));
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -845,6 +857,8 @@ async fn shift_close_over_posts_cash_over_variance() {
     assert_eq!(closed.base.variance, Some(dec!(5)));
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -873,6 +887,8 @@ async fn record_cash_in_out_requires_open_shift() {
     })
     .await;
     assert!(ok.is_ok());
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -931,6 +947,8 @@ async fn held_sale_hold_resume_discard() {
     // Discarding a missing id is idempotent, not an error.
     let discard = with_tx(&test_db.state, TxOpts::default(), move |tx, _cx| Box::pin(async move { held::discard_held_sale(tx, id).await }) as BoxFuture<'_, TxResult<()>>).await;
     assert!(discard.is_ok());
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1010,6 +1028,8 @@ async fn quotation_save_and_convert_to_invoice() {
     assert!(second.is_err());
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -1080,6 +1100,8 @@ async fn get_invoices_paged_totals_and_search() {
 
     assert_eq!(paged.total, 1, "search for 'أحمد' must find the customer's invoice");
     assert!(paged.totals.is_some());
+
+    test_db.finish().await;
 }
 
 // --- ACC-0009 / ACC-0010 ----------------------------------------------------------------------
@@ -1276,6 +1298,8 @@ async fn fx_refund_posts_base_amounts_at_invoice_rate() {
     assert_eq!(role_total(&lines, "receivable"), (Decimal::ZERO, Decimal::ZERO));
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    test_db.finish().await;
 }
 
 /// ACC-0010: a `customer_credit` refund on an already-paid invoice leaves a real credit on the
@@ -1309,6 +1333,8 @@ async fn customer_credit_refund_on_paid_invoice_is_unallocated_credit() {
     assert_eq!(credits, Some(dec!(115)), "the batch (party list) read agrees with the single-party read");
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    test_db.finish().await;
 }
 
 // --- ACC-0014 / ACC-0016 / ACC-0017 -----------------------------------------------------------
@@ -1384,6 +1410,8 @@ async fn fc_sale_tenders_post_base_amounts() {
     assert_eq!(role_total(&lines, "sales").1 + role_total(&lines, "vatOutput").1, dec!(4857));
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    test_db.finish().await;
 }
 
 /// ACC-0017: 2 × 100 tax-inclusive (net 173.91, VAT 26.09). Each unit refunds exactly 100 (net 86.95
@@ -1404,6 +1432,8 @@ async fn unit_refunds_of_an_inclusive_line_are_each_exactly_the_price() {
     assert_eq!((r2.sub_total, r2.tax_amount, r2.grand_total), (dec!(86.96), dec!(13.04), dec!(100)));
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    test_db.finish().await;
 }
 
 /// ACC-0014: a sale refused by the lock date leaves no trace — no invoice, stock untouched, and the
@@ -1445,6 +1475,8 @@ async fn refused_sale_leaves_no_invoice_stock_or_number() {
     set_lock_date(&test_db, None).await;
     let invoice = create_sale_now(&test_db, input).await;
     assert!(invoice.number.ends_with("000001"), "the refused sale consumed a number: {}", invoice.number);
+
+    test_db.finish().await;
 }
 
 // --- ACC-0032 / ACC-0033 (non-base-unit lines) -----------------------------------------------------
@@ -1505,6 +1537,8 @@ async fn refund_of_a_non_base_unit_line_moves_its_base_units() {
     assert_eq!(role_total(&lines, "cogs"), (Decimal::ZERO, dec!(200)));
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    test_db.finish().await;
 }
 
 /// ACC-0033: a quotation for 2 boxes of 4 keeps its unit, and converting it sells 8 base units
@@ -1559,4 +1593,6 @@ async fn quotation_in_a_non_base_unit_converts_to_its_base_units() {
     assert_eq!(role_total(&lines, "cogs"), (dec!(400), Decimal::ZERO));
 
     with_read(&test_db.state, move |tx| Box::pin(async move { run_all_invariants(tx).await; Ok(()) }) as BoxFuture<'_, TxResult<()>>).await.unwrap();
+
+    test_db.finish().await;
 }

@@ -366,6 +366,7 @@ async fn save_account_creates_and_validates_code_format() {
 
     assert_eq!(result.code, "6000");
     assert!(result.can_delete);
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -403,6 +404,7 @@ async fn save_account_refuses_duplicate_code() {
     .expect("closure must run");
 
     assert!(outcome, "duplicate code must be refused with CONFLICT");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -439,6 +441,7 @@ async fn delete_account_refuses_when_postings_exist() {
     .expect("closure must run");
 
     assert!(outcome, "an account with postings must refuse delete with CONFLICT");
+    test_db.finish().await;
 }
 
 // --- Manual journal --------------------------------------------------------------------------
@@ -477,6 +480,7 @@ async fn create_journal_entry_posts_balanced_manual_entry() {
     assert_eq!(entry.total_debit, dec!(250));
     assert_eq!(entry.total_credit, dec!(250));
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -511,6 +515,7 @@ async fn manual_journal_refuses_posting_to_non_manual_account() {
     .expect("closure must run");
 
     assert!(outcome, "B1: non-manual account must refuse with FORBIDDEN");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -545,6 +550,7 @@ async fn manual_journal_requires_party_on_control_account() {
     .expect("closure must run");
 
     assert!(outcome, "requiresParty account without a party must be refused");
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -604,6 +610,7 @@ async fn draft_lifecycle_save_update_post_delete() {
 
     assert_eq!(posted.id, draft_id);
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
 
 #[tokio::test]
@@ -669,6 +676,8 @@ async fn reverse_journal_entry_requires_reason_and_blocks_double_reversal() {
     })
     .await
     .expect("reversal test must succeed");
+
+    test_db.finish().await;
 }
 
 // --- Templates and recurring ------------------------------------------------------------------
@@ -731,6 +740,7 @@ async fn save_and_post_recurring_template_advances_next_date() {
 
     assert_ne!(first_next, second_next, "next_date must advance after posting");
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
 
 // --- Undo ---------------------------------------------------------------------------------
@@ -782,4 +792,5 @@ async fn undo_create_journal_entry_reverses_it_via_registry() {
     .expect("undo must succeed");
 
     assert_invariants_ok(&test_db).await;
+    test_db.finish().await;
 }
