@@ -5,6 +5,8 @@
  * that only appear on the side(s) that still have more content to reveal.
  */
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { dirIcon } from '../../helpers/dirIcon';
+import DirIcon from './DirIcon.vue';
 
 const props = withDefaults(defineProps<{ fadeSize?: number }>(), { fadeSize: 40 });
 
@@ -18,21 +20,25 @@ let pointerDownScrollLeft = 0;
 let activePointerId: number | null = null;
 let didDrag = false;
 let resizeObserver: ResizeObserver | undefined;
+let dragRaf = 0;
+let pendingScrollLeft: number | null = null;
 
 function updateFades() {
   const el = scroller.value;
   if (!el) return;
   const isRtl = getComputedStyle(el).direction === 'rtl';
-  // scrollLeft can be negative (Firefox/Safari RTL) or reversed (Chrome legacy) —
-  // measure "distance from start/end" independent of direction.
   const max = el.scrollWidth - el.clientWidth;
   if (max <= 1) {
     canScrollStart.value = false;
     canScrollEnd.value = false;
     return;
   }
-  const fromLeft = Math.abs(el.scrollLeft);
-  const fromStart = isRtl ? max - fromLeft : fromLeft;
+  // In RTL, browsers disagree on scrollLeft's sign convention: Chromium/WebView2 (what this
+  // app runs on) keeps it negative, from 0 at the start down to -max at the end; Firefox/older
+  // Safari keep it positive, from +max at the start down to 0 at the end. Either way, start is
+  // whichever extreme has the larger magnitude once max is removed — so probe the sign instead
+  // of assuming one engine's convention.
+  const fromStart = isRtl ? (el.scrollLeft <= 0 ? -el.scrollLeft : max - el.scrollLeft) : el.scrollLeft;
   const fromEnd = max - fromStart;
   canScrollStart.value = fromStart > 1;
   canScrollEnd.value = fromEnd > 1;
@@ -55,6 +61,10 @@ function onPointerDown(e: PointerEvent) {
   pointerDownScrollLeft = el.scrollLeft;
 }
 
+// Writing scrollLeft directly on every pointermove forces a synchronous style/layout
+// recalc each time (onScroll -> updateFades -> getComputedStyle), which on a fast pointer
+// stream reads as a jerky, stepped drag instead of a smooth one. Collapsing every move
+// between frames into a single rAF-scheduled write keeps it to one recalc per frame.
 function onPointerMove(e: PointerEvent) {
   const el = scroller.value;
   if (!el || activePointerId !== e.pointerId) return;
@@ -65,7 +75,14 @@ function onPointerMove(e: PointerEvent) {
     isDragging.value = true;
     el.setPointerCapture(e.pointerId);
   }
-  el.scrollLeft = pointerDownScrollLeft - delta;
+  pendingScrollLeft = pointerDownScrollLeft - delta;
+  if (!dragRaf) {
+    dragRaf = requestAnimationFrame(() => {
+      dragRaf = 0;
+      if (pendingScrollLeft !== null && scroller.value) scroller.value.scrollLeft = pendingScrollLeft;
+      pendingScrollLeft = null;
+    });
+  }
 }
 
 function onPointerUp(e: PointerEvent) {
@@ -73,6 +90,12 @@ function onPointerUp(e: PointerEvent) {
   const el = scroller.value;
   activePointerId = null;
   isDragging.value = false;
+  if (dragRaf) {
+    cancelAnimationFrame(dragRaf);
+    dragRaf = 0;
+    if (pendingScrollLeft !== null && el) el.scrollLeft = pendingScrollLeft;
+    pendingScrollLeft = null;
+  }
   if (el?.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
 }
 
@@ -83,6 +106,20 @@ function onClickCapture(e: MouseEvent) {
     e.stopPropagation();
     didDrag = false;
   }
+}
+
+// Arrow buttons move by most of a page so users who don't know they can drag/wheel-scroll
+// still have a discoverable, keyboard/mouse-friendly way to reach the rest of the strip.
+function scrollToward(direction: 'start' | 'end') {
+  const el = scroller.value;
+  if (!el) return;
+  const isRtl = getComputedStyle(el).direction === 'rtl';
+  const page = el.clientWidth * 0.8;
+  // Chromium RTL's scrollLeft decreases toward the end (see updateFades); LTR and
+  // non-Chromium RTL both increase toward the end relative to the start's sign.
+  const towardEndSign = isRtl && el.scrollLeft <= 0 ? -1 : 1;
+  const sign = direction === 'end' ? towardEndSign : -towardEndSign;
+  el.scrollBy({ left: sign * page, behavior: 'smooth' });
 }
 
 function onWheel(e: WheelEvent) {
@@ -105,6 +142,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   resizeObserver?.disconnect();
+  if (dragRaf) cancelAnimationFrame(dragRaf);
 });
 </script>
 
@@ -134,6 +172,26 @@ onBeforeUnmount(() => {
       :style="{ width: `${props.fadeSize}px`, opacity: canScrollEnd ? 1 : 0 }"
       aria-hidden="true"
     />
+    <button
+      v-if="canScrollStart"
+      type="button"
+      class="scroll-fade-arrow absolute inset-y-0 start-0 flex items-center px-0.5 text-text-secondary transition-colors hover:text-text-primary"
+      aria-label="تمرير للخلف"
+      tabindex="-1"
+      @click="scrollToward('start')"
+    >
+      <DirIcon :icon="dirIcon.back" class="size-4" />
+    </button>
+    <button
+      v-if="canScrollEnd"
+      type="button"
+      class="scroll-fade-arrow absolute inset-y-0 end-0 flex items-center px-0.5 text-text-secondary transition-colors hover:text-text-primary"
+      aria-label="تمرير للأمام"
+      tabindex="-1"
+      @click="scrollToward('end')"
+    >
+      <DirIcon :icon="dirIcon.forward" class="size-4" />
+    </button>
   </div>
 </template>
 

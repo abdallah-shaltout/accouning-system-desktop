@@ -3,7 +3,7 @@
 > **Generated** by `bun run memory` (scripts/memory). Do not edit by hand — re-run after structural changes
 > (new module, service, route, Rust command, mock file, or moved folders). `bun run memory:check` fails when stale.
 
-Indexed: **1281 files / 228,070 lines** (json 4, md 184, rust 384, ts 252, vue 457).
+Indexed: **1290 files / 229,360 lines** (json 4, md 189, rust 384, ts 252, vue 461).
 
 **Lookup order:** Where-to-find → Open diagnostics → Domain map → Service API → Routes → IPC → Mock map. Only grep when this file has no answer.
 
@@ -77,7 +77,7 @@ Known failures not yet fixed — check before starting work in an affected area.
 ## Architecture (layers & data flow)
 
 ```text
-pages (114) / components (380) / controllers (26)   src/modules/<domain>/…
+pages (117) / components (381) / controllers (26)   src/modules/<domain>/…
         │  may call ONLY ▼                  (seam rule — see Boundary report)
 services (45)   src/modules/<domain>/services/*   ← swap point for a real backend
    │                                   │
@@ -96,19 +96,19 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | **accounting** | 13 / 3496 | commands 1, components 1, pages 7, routes 1, services 1, types 2 | 8 | yes |
 | **analytics** | 9 / 499 | components 5, pages 1, routes 1, services 1, types 1 | 1 |  |
 | **approvals** | 6 / 286 | commands 1, pages 1, routes 1, services 1, types 2 | 1 | yes |
-| **core** | 353 / 20430 | commandPalette 1, components 295, controllers 14, data 2, helpers 16, pages 4, routes 1, services 12, types 8 | 5 |  |
+| **core** | 354 / 20734 | commandPalette 1, components 296, controllers 14, data 2, helpers 16, pages 4, routes 1, services 12, types 8 | 5 |  |
 | **diagnostics** | 21 / 2220 | commands 1, components 7, config 1, controllers 1, pages 1, services 8, types 2 | 0 | yes |
 | **expenses** | 9 / 991 | pages 5, routes 1, services 1, types 2 | 5 |  |
-| **invoices** | 58 / 7763 | commands 1, components 36, controllers 3, helpers 3, pages 10, routes 1, services 2, types 2 | 11 | yes |
+| **invoices** | 58 / 7765 | commands 1, components 36, controllers 3, helpers 3, pages 10, routes 1, services 2, types 2 | 11 | yes |
 | **parties** | 12 / 1925 | components 1, helpers 3, pages 3, routes 1, services 1, types 2, validators 1 | 8 |  |
 | **payments** | 7 / 921 | pages 3, routes 1, services 1, types 2 | 3 |  |
-| **products** | 33 / 5373 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 2, validators 1 | 16 |  |
+| **products** | 33 / 5374 | components 8, controllers 1, helpers 1, pages 15, routes 1, services 4, types 2, validators 1 | 16 |  |
 | **purchases** | 12 / 1815 | commands 1, components 1, pages 6, routes 1, services 1, types 2 | 7 | yes |
 | **reports** | 45 / 6393 | commands 1, components 5, controllers 2, helpers 1, pages 28, print 4, routes 1, services 1, types 2 | 28 | yes |
-| **settings** | 39 / 5701 | commands 1, components 6, controllers 4, helpers 2, pages 16, routes 1, services 4, types 5 | 19 | yes |
-| **setup** | 25 / 2586 | components 15, pages 3, routes 1, services 3, types 2, validators 1 | 3 |  |
+| **settings** | 40 / 5861 | commands 1, components 6, controllers 4, helpers 2, pages 17, routes 1, services 4, types 5 | 20 | yes |
+| **setup** | 25 / 2649 | components 15, pages 3, routes 1, services 3, types 2, validators 1 | 3 |  |
 | **templates** | 5 / 969 | pages 2, services 1, types 2 | 0 |  |
-| **users** | 12 / 1032 | controllers 1, helpers 1, pages 4, routes 1, services 2, types 2, validators 1 | 4 |  |
+| **users** | 14 / 1282 | controllers 1, helpers 1, pages 6, routes 1, services 2, types 2, validators 1 | 6 |  |
 | **vouchers** | 10 / 879 | commands 1, pages 5, routes 1, services 1, types 2 | 5 | yes |
 
 ## Service API (the seam — pages call only these)
@@ -154,7 +154,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | settings | `networkService` | `getLanSharingStatus`, `enableLanSharing`, `disableLanSharing`, `rotatePairingCode`, `reconnectBackend` |
 | settings | `settingsService` | `getSettings`, `updateSettings`, `getTaxes`, `saveTax`, `deleteTax`, `getPaymentMethods`, `savePaymentMethod`, `reorderPaymentMethods`, `deletePaymentMethod` |
 | setup | `deviceService` | `refreshDeviceSetupState`, `ensureDeviceSetupState`, `deviceStateForNavigation`, `isFreshInstallCached`, `mustHoldForDatabase`, `isNavigationHeldForDatabase`, `getDeviceSetupState`, `provisionMainDevice`, `pairTerminalDevice` |
-| setup | `legacyImportService` | `hasLegacySnapshot`, `inspectLegacySnapshot`, `importLegacySnapshot` |
+| setup | `legacyImportService` | `canWipeBusinessData`, `hasLegacySnapshot`, `inspectLegacySnapshot`, `importLegacySnapshot`, `clearLegacySnapshot`, `wipeBusinessData` |
 | setup | `setupService` | `ensureEmptyCompanyShell`, `persistProgress`, `getOnboardingProgress`, `saveOnboardingProgress`, `markStepDone`, `markStepSkipped`, `applyBusinessTypeDefaults`, `isBaseCurrencyLocked`, `applyCountryTax`, `applyFiscalYear`, `applyBranches`, `previewCoaTemplate`, `applyCoaTemplate`, `applyPaymentMethods`, `getOpeningBalanceEquityNet`, `isFirstUsePosted`, `postOpeningBalances`, `postOpeningStock`, `recloseOpeningBalanceEquity`, `postPartyOpening`, `reversePartyOpening`, `finishOnboarding`, `uid` |
 | templates | `templateService` | `listTemplates`, `getTemplate`, `getDefaultTemplate`, `saveTemplate`, `setAsDefault`, `duplicateTemplate`, `deleteTemplate`, `resetTemplateToDefaults`, `exportTemplate`, `importTemplate`, `createTemplate` |
 | users | `authService` | `isFreshInstall`, `login`, `restoreSession`, `logout`, `verifyManagerPin`, `getDemoAccounts` |
@@ -277,6 +277,7 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | settings | `/settings/templates` | settings-templates | قوالب الطباعة | settings | TemplateListPage.vue |
 | settings | `/settings/templates/:id` | settings-template-designer | قالب الطباعة | settings | TemplateDesignerPage.vue |
 | settings | `/settings/about` | settings-about | حول / الدعم |  | AboutSettingsPage.vue |
+| settings | `/settings/danger-zone` | settings-danger-zone | إجراءات خطرة | settings | DangerZoneSettingsPage.vue |
 | setup | `/device-setup` | device-setup | إعداد الجهاز |  | DeviceSetupPage.vue |
 | setup | `/setup` | setup-wizard | إعداد الشركة |  | SetupWizardPage.vue |
 | setup | `/setup/opening` | setup-opening | الأرصدة الافتتاحية | accounting | OpeningBalancesPage.vue |
@@ -284,6 +285,8 @@ Module anatomy: `pages` (routed screens) · `components` (feature-only UI) · `c
 | users | `/login` | login | تسجيل الدخول |  | LoginPage.vue |
 | users | `/users` | users | المستخدمين | users | UserListPage.vue |
 | users | `/users/:id` | user-editor | بيانات المستخدم | users | UserEditorPage.vue |
+| users | `/profile` | profile | ملفي الشخصي |  | ProfilePage.vue |
+| users | `/my-activity` | my-activity | نشاطي |  | MyActivityPage.vue |
 | vouchers | `/vouchers` | vouchers | السندات العامة | payments | VoucherListPage.vue |
 | vouchers | `/vouchers/new` | voucher-new | سند عام جديد | payments | VoucherFormPage.vue |
 | vouchers | `/vouchers/:id` | voucher-detail | تفاصيل السند | payments | VoucherDetailPage.vue |
@@ -300,23 +303,23 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | **analytics** | core (18), diagnostics (1), mocks (1) | 1 |
 | **app** | core (16), settings (7), diagnostics (4), users (4), setup (3), accounting (2), approvals (2), invoices (2), purchases (2), reports (2), vouchers (2), analytics (1), expenses (1), mocks (1), parties (1), payments (1), products (1) | 1 |
 | **approvals** | core (14), mocks (2), diagnostics (1), users (1) | 5 |
-| **core** | mocks (21), users (20), products (14), invoices (13), settings (12), diagnostics (11), parties (4), purchases (3), accounting (2), templates (2), vouchers (2), app (1), approvals (1), payments (1), reports (1), setup (1) | 18 |
+| **core** | mocks (21), users (20), products (14), invoices (13), settings (12), diagnostics (11), parties (4), purchases (3), accounting (2), setup (2), templates (2), vouchers (2), app (1), approvals (1), payments (1), reports (1) | 18 |
 | **diagnostics** | core (31), mocks (5), accounting (1) | 18 |
 | **expenses** | core (61), accounting (3), users (3), mocks (2), parties (2), settings (2), diagnostics (1) | 2 |
-| **invoices** | core (222), products (11), settings (11), mocks (9), parties (9), users (9), reports (6), approvals (2), diagnostics (2), accounting (1), payments (1) | 10 |
+| **invoices** | core (224), products (11), settings (11), mocks (9), parties (9), users (9), reports (6), approvals (2), diagnostics (2), accounting (1), payments (1) | 11 |
 | **mocks** | core (15), invoices (9), accounting (8), products (8), settings (7), diagnostics (4), vouchers (3), approvals (2), expenses (2), parties (2), payments (2), purchases (2), setup (2), users (1) | 18 |
 | **parties** | core (63), mocks (6), payments (3), users (2), diagnostics (1), invoices (1), purchases (1), settings (1), setup (1) | 10 |
 | **payments** | core (44), invoices (2), mocks (2), parties (2), users (2), diagnostics (1) | 6 |
-| **products** | core (212), mocks (14), users (13), settings (9), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
+| **products** | core (213), mocks (14), users (13), settings (9), diagnostics (4), accounting (3), purchases (2), approvals (1), parties (1), templates (1) | 8 |
 | **purchases** | core (81), mocks (5), products (5), users (4), invoices (3), parties (3), settings (2), diagnostics (1), payments (1) | 5 |
 | **reports** | core (165), settings (7), accounting (5), mocks (4), diagnostics (1), invoices (1), users (1) | 4 |
-| **settings** | core (197), users (19), mocks (15), diagnostics (10), invoices (6), products (3), templates (2) | 12 |
-| **setup** | core (74), mocks (9), diagnostics (4), settings (4), accounting (2), products (2), parties (1), users (1) | 5 |
+| **settings** | core (206), users (21), mocks (15), diagnostics (10), invoices (6), products (3), setup (2), templates (2) | 12 |
+| **setup** | core (75), mocks (9), diagnostics (4), invoices (4), settings (4), accounting (2), products (2), parties (1), users (1) | 6 |
 | **templates** | core (18), diagnostics (1), mocks (1) | 3 |
-| **users** | core (40), mocks (5), products (3), diagnostics (2), setup (2) | 15 |
+| **users** | core (64), diagnostics (5), mocks (5), products (3), setup (2) | 15 |
 | **vouchers** | core (50), mocks (3), accounting (2), settings (2), users (2), diagnostics (1), invoices (1) | 3 |
 
-**Most-used npm packages** (files importing): `vue (425)`, `@lucide/vue (174)`, `reka-ui (118)`, `vue-router (100)`, `@vueuse/core (79)`, `@tauri-apps/api (18)`, `pinia (10)`, `class-variance-authority (9)`, `zod (6)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `modern-screenshot (1)`, `tailwind-merge (1)` … +1 more
+**Most-used npm packages** (files importing): `vue (429)`, `@lucide/vue (178)`, `reka-ui (118)`, `vue-router (100)`, `@vueuse/core (79)`, `@tauri-apps/api (18)`, `pinia (10)`, `class-variance-authority (9)`, `zod (6)`, `@tauri-apps/plugin-dialog (4)`, `@tauri-apps/plugin-fs (4)`, `fflate (4)`, `uqr (3)`, `@fontsource-variable/cairo (2)`, `@fontsource/ibm-plex-sans-arabic (2)`, `@internationalized/date (2)`, `@tauri-apps/plugin-opener (2)`, `exceljs (2)`, `@fontsource/noto-naskh-arabic (1)`, `@fontsource/tajawal (1)`, `bwip-js (1)`, `clsx (1)`, `libphonenumber-js (1)`, `modern-screenshot (1)`, `tailwind-merge (1)` … +1 more
 
 ## Rust ↔ Vue IPC contract
 
@@ -639,6 +642,7 @@ Counts are import statements. `app` = router / main.ts / App.vue; `mocks` = src/
 | `settings_restore_from_archive` | `infrastructure::backup::commands::settings_restore_from_archive` | `src-tauri/src/infrastructure/backup/commands.rs` | yes | `src/modules/settings/services/backupService.ts` |
 | `setup_inspect_legacy_snapshot` | `infrastructure::import::commands::setup_inspect_legacy_snapshot` | `src-tauri/src/infrastructure/import/commands.rs` | yes | `src/modules/setup/services/legacyImportService.ts` |
 | `setup_import_snapshot` | `infrastructure::import::commands::setup_import_snapshot` | `src-tauri/src/infrastructure/import/commands.rs` | yes | `src/modules/core/services/devToolsService.ts`, `src/modules/setup/services/legacyImportService.ts` |
+| `setup_wipe_business_data` | `infrastructure::import::commands::setup_wipe_business_data` | `src-tauri/src/infrastructure/import/commands.rs` | yes | `src/modules/setup/services/legacyImportService.ts` |
 | `render_pdf` | `infrastructure::pdf::render::render_pdf` | `src-tauri/src/infrastructure/pdf/render.rs` | yes | `src/modules/core/services/pdfService.ts` |
 | `render_preview` | `infrastructure::pdf::render::render_preview` | `src-tauri/src/infrastructure/pdf/render.rs` | yes | `src/modules/core/services/pdfService.ts` |
 | `list_printers` | `infrastructure::print::commands::list_printers` | `src-tauri/src/infrastructure/print/commands.rs` | yes | `src/modules/core/services/printService.ts` |
@@ -682,7 +686,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 | `db.ts` | `resetDb`, `nextNumber` | core, invoices, settings |
 | `events.ts` | `on`, `off`, `emit` | core, invoices, parties, products |
 | `index.ts` | `bootMockDb`, `isBooted` | accounting, analytics, approvals, core, diagnostics, expenses, invoices, main, parties, payments, products, purchases, reports, settings, setup, templates, users, vouchers |
-| `persist.ts` | `flushSnapshot`, `mutate`, `loadSnapshot`, `readPersistedSnapshot`, `readLegacyImportMarker`, `writeLegacyImportMarker`, `clearSnapshot` | accounting, core, invoices, parties, products, settings, setup, users |
+| `persist.ts` | `flushSnapshot`, `mutate`, `loadSnapshot`, `readPersistedSnapshot`, `readLegacyImportMarker`, `writeLegacyImportMarker`, `clearSnapshot`, `forgetLegacySnapshot` | accounting, core, invoices, parties, products, settings, setup, users |
 | `seed/accounts.ts` | `seedAccounts`, `postOpeningCapital` | — |
 | `seed/branches9.ts` | `seedBranches9` | — |
 | `seed/catalog.ts` | `seedCatalog`, `postOpeningStock` | — |
@@ -698,7 +702,7 @@ Read `docs/v2/02-accounting-review.md` before touching posting, VAT, cost or acc
 
 | Group | Names |
 |---|---|
-| App*/ui components | `AiOrb`, `AppButton`, `AppCard`, `AppCombobox`, `AppDatePicker`, `AppInput`, `AppModal`, `AppPhoneInput`, `AppSelect`, `AppSwitch`, `AppTextarea`, `AttachmentField`, `AttachmentViewer`, `BrandLogo`, `ConfirmDialog`, `CountryFlag`, `DataTable`, `DateRangeFilter`, `DirIcon`, `EmptyState`, `ErrorState`, `MoneyText`, `PageHeader`, `PdfPreview`, `RiyalIcon`, `ScrollFade`, `SearchInput`, `SegmentedControl`, `SkeletonBlock`, `StatusBadge` |
+| App*/ui components | `AiOrb`, `AppButton`, `AppCard`, `AppCombobox`, `AppDatePicker`, `AppInput`, `AppModal`, `AppPasswordInput`, `AppPhoneInput`, `AppSelect`, `AppSwitch`, `AppTextarea`, `AttachmentField`, `AttachmentViewer`, `BrandLogo`, `ConfirmDialog`, `CountryFlag`, `DataTable`, `DateRangeFilter`, `DirIcon`, `EmptyState`, `ErrorState`, `MoneyText`, `PageHeader`, `PdfPreview`, `RiyalIcon`, `ScrollFade`, `SearchInput`, `SegmentedControl`, `SkeletonBlock`, `StatusBadge` |
 | Page blocks | `AddressFields`, `DetailHeader`, `FilterBar`, `FormActions`, `FormField`, `FormSection`, `LineItemsEditor`, `StatCards`, `TotalsPanel` |
 | Page layouts | `DetailPage`, `FormPage`, `ListPage`, `SettingsPage` |
 | App shell | `AppSidebar`, `AppTopbar`, `BrandBranchSwitcher`, `DefaultLayout`, `KeyboardShortcutsSheet`, `NavMain`, `NavQuickActions`, `NavUser`, `NotificationsDrawer` |
@@ -718,8 +722,8 @@ _none_
 | Page | Lines |
 |---|---|
 | `src/modules/invoices/pages/PosPage.vue` | 866 |
+| `src/modules/core/pages/DevUiPage.vue` | 600 |
 | `src/modules/accounting/pages/JournalEntryFormPage.vue` | 593 |
-| `src/modules/core/pages/DevUiPage.vue` | 590 |
 | `src/modules/parties/pages/PartyFormPage.vue` | 525 |
 | `src/modules/accounting/pages/JournalListPage.vue` | 482 |
 | `src/modules/products/pages/ProductFormPage.vue` | 469 |
@@ -735,7 +739,7 @@ _none_
 | `src/modules/settings/pages/PaymentMethodsSettingsPage.vue` | 278 |
 | `src/modules/payments/pages/PaymentFormPage.vue` | 273 |
 | `src/modules/products/pages/LabelBuilderPage.vue` | 273 |
-| `src/modules/settings/pages/BackupSettingsPage.vue` | 268 |
+| `src/modules/settings/pages/BackupSettingsPage.vue` | 269 |
 | `src/modules/accounting/pages/FiscalYearsPage.vue` | 261 |
 | `src/modules/products/pages/PriceListsPage.vue` | 255 |
 
@@ -973,3 +977,8 @@ _none_
 | `plans/pending/23-subscription-platform/phase-f-desktop-updates-telemetry.md` | Phase F — Auto-update, heartbeat, telemetry, diagnostics pull, feedback (this repo) |
 | `plans/pending/23-subscription-platform/phase-g-launch.md` | Phase G — Validation, keys, deploy, final gate |
 | `plans/pending/23-subscription-platform/README.md` | 23 — Subscription platform (freemium licensing, dashboard, updates, telemetry) |
+| `plans/pending/24-rtl-icon-position-audit/phase-a-audit.md` | Phase A — Audit every `dirIcon` / navigation-icon call site |
+| `plans/pending/24-rtl-icon-position-audit/phase-b-appbutton-fix.md` | Phase B — `AppButton` `iconPosition` prop, fix call sites, gallery, docs |
+| `plans/pending/24-rtl-icon-position-audit/phase-c-appdatepicker-fix.md` | Phase C — `AppDatePicker` icon position (user-reported addendum) |
+| `plans/pending/24-rtl-icon-position-audit/phase-d-appinput-ltr-dir.md` | Phase D — `AppInput`'s `ltr` prop: icon position vs text direction disagreement (user-reported) |
+| `plans/pending/24-rtl-icon-position-audit/README.md` | 24 — RTL icon position: leading vs trailing in `AppButton` |

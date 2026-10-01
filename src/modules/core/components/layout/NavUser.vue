@@ -7,7 +7,7 @@
  */
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Bug, ChevronsUpDown, DatabaseBackup, Keyboard, LogOut, Moon, Palette, RefreshCw, Sun, UserRound } from '@lucide/vue';
+import { Bug, ChevronsUpDown, DatabaseBackup, FileClock, Keyboard, LogOut, Moon, Palette, RefreshCw, Sun, UserCircle, UserRound } from '@lucide/vue';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { getDemoAccounts } from '@/modules/users/services/authService';
 import { useBackupStore } from '@/modules/settings/controllers/useBackupStore';
@@ -18,6 +18,8 @@ import { useConfirm } from '../../controllers/useConfirm';
 import { resolvedTheme, toggleTheme } from '../../controllers/useTheme';
 import { useKeyboardShortcutsSheet } from '../../controllers/useKeyboardShortcutsSheet';
 import { reloadDemoData as reloadDemoDataService, resetToEmpty } from '../../services/devToolsService';
+import { usesRust } from '../../services/backend';
+import { canWipeBusinessData, wipeBusinessData } from '@/modules/setup/services/legacyImportService';
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -66,14 +68,17 @@ async function logout() {
 async function resetData() {
   const ok = await askConfirm({
     title: 'إعادة تعيين البيانات',
-    message: 'سيتم حذف كل البيانات المحفوظة محلياً والعودة لشاشة البداية. هذا الإجراء لا يمكن التراجع عنه.',
+    message: 'سيتم حذف كل البيانات المحفوظة والعودة لشاشة البداية. هذا الإجراء لا يمكن التراجع عنه.',
     confirmText: 'إعادة التعيين',
     danger: true,
   });
   if (!ok) return;
   busy.value = true;
   try {
-    await resetToEmpty();
+    // Rust mode: resetToEmpty() (mocks/persist.ts) refuses on purpose — that snapshot is the user's
+    // legacy data (P4-9), not the live database. The real reset is setup_wipe_business_data.
+    if (usesRust('setup')) await wipeBusinessData();
+    else await resetToEmpty();
     window.location.reload();
   } finally {
     busy.value = false;
@@ -120,6 +125,19 @@ async function reloadDemoData() {
               <p class="text-xs text-text-secondary"><span class="num">@{{ auth.user?.username }}</span> · {{ auth.role ? ROLE_LABEL[auth.role] : '' }}</p>
             </div>
           </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem as-child>
+            <RouterLink :to="{ name: 'profile' }" class="flex w-full items-center gap-2">
+              <UserCircle class="size-4" />
+              <span>ملفي الشخصي</span>
+            </RouterLink>
+          </DropdownMenuItem>
+          <DropdownMenuItem as-child>
+            <RouterLink :to="{ name: 'my-activity' }" class="flex w-full items-center gap-2">
+              <FileClock class="size-4" />
+              <span>نشاطي</span>
+            </RouterLink>
+          </DropdownMenuItem>
           <DropdownMenuSeparator v-if="auth.can('settings')" />
           <DropdownMenuItem v-if="auth.can('settings')" as-child>
             <RouterLink :to="{ name: 'settings-backup' }" class="flex w-full items-center gap-2">

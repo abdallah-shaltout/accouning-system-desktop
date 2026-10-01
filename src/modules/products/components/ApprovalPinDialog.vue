@@ -4,6 +4,7 @@ import { ShieldCheck } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
+import AppPasswordInput from '@/modules/core/components/ui/AppPasswordInput.vue';
 import { submitApprovalRequest } from '@/modules/approvals/services/approvalService';
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
 import { formatNumber } from '@/modules/core/helpers/format';
@@ -83,7 +84,7 @@ async function requestApprovalAsync() {
     </div>
     <form class="space-y-4" novalidate @submit.prevent="submit">
       <AppInput v-model="username" label="اسم مستخدم المدير" ltr autofocus />
-      <AppInput v-model="password" label="كلمة المرور" type="password" ltr />
+      <AppPasswordInput v-model="password" label="كلمة المرور" autocomplete="current-password" />
       <p v-if="error" class="text-xs text-danger" role="alert">{{ error }}</p>
       <button type="button" class="text-xs text-primary hover:underline" :disabled="requestingApproval" @click="requestApprovalAsync">
         لا يوجد مدير حالياً — إرسال طلب اعتماد لمراجعته لاحقاً

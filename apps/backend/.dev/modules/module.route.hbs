@@ -1,0 +1,23 @@
+import { Router } from "express";
+import { {{camelcase name}}Controller } from "./{{name}}.controller";
+import {
+    createValidation,
+    updateValidation,
+    idParamValidation,
+    listValidation,
+} from "./{{name}}.validation";
+
+const router = Router();
+
+router
+    .route("/")
+    .get(...listValidation, {{camelcase name}}Controller.readDocument)
+    .post(...createValidation, {{camelcase name}}Controller.createDocument);
+
+router
+    .route("/:id")
+    .get(...idParamValidation, {{camelcase name}}Controller.readDocumentById)
+    .put(...updateValidation, {{camelcase name}}Controller.updateDocument)
+    .delete(...idParamValidation, {{camelcase name}}Controller.deleteDocument);
+
+export default router;

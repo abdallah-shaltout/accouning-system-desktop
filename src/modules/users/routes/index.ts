@@ -27,6 +27,20 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../pages/UserEditorPage.vue'),
     meta: { title: 'بيانات المستخدم', section, area: 'users', access: 'write' },
   },
+  // Self-service — open to every signed-in user regardless of their `users` area permission
+  // (no `area` meta), same pattern as settings-appearance. Linked only from NavUser.vue.
+  {
+    path: '/profile',
+    name: 'profile',
+    component: () => import('../pages/ProfilePage.vue'),
+    meta: { title: 'ملفي الشخصي' },
+  },
+  {
+    path: '/my-activity',
+    name: 'my-activity',
+    component: () => import('../pages/MyActivityPage.vue'),
+    meta: { title: 'نشاطي' },
+  },
 ];
 
 export default routes;

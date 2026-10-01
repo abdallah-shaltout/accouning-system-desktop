@@ -1,0 +1,14 @@
+import { z } from "zod";
+import { validate } from "@@shared/middleware/validator/validation.core";
+import { uuidParam, paginationQuery, textField } from "@@shared/middleware/validator/commonValidator";
+
+export const createSchema = z.object({
+    name: textField({ fieldName: "الاسم" }),
+});
+
+export const updateSchema = createSchema.partial();
+
+export const createValidation = [validate({ body: createSchema })];
+export const updateValidation = [validate({ params: uuidParam, body: updateSchema })];
+export const idParamValidation = [validate({ params: uuidParam })];
+export const listValidation = [validate({ query: paginationQuery })];

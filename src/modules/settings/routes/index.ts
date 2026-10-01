@@ -37,6 +37,9 @@ const routes: RouteRecordRaw[] = [
   // 18.B6: version info + "تصدير ملف التشخيص" support bundle. Open to every signed-in user — a
   // cashier hitting an error needs to be able to export the bundle without an admin around.
   { path: '/settings/about', name: 'settings-about', component: () => import('../pages/AboutSettingsPage.vue'), meta: { title: 'حول / الدعم', section } },
+  // ACC-0035: dev-only destructive actions (wipe all data and start fresh). Hidden entirely in a
+  // release build (SettingsTabs.vue) — `setup_wipe_business_data` also refuses there regardless.
+  { path: '/settings/danger-zone', name: 'settings-danger-zone', component: () => import('../pages/DangerZoneSettingsPage.vue'), meta: { title: 'إجراءات خطرة', section, area: 'settings' } },
 ];
 
 export default routes;

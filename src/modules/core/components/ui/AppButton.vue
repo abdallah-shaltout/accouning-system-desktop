@@ -24,12 +24,14 @@ const props = withDefaults(
     icon?: Component;
     /** Mirror `icon` in RTL — for back/forward/prev/next navigation icons (see dirIcon.ts). */
     iconRtlFlip?: boolean;
+    /** Which side of the label `icon` renders on. 'start' (default) = leading, for back/prev. 'end' = trailing, for next/forward/open. */
+    iconPosition?: 'start' | 'end';
     to?: AppRoute;
     block?: boolean;
     /** Keyboard hint rendered inside the button, e.g. "F12". */
     kbd?: string;
   }>(),
-  { variant: 'secondary', size: 'md', type: 'button' },
+  { variant: 'secondary', size: 'md', type: 'button', iconPosition: 'start' },
 );
 
 // shadcn's own variants don't distinguish our bordered "secondary"/"ghost"/outlined "danger" from
@@ -73,7 +75,7 @@ const isDisabled = computed(() => props.disabled || props.loading);
     <LoaderCircle v-if="loading" class="size-4 animate-spin" />
     <component
       :is="icon"
-      v-else-if="icon"
+      v-else-if="icon && iconPosition === 'start'"
       class="size-4 shrink-0"
       :class="iconRtlFlip && 'rtl:-scale-x-100'"
       :stroke-width="1.75"
@@ -83,5 +85,12 @@ const isDisabled = computed(() => props.disabled || props.loading);
       v-if="kbd"
       class="num rounded border border-current/25 px-1 font-sans text-caption leading-4 opacity-70"
     >{{ kbd }}</kbd>
+    <component
+      :is="icon"
+      v-if="!loading && icon && iconPosition === 'end'"
+      class="size-4 shrink-0"
+      :class="iconRtlFlip && 'rtl:-scale-x-100'"
+      :stroke-width="1.75"
+    />
   </Button>
 </template>

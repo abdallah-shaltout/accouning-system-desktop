@@ -323,19 +323,17 @@
   --color-text-primary: #0f172a;
   --color-text-secondary: #526071;
 }
+/* Dark mode for the "slate" base deliberately drops the navy-tinted slate dark values and reuses
+   zinc's neutral grey dark palette instead (user request: slate's dark mode read as "navy blue",
+   not the calm neutral dark look the rest of the app has). Light mode keeps its own slate tones
+   above — this only replaces the `.dark` scale. */
 :root.dark[data-base="slate"] {
-  --color-background: #0b1120;
-  --color-surface: #1e293b;
-  --color-surface-hover: #293548;
-  --color-border: #334155;
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #94a3b8;
-  /* Base-specific override — the shared #6b6d78 only clears ~2.84:1 on this surface (18.C); this
-     hue-matched shade clears ≥3.6:1 on both background and surface. */
-  --color-border-control: #7a8199;
-  /* Base-specific override — the shared dark #e25858 only clears ~4.02:1 as text on this surface,
-     and ~4.09:1 on surface-hover (18.C); this lighter shade clears ≥5.6:1 in every state. */
-  --color-danger: #f27f7f;
+  --color-background: #09090b;
+  --color-surface: #18181b;
+  --color-surface-hover: #27272a;
+  --color-border: #3f3f46;
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a1a1aa;
 }
 :root[data-base="gray"] {
   --color-background: #ffffff;
@@ -493,6 +491,20 @@
       inset 0 0 0 4px color-mix(in oklab, var(--color-primary) 45%, transparent);
   }
   [data-slot="command-input-wrapper"] [data-slot="command-input"]:focus-visible {
+    box-shadow: none;
+  }
+
+  /* AppPhoneInput.vue: the number input and the country-trigger button are two adjacent `.control`
+     elements with the touching border/radius removed, so each one's own outward ring (above) bulges
+     from all four of its sides and overlaps the other control instead of reading as one ring around
+     the field. Same fix as the command-input case: one ring on the group wrapper, none on the parts. */
+  .phone-field:has(:focus-visible) {
+    border-radius: 6px;
+    box-shadow:
+      0 0 0 2px var(--color-border-control),
+      0 0 0 4px color-mix(in oklab, var(--color-primary) 45%, transparent);
+  }
+  .phone-field .control:focus-visible {
     box-shadow: none;
   }
 

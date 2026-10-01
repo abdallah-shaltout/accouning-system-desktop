@@ -1,0 +1,7 @@
+/**
+ * Optional scaffolding. This project's Zod schemas in `{{name}}.validation.ts` are self-contained,
+ * so a separate "rules" file (the reference's express-validator chain builders) is usually redundant.
+ * Kept as a thin re-export of the shared field helpers for convenience when a module grows enough
+ * validation logic to want its own file — import from here instead of duplicating field rules.
+ */
+export { uuidParam, paginationQuery, textField, phoneEG, moneyPiasters } from "@@shared/middleware/validator/commonValidator";

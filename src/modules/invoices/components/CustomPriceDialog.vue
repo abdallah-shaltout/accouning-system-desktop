@@ -8,6 +8,7 @@
 import { computed, ref, watch } from 'vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
+import AppPasswordInput from '@/modules/core/components/ui/AppPasswordInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import { submitApprovalRequest } from '@/modules/approvals/services/approvalService';
 import { errorMessage, useToast } from '@/modules/core/controllers/useToast';
@@ -131,7 +132,7 @@ async function requestApprovalAsync() {
       <div v-else class="space-y-3">
         <p class="rounded-md bg-warning/10 px-3 py-2 text-body text-warning">السعر أقل من التكلفة — يلزم اعتماد مدير.</p>
         <input v-model="pinUser" class="control h-10" placeholder="اسم مستخدم المدير" ltr autofocus />
-        <input v-model="pinPass" type="password" class="control h-10" placeholder="كلمة المرور" ltr @keydown.enter="submitPin" />
+        <AppPasswordInput v-model="pinPass" placeholder="كلمة المرور" autocomplete="current-password" @keydown.enter="submitPin" />
         <p v-if="pinError" class="text-xs text-danger">{{ pinError }}</p>
         <button type="button" class="text-xs text-primary hover:underline" :disabled="requestingApproval" @click="requestApprovalAsync">
           لا يوجد مدير حالياً — إرسال طلب اعتماد لمراجعته لاحقاً

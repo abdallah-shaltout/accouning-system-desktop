@@ -1,0 +1,100 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "baseUrl": "./",
+        "paths": {
+            "@@activation/*": [
+                "./src/domains/activation/*"
+            ],
+            "@@admin/*": [
+                "./src/domains/admin/*"
+            ],
+            "@@adminActivity/*": [
+                "./src/domains/adminActivity/*"
+            ],
+            "@@config/*": [
+                "./src/config/*"
+            ],
+            "@@credit/*": [
+                "./src/domains/credit/*"
+            ],
+            "@@device/*": [
+                "./src/domains/device/*"
+            ],
+            "@@diagnostics/*": [
+                "./src/domains/diagnostics/*"
+            ],
+            "@@feedback/*": [
+                "./src/domains/feedback/*"
+            ],
+            "@@license/*": [
+                "./src/domains/license/*"
+            ],
+            "@@organization/*": [
+                "./src/domains/organization/*"
+            ],
+            "@@otp/*": [
+                "./src/domains/otp/*"
+            ],
+            "@@payment/*": [
+                "./src/domains/payment/*"
+            ],
+            "@@plan/*": [
+                "./src/domains/plan/*"
+            ],
+            "@@release/*": [
+                "./src/domains/release/*"
+            ],
+            "@@shared/*": [
+                "./src/shared/*"
+            ],
+            "@@subscription/*": [
+                "./src/domains/subscription/*"
+            ],
+            "@@telemetry/*": [
+                "./src/domains/telemetry/*"
+            ],
+            "@@user/*": [
+                "./src/domains/user/*"
+            ],
+            "@/*": [
+                "./src/apps/*"
+            ],
+            "~/*": [
+                "./src/*"
+            ]
+        },
+        "sourceMap": true,
+        "outDir": "dist",
+        "forceConsistentCasingInFileNames": true,
+        "strict": true,
+        "noImplicitAny": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "skipLibCheck": true,
+        "typeRoots": [
+            "node_modules/@types",
+            "./src/shared/types"
+        ],
+        "types": [
+            "node"
+        ],
+        "resolveJsonModule": true,
+        "esModuleInterop": true
+    },
+    "include": [
+        "src/**/*.ts",
+        "build.ts",
+        "vitest.config.ts",
+        "drizzle.config.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ],
+    "files": [
+        "src/index.ts"
+    ]
+}

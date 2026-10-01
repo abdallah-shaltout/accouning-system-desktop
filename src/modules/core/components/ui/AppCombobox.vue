@@ -70,6 +70,15 @@ function onUpdateOpen(v: boolean) {
   if (v) query.value = '';
 }
 
+/** Without this, reka-ui's Combobox falls back to stringifying the raw `value` (the option's id)
+ * into the search input whenever it reopens with a selection already made — the id then gets
+ * matched against `matchesSearch()`, which never finds it in any label/sublabel/keyword, so the
+ * list comes back empty. Always show the query we track ourselves, never the raw value. */
+function displayValue(v: string | undefined) {
+  if (!v) return '';
+  return props.options.find((o) => o.value === v)?.label ?? '';
+}
+
 function onUpdateModelValue(v: unknown) {
   const value = v as string | undefined;
   model.value = value;
@@ -124,7 +133,7 @@ defineExpose({ open: () => (open.value = true) });
       <p v-if="error" :id="errorId" class="mt-1 text-xs text-danger" role="alert">{{ error }}</p>
 
       <ComboboxList dir="rtl" class="w-[--reka-combobox-trigger-width] rounded-lg border-border bg-background shadow-xl">
-        <ComboboxInput v-model="query" :placeholder="searchPlaceholder" class="text-body" />
+        <ComboboxInput v-model="query" :display-value="displayValue" :placeholder="searchPlaceholder" class="text-body" />
         <ComboboxViewport class="p-1">
           <ComboboxItem
             v-for="o in filtered"

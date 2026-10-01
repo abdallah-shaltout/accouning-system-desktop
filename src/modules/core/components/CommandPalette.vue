@@ -112,10 +112,11 @@ watch(palette.query, () => palette.onQueryChange());
   <Teleport to="body">
     <div v-if="palette.open.value" dir="rtl" class="fixed inset-0 z-80 flex items-start justify-center bg-black/45 p-4 pt-[10vh]" @mousedown.self="palette.hide()">
       <div role="dialog" aria-modal="true" aria-label="لوحة الأوامر" class="w-full max-w-xl overflow-hidden rounded-xl border border-border bg-background shadow-2xl">
-        <div class="flex items-center gap-2 border-b border-border px-3">
+        <div data-slot="command-input-wrapper" class="flex items-center gap-2 border-b border-border px-3">
           <Search class="size-4 shrink-0 text-text-secondary" />
           <input
             ref="input"
+            data-slot="command-input"
             v-model="palette.query.value"
             role="combobox"
             aria-expanded="true"
@@ -135,7 +136,7 @@ watch(palette.query, () => palette.onQueryChange());
           </template>
           <template v-else-if="!flatResults.length">
             <div class="px-3 py-8 text-center text-xs text-text-secondary">
-              {{ palette.query.value ? 'لا توجد نتائج' : 'ابدأ الكتابة للبحث، أو استخدم الأسهم لفتح العناصر الأخيرة' }}
+              {{ palette.query.value ? 'لا توجد نتائج' : 'ابدأ الكتابة للبحث' }}
             </div>
           </template>
           <template v-else>

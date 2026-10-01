@@ -1,0 +1,51 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/* Class-based dark mode (`<html class="dark">`). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+html[dir="rtl"][lang="ar"] {
+  font-family: var(--font-sans);
+}
+
+@layer base {
+  body {
+    margin: 0;
+    font-size: var(--text-ui);
+    line-height: 1.55;
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  b, strong { font-weight: var(--font-weight-semibold); }
+
+  /* Numbers inside RTL text stay LTR (see .num below). */
+  input[type="number"] { direction: ltr; text-align: right; }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+  :focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--color-border-control),
+      0 0 0 4px color-mix(in oklab, var(--color-primary) 45%, transparent);
+  }
+
+  button:not(:disabled), [role="button"]:not([aria-disabled="true"]) { cursor: pointer; }
+
+  ::selection { background: color-mix(in oklab, var(--color-primary) 25%, transparent); }
+
+  * { scrollbar-width: thin; scrollbar-color: var(--color-border) transparent; }
+}
+
+@layer components {
+  /* Numeric runs (money, phone numbers, codes) stay LTR inside RTL text (05-ui-rules.md "RTL"). */
+  .num {
+    direction: ltr;
+    unicode-bidi: isolate;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}

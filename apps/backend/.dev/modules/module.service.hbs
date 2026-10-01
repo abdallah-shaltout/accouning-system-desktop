@@ -1,0 +1,11 @@
+import { BaseService } from "@@shared/core/service.core";
+import { {{camelcase name}} } from "./{{name}}.schema";
+
+class {{pascal name}}Service extends BaseService<typeof {{camelcase name}}> {
+    constructor() {
+        super({{camelcase name}}, { deletedAtColumn: "deletedAt" });
+    }
+}
+
+export const {{camelcase name}}Service = new {{pascal name}}Service();
+export default {{camelcase name}}Service;

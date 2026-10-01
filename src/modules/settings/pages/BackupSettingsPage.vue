@@ -6,6 +6,7 @@ import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
+import AppPasswordInput from '@/modules/core/components/ui/AppPasswordInput.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
 import DataTable, { type Column } from '@/modules/core/components/ui/DataTable.vue';
 import SettingsPage from '@/modules/core/components/layouts/SettingsPage.vue';
@@ -246,7 +247,7 @@ async function removeEntry(entry: BackupHistoryEntry) {
           </p>
         </div>
         <AppSwitch v-model="backupUsePassword" label="حماية بكلمة مرور" description="تشفير AES-GCM لجميع البيانات باستثناء بيانات الوصف الأساسية" />
-        <AppInput v-if="backupUsePassword" v-model="backupPassword" type="password" ltr label="كلمة المرور" placeholder="4 أحرف على الأقل" />
+        <AppPasswordInput v-if="backupUsePassword" v-model="backupPassword" label="كلمة المرور" autocomplete="new-password" placeholder="4 أحرف على الأقل" />
       </div>
       <div v-else class="space-y-3 text-body">
         <p class="flex items-center gap-2 text-success"><Check class="size-4" /> تم إنشاء النسخة الاحتياطية بنجاح</p>

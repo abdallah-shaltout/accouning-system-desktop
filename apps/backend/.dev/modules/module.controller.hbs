@@ -1,0 +1,16 @@
+import { BaseController } from "@@shared/core/controller.core";
+import { {{camelcase name}}Service } from "./{{name}}.service";
+
+/**
+ * Thin pass-through CRUD controller. Business rules stay in {{name}}.service.ts — add
+ * domain-specific endpoints here only as extra methods, never by branching inside the inherited ones.
+ */
+class {{pascal name}}Controller extends BaseController<typeof {{camelcase name}}Service> {
+    constructor() {
+        super({{camelcase name}}Service, "{{name}}");
+    }
+}
+
+export const {{camelcase name}}Controller = new {{pascal name}}Controller();
+export default {{camelcase name}}Controller;
+export { {{pascal name}}Controller };

@@ -24,10 +24,10 @@ const KEEP_NEWEST: usize = 10;
 pub async fn backup_before_migrations(db: &DatabaseConnection, out_dir: &Path) -> Result<Option<PathBuf>, String> {
     use migration::MigratorTrait;
     let applied = migration::Migrator::get_applied_migrations(db).await.map_err(|e| e.to_string())?;
-    let pending = migration::Migrator::get_pending_migrations(db).await.map_err(|e| e.to_string())?;
-    if applied.is_empty() && pending.is_empty() {
-        return Ok(None); // fresh install — nothing to back up yet.
+    if applied.is_empty() {
+        return Ok(None); // fresh install — nothing applied yet, so there is no old schema to back up.
     }
+    let pending = migration::Migrator::get_pending_migrations(db).await.map_err(|e| e.to_string())?;
     if pending.is_empty() {
         return Ok(None); // already current — the caller shouldn't reach here, but stay defensive.
     }

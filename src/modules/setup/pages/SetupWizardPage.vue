@@ -37,6 +37,7 @@ setupService.ensureEmptyCompanyShell();
 const state = reactive<WizardState>(defaultWizardState());
 const stepIndex = ref(0);
 const saving = ref(false);
+const stepRef = ref<{ flush?: () => Promise<unknown> } | null>(null);
 const stepError = ref('');
 const doneSteps = ref<Set<string>>(new Set());
 const skippedSteps = ref<Set<string>>(new Set());
@@ -75,6 +76,10 @@ async function commitCurrentStep(): Promise<boolean> {
   stepError.value = '';
   saving.value = true;
   try {
+    // A step may have its own fire-and-forget saves against the `settings` row (StepPrinting).
+    // Wait for those to land before this step's own commit — and before moving on, since the next
+    // step (or `finishOnboarding`) can write to the same row and collide with a still-in-flight one.
+    await stepRef.value?.flush?.();
     switch (step.value.key) {
       case 'businessType':
         // docs/v2/05-onboarding.md §2 step 1: "Sets the defaults: units, product fields…" — seeds a
@@ -198,7 +203,7 @@ function goToStep(i: number) {
 
           <p v-if="stepError" class="mb-4 rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger" role="alert">{{ stepError }}</p>
 
-          <component :is="stepComponents[step.key]" :state="state" @error="(m: string) => (stepError = m)" />
+          <component :is="stepComponents[step.key]" ref="stepRef" :state="state" @error="(m: string) => (stepError = m)" />
         </div>
       </div>
 
@@ -206,7 +211,7 @@ function goToStep(i: number) {
         <AppButton type="button" :icon="dirIcon.prev" icon-rtl-flip :disabled="stepIndex === 0 || saving" @click="back">السابق</AppButton>
         <div class="flex items-center gap-2">
           <AppButton v-if="canSkip" type="button" :disabled="saving" @click="skip">تخطي الآن</AppButton>
-          <AppButton type="button" variant="primary" :icon="isLast ? Check : dirIcon.next" :icon-rtl-flip="!isLast" :loading="saving" @click="next">
+          <AppButton type="button" variant="primary" :icon="isLast ? Check : dirIcon.next" :icon-rtl-flip="!isLast" icon-position="end" :loading="saving" @click="next">
             {{ isLast ? 'ابدأ العمل' : 'التالي' }}
           </AppButton>
         </div>

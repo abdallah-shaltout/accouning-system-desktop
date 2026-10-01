@@ -1,0 +1,128 @@
+/*
+ * Design tokens — copied from `desktop-app/src/assets/styles/design-system.css` (D1, not imported:
+ * this is a separate project). Keep the same VALUES so the dashboard shares the desktop app's "same
+ * soul"; trimmed to what this project uses (no invoice-template palettes, no density/appearance
+ * presets — those are desktop-only settings). Light values live in @theme so Tailwind utilities like
+ * `bg-surface` resolve to `var(--color-surface)`; `:root.dark` overrides the same variables.
+ */
+@theme {
+  --font-sans: "Cairo Variable", "Cairo", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, monospace;
+
+  /* Linear-style weights: never bold. `font-bold` is clamped too (UI rule: no font weight >= 700). */
+  --font-weight-normal: 400;
+  --font-weight-medium: 510;
+  --font-weight-semibold: 590;
+  --font-weight-bold: 590;
+
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --color-background: #ffffff;
+  --color-surface: #f4f4f5;
+  --color-surface-hover: #e4e4e7;
+  --color-border: #c4c4c9;
+  --color-text-primary: #09090b;
+  --color-text-secondary: #5f5f69;
+  --color-primary: #0e7259;
+  --color-primary-hover: #0b6350;
+  --color-on-primary: #ffffff;
+  --color-danger: #c81e1e;
+  --color-success: #166534;
+  --color-warning: #92400e;
+  /* Control boundaries (input/select/switch-off/checkbox borders) need 3:1, not the decorative
+     hairline ratio --color-border gives. */
+  --color-border-control: #85858f;
+
+  --animate-shimmer: shimmer 1.4s ease-in-out infinite;
+
+  @keyframes shimmer {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+
+  /* Text-size tokens, grouped by usage rather than one token per pixel value. */
+  --text-caption:    10px;  /* smallest meta text: badges, tiny hints */
+  --text-tiny:       11px;  /* secondary/muted labels, table meta rows */
+  --text-label:      12px;  /* field labels, small captions */
+  --text-body:       13px;  /* default body/paragraph/table-cell text */
+  --text-ui:         14px;  /* base UI chrome text (body font-size default) */
+  --text-lead:       15px;  /* lead paragraphs, emphasized rows */
+  --text-heading-sm: 17px;  /* section sub-heading */
+  --text-heading:    18px;  /* section heading */
+  --text-stat:       26px;  /* big stat/KPI numbers */
+  --text-display:    40px;  /* hero figure (e.g. pricing plan price) */
+}
+
+:root {
+  color-scheme: light;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+:root.dark {
+  color-scheme: dark;
+  --color-background: #0e0f11;
+  --color-surface: #17181c;
+  --color-surface-hover: #222327;
+  --color-border: #2d2e33;
+  --color-text-primary: #f2f2f2;
+  --color-text-secondary: #8b8d98;
+  --color-primary: #0f7d63;
+  --color-primary-hover: #0d6b54;
+  --color-on-primary: #ffffff;
+  --color-danger: #ec7676;
+  --color-success: #42b883;
+  --color-warning: #f0a33a;
+  --color-border-control: #6b6d78;
+}
+
+/*
+ * shadcn-vue token bridge — NOT a token rewrite. Our tokens above stay the single source of truth;
+ * this maps shadcn's semantic names onto them so generated components (`bg-primary`,
+ * `text-muted-foreground`, etc.) render with our colors and dark mode with zero changes on either
+ * side. `@theme inline` (not plain `@theme`) is required because these values reference *other* CSS
+ * variables rather than literals.
+ */
+@theme inline {
+  --radius: 0.375rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-foreground: var(--color-text-primary);
+  --color-muted: var(--color-surface);
+  --color-muted-foreground: var(--color-text-secondary);
+  --color-accent: var(--color-surface-hover);
+  --color-accent-foreground: var(--color-text-primary);
+  --color-card: var(--color-background);
+  --color-card-foreground: var(--color-text-primary);
+  --color-popover: var(--color-background);
+  --color-popover-foreground: var(--color-text-primary);
+  --color-primary-foreground: var(--color-on-primary);
+  --color-secondary: var(--color-surface);
+  --color-secondary-foreground: var(--color-text-primary);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: var(--color-white);
+  /* --color-border-control, not --color-border — shadcn's input/select/switch-off/checkbox
+     boundaries need the 3:1 control-boundary ratio, not the decorative hairline one. */
+  --color-input: var(--color-border-control);
+  --color-ring: var(--color-border-control);
+
+  --color-sidebar: var(--color-surface);
+  --color-sidebar-foreground: var(--color-text-primary);
+  --color-sidebar-primary: var(--color-primary);
+  --color-sidebar-primary-foreground: var(--color-on-primary);
+  --color-sidebar-accent: var(--color-surface-hover);
+  --color-sidebar-accent-foreground: var(--color-text-primary);
+  --color-sidebar-border: var(--color-border);
+  --color-sidebar-ring: var(--color-border-control);
+
+  --text-xs: var(--text-label);
+  --text-sm: var(--text-body);
+  --text-base: var(--text-ui);
+  --text-lg: var(--text-heading-sm);
+}

@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790707890620,
+      "tag": "0000_polite_longshot",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790708553992,
+      "tag": "0001_useful_ulik",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790738318867,
+      "tag": "0002_luxuriant_the_professor",
+      "breakpoints": true
+    }
+  ]
+}

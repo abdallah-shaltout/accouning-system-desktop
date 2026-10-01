@@ -1,8 +1,10 @@
-//! The 2 importer IPC commands (`03-domains/00-import.md` §3.4): `setup_inspect_legacy_snapshot`
-//! (read-only) and `setup_import_snapshot` (the whole importer, one write transaction).
+//! The importer IPC commands (`03-domains/00-import.md` §3.4): `setup_inspect_legacy_snapshot`
+//! (read-only), `setup_import_snapshot` (the whole importer, one write transaction), and
+//! `setup_wipe_business_data` (ACC-0035: debug-only "start fresh" — see its own doc comment).
 
 use tauri::State;
 
+use crate::core::auth::{Access, Area};
 use crate::core::device::DeviceRole;
 use crate::core::dto::ApiErrorPayload;
 use crate::core::error::AppError;
@@ -143,10 +145,33 @@ pub async fn setup_import_snapshot(state: State<'_, AppState>, args: SetupImport
     })
 }
 
+/// Debug-only "start fresh" — deletes every business row (same primitive `setup_import_snapshot`'s
+/// `replace_existing` path already uses) and leaves an empty, still-configured database behind, so
+/// the welcome page's "ابدأ شركتك" / "استكشف ببيانات تجريبية" cards work again without reinstalling.
+/// Never available in a release build (`wipe_business_rows` itself refuses there too — this is a
+/// second, redundant gate at the IPC boundary, deliberately not the only one): a real company's data
+/// must never have a one-click wipe. Requires `Settings` write access on top of that, same as any
+/// other destructive settings action, so a cashier/accountant role can't trigger it either.
+#[tauri::command]
+pub async fn setup_wipe_business_data(state: State<'_, AppState>) -> Result<(), ApiErrorPayload> {
+    if !cfg!(debug_assertions) {
+        return Err(ApiErrorPayload::from(AppError::forbidden("غير مسموح في النسخة النهائية")));
+    }
+    with_tx(&state, TxOpts::default(), move |tx, cx| {
+        Box::pin(async move {
+            cx.require(tx, Area::Settings, Access::Write).await?;
+            run::wipe_business_rows(tx).await
+        })
+    })
+    .await
+    .map_err(ApiErrorPayload::from)
+}
+
 pub fn ipc_signatures() -> Vec<IpcSig> {
     vec![
         ipc_sig!(setup_inspect_legacy_snapshot, SetupInspectLegacySnapshotArgs, LegacySnapshotSummary),
         ipc_sig!(setup_import_snapshot, SetupImportSnapshotArgs, ImportSnapshotResult),
+        ipc_sig!(setup_wipe_business_data, (), ()),
     ]
 }
 

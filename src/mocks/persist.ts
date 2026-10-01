@@ -93,10 +93,14 @@ async function idbSet(key: string, value: unknown): Promise<void> {
 }
 
 async function idbClear(): Promise<void> {
+  return idbDelete(SNAPSHOT_KEY);
+}
+
+async function idbDelete(key: string): Promise<void> {
   const conn = await openDb();
   return new Promise((resolve, reject) => {
     const tx = conn.transaction(STORE_NAME, 'readwrite');
-    tx.objectStore(STORE_NAME).delete(SNAPSHOT_KEY);
+    tx.objectStore(STORE_NAME).delete(key);
     tx.oncomplete = () => {
       conn.close();
       resolve();
@@ -265,4 +269,18 @@ export async function clearSnapshot(): Promise<void> {
     debounceTimer = null;
   }
   await idbClear();
+}
+
+/** ACC-0035: the explicit, dev-only escape hatch `clearSnapshot()` deliberately doesn't have — a
+ * developer's own test machine can accumulate an old legacy snapshot (from an earlier mock session,
+ * before this device ever had a real database) that the welcome page keeps offering to import. Unlike
+ * `clearSnapshot()`, this also deletes the `legacyImportedAt` marker, so a stale "already imported"
+ * state can't linger either. Dev builds only, by design — a release build must never be able to make
+ * a real customer's not-yet-imported legacy data unrecoverable. */
+export async function forgetLegacySnapshot(): Promise<void> {
+  if (!import.meta.env.DEV) {
+    throw new ApiError('متاح فقط في وضع التطوير', 'FORBIDDEN');
+  }
+  await idbDelete(SNAPSHOT_KEY);
+  await idbDelete(LEGACY_IMPORT_MARKER_KEY);
 }

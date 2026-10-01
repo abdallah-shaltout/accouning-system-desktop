@@ -526,6 +526,25 @@ async fn pre_migration_backup_is_none_on_fresh_db() {
     db.finish().await;
 }
 
+/// ACC-0034: a brand new installation's first connection — `seaql_migrations` has never been
+/// created, so `get_applied_migrations()` is empty while `get_pending_migrations()` is the full
+/// list (every migration is pending). The old `applied.is_empty() && pending.is_empty()` check could
+/// never be true on a real fresh install, so it fell through to dump a schema that doesn't exist yet
+/// (failing on `SELECT COUNT(*) FROM users`) instead of recognizing "nothing applied = nothing to
+/// back up". Uses `TestDb::empty()`, not `fresh()`, since `fresh()` pre-migrates for test speed.
+#[tokio::test]
+async fn pre_migration_backup_is_none_on_a_true_fresh_install() {
+    let db = TestDb::empty().await;
+    let db_guard = db.state.db.read().unwrap();
+    let conn = &db_guard.as_ref().unwrap().connection;
+
+    let tmp_dir = std::env::temp_dir().join(format!("equal-premigration-test-{}", accounting_app_lib::utils::id::Id::new()));
+    let result = backup_before_migrations(conn, &tmp_dir)
+        .await
+        .expect("a true fresh install (nothing applied, everything pending) must not error — there is no old schema to back up");
+    assert!(result.is_none(), "nothing applied yet on a fresh install — there is no old schema to dump");
+}
+
 // --- upgrade_registry_covers_every_version (unit, mirrors upgrade.rs's own test) -------------------
 
 #[test]

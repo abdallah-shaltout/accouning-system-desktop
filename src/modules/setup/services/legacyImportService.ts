@@ -16,7 +16,7 @@
  * the real guard against a second import.
  */
 import { ApiError } from '@/mocks';
-import { readLegacyImportMarker, readPersistedSnapshot, writeLegacyImportMarker } from '@/mocks/persist';
+import { forgetLegacySnapshot, readLegacyImportMarker, readPersistedSnapshot, writeLegacyImportMarker } from '@/mocks/persist';
 import { backendCall, usesRust } from '@/modules/core/services/backend';
 import { log } from '@/modules/diagnostics/services/logService';
 import { wrap } from '@/modules/diagnostics/services/defineService';
@@ -83,4 +83,29 @@ export const importLegacySnapshot = wrap('setup.importLegacySnapshot', async fun
     // Not a correctness issue: the offer may reappear, and the importer refuses a non-empty database.
     log.error('setup.importLegacySnapshot', 'failed to write the legacy-import marker', err instanceof Error ? err : new Error(String(err)));
   }
+});
+
+/** ACC-0035: whether the settings "Danger Zone" tab may offer "wipe all data and start fresh".
+ * Debug desktop builds only — `setup_wipe_business_data` itself refuses in a release build too
+ * (defense in depth), and the browser/mock build has no real database to wipe. */
+export function canWipeBusinessData(): boolean {
+  return import.meta.env.DEV && usesRust('setup');
+}
+
+/** ACC-0035: deletes this PC's old legacy snapshot outright (and its import marker), so the welcome
+ * page stops offering to import it. Distinct from the main "wipe the live database" action: this one
+ * targets the separate pre-migration IndexedDB snapshot that `hasLegacySnapshot` reads. Dev builds
+ * only (`forgetLegacySnapshot` itself refuses otherwise) — a release build must never be able to make
+ * a real customer's not-yet-imported data unrecoverable. */
+export const clearLegacySnapshot = wrap('setup.clearLegacySnapshot', async function clearLegacySnapshot(): Promise<void> {
+  await forgetLegacySnapshot();
+});
+
+/** `setup_wipe_business_data`: deletes every business row (same primitive a replace-existing import
+ * uses) and leaves the database empty but still configured, so the welcome page's "ابدأ شركتك" /
+ * "استكشف ببيانات تجريبية" cards work again without reinstalling. Caller must re-navigate to
+ * `/welcome` afterward — every cached store/session is now stale. */
+export const wipeBusinessData = wrap('setup.wipeBusinessData', async function wipeBusinessData(): Promise<void> {
+  if (!canWipeBusinessData()) desktopOnly();
+  await backendCall('setup_wipe_business_data');
 });

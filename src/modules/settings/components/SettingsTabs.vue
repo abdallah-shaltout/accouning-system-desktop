@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import ScrollFade from '@/modules/core/components/ui/ScrollFade.vue';
 import { usesRust } from '@/modules/core/services/backend';
+import { canWipeBusinessData } from '@/modules/setup/services/legacyImportService';
 import { useSettingsStore } from '../controllers/useSettingsStore';
 
 const route = useRoute();
@@ -33,6 +34,8 @@ const tabs = computed(() =>
     { to: { name: 'settings-backup' } as const, label: 'النسخ الاحتياطي', show: auth.can('settings') },
     // 18.B6: version info + support-bundle export, open to every signed-in user.
     { to: { name: 'settings-about' } as const, label: 'حول / الدعم', show: true },
+    // ACC-0035: dev-only destructive actions, admin-only, hidden entirely in a release build.
+    { to: { name: 'settings-danger-zone' } as const, label: 'إجراءات خطرة', show: auth.can('settings', 'write') && canWipeBusinessData() },
   ].filter((t) => t.show),
 );
 </script>

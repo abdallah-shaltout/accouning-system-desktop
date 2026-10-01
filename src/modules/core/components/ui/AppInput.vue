@@ -22,6 +22,7 @@ const props = withDefaults(
     /** Render value LTR (codes, phone numbers, VAT numbers). Number inputs are always LTR. */
     ltr?: boolean;
     autofocus?: boolean;
+    autocomplete?: string;
     inputClass?: string;
   }>(),
   { type: 'text' },
@@ -51,7 +52,7 @@ defineExpose({
     <label v-if="label" :for="id" class="field-label">
       {{ label }}<span v-if="required" class="text-danger" aria-hidden="true"> *</span>
     </label>
-    <div class="relative flex items-center">
+    <div class="relative flex items-center" :dir="ltr || type === 'number' ? 'ltr' : undefined">
       <span v-if="$slots.prefix" class="pointer-events-none absolute start-2.5 flex items-center text-text-secondary">
         <slot name="prefix" />
       </span>
@@ -67,10 +68,10 @@ defineExpose({
         :max="max"
         :step="step ?? (type === 'number' ? 'any' : undefined)"
         :autofocus="autofocus"
+        :autocomplete="autocomplete"
         :aria-invalid="!!error || undefined"
         :aria-describedby="errorId"
         :aria-required="required || undefined"
-        :dir="ltr || type === 'number' ? 'ltr' : undefined"
         class="control h-[34px] rounded-md text-body shadow-none"
         :class="[$slots.prefix && 'ps-8', $slots.suffix && 'pe-10', (ltr || type === 'number') && 'text-end', inputClass]"
       />

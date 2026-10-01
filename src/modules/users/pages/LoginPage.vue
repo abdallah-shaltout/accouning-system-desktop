@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { LogIn, Moon, Sun } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
+import AppPasswordInput from '@/modules/core/components/ui/AppPasswordInput.vue';
 import BrandLogo from '@/modules/core/components/ui/BrandLogo.vue';
 import { resolvedTheme, toggleTheme } from '@/modules/core/controllers/useTheme';
 import { errorMessage } from '@/modules/core/controllers/useToast';
@@ -64,7 +65,7 @@ function useDemo(account: { username: string; password: string }) {
 
         <form class="space-y-4" novalidate @submit.prevent="submit">
           <AppInput v-model="form.username" label="اسم المستخدم" ltr autofocus :error="errors.username" />
-          <AppInput v-model="form.password" label="كلمة المرور" type="password" ltr :error="errors.password" />
+          <AppPasswordInput v-model="form.password" label="كلمة المرور" autocomplete="current-password" :error="errors.password" />
           <p v-if="serverError" class="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger" role="alert">
             {{ serverError }}
           </p>
@@ -115,7 +116,6 @@ function useDemo(account: { username: string; password: string }) {
           <li>• تقارير: ميزان المراجعة، قائمة الدخل، الميزانية، الضريبة</li>
         </ul>
       </div>
-      <p class="text-xs text-text-secondary">نسخة واجهة تجريبية — البيانات وهمية وتُعاد عند إعادة التشغيل.</p>
     </aside>
   </div>
 </template>

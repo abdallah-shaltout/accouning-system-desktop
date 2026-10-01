@@ -41,6 +41,7 @@ export interface RouteNamedMap {
   'labels': RouteRecordInfo<'labels', '/catalog/labels', Record<never, never>, Record<never, never>>;
   'login': RouteRecordInfo<'login', '/login', Record<never, never>, Record<never, never>>;
   'movements': RouteRecordInfo<'movements', '/inventory/movements', Record<never, never>, Record<never, never>>;
+  'my-activity': RouteRecordInfo<'my-activity', '/my-activity', Record<never, never>, Record<never, never>>;
   'not-found': RouteRecordInfo<'not-found', '/:pathMatch(.*)*', { pathMatch?: (string | number)[] }, { pathMatch?: string[] }>;
   'payment-detail': RouteRecordInfo<'payment-detail', '/payments/:id', { id: string | number }, { id: string }>;
   'payment-new': RouteRecordInfo<'payment-new', '/payments/new', Record<never, never>, Record<never, never>>;
@@ -53,6 +54,7 @@ export interface RouteNamedMap {
   'product-edit': RouteRecordInfo<'product-edit', '/products/:id/edit', { id: string | number }, { id: string }>;
   'product-new': RouteRecordInfo<'product-new', '/products/new', Record<never, never>, Record<never, never>>;
   'products': RouteRecordInfo<'products', '/products', Record<never, never>, Record<never, never>>;
+  'profile': RouteRecordInfo<'profile', '/profile', Record<never, never>, Record<never, never>>;
   'purchase': RouteRecordInfo<'purchase', '/purchases/:id', { id: string | number }, { id: string }>;
   'purchase-edit': RouteRecordInfo<'purchase-edit', '/purchases/:id/edit', { id: string | number }, { id: string }>;
   'purchase-new': RouteRecordInfo<'purchase-new', '/purchases/new', Record<never, never>, Record<never, never>>;
@@ -99,6 +101,7 @@ export interface RouteNamedMap {
   'settings-branches': RouteRecordInfo<'settings-branches', '/settings/branches', Record<never, never>, Record<never, never>>;
   'settings-cost-centers': RouteRecordInfo<'settings-cost-centers', '/settings/cost-centers', Record<never, never>, Record<never, never>>;
   'settings-currencies': RouteRecordInfo<'settings-currencies', '/settings/currencies', Record<never, never>, Record<never, never>>;
+  'settings-danger-zone': RouteRecordInfo<'settings-danger-zone', '/settings/danger-zone', Record<never, never>, Record<never, never>>;
   'settings-expenses': RouteRecordInfo<'settings-expenses', '/settings/expenses', Record<never, never>, Record<never, never>>;
   'settings-general': RouteRecordInfo<'settings-general', '/settings/general', Record<never, never>, Record<never, never>>;
   'settings-keyboard-shortcuts': RouteRecordInfo<'settings-keyboard-shortcuts', '/settings/keyboard-shortcuts', Record<never, never>, Record<never, never>>;

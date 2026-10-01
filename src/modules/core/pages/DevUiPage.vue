@@ -14,6 +14,7 @@ import { CalendarDays, Search, Star, Trash2 } from '@lucide/vue';
 import AppButton from '../components/ui/AppButton.vue';
 import AppCard from '../components/ui/AppCard.vue';
 import AppInput from '../components/ui/AppInput.vue';
+import AppPasswordInput from '../components/ui/AppPasswordInput.vue';
 import AppTextarea from '../components/ui/AppTextarea.vue';
 import AppSelect from '../components/ui/AppSelect.vue';
 import AppSwitch from '../components/ui/AppSwitch.vue';
@@ -60,6 +61,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import ServerFailureScreen from '@/modules/settings/components/ServerFailureScreen.vue';
 
 const inputValue = ref('');
+const passwordValue = ref('');
 const textareaValue = ref('');
 const selectValue = ref<string>('');
 const switchOn = ref(true);
@@ -175,11 +177,14 @@ const rtlPageCount = 8;
       </div>
     </AppCard>
 
-    <AppCard title="الحقول (AppInput / AppTextarea / AppSelect / AppSwitch)">
+    <AppCard title="الحقول (AppInput / AppPasswordInput / AppTextarea / AppSelect / AppSwitch)">
       <div class="grid gap-4 sm:grid-cols-2">
         <AppInput v-model="inputValue" label="حقل نصي" placeholder="اكتب هنا…" />
         <AppInput label="حقل بخطأ" model-value="" error="هذا الحقل مطلوب" />
         <AppInput label="حقل معطّل" model-value="قيمة ثابتة" disabled />
+        <AppPasswordInput v-model="passwordValue" label="كلمة المرور" autocomplete="new-password" />
+        <AppPasswordInput label="كلمة مرور بخطأ" model-value="" error="كلمة المرور قصيرة جداً" />
+        <AppPasswordInput label="كلمة مرور معطّلة" model-value="secret123" disabled />
         <AppSelect
           v-model="selectValue"
           label="قائمة منسدلة"
@@ -421,8 +426,13 @@ const rtlPageCount = 8;
         </div>
 
         <div>
-          <p class="mb-2 text-xs text-text-secondary">زر رجوع — يشير لليمين في RTL</p>
+          <p class="mb-2 text-xs text-text-secondary">زر رجوع — أيقونة قبل النص (start)، تشير لليمين في RTL</p>
           <AppButton size="sm" variant="ghost" :icon="dirIcon.back" icon-rtl-flip>رجوع</AppButton>
+        </div>
+
+        <div>
+          <p class="mb-2 text-xs text-text-secondary">زر تالي — أيقونة بعد النص (end)، تشير لليسار في RTL</p>
+          <AppButton size="sm" variant="primary" :icon="dirIcon.next" icon-rtl-flip icon-position="end">التالي</AppButton>
         </div>
       </div>
     </AppCard>

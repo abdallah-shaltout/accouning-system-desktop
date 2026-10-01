@@ -5,6 +5,12 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'أدخل كلمة المرور'),
 });
 
+export const profileSchema = z.object({
+  name: z.string().trim().min(2, 'الاسم مطلوب'),
+  phone: z.string().trim().regex(/^(\+\d{6,15})?$/, 'رقم جوال غير صحيح').optional(),
+  password: z.union([z.literal(''), z.string().min(6, 'كلمة المرور 6 أحرف على الأقل')]).optional(),
+});
+
 export const userSchema = (isNew: boolean) =>
   z.object({
     name: z.string().trim().min(2, 'الاسم مطلوب'),

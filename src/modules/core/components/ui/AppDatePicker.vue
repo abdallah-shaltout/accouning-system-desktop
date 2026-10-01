@@ -120,7 +120,7 @@ defineExpose({
           :disabled="disabled"
           :readonly="readonly"
           :aria-invalid="!!error || undefined"
-          class="control text-end text-body shadow-none pe-9"
+          class="control text-end text-body shadow-none ps-9"
           :class="compact ? 'h-8' : 'h-[34px]'"
           @input="onTextInput"
           @blur="onBlur"
@@ -129,7 +129,7 @@ defineExpose({
           <button
             v-if="!disabled && !readonly"
             type="button"
-            class="absolute end-1.5 flex items-center rounded p-1 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
+            class="absolute start-1.5 flex items-center rounded p-1 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
             aria-label="فتح التقويم"
           >
             <CalendarDays class="size-4" />

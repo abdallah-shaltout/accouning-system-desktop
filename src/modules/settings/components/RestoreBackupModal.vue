@@ -10,6 +10,7 @@ import { AlertTriangle, Clock, RotateCcw, ShieldCheck, Upload, X } from '@lucide
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
 import AppModal from '@/modules/core/components/ui/AppModal.vue';
+import AppPasswordInput from '@/modules/core/components/ui/AppPasswordInput.vue';
 import { useToast } from '@/modules/core/controllers/useToast';
 import { formatDateTime } from '@/modules/core/helpers/format';
 import * as backupService from '../services/backupService';
@@ -95,7 +96,7 @@ defineExpose({ startRestore });
   <AppModal :open="restoreStep !== 'idle'" title="استعادة نسخة احتياطية" size="lg" :persistent="restoreStep === 'running'" @update:open="(v) => !v && cancelRestore()">
     <div v-if="restoreStep === 'password'" class="space-y-3">
       <p class="flex items-center gap-2 text-body text-warning"><ShieldCheck class="size-4" /> هذه النسخة محمية بكلمة مرور</p>
-      <AppInput v-model="restorePassword" type="password" ltr label="كلمة المرور" autofocus :error="restoreError" @keyup.enter="confirmPasswordStep" />
+      <AppPasswordInput v-model="restorePassword" label="كلمة المرور" autocomplete="current-password" autofocus :error="restoreError" @keyup.enter="confirmPasswordStep" />
     </div>
 
     <div v-else-if="restoreStep === 'preview' && restorePreview" class="space-y-4">

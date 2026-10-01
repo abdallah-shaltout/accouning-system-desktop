@@ -3,6 +3,7 @@ import { useRoute } from 'vue-router';
 import { useAuthStore } from '@/modules/users/controllers/useAuthStore';
 import { findByCode } from '@/modules/products/services/productService';
 import { normalizeArabic } from '../helpers/search';
+import { NAVIGATION } from '../helpers/navigation';
 import {
   PREFIX_GROUPS,
   type PaletteCommand,
@@ -32,6 +33,10 @@ export function registerSearchProviders(list: PaletteSearchProvider[]): void {
 
 const RECENTS_KEY = 'app_palette_recents';
 const RECENTS_MAX = 8;
+const SUGGESTED_PAGES_MAX = 8;
+
+/** Sidebar order (`NAVIGATION`) is a better default ordering than router registration order. */
+const SIDEBAR_ROUTE_ORDER = NAVIGATION.flatMap((g) => g.items.map((i) => String(i.to.name)));
 
 function recentsStorageKey(userId: string | undefined): string {
   return `${RECENTS_KEY}:${userId ?? 'anon'}`;
@@ -155,7 +160,20 @@ export function useCommandPalette() {
       const recentResults = recents.value
         .map((rid) => commands.find((c) => c.id === rid))
         .filter((c): c is PaletteCommand => !!c && hasPermission(c.permission) && (!c.when || c.when(route)));
-      results.value = recentResults;
+
+      // No recents yet (first use, or cleared storage): suggest the top sidebar pages instead of
+      // an empty panel, ordered like the sidebar rather than router registration order.
+      if (recentResults.length) {
+        results.value = recentResults;
+      } else {
+        const pageCommands = commands
+          .filter((c) => c.group === 'pages' && hasPermission(c.permission) && (!c.when || c.when(route)));
+        const sidebarRank = (c: PaletteCommand) => {
+          const idx = SIDEBAR_ROUTE_ORDER.indexOf(c.id.replace(/^page:/, ''));
+          return idx === -1 ? SIDEBAR_ROUTE_ORDER.length : idx;
+        };
+        results.value = [...pageCommands].sort((a, b) => sidebarRank(a) - sidebarRank(b)).slice(0, SUGGESTED_PAGES_MAX);
+      }
       activeIndex.value = 0;
       return;
     }

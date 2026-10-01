@@ -24,6 +24,12 @@ Source of truth for tokens: `src/assets/styles/design-system.css` (already scaff
     numeric direction (trend up/down, sort asc/desc, undo/redo's circular arrow, a transfer
     from→to arrow, a media ▶) are **not** mirrored — `scripts/check-rtl.js` also fails on a raw
     directional-icon import outside the shadcn primitives that already handle their own mirroring.
+  - **Leading vs trailing icon position.** A `dirIcon` arrow pointing the right way isn't enough — it
+    also has to sit on the correct *side* of its label. `back`/`prev` are reading-start actions, so
+    their icon goes before the label (`AppButton`'s default `icon-position="start"`). `next`/`forward`/
+    `open` are reading-end actions, so their icon goes after the label (`icon-position="end"`). Getting
+    this backwards puts the chevron on the wrong side of the text even though it points the right way —
+    see `/dev/ui`'s "زر تالي" example next to "زر رجوع" for the two correct cases side by side.
   - **Slides come from the direction they're anchored to.** A toast pinned to `start-4` must enter
     from that same side, not a hard-coded `-translate-x-4` — see `ToastContainer.vue`'s
     `rtl:translate-x-4` override. The same applies to wizard-step transitions, sheet drawers and any
@@ -150,6 +156,19 @@ popover off). A `compact` prop shrinks it for table-cell use (line-item expiry d
 ```vue
 <AppDatePicker v-model="form.date" label="التاريخ" required />
 <AppDatePicker v-model="line.expiry" compact />
+```
+
+### Password field (AppPasswordInput)
+`AppPasswordInput` (`modules/core/components/ui/AppPasswordInput.vue`) — the only way to collect a
+password/credential anywhere in the app; wraps `AppInput` and always forces `dir="ltr"` (passwords are
+a code-like value, same family as phone numbers/IBANs/VAT numbers — rule 19), toggles the real
+`type` between `password`/`text` (never fakes it with CSS, so platform password-manager/autofill
+heuristics keep working), and suppresses the browser's own reveal-eye (Edge `::-ms-reveal`,
+`::-ms-clear`) so only the component's own eye/eye-off toggle button is shown. Same label/error/hint/
+required/disabled/autofocus/autocomplete API as `AppInput`, minus `type`/`ltr` (both are implicit).
+
+```vue
+<AppPasswordInput v-model="form.password" label="كلمة المرور" autocomplete="current-password" :error="errors.password" />
 ```
 
 ### Address picker (AddressFields)

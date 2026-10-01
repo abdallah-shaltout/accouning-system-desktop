@@ -67,6 +67,37 @@ impl TestDb {
         TestDb { state, db_url, admin_url, db_name }
     }
 
+    /// A throwaway database with **no migrations run at all** — `seaql_migrations` doesn't even
+    /// exist yet, exactly what a brand new installation's first connection sees. Unlike `fresh()`
+    /// (which clones the fully-migrated template for speed), this is for the small set of tests that
+    /// must observe the true "nothing applied yet" state (ACC-0034: `backup_before_migrations`'s
+    /// fresh-install check needs `applied.is_empty()`, not `pending.is_empty()` too — a real fresh
+    /// install always has every migration pending, so the old `&&` could never be true and the
+    /// pre-migration backup ran against an empty schema, failing on a `SELECT COUNT(*) FROM users`
+    /// that doesn't exist). No invariants check applies here (nothing is migrated, so `finish()` /
+    /// `finish_expecting()` don't apply) — drop the returned `TestDb` directly.
+    #[allow(dead_code)]
+    pub async fn empty() -> Self {
+        let admin_url = base_url();
+        let db_name = format!("equal_test_empty_{}", Id::new().to_string().replace('-', "_"));
+        let admin = single_conn(&admin_url).await;
+        exec(&admin, &format!("CREATE DATABASE `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")).await;
+        let _ = admin.close().await;
+
+        let db_url = rebuild_url_with_db(&admin_url, &db_name).expect("test db url");
+        let connection: DatabaseConnection =
+            Database::connect(db_url.clone()).await.unwrap_or_else(|e| panic!("could not connect to empty test db {db_name}: {e}"));
+
+        let terminal = TerminalIdentity { terminal_id: Id::new(), created_at: chrono::Utc::now() };
+        let device = DeviceSettings { role: DeviceRole::Main, ..Default::default() };
+        let events = Arc::new(CollectingEventSink::default());
+        let state = AppState::new(std::env::temp_dir(), terminal, device, events);
+        *state.db.write().unwrap() = Some(Db { connection });
+        *state.db_status.write().unwrap() = accounting_app_lib::core::state::DbStatus::Connected;
+
+        TestDb { state, db_url, admin_url, db_name }
+    }
+
     /// Runs `shared::invariants::run_all` on this test's connection and panics listing every
     /// failing `{ key, message }`, then drops the database (the same cleanup `Drop` always does —
     /// this just adds the invariants check before that happens). Every `#[tokio::test]` that calls

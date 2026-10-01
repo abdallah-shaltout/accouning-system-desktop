@@ -187,6 +187,7 @@ pub fn invoke_handler<R: tauri::Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> 
         core::status::core_backend_status,
         infrastructure::import::commands::setup_inspect_legacy_snapshot,
         infrastructure::import::commands::setup_import_snapshot,
+        infrastructure::import::commands::setup_wipe_business_data,
         domains::settings::commands::settings_get_settings,
         domains::settings::commands::settings_update_settings,
         domains::settings::commands::settings_get_taxes,

@@ -5,6 +5,7 @@ import { Check, Eye, Minus, Pencil, Save } from '@lucide/vue';
 import AppButton from '@/modules/core/components/ui/AppButton.vue';
 import AppCard from '@/modules/core/components/ui/AppCard.vue';
 import AppInput from '@/modules/core/components/ui/AppInput.vue';
+import AppPasswordInput from '@/modules/core/components/ui/AppPasswordInput.vue';
 import AppPhoneInput from '@/modules/core/components/ui/AppPhoneInput.vue';
 import AppSelect from '@/modules/core/components/ui/AppSelect.vue';
 import AppSwitch from '@/modules/core/components/ui/AppSwitch.vue';
@@ -136,11 +137,10 @@ async function save() {
         <AppInput v-model="form.name" label="الاسم الكامل" required :error="errors.name" />
         <AppPhoneInput v-model="form.phone" label="الجوال" kind="mobile" :error="errors.phone" />
         <AppInput v-model="form.username" label="اسم المستخدم" required ltr :error="errors.username" hint="يستخدم لتسجيل الدخول" />
-        <AppInput
+        <AppPasswordInput
           v-model="form.password"
           :label="id ? 'كلمة مرور جديدة' : 'كلمة المرور'"
-          type="password"
-          ltr
+          autocomplete="new-password"
           :required="!id"
           :error="errors.password"
           :hint="id ? 'اتركها فارغة للإبقاء على كلمة المرور الحالية' : undefined"
