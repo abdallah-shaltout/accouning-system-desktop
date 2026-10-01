@@ -13,7 +13,7 @@
 | [`fetchAttachments`](../../../src/modules/core/services/attachmentService.ts#L85) | `ownerRef: string` | `Promise<AttachmentMeta[]>` | **port** — reads backend data |  |  |  |  |
 | [`fetchAttachmentsByIds`](../../../src/modules/core/services/attachmentService.ts#L104) | `ids: string[]` | `Promise<AttachmentRecord[]>` | **port** — reads backend data |  |  |  |  |
 | [`forceRefresh`](../../../src/modules/core/services/insightEngine.ts#L283) |  | `void` | **frontend** — pure computation, no data access |  |  |  |  |
-| [`getBackendStatus`](../../../src/modules/core/services/backend.ts#L197) |  | `Promise<BackendStatus>` | **rust-existing** — already calls Rust (core_backend_status) |  |  |  | BackendStatus |
+| [`getBackendStatus`](../../../src/modules/core/services/backend.ts#L208) |  | `Promise<BackendStatus>` | **rust-existing** — already calls Rust (core_backend_status) |  |  |  | BackendStatus |
 | [`getDashboardSummary`](../../../src/modules/core/services/dashboardService.ts#L24) |  | `Promise<DashboardSummary>` | **port** — reads backend data |  | accounts, invoices, journalEntries, products, refunds |  | DashboardSummary |
 | [`getHomeKpis`](../../../src/modules/core/services/dashboardService.ts#L190) | `period?: HomePeriod` | `Promise<HomeKpis>` | **port** — reads backend data |  | accounts, invoices, journalEntries, refunds |  |  |
 | [`getInsights`](../../../src/modules/core/services/insightEngine.ts#L178) | `opts: GetInsightsOptions` | `Insight[]` | **port** — reads backend data |  |  |  |  |

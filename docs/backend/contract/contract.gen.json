@@ -4149,7 +4149,7 @@
       "service": "backend",
       "name": "getBackendStatus",
       "file": "src/modules/core/services/backend.ts",
-      "line": 197,
+      "line": 208,
       "params": [],
       "returns": "Promise<BackendStatus>",
       "dtoTypes": [
@@ -4159,7 +4159,7 @@
       "switchSites": [
         {
           "command": "core_backend_status",
-          "line": 198
+          "line": 209
         }
       ],
       "closure": {
@@ -4177,7 +4177,7 @@
         "switchSites": [
           {
             "command": "core_backend_status",
-            "line": 198
+            "line": 209
           }
         ]
       },

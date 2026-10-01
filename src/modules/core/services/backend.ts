@@ -8,9 +8,12 @@
  *     // ...unchanged mock body below
  *   });
  *
- * `RUST_DOMAINS` is empty in this wave — Part 04 flips domains on one at a time as their Rust
- * commands land. Dev builds can still exercise the switch early via
- * `localStorage['equal.backend']` (a comma list of domains, or `*` for all), the same pattern as
+ * Part 04 E-1 (2026-10-01): `RUST_DOMAINS` now lists every `BackendDomain` — the Tauri app runs
+ * entirely on the real Rust/MariaDB backend (P4-1: every domain flips together, never a mix of
+ * screens on different backends). This only takes effect inside a Tauri webview (`usesRust`
+ * returns `false` outside Tauri regardless): the browser dev server and the browser e2e suite
+ * keep running on the mock until D5 retires it. A dev build can still force the mock everywhere
+ * (for UI work with no DB) via `localStorage['equal.backend'] = 'mock'`, the same pattern as
  * `equal.debug` (`diagnostics/services/logService.ts`).
  */
 import { isTauri, invoke } from '@tauri-apps/api/core';
@@ -78,14 +81,15 @@ type _AllDomainsListed = Exclude<BackendDomain, (typeof ALL_BACKEND_DOMAINS)[num
 const _allDomainsListed: [_AllDomainsListed] extends [never] ? true : never = true;
 void _allDomainsListed;
 
-/** Domains whose services call the real Rust backend. Empty in this wave (Part 04 flips domains
- * one at a time as their commands land) — every service still runs on the mock until then. */
-const RUST_DOMAINS: ReadonlySet<BackendDomain> = new Set<BackendDomain>([]);
+/** Domains whose services call the real Rust backend. Every `BackendDomain` as of Part 04 E-1
+ * (2026-10-01, P4-1: all domains flip together, behind this one switch). */
+const RUST_DOMAINS: ReadonlySet<BackendDomain> = new Set<BackendDomain>(ALL_BACKEND_DOMAINS);
 
-/** Dev-only override so a domain's Rust path can be exercised before `RUST_DOMAINS` flips it on
- * generally — `localStorage['equal.backend'] = 'products,invoices'` or `'*'` for every domain.
- * Ignored in production builds (`import.meta.env.DEV` gate), exactly like `equal.debug`. */
-function devOverrideDomains(): ReadonlySet<BackendDomain> | '*' | null {
+/** Dev-only escape hatch to force every domain back onto the mock — `localStorage['equal.backend']
+ * = 'mock'` — for UI work with no database running. A comma list of domains is also accepted for
+ * finer-grained debugging (only those domains skip Rust); anything else is ignored. Ignored in
+ * production builds (`import.meta.env.DEV` gate), exactly like `equal.debug`. */
+function devMockOverrideDomains(): ReadonlySet<BackendDomain> | 'all' | null {
   if (!import.meta.env.DEV) return null;
   let raw: string | null = null;
   try {
@@ -95,11 +99,19 @@ function devOverrideDomains(): ReadonlySet<BackendDomain> | '*' | null {
   }
   if (!raw) return null;
   const trimmed = raw.trim();
-  if (trimmed === '*') return '*';
+  if (trimmed === 'mock') return 'all';
   const domains = trimmed
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean) as BackendDomain[];
+  if (domains.length === 0) return null;
+  if (domains.length > 0 && domains.length < ALL_BACKEND_DOMAINS.length) {
+    // Mixed mode shows inconsistent books between screens still reading the mock and documents
+    // already posted to MariaDB (P4-1) — allowed only for active debugging, never silently.
+    console.warn(
+      '[backend] equal.backend dev override forces the mock for a subset of domains — books will look inconsistent between screens; debugging use only.',
+    );
+  }
   return new Set(domains);
 }
 
@@ -113,11 +125,10 @@ function devOverrideDomains(): ReadonlySet<BackendDomain> | '*' | null {
 export function usesRust(domain: BackendDomain): boolean {
   if (parityTransport) return true;
   if (!isTauri()) return false;
-  if (RUST_DOMAINS.has(domain)) return true;
-  const override = devOverrideDomains();
-  if (override === '*') return true;
-  if (override && override.has(domain)) return true;
-  return false;
+  const override = devMockOverrideDomains();
+  if (override === 'all') return false;
+  if (override && override.has(domain)) return false;
+  return RUST_DOMAINS.has(domain);
 }
 
 /**
@@ -210,9 +221,8 @@ let bridgeInitialized = false;
 /**
  * Bridges the real backend's `backend:changed` Tauri event onto the existing mock event bus
  * (`src/mocks/events.ts`), so `onLedgerChanged`/`onCatalogChanged`/parties subscribers keep working
- * unchanged regardless of which backend answered (cross-cutting.md §5). A no-op outside Tauri, and
- * a no-op when no domain uses Rust yet — there is nothing to listen for until then. Called once
- * from `src/main.ts`, next to `initDiagnostics()`.
+ * unchanged regardless of which backend answered (cross-cutting.md §5). A no-op outside Tauri. Called
+ * once from `src/main.ts`, next to `initDiagnostics()`.
  *
  * (Moving `ApiError` and the event bus out of `src/mocks` is a D5 prerequisite, not done here —
  * see the entry file's §10 note; this bridge reaches into `src/mocks` only from a composition
@@ -221,8 +231,6 @@ let bridgeInitialized = false;
 export async function initBackendBridge(): Promise<void> {
   if (bridgeInitialized) return;
   if (!isTauri()) return;
-  const anyRustDomain = RUST_DOMAINS.size > 0 || devOverrideDomains() !== null;
-  if (!anyRustDomain) return;
   bridgeInitialized = true;
 
   await listen<BackendChangedPayload>('backend:changed', (event) => {
