@@ -62,7 +62,7 @@ const form = reactive({
   sku: '',
   barcode: '',
   categoryId: '',
-  unitId: 'unit-piece',
+  unitId: '',
   type: 'product' as ProductType,
   stockMode: 'tracked' as StockMode,
   brand: '',
@@ -160,8 +160,13 @@ async function load() {
       stockQty.value = p.stockQty;
       stockValue.value = p.stockValue;
       skuTouched.value = true;
-    } else if (typeof route.query.category === 'string') {
-      form.categoryId = route.query.category;
+    } else {
+      // New product: default to the catalog's base unit ("قطعة", seeded by setup for every
+      // business type) rather than a hardcoded id — real unit ids are generated UUIDs.
+      form.unitId = catalog.units.find((u) => u.name === 'قطعة')?.id ?? catalog.units[0]?.id ?? '';
+      if (typeof route.query.category === 'string') {
+        form.categoryId = route.query.category;
+      }
     }
   } catch (err) {
     loadError.value = errorMessage(err);
@@ -182,7 +187,9 @@ watch(
   () => form.type,
   (t) => {
     if (t === 'service') {
-      form.unitId = 'unit-service';
+      // "خدمة" is seeded only for the "services" business type — fall back to the catalog's
+      // base unit (or leave empty) for any other type rather than a hardcoded, nonexistent id.
+      form.unitId = catalog.units.find((u) => u.name === 'خدمة')?.id ?? form.unitId;
       form.stockMode = 'tracked';
     }
   },

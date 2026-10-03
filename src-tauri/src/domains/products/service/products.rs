@@ -10,9 +10,15 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, Query
 
 use crate::core::error::{map_unique_violation, AppError};
 use crate::core::tx::{TxCtx, TxResult};
+use crate::entities::catalog::categories::Entity as CategoryEntity;
 use crate::entities::catalog::product_branch_stock;
 use crate::entities::catalog::product_prices;
 use crate::entities::catalog::products::{self, ActiveModel as ProductActiveModel, Column as ProductColumn, CustomFieldValues, Entity as ProductEntity, ProductUnitPrices, ProductUnits};
+use crate::entities::catalog::units::Entity as UnitEntity;
+use crate::entities::org::accounts::Entity as AccountEntity;
+use crate::entities::org::taxes::Entity as TaxEntity;
+use crate::entities::parties::parties::Entity as PartyEntity;
+use crate::entities::soft_delete::SoftDelete;
 use crate::entities::values::StringList;
 use crate::shared::activity;
 use crate::shared::stock;
@@ -368,6 +374,37 @@ pub async fn validate<C: ConnectionTrait>(conn: &C, input: &ProductInput, except
     }
 
     validate_units(input.units.as_deref(), existing)?;
+
+    // Explicit existence checks for every optional FK the form can send, so a bad/stale id (e.g.
+    // the `unit-piece` hardcoded default bug, 2026-10-01) fails with a specific message here
+    // instead of falling through to the DB's generic FK-violation error (errno 1452, mapped by
+    // `AppError::from(DbErr)`). A soft-deleted row still fails this check — don't let a new
+    // document reference something already deactivated.
+    assert_fk_exists::<CategoryEntity, _>(conn, input.category_id, "التصنيف المختار غير موجود").await?;
+    assert_fk_exists::<UnitEntity, _>(conn, input.unit_id, "الوحدة المختارة غير موجودة").await?;
+    assert_fk_exists::<TaxEntity, _>(conn, input.sale_tax_id, "ضريبة البيع المختارة غير موجودة").await?;
+    assert_fk_exists::<TaxEntity, _>(conn, input.purchase_tax_id, "ضريبة الشراء المختارة غير موجودة").await?;
+    assert_fk_exists::<AccountEntity, _>(conn, input.purchase_account_id, "حساب الشراء المختار غير موجود").await?;
+    assert_fk_exists::<AccountEntity, _>(conn, input.revenue_account_id, "حساب الإيراد المختار غير موجود").await?;
+    assert_fk_exists::<AccountEntity, _>(conn, input.cogs_account_id, "حساب تكلفة البضاعة المباعة المختار غير موجود").await?;
+    assert_fk_exists::<PartyEntity, _>(conn, input.preferred_supplier_id, "المورد المفضل المختار غير موجود").await?;
+
+    Ok(())
+}
+
+/// Confirms an optional FK id, when present, names a live (non-soft-deleted) row — see the
+/// `validate` call site above. A no-op when `id` is `None` (the field is simply unset).
+async fn assert_fk_exists<E, C>(conn: &C, id: Option<Id>, message: &'static str) -> TxResult<()>
+where
+    E: SoftDelete,
+    E::Model: Sync,
+    C: ConnectionTrait,
+{
+    let Some(id) = id else { return Ok(()) };
+    let exists = E::find_live().filter(E::id_column().eq(id)).one(conn).await.map_err(AppError::from)?.is_some();
+    if !exists {
+        return Err(AppError::validation(message).into());
+    }
     Ok(())
 }
 

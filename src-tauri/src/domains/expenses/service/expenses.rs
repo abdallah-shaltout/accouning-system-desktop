@@ -9,6 +9,7 @@ use crate::core::lock;
 use crate::core::tx::{TxCtx, TxError, TxResult};
 use crate::entities::expenses::expense_categories::{Column as CategoryColumn, Entity as CategoryEntity};
 use crate::entities::expenses::expenses::{ActiveModel, Column, Entity, PaidFromKind};
+use crate::entities::org::cost_centers::{Column as CostCenterColumn, Entity as CostCenterEntity};
 use crate::entities::org::payment_methods::{Column as PaymentMethodColumn, Entity as PaymentMethodEntity};
 use crate::entities::org::taxes::{Column as TaxColumn, Entity as TaxEntity};
 use crate::entities::parties::parties::{Column as PartyColumn, Entity as PartyEntity};
@@ -90,6 +91,9 @@ async fn split_tax<C: ConnectionTrait>(conn: &C, amount: Decimal, is_tax_invoice
         return Ok(SplitTax { net: round2(amount), vat: Decimal::ZERO });
     }
     let rate = match tax_id {
+        // A bad/stale tax_id used to silently fall back to rate 0 here — a wrong-number bug, not
+        // just a bad error message, since the expense would post with no VAT split at all instead
+        // of failing. Must be a hard error (same gap class as the products.rs `unit-piece` bug).
         Some(id) => TaxEntity::find()
             .filter(TaxColumn::Id.eq(id))
             .filter(TaxColumn::Active.eq(true))
@@ -97,8 +101,8 @@ async fn split_tax<C: ConnectionTrait>(conn: &C, amount: Decimal, is_tax_invoice
             .one(conn)
             .await
             .map_err(TxError::from)?
-            .map(|t| t.rate)
-            .unwrap_or(Decimal::ZERO),
+            .ok_or_else(|| AppError::validation("الضريبة المختارة غير موجودة أو غير نشطة"))?
+            .rate,
         None => Decimal::ZERO,
     };
     let hundred = Decimal::from(100);
@@ -142,6 +146,13 @@ async fn validate_expense_input<C: ConnectionTrait>(conn: &C, input: &ExpenseInp
             if found.is_none() {
                 return Err(TxError::App(AppError::validation("اختر المورد")));
             }
+        }
+    }
+
+    if let Some(cost_center_id) = input.cost_center_id {
+        let exists = CostCenterEntity::find_live().filter(CostCenterColumn::Id.eq(cost_center_id)).one(conn).await.map_err(TxError::from)?.is_some();
+        if !exists {
+            return Err(TxError::App(AppError::validation("مركز التكلفة المختار غير موجود")));
         }
     }
 

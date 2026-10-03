@@ -8,9 +8,12 @@ use crate::core::error::AppError;
 use crate::core::lock;
 use crate::core::tx::{TxCtx, TxResult};
 use crate::entities::catalog::products::Entity as ProductEntity;
+use crate::entities::org::cost_centers::{Column as CostCenterColumn, Entity as CostCenterEntity};
+use crate::entities::org::taxes::{Column as TaxColumn, Entity as TaxEntity};
 use crate::entities::platform::activity::ActivityKind;
 use crate::entities::purchases::purchase_order_lines::{ActiveModel as PoLineActiveModel, Column as PoLineColumn, Entity as PoLineEntity};
 use crate::entities::purchases::purchase_orders::{ActiveModel as PoActiveModel, Entity as PoEntity, Model as PoModel};
+use crate::entities::soft_delete::SoftDelete;
 use crate::shared::activity;
 use crate::shared::defaults::{branch_prefix, default_cost_center_for};
 use crate::shared::numbering::{self, DocumentKind};
@@ -45,6 +48,9 @@ pub(crate) async fn validate_lines<C: ConnectionTrait>(conn: &C, supplier_id: Id
         return Err(AppError::validation("أضف صنفاً واحداً على الأقل").into());
     }
     for line in lines {
+        // `find_by_id` only (not `find_live`): a soft-deleted product may still be referenced by
+        // history, and this existing check predates the FK-validation pass below — left as-is to
+        // avoid widening scope, but noted as the same, lighter gap (2026-10-02 audit).
         let exists = ProductEntity::find_by_id(line.product_id).one(conn).await.map_err(AppError::from)?.is_some();
         if !exists {
             return Err(AppError::not_found("المنتج غير موجود").into());
@@ -54,6 +60,14 @@ pub(crate) async fn validate_lines<C: ConnectionTrait>(conn: &C, supplier_id: Id
         }
         if line.cost_price < Decimal::ZERO {
             return Err(AppError::validation("سعر التكلفة لا يمكن أن يكون سالباً").into());
+        }
+        // A bad/stale tax_id used to flow straight into `compute_purchase_totals` and the DB write
+        // with no existence check — same gap class as the products.rs `unit-piece` bug.
+        if let Some(tax_id) = line.tax_id {
+            let exists = TaxEntity::find_live().filter(TaxColumn::Id.eq(tax_id)).one(conn).await.map_err(AppError::from)?.is_some();
+            if !exists {
+                return Err(AppError::validation("الضريبة المختارة لأحد الأصناف غير موجودة").into());
+            }
         }
     }
     Ok(())
@@ -76,6 +90,13 @@ pub(crate) async fn insert_or_update_po<C: ConnectionTrait>(
     preallocated_number: Option<String>,
 ) -> TxResult<PurchaseOrder> {
     validate_lines(conn, input.supplier_id, &input.lines).await?;
+
+    if let Some(cost_center_id) = input.cost_center_id {
+        let exists = CostCenterEntity::find_live().filter(CostCenterColumn::Id.eq(cost_center_id)).one(conn).await.map_err(AppError::from)?.is_some();
+        if !exists {
+            return Err(AppError::validation("مركز التكلفة المختار غير موجود").into());
+        }
+    }
 
     let settings = crate::core::settings::load(conn).await?;
     let tax_rate = crate::shared::defaults::purchase_tax_rate(conn).await?;

@@ -9,9 +9,15 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, Query
 use crate::core::error::AppError;
 use crate::core::lock;
 use crate::core::tx::{TxCtx, TxResult};
+use crate::entities::catalog::price_lists::{Column as PriceListColumn, Entity as PriceListEntity};
+use crate::entities::org::accounts::{Column as AccountColumn, Entity as AccountEntity};
+use crate::entities::org::branches::{Column as BranchColumn, Entity as BranchEntity};
+use crate::entities::org::users::{Column as UserColumn, Entity as UserEntity};
 use crate::entities::parties::parties::{ActiveModel as PartyActiveModel, PartyContacts};
+use crate::entities::parties::party_groups::{Column as PartyGroupColumn, Entity as PartyGroupEntity};
 use crate::entities::parties::{party_history, party_phones, parties as parties_entity};
 use crate::entities::platform::activity::ActivityKind;
+use crate::entities::soft_delete::SoftDelete;
 use crate::shared::activity::{self, UndoRegistry};
 use crate::shared::numbering::{self, SequenceLock};
 use crate::utils::id::Id;
@@ -170,6 +176,45 @@ async fn save_party<C: ConnectionTrait>(
     // 1. Validation (before anything else — mock line order).
     validate_common(conn, &input.name, input.vat_number.as_deref()).await?;
     let cleaned = clean_common(&input.name, &input.name_en, &input.phone, &input.email, &input.address, &input.vat_number, &input.cr_number, &input.national_id, &input.notes);
+
+    // A bad/stale reference id here used to flow straight into the ActiveModel and rely entirely
+    // on the DB's FK constraint — same gap class as the products.rs `unit-piece` bug (2026-10-01).
+    if let Some(group_id) = parse_optional_id(&input.group_id) {
+        let exists = PartyGroupEntity::find().filter(PartyGroupColumn::Id.eq(group_id)).one(conn).await.map_err(AppError::from)?.is_some();
+        if !exists {
+            return Err(AppError::validation("المجموعة المختارة غير موجودة").into());
+        }
+    }
+    if let Some(price_list_id) = parse_optional_id(&input.price_list_id) {
+        let exists = PriceListEntity::find_live().filter(PriceListColumn::Id.eq(price_list_id)).one(conn).await.map_err(AppError::from)?.is_some();
+        if !exists {
+            return Err(AppError::validation("قائمة الأسعار المختارة غير موجودة").into());
+        }
+    }
+    if let Some(salesperson_id) = parse_optional_id(&input.salesperson_id) {
+        let exists = UserEntity::find()
+            .filter(UserColumn::Id.eq(salesperson_id))
+            .filter(UserColumn::DeletedAt.is_null())
+            .one(conn)
+            .await
+            .map_err(AppError::from)?
+            .is_some();
+        if !exists {
+            return Err(AppError::validation("مندوب المبيعات المختار غير موجود").into());
+        }
+    }
+    if let Some(branch_id) = parse_optional_id(&input.branch_id) {
+        let exists = BranchEntity::find()
+            .filter(BranchColumn::Id.eq(branch_id))
+            .filter(BranchColumn::DeletedAt.is_null())
+            .one(conn)
+            .await
+            .map_err(AppError::from)?
+            .is_some();
+        if !exists {
+            return Err(AppError::validation("الفرع المختار غير موجود").into());
+        }
+    }
 
     let kind_str = texts.kind.as_str();
 
@@ -417,7 +462,14 @@ pub async fn save_supplier<C: ConnectionTrait>(conn: &C, cx: &TxCtx, registry: &
             am.contact_person = Set(contact_person);
         }
         if let Some(acc) = &input.default_expense_account_id {
-            am.default_expense_account_id = Set(parse_optional_id(&Some(acc.clone())));
+            let account_id = parse_optional_id(&Some(acc.clone()));
+            if let Some(account_id) = account_id {
+                let exists = AccountEntity::find_live().filter(AccountColumn::Id.eq(account_id)).one(conn).await.map_err(AppError::from)?.is_some();
+                if !exists {
+                    return Err(AppError::validation("حساب المصروفات الافتراضي المختار غير موجود").into());
+                }
+            }
+            am.default_expense_account_id = Set(account_id);
         }
         am.update(conn).await.map_err(AppError::from)?
     } else {

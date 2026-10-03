@@ -9,7 +9,9 @@ use crate::core::settings::load as load_settings;
 use crate::core::tx::{TxCtx, TxError, TxResult};
 use crate::entities::journal::journal_lines::PartyKind as EntityPartyKind;
 use crate::entities::org::accounts::{Column as AccountColumn, Entity as AccountEntity};
+use crate::entities::org::cost_centers::Entity as CostCenterEntity;
 use crate::entities::parties::parties::{Column as PartyColumn, Entity as PartyEntity};
+use crate::entities::soft_delete::SoftDelete;
 use crate::shared::activity;
 use crate::shared::ledger::post::{self, AccountRef, PartyRef, PostJournal, PostingLine};
 use crate::shared::ledger::reverse::{self, MirrorDims, ReversalReason, ReverseRequest};
@@ -68,6 +70,21 @@ pub async fn validate_manual_lines<C: ConnectionTrait>(conn: &C, input: &Journal
         }
         if account.requires_cost_center.unwrap_or(false) && cost_centers_on && non_zero && line.cost_center_id.is_none() {
             return Err(TxError::App(AppError::validation(format!("السطر على حساب \"{}\" يتطلب اختيار مركز تكلفة", account.name))));
+        }
+        // A bad/stale party_id or cost_center_id must fail here with a specific message, not fall
+        // through to the generic DB FK-violation error on post (same gap class as the products.rs
+        // `unit-piece` bug, 2026-10-01/02).
+        if let Some(party_id) = line.party_id {
+            let exists = PartyEntity::find_live().filter(PartyColumn::Id.eq(party_id)).one(conn).await.map_err(TxError::from)?.is_some();
+            if !exists {
+                return Err(TxError::App(AppError::validation("العميل أو المورد المختار غير موجود")));
+            }
+        }
+        if let Some(cost_center_id) = line.cost_center_id {
+            let exists = CostCenterEntity::find_live().filter(crate::entities::org::cost_centers::Column::Id.eq(cost_center_id)).one(conn).await.map_err(TxError::from)?.is_some();
+            if !exists {
+                return Err(TxError::App(AppError::validation("مركز التكلفة المختار غير موجود")));
+            }
         }
     }
     Ok(())

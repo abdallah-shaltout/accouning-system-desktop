@@ -36,7 +36,9 @@ Edge. **If it fails**, switch to WebView2 `PrintToPdf` with the existing HTML te
 
 **Spike result (2026-09-23): PASS.** Built in `src-tauri/src/pdf/` (a `typst::World` impl, font
 embedding, QR generation) + `src-tauri/templates/invoice_spike.typ`, exercised by
-`cargo run --bin typst_spike` (writes a real PDF to `src-tauri/target/typst_spike_output.pdf`) and
+`cargo run --features smoke-bins --bin typst_spike` (writes a real PDF to
+`src-tauri/target/typst_spike_output.pdf`; the `smoke-bins` feature keeps this and the other smoke
+binaries out of a plain `cargo build --release` / `tauri build`, see `src-tauri/Cargo.toml`) and
 by a `render_pdf_spike` Tauri command. Crates: `typst`, `typst-pdf`, `typst-library`, `typst-layout`,
 `typst-syntax`, `typst-utils` (all 0.15.1), plus `qrcode` + `image` for the placeholder QR and
 `lopdf` for an independent structural check.

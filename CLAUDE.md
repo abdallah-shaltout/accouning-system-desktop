@@ -72,6 +72,7 @@ by `bun run memory` (pipeline in `scripts/memory/`: scan → parse → analyze �
 | `docs/v2/15-action-plan.md`          | Definition of done (the gates below come from here)                                      |
 | `docs/v2/02-accounting-review.md`    | Posting rules and invariants — read before touching any money logic                      |
 | `docs/v2/README.md`                  | Index of every v2 doc and the decisions already made                                     |
+| `docs/VERSIONING.md`                 | When/how to bump `package.json`/`tauri.conf.json`/`Cargo.toml`'s version — not every commit earns one |
 
 When you finish a planned task, tick its box in the plan file and add a status note at the top of the phase.
 
@@ -126,6 +127,59 @@ Every implementation plan lives in `plans/`, never loose in `docs/` or the repo 
   new finding there as a regression to fix, not a list to grow.
 - Decide on the recommended option yourself; ask only about scope-changing or irreversible choices.
 - Small, logically scoped commits. Commit only when asked or when a planned phase says so.
+- **Version bumps follow `docs/VERSIONING.md`**: bump `package.json` + `src-tauri/tauri.conf.json` +
+  `src-tauri/Cargo.toml` together, sized by the most significant change in the release batch
+  (breaking → MAJOR, `feat` → MINOR, `fix`/`perf` → PATCH). Never bump for a batch that is only
+  `docs`/`chore`/`style`/`refactor` — that file's "trash or simple" exclusion list is the actual
+  rule; this line is just the pointer to it.
+
+### Fast loop vs. release gate (measured 2026-10-01)
+
+Day-to-day work and the final release build are different jobs — use the cheap one for everything
+except the one release build.
+
+- **Day-to-day (UI/Vue/TS work):** run `bun run desktop` (`tauri dev`) once and leave it running.
+  Vite's HMR patches an edited `.vue`/`.ts` file in under a second — don't restart `tauri dev` or
+  run a full build to see a UI change.
+- **Day-to-day (Rust work, the common case while plan 21 is in progress):** don't reach for a
+  terminal `cargo check` as your primary feedback loop — editing in VS Code with rust-analyzer
+  (`.vscode/extensions.json` recommends it; `.vscode/settings.json` tunes it) already runs an
+  incremental, per-save check and underlines errors inline, without invoking `cargo-safe.ps1` or
+  the project-wide `jobs = 4` throttle at all. That inline feedback is the fast loop. Reach for a
+  manual `cargo check` through the safe wrapper (`powershell -NoProfile -File scripts/cargo-safe.ps1
+  check check --manifest-path src-tauri/Cargo.toml`) only to confirm a clean state from the CLI (for
+  example before a commit, or in a non-interactive/agent session with no editor underlines) — not
+  repeatedly while iterating. Measured: ~207s after touching one file, ~2s when nothing changed
+  (cached). `tauri dev` itself also only incrementally rebuilds Rust (debug profile, no LTO), so a
+  running `tauri dev` picks up a Rust change without a manual full build either.
+- **Before a commit:** `bun run build` (`vue-tsc --noEmit && vite build`) — catches TS errors in
+  ~40s. Cheaper to run this than to discover a type error at the end of a 15-20 minute
+  `tauri build`.
+- **`cargo build --manifest-path src-tauri/Cargo.toml` / `bun run tauri build`:** the full release
+  gate — `codegen-units = 1` + `lto = true` (`src-tauri/Cargo.toml`) make this slow on purpose, for
+  a smaller/faster shipped binary, not for iteration. Run it once, at the point the "Definition of
+  done" / Tauri-Rust-changes gate asks for it (a real `bun run desktop` check, `cargo test`,
+  `bindings:check`), not as a way to preview a UI or Rust edit.
+- **`jobs = 4` in `.cargo/config.toml` stays 4 as the project-wide default**, even though the
+  machine has more cores: a full-core cargo build froze the whole PC (2026-09-27, see the file's
+  own comment). This was re-confirmed and kept on 2026-10-01 — never raise this shared default, and
+  never pass a raised `-j`/`CARGO_BUILD_JOBS` from an agent or a background/automated run (an agent
+  can't watch the desktop and back off if it starts to choke). `bun run tauri:build:fast` (`tauri
+  build -- -j 12`, package.json) exists as an explicit, interactive, human-only opt-in for the one
+  real release build before a hand-off — run it yourself, in the foreground, able to Ctrl+C if the
+  machine struggles; don't script it or wire it into a hook/CI.
+- **Smoke/spike binaries (`typst_spike`, `pdf_smoke`, `report_smoke`, `thermal_smoke`) are gated
+  behind the `smoke-bins` Cargo feature** (`src-tauri/Cargo.toml`, 2026-10-01), the same pattern
+  `parity_host` already used for `parity`. Without this, a plain `cargo build --release` /
+  `tauri build` compiled all 4 of them in addition to `accounting-app` — each one separately
+  links the full Typst + sea-orm + tauri graph under `lto = true` + `codegen-units = 1`, turning
+  one release build into 5 full-LTO link units and was observed to crash with `rustc-LLVM ERROR:
+  out of memory`. Run one explicitly with `cargo run --features smoke-bins --bin <name>` (docs
+  12/15 reference this); never add a 5th `[[bin]]` without `required-features = ["smoke-bins"]`.
+- **Don't pipe a long build through a line-limiting command** (`| head`, `| tail -f | head`, etc.) —
+  closing that pipe early can SIGPIPE the build itself, so a truncated log looks like a clean exit
+  that never actually finished. Redirect long builds to a log file (`> file.log 2>&1`) and read the
+  file instead.
 
 ## Architecture
 

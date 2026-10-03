@@ -10,6 +10,7 @@ use crate::core::lock;
 use crate::core::tx::{TxCtx, TxError, TxResult};
 use crate::entities::journal::journal_templates::{ActiveModel, Column, Entity, RecurrenceEvery as EntityRecurrenceEvery, SyncStatus};
 use crate::entities::org::accounts::{Column as AccountColumn, Entity as AccountEntity};
+use crate::entities::parties::parties::{Column as PartyColumn, Entity as PartyEntity};
 use crate::entities::soft_delete::SoftDelete;
 use crate::shared::activity;
 use crate::shared::ledger::period::assert_open_period;
@@ -50,6 +51,15 @@ async fn validate_template_lines<C: ConnectionTrait>(conn: &C, lines: &[JournalT
         let non_zero = line.debit > Decimal::ZERO || line.credit > Decimal::ZERO;
         if account.requires_party.unwrap_or(false) && non_zero && line.party_id.is_none() {
             return Err(TxError::App(AppError::validation(format!("السطر على حساب \"{}\" يتطلب اختيار عميل أو مورد", account.name))));
+        }
+        // Template lines have no DB-level FK at all (stored as `lines_json`), so a bad party_id
+        // would otherwise never be caught — not even by the generic DB error the other domains
+        // fall back on. Must be checked explicitly here.
+        if let Some(party_id) = line.party_id {
+            let exists = PartyEntity::find_live().filter(PartyColumn::Id.eq(party_id)).one(conn).await.map_err(TxError::from)?.is_some();
+            if !exists {
+                return Err(TxError::App(AppError::validation("العميل أو المورد المختار غير موجود")));
+            }
         }
     }
     Ok(())

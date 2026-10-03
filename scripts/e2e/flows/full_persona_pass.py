@@ -154,7 +154,7 @@ def run(base: str, shots_dir: Path) -> int:
         # =========================================================================================
         # 4. Accountant's day (docs/v2/01-personas.md §3): prints the trial balance — "طباعة / PDF"
         #    opens the official document preview (letterhead, signatures); the native PDF path
-        #    (`report.typ`) is covered by `cargo run --bin report_smoke`.
+        #    (`report.typ`) is covered by `cargo run --features smoke-bins --bin report_smoke`.
         # =========================================================================================
         safe_print("[accountant] trial balance — official print preview")
         login_as(page, base, "accountant")

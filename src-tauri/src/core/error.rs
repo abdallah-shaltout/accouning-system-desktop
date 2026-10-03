@@ -175,9 +175,13 @@ impl From<DbErr> for AppError {
                 AppError::conflict("بيانات هذه العملية قيد التعديل من جهاز آخر — حاول مرة أخرى")
             }
             Some(MYSQL_ERRNO_DUPLICATE_KEY) => AppError::conflict("هذا السجل موجود بالفعل"),
-            Some(MYSQL_ERRNO_ROW_IS_REFERENCED) | Some(MYSQL_ERRNO_NO_REFERENCED_ROW) => {
-                AppError::conflict("لا يمكن إتمام العملية لارتباطها ببيانات أخرى")
-            }
+            // 1451: this row is the PARENT — something else still references it, so it can't be
+            // deleted/changed. 1452: this row is the CHILD — it points at a parent id that doesn't
+            // exist (a stale/bad foreign key on the write itself). Conflating these two used to
+            // surface the same unhelpful message for both a "still in use" delete and a "bad
+            // reference" insert/update — see the `unit-piece` bug (products.createProduct, 2026-10-01).
+            Some(MYSQL_ERRNO_ROW_IS_REFERENCED) => AppError::conflict("لا يمكن إتمام العملية لارتباطها ببيانات أخرى"),
+            Some(MYSQL_ERRNO_NO_REFERENCED_ROW) => AppError::validation("أحد الحقول المختارة (تصنيف/وحدة/ضريبة/حساب/مورد) غير موجود — أعد تحميل الصفحة وحاول مرة أخرى"),
             Some(MYSQL_ERRNO_DEADLOCK) => {
                 // Should be intercepted by with_tx's retry loop before it ever reaches here; if it
                 // doesn't (e.g. a read-only helper calling this From directly), surface it as a

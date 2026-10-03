@@ -392,6 +392,7 @@ export interface IpcCommands {
   core_backend_status: { args: undefined; returns: BackendStatus };
   setup_inspect_legacy_snapshot: { args: SetupInspectLegacySnapshotArgs; returns: LegacySnapshotSummary };
   setup_import_snapshot: { args: SetupImportSnapshotArgs; returns: ImportSnapshotResult };
+  setup_wipe_business_data: { args: undefined; returns: null };
   settings_backup_settings: { args: undefined; returns: BackupSettings };
   settings_save_backup_settings: { args: SettingsSaveBackupSettingsArgs; returns: BackupSettings };
   settings_preview_backup_counts: { args: undefined; returns: Record<string, number> };

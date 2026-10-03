@@ -19,7 +19,7 @@ import { resolvedTheme, toggleTheme } from '../../controllers/useTheme';
 import { useKeyboardShortcutsSheet } from '../../controllers/useKeyboardShortcutsSheet';
 import { reloadDemoData as reloadDemoDataService, resetToEmpty } from '../../services/devToolsService';
 import { usesRust } from '../../services/backend';
-import { canWipeBusinessData, wipeBusinessData } from '@/modules/setup/services/legacyImportService';
+import { wipeBusinessData } from '@/modules/setup/services/legacyImportService';
 import {
   SidebarMenu,
   SidebarMenuButton,

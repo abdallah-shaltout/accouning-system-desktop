@@ -27,6 +27,13 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [features]
 # Plan 21 Part 04 B-2: `parity_host` only (see its [[bin]] entry below).
 parity = ["tauri/test"]
+# 2026-10-01 (dev-speed fix): gates the manual smoke/spike binaries below. Without this, a plain
+# `cargo build --release` / `tauri build` compiled all 4 of them too — each one separately links
+# the full Typst + sea-orm + tauri dependency graph under release's `lto = true` +
+# `codegen-units = 1`, which turned one release build into 5 full-LTO link units and was observed
+# to exhaust LLVM's memory (`rustc-LLVM ERROR: out of memory`) on a `tauri build`. Run a smoke
+# binary explicitly with `cargo run --features smoke-bins --bin pdf_smoke` (etc.) when needed.
+smoke-bins = []
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -156,18 +163,22 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 [[bin]]
 name = "typst_spike"
 path = "src/bin/typst_spike.rs"
+required-features = ["smoke-bins"]
 
 [[bin]]
 name = "pdf_smoke"
 path = "src/bin/pdf_smoke.rs"
+required-features = ["smoke-bins"]
 
 [[bin]]
 name = "report_smoke"
 path = "src/bin/report_smoke.rs"
+required-features = ["smoke-bins"]
 
 [[bin]]
 name = "thermal_smoke"
 path = "src/bin/thermal_smoke.rs"
+required-features = ["smoke-bins"]
 
 # Plan 21 Part 04 B-2/B-4: the parity host runs the app's real command list on Tauri's
 # `MockRuntime` (`tauri::test`), for `bun run parity`. Built only with `--features parity`, so a
